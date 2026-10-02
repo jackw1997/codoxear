@@ -1,0 +1,45 @@
+{
+  "module": {
+    "name": "updater",
+    "type": "feature",
+    "description": "$string:app_name",
+    "mainElement": "UpdaterAbility",
+    "deviceTypes": [
+      "phone",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "pages": "$profile:main_pages",
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET"
+      },
+      {
+        "name": "ohos.permission.GET_NETWORK_INFO"
+      }
+    ],
+    "abilities": [
+      {
+        "name": "UpdaterAbility",
+        "srcEntry": "./ets/UpdaterAbility.ets",
+        "description": "$string:app_name",
+        "icon": "$media:app_icon",
+        "label": "$string:updater_name",
+        "startWindowIcon": "$media:app_icon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "ohos.want.action.home"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

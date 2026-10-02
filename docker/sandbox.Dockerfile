@@ -23,6 +23,7 @@ RUN python3 -m pip install --no-cache-dir \
         Pillow>=9.0 \
         py-vapid>=1.9.2 \
         pywebpush>=2.3.0 \
+        'websockets>=14,<17' \
         pytest \
         "tinycss2>=1.3"
 

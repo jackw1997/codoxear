@@ -44,6 +44,12 @@ def handle_voice_get_route(
         )
         return True
 
+    if path == "/api/notifications/harmony":
+        if not _authorized(handler, deps):
+            return True
+        deps.json_response(handler, 200, {"ok": True, **voice_push.harmony_push.status()})
+        return True
+
     if path == "/api/notifications/subscription":
         if not _authorized(handler, deps):
             return True
@@ -134,6 +140,21 @@ def handle_voice_post_route(
             deps.json_response(handler, 400, {"error": str(e)})
             return True
         deps.json_response(handler, 200, {"ok": True, "prompt": saved, "default_prompt": deps.default_unattended_prompt})
+        return True
+
+    if path == "/api/notifications/harmony":
+        if not _authorized(handler, deps):
+            return True
+        obj = deps.read_json_body(handler)
+        if not isinstance(obj.get("enabled"), bool):
+            deps.json_response(handler, 400, {"error": "enabled must be a boolean"})
+            return True
+        try:
+            payload = voice_push.harmony_push.register(obj) if obj["enabled"] else voice_push.harmony_push.unregister(obj)
+        except ValueError as error:
+            deps.json_response(handler, 400, {"error": str(error)})
+            return True
+        deps.json_response(handler, 200, {"ok": True, **payload})
         return True
 
     if path == "/api/notifications/subscription":

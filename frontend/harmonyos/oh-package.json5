@@ -1,0 +1,8 @@
+{
+  "modelVersion": "6.0.0",
+  "name": "codoxear-harmonyos",
+  "version": "0.1.0",
+  "description": "Codoxear native HarmonyOS client",
+  "dependencies": {},
+  "devDependencies": {}
+}

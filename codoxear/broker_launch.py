@@ -14,6 +14,7 @@ from pathlib import Path
 
 from codoxear.agent_backend import normalize_agent_backend
 from codoxear.util import default_app_dir as _default_app_dir
+from codoxear.util import find_session_log_for_session_id as _find_session_log_for_session_id
 from codoxear.util import read_session_meta_payload as _read_session_meta_payload
 
 
@@ -56,7 +57,14 @@ def _resume_session_id_from_args(args: list[str], *, agent_backend: str) -> str 
 
 
 def _session_log_path_from_args(*, args: list[str], agent_backend: str, sessions_dir: Path) -> Path | None:
-    if normalize_agent_backend(agent_backend) != "pi":
+    backend = normalize_agent_backend(agent_backend)
+    if backend == "cc":
+        # Claude may close the resumed transcript until its first new turn.
+        # Bind the explicitly requested existing log, so history is available
+        # before another prompt; freshness discovery intentionally excludes it.
+        resume_id = _resume_session_id_from_args(args, agent_backend=backend)
+        return _find_session_log_for_session_id(sessions_dir, resume_id, agent_backend=backend) if resume_id else None
+    if backend != "pi":
         return None
     for idx, token in enumerate(args):
         if token != "--session":

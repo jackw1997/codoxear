@@ -312,3 +312,34 @@ def test_voice_routes_preserve_auth_failure_short_circuit() -> None:
     assert handle_voice_get_route(handler, path="/api/settings/voice", query="", voice_push=voice, deps=deps) is True
     assert handler.unauthorized is True
     assert responses == []
+
+
+def test_harmony_routes_require_authentication_before_reading_or_writing(tmp_path):
+    from codoxear.voice_harmony_push import HarmonyPush
+    voice = _FakeVoicePush()
+    voice.harmony_push = HarmonyPush(tmp_path / 'push.json', account_path='')
+    deps, responses = _deps(auth=False, body={'enabled': True})
+    for verb in ('get', 'post'):
+        handler = _FakeHandler()
+        if verb == 'get':
+            assert handle_voice_get_route(handler, path='/api/notifications/harmony', query='', voice_push=voice, deps=deps)
+        else:
+            assert handle_voice_post_route(handler, path='/api/notifications/harmony', voice_push=voice, deps=deps)
+        assert handler.unauthorized
+    assert not responses and not voice.harmony_push.path.exists()
+
+
+def test_harmony_routes_report_configuration_and_validate_toggle(tmp_path):
+    from codoxear.voice_harmony_push import HarmonyPush
+    voice = _FakeVoicePush()
+    voice.harmony_push = HarmonyPush(tmp_path / 'push.json', account_path='')
+    deps, responses = _deps()
+    assert handle_voice_get_route(_FakeHandler(), path='/api/notifications/harmony', query='', voice_push=voice, deps=deps)
+    assert responses[-1][0] == 200 and responses[-1][1]['configured'] is False
+    for enabled in ('true', None, 1):
+        deps, responses = _deps(body={'enabled': enabled})
+        handle_voice_post_route(_FakeHandler(), path='/api/notifications/harmony', voice_push=voice, deps=deps)
+        assert responses[-1] == (400, {'error': 'enabled must be a boolean'})
+    deps, responses = _deps(body={'enabled': False, 'device_id': 'a' * 32, 'token': 'fake', 'server': 'https://example.test/api/me'})
+    handle_voice_post_route(_FakeHandler(), path='/api/notifications/harmony', voice_push=voice, deps=deps)
+    assert responses[-1] == (200, {'ok': True, 'registered': False})

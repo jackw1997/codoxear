@@ -1,0 +1,12 @@
+oh_modules/
+.hvigor/
+.idea/
+build/
+local.properties
+*.p12
+*.p7b
+*.cer
+node_modules/
+
+# Local signing configuration; copy build-profile.example.json5 on a fresh checkout.
+/build-profile.json5

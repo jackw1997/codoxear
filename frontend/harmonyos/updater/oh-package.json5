@@ -1,0 +1,1 @@
+{"name": "updater", "version": "0.1.0", "dependencies": {"libhdc_z.so": "file:./src/main/cpp/types/libhdc_z"}}

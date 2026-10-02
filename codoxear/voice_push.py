@@ -55,6 +55,7 @@ from .voice_ledger import set_task_error
 from .voice_ledger import trim_delivery_ledger
 from .voice_task_queue import enqueue_announcement_task
 from .voice_task_queue import voice_for_session
+from .voice_harmony_push import HarmonyPush
 from .voice_webpush import ensure_vapid_public_key
 from .voice_webpush import push_payload_json
 from .voice_webpush import send_web_push_notifications
@@ -103,6 +104,7 @@ class VoicePushCoordinator:
         self._stop = stop_event
         self._settings_path = Path(settings_path)
         self._subscriptions_path = Path(subscriptions_path)
+        self.harmony_push = HarmonyPush(self._app_dir / "harmony_push_subscriptions.json")
         self._delivery_ledger_path = Path(delivery_ledger_path)
         self._vapid_private_key_path = Path(vapid_private_key_path)
         self._hls = MergedHLSStream(root_dir=self._app_dir / "audio")
@@ -609,9 +611,6 @@ class VoicePushCoordinator:
                 for item in self._subscriptions.values()
                 if item.get("notifications_enabled") and item.get("device_class") == "mobile"
             ]
-        if not subscriptions:
-            self._set_ledger_field(message_id, "push_status", "skipped")
-            return
         payload = push_payload_json(
             session_id=session_id,
             session_display_name=session_display_name,
@@ -624,8 +623,12 @@ class VoicePushCoordinator:
             private_key_path=self._vapid_private_key_path,
             vapid_subject=self._vapid_subject,
             payload_json=payload,
-        )
-        any_success = False
+        ) if subscriptions else []
+        native_outcomes = self.harmony_push.send(json.loads(payload))
+        if not outcomes and not native_outcomes:
+            self._set_ledger_field(message_id, "push_status", "skipped")
+            return
+        any_success = any(outcome.success for outcome in native_outcomes)
         for outcome in outcomes:
             if outcome.success:
                 self._mark_subscription_success(record_id=outcome.record_id, now_ts=outcome.timestamp)

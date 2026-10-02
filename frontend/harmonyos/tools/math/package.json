@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "mathjax-full": "3.2.2"
+  },
+  "name": "codoxear-native-math-vendor",
+  "version": "1.0.0",
+  "private": true
+}

@@ -39,7 +39,8 @@ RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 RUN python3 -m pip install --no-cache-dir \
         'Pillow>=9.0' \
         'py-vapid>=1.9.2' \
-        'pywebpush>=2.3.0'
+        'pywebpush>=2.3.0' \
+        'websockets>=14,<17'
 
 RUN groupadd --gid "${HOST_GID}" tester \
     && useradd --uid "${HOST_UID}" --gid "${HOST_GID}" --create-home --shell /usr/bin/zsh tester \

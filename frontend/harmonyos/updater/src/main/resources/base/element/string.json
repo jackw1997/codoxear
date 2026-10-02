@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "Codoxear"
+    },
+    {
+      "name": "updater_name",
+      "value": "Codoxear 更新"
+    }
+  ]
+}

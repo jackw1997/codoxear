@@ -272,3 +272,10 @@ Backend-specific session logs live under the backend home:
 ## License
 
 MIT, see `LICENSE`.
+
+## Native clients
+
+The HarmonyOS client lives in [`frontend/harmonyos`](frontend/harmonyos/README.md).
+Open that directory in DevEco Studio; the Python server and bundled web client
+remain under `codoxear/`. The native client is in development and full parity
+is not yet accepted.
