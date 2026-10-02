@@ -23,12 +23,16 @@ Credentials are not included in artifacts or source control.
 Native automation uses the DevEco HarmonyOS 6.1.1/API 24 simulator.
 Debug signing and installation succeeded on a physical HOP-AL10 phone
 (HarmonyOS 6.1.0.135, API24) on 2026-10-02. Login, restored user messages and
-Session Details were exercised on that phone. Later custom dropdown, math
-highlight and draft updates have not yet been installed on it. Current UI
-automation uses only dedicated target 127.0.0.1:15558; other emulators and the
-phone remain reserved for the user. Release signing and AppGallery test
-distribution are pending Huawei account login; the prepared unsigned release
-artifact is not installable. Full physical-device acceptance remains open.
+Session Details were exercised on that phone. The later dropdown, math-highlight
+and draft build was subsequently installed, including a cellular download and
+on-phone replacement install through the companion updater. That test still
+had USB connected for observation; unplugged/rebooted update acceptance remains
+open. Current automation uses only dedicated target 127.0.0.1:15558; other
+emulators and the phone remain reserved for the user. A signed release was
+submitted to AppGallery invitation testing on October 2. The last authenticated
+check showed pending review; on October 3 the console login expired and the
+invitation still did not allow installation. Full physical-device acceptance
+and market-distributed installation remain open.
 
 Screenshots are raw simulator captures. Evidence boards embed these captures
 inside explicitly schematic device frames; the frames do not claim to be
@@ -39,7 +43,7 @@ physical photographs or exact device bezel dimensions.
 | Area | Implemented and exercised | Required work still open |
 | --- | --- | --- |
 | Authentication | Endpoint-scoped login/logout; real HTTP 401 returns to login and preserves four-line local draft; stale cookie/401 isolation model tests; real 503 reconnect; rejected offline send preserves multiline draft across restart and explicit retry delivers once; 120s outage keeps editable draft, background/return and automatic reconnect preserve it without auto-send | Remaining recovery interaction parity |
-| Session list | Catalog, selected session, rename, theme persistence; native swipe Edit/Duplicate actions and badges; removed selected sessions clear stale controls while retaining local drafts | Ordering/group parity |
+| Session list | Catalog, selected session, rename, theme persistence; native swipe Edit/Duplicate actions and badges; removed selected sessions clear stale controls while retaining local drafts; Now/Waiting/Later order, priority/timestamp/ID ordering, dependency/snooze precedence and clearing, automatic snooze expiry and empty-group removal verified in the native list | Physical-device acceptance |
 | Launch | Backend/provider/model/effort/fast/resume/worktree/tmux form; provider/model restart persistence; all three backend launch failure/dismissal; actual Pi/Codex/Claude tmux creation, deletion and explicit resume with old history and real new replies | Start-fresh environment and metadata-delay edge cases |
 | Session edits | Name, priority, snooze, dependency controls; actual 4-hour Later grouping and Waiting dependency/clear; priority limits/reset, custom-date validation/save/reopen, tomorrow at local 09:00 and clearing snooze verified | Exact web interaction parity |
 | Conversation | Real server tail, send acknowledgment, SSE; native Marked parsing with nested styles, GFM tables/tasks, links and local image | Remaining Markdown completeness, embedded media and scroll edge cases |
@@ -54,7 +58,7 @@ physical photographs or exact device bezel dimensions.
 | Git | Changed files and actual HEAD diff; tracked raw-byte text/binary and nested untracked paths verified | Exact theme diff layout and remaining path cases |
 | PDF | Native PDFKit render, text search, page controls, zoom interaction; fullscreen rotation retains page; switching PDFs reloads the controller; 240-page last-page search; corrupt-file errors and encrypted-password retry/unlock/switch | Remaining PDF interaction parity |
 | Images/video | Authenticated inline image and file preview; image zoom/fit controls; H.264 native playback paused at 1 s, aspect ratio preserved; image fullscreen/zoom and editor rotation continuity verified; actual pinch/pan/double-tap; PNG/PDF/MP4 system export byte integrity; video pause/resume, rotation, background return and file switching; damaged image/video errors and switching back to valid media | Remaining format compatibility |
-| Appearance | Clay/slate/paper light/dark; six-mode icon/underline contrast pixel checks; local persistence; actual OS light/dark transitions and explicit override; all seven dropdowns use reusable native ArkUI custom controls, six palettes and keyboard selection/dismissal verified | Component geometry, custom style translation, 1:1 screenshot comparison |
+| Appearance | Clay/slate/paper light/dark; six-mode icon/underline contrast pixel checks; group-title pixels match computed web colors and backend-logo contrast verified; local persistence; actual OS light/dark transitions and explicit override; all seven dropdowns use reusable native ArkUI custom controls, six palettes and keyboard selection/dismissal verified | Component geometry, custom style translation, 1:1 screenshot comparison |
 | Voice | Native AVPlayer authenticated HLS reached playing with generated silence; listener/logout races; native Save/Cancel, blank credential preservation, explicit clear and masked reopen across restarts | Real TTS speech and reconnect/interruption |
 | Notifications | Native permission, foreground delivery, warm tap and cold-start login routing verified in system shade; native PushKit and authenticated backend registration implemented; token ownership/race and provider-contract tests; logout/permission race test | Signed Huawei project/WORK entitlement and real background/offline provider delivery |
 | Unattended | Session/global configuration, validation, rejected Save retains fields and server state, explicit retry, rejected automatic injection consumes no budget; two successful injections 60.26 seconds apart, native form shows zero/disabled after depletion | Remaining cross-session interaction parity |
@@ -505,3 +509,29 @@ No HAP change/reinstallation is required. Existing embedded-TUI sessions still n
   with typing/login. This follows server timestamp/last-writer semantics; it is
   not collaborative character-level merging. Debug SDK build and unsigned
   release APP packaging both passed with this change.
+
+## Catalog appearance and refresh (2026-10-03)
+
+A dedicated disposable Docker server on loopback 19754 supplied four synthetic
+sessions to emulator 15558 and the real web client. Native UI assertions checked
+Now/Waiting/Later group order, priority order, automatic refresh after an external
+priority change, clearing a dependency and snooze, and removal of empty headers.
+Further checks exercised dependency precedence over snooze, automatic snooze
+expiry, newest transcript time, newest start time on a transcript-time tie, and
+stable session-ID order when both timestamps tied. Timestamp fixtures append
+valid log records; rewriting equal-length logs is not a supported live-log test.
+The fixture does not establish model inference or backend launch behavior.
+
+The native group title previously used the general muted text color. It now
+uses the web `text-subtle` token. Screenshots verified all three headings against
+actual browser computed colors in Clay, Paper and Slate, light and dark.
+
+The logo generator also treated only `invert(1)` as an inversion, while the web
+uses `invert(0.92)`. Dark backend marks were consequently nearly black. It now
+bakes the fractional inversion into the SVG fill/stroke and retains opacity.
+The SDK build and emulator replacement install passed; native screenshot checks
+cover Codex, Pi and Claude marks in all six palettes. This verifies their color
+and visibility, not full layout or pixel parity of the entire screen.
+
+Local evidence: `artifacts/harmonyos/catalog-20261003/` in the agent workspace,
+including `web-colors.json`, before/after screenshots, native UI drivers and logs.

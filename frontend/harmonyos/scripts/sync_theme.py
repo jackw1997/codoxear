@@ -28,10 +28,15 @@ for family in ['clay','paper','slate']:
         # Bake the same web monochrome treatment into theme-specific vectors.
         icon_dir = root/f'frontend/harmonyos/entry/src/main/resources/rawfile/logos/{family}-{mode}'
         icon_dir.mkdir(parents=True, exist_ok=True)
+        # The web first makes every pixel black, then applies fractional invert.
+        # Dark themes use invert(0.92), not invert(1).
+        invert = re.search(r'invert\(([\d.]+)\)', values['icon-muted-filter'])
+        level = round(255 * float(invert[1])) if invert else 0
+        monochrome = '#' + f'{level:02x}' * 3
         for backend in ['codex', 'pi', 'cc']:
             svg = (root/f'codoxear/static/logos/{backend}.svg').read_text()
             svg = re.sub(r'<defs>.*?</defs>', '', svg, flags=re.S)
-            svg = re.sub(r'(fill|stroke)="(?!none")[^"]+"', lambda m: f'{m[1]}="{"#ffffff" if "invert(1)" in values["icon-muted-filter"] else "#000000"}"', svg)
+            svg = re.sub(r'(fill|stroke)="(?!none")[^"]+"', lambda m: f'{m[1]}="{monochrome}"', svg)
             opacity = re.search(r'opacity\(([^)]+)\)', values['icon-muted-filter'])
             svg = svg.replace('<svg ', f'<svg opacity="{opacity[1] if opacity else 1}" ', 1)
             (icon_dir/f'{backend}.svg').write_text(svg)

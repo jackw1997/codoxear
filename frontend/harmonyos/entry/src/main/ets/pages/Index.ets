@@ -630,7 +630,7 @@ struct Index {
           if (this.workspace.sessions.some((row: Session) => sessionGroup(row) === index)) {
             ListItem() {
               Row() {
-                Text(group.toUpperCase()).fontSize(11).fontWeight(FontWeight.Bold).letterSpacing(0.88).fontColor(this.colors.muted)
+                Text(group.toUpperCase()).fontSize(11).fontWeight(FontWeight.Bold).letterSpacing(0.88).fontColor(themeVariables(this.colors.family, this.colors.mode === 'dark')['text-subtle'])
                 Blank()
                 Text(this.workspace.sessions.filter((row: Session) => sessionGroup(row) === index).length.toString()).fontSize(11).fontColor(this.colors.ink).padding({ left: 7, right: 7, top: 1, bottom: 1 }).border({ width: 1, color: themeVariables(this.colors.family, this.colors.mode === 'dark')['border-count'] }).borderRadius(this.colors.family === 'paper' ? 0 : 99).backgroundColor(this.colors.family === 'slate' ? Color.Transparent : this.colors.subtle)
               }.width('100%').padding({ top: 10, bottom: 0, left: 4, right: 4 })
