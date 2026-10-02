@@ -52,7 +52,7 @@ class TestBackendLaunchAdapter(unittest.TestCase):
             model="gpt-codex",
             **kwargs,
         )
-        self.assertEqual(codex, {"model_provider": "custom", "preferred_auth_method": "apikey", "reasoning_effort": "high", "service_tier": "fast"})
+        self.assertEqual(codex, {"model": "gpt-codex", "model_provider": "custom", "preferred_auth_method": "apikey", "reasoning_effort": "high", "service_tier": "fast"})
         pi = get_agent_backend("pi").normalize_launch_request_options(
             {"model_provider": "macaron", "reasoning_effort": "high"},
             model="gpt-pi",

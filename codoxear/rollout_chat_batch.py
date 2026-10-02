@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .codex_user import codex_retained_user_text
+
 from typing import Any
 
 from .cc_log import cc_assistant_thinking_count
@@ -65,6 +67,9 @@ def _extract_chat_events(
             if event is not None:
                 events.append(event)
 
+        if codex_retained_user_text(obj):
+            turn_start = True
+            continue
         if typ == "user":
             user_text = cc_user_text(obj)
             if isinstance(user_text, str) and user_text:

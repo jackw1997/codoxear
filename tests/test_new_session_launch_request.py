@@ -6,6 +6,20 @@ from codoxear.server import _parse_new_session_launch_request
 
 
 class TestNewSessionLaunchRequest(unittest.TestCase):
+    def test_codex_uses_known_model_id_casing_only_for_openai(self) -> None:
+        defaults = {"model_providers": ["chatgpt", "openai-api", "custom"],
+                    "model_provider": "openai", "models": ["gpt-6-astra"]}
+        with patch("codoxear.server._read_codex_launch_defaults", return_value=defaults):
+            for provider, supplied, expected in (
+                ("openai", "GPT-6-Astra", "gpt-6-astra"),
+                ("openai", "gpt-6-astra", "gpt-6-astra"),
+                ("custom", "GPT-6-Astra", "GPT-6-Astra"),
+                ("openai", "UnknownModel", "UnknownModel"),
+            ):
+                req = _parse_new_session_launch_request({"agent_backend": "codex", "cwd": "/repo",
+                                                        "model_provider": provider, "model": supplied})
+                self.assertEqual(req.model, expected)
+
     def test_parses_codex_launch_fields(self) -> None:
         with patch("codoxear.server._read_codex_launch_defaults", return_value={"model_providers": ["chatgpt", "openai-api", "crs"]}):
             req = _parse_new_session_launch_request(

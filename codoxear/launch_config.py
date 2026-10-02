@@ -657,6 +657,7 @@ def parse_new_session_launch_request(
         pi_launch_defaults_provider=pi_launch_defaults_provider,
     )
     model_provider = options["model_provider"]
+    model = options.get("model", model)
     preferred_auth_method = options["preferred_auth_method"]
     reasoning_effort = options["reasoning_effort"]
     service_tier = options["service_tier"]

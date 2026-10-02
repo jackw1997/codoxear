@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .codex_user import codex_retained_user_text
+
 from .pi_log import pi_log_row_is_transcript_excluded
 
 import threading
@@ -281,6 +283,10 @@ def _codex_prior_open_turn_context(
             boundary_kind = None
             break
         obj = record.obj
+        if codex_retained_user_text(obj):
+            boundary_kind = "user"
+            boundary_user_byte = record.start
+            break
         if obj.get("type") == "event_msg":
             payload = obj.get("payload")
             pt = payload.get("type") if isinstance(payload, dict) else None

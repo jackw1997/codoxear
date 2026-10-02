@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .codex_user import codex_retained_user_text
+
 from typing import Any
 
 from .cc_log import cc_assistant_is_final_turn_end
@@ -28,6 +30,8 @@ from .rollout_events import _text_message_id
 
 
 def _sidebar_conversation_ts(obj: dict[str, Any]) -> float | None:
+    if codex_retained_user_text(obj):
+        return _event_ts(obj)
     typ = obj.get("type")
     if typ == "event_msg":
         p = obj.get("payload")
@@ -206,6 +210,9 @@ def _detect_codex_no_response_closes(records: list[Any]) -> list[tuple[int, int,
     user_byte: int | None = None
     for record in records:
         obj = record.obj
+        if codex_retained_user_text(obj):
+            user_byte = record.start
+            continue
         if obj.get("type") != "event_msg":
             continue
         payload = obj.get("payload")
@@ -295,6 +302,10 @@ def _inject_no_response_events(
     for record in records:
         obj = record.obj
         typ = obj.get("type")
+        if codex_retained_user_text(obj):
+            user_byte = record.start
+            user_from_prior = False
+            continue
         if typ == "event_msg":
             payload = obj.get("payload")
             if not isinstance(payload, dict):

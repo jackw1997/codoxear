@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from ..subagent_events import emit_subagent_event
+from ..codex_user import codex_retained_user_text
 from .base import AgentBackend, _SESSION_ID_RE
 
 
@@ -36,6 +37,13 @@ class CodexBackend(AgentBackend):
 
         row = dict(obj)
         typ = row.get("type")
+        retained_user = codex_retained_user_text(row)
+        if retained_user is not None:
+            event = {"role": "user", "text": retained_user}
+            ts = _event_ts(row)
+            if ts is not None:
+                event["ts"] = ts
+            return event
         if typ == "session_meta":
             payload = row.get("payload")
             source = payload.get("source") if isinstance(payload, dict) else None
@@ -106,6 +114,19 @@ class CodexBackend(AgentBackend):
                     event["ts"] = ts
                 return event
             if payload_type in ("task_complete", "turn_complete"):
+                # Current Codex embeds terminal failures on the close record,
+                # without a separate event_msg.error.
+                failure = payload.get("error")
+                text = _codex_event_text(failure) if isinstance(failure, dict) else None
+                if text:
+                    ts = _event_ts(row)
+                    event = {
+                        "role": "assistant", "text": text, "message_class": "error",
+                        "message_id": _text_message_id(message_class="error", text=text, ts=ts),
+                    }
+                    if ts is not None:
+                        event["ts"] = ts
+                    return event
                 # Codex carries the final assistant text on the turn-close row
                 # via last_agent_message. Project it as a visible final_response
                 # transcript message (mirroring how idle/sidebar treat it as
@@ -173,12 +194,24 @@ class CodexBackend(AgentBackend):
         codex_launch_defaults_provider: Callable[[], dict[str, Any]],
         pi_launch_defaults_provider: Callable[[], dict[str, Any]],
     ) -> dict[str, str | None]:
-        allowed_providers = set(codex_launch_defaults_provider().get("model_providers") or ["openai"])
+        defaults = codex_launch_defaults_provider()
+        allowed_providers = set(defaults.get("model_providers") or ["openai"])
         model_provider = normalize_model_provider(
             obj.get("model_provider"),
             allowed=set(["openai", *[p for p in allowed_providers if p not in {"chatgpt", "openai-api"}]]),
         )
+        # Clients can remember a display-cased model from another server.
+        # Resolve only known OpenAI IDs; custom providers retain their casing.
+        if model and (model_provider or defaults.get("model_provider") or "openai") == "openai":
+            provider_models = defaults.get("provider_models") or {}
+            known = [*provider_models.get("chatgpt", []), *provider_models.get("openai-api", [])]
+            if defaults.get("model_provider", "openai") == "openai":
+                known.extend(defaults.get("models") or [])
+            matches = {value for value in known if isinstance(value, str) and value.casefold() == model.casefold()}
+            if len(matches) == 1:
+                model = matches.pop()
         return {
+            "model": model,
             "model_provider": model_provider,
             "preferred_auth_method": normalize_preferred_auth_method(obj.get("preferred_auth_method")),
             "reasoning_effort": normalize_reasoning_effort(obj.get("reasoning_effort")),

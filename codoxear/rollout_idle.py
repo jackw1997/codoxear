@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .codex_user import codex_retained_user_text
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -118,6 +120,9 @@ def _analyze_log_chunk(
                 or pi_assistant_thinking_count(obj) > 0
             ):
                 turn_open = True
+            continue
+        if codex_retained_user_text(obj):
+            open_on_user_message(reset_counters=True)
             continue
         if typ == "user":
             if cc_user_text(obj):
@@ -338,6 +343,10 @@ def _compute_idle_from_log(path: Path, max_scan_bytes: int = 8 * 1024 * 1024) ->
                         cc_terminal_without_context = True
                     idle = True
                 continue
+            if codex_retained_user_text(obj):
+                saw_terminal_signal = True
+                idle = False
+                continue
             if typ == "event_msg":
                 p = obj.get("payload")
                 if not isinstance(p, dict):
@@ -457,6 +466,9 @@ def _last_chat_role_ts_from_tail(
                 if cc_assistant_text(obj) or _cc_message_keeps_turn_busy(obj):
                     remember_assistant(i, _event_ts(obj), final=cc_assistant_is_final_turn_end(obj))
                     continue
+            if codex_retained_user_text(obj):
+                last_user = (i, _event_ts(obj))
+                continue
             if typ == "event_msg":
                 p = obj.get("payload")
                 if not isinstance(p, dict):
