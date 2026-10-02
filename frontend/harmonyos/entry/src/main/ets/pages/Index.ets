@@ -796,7 +796,9 @@ struct Index {
             HintTarget({ label: 'Message', scope: 'chat', preferred: 'i', activate: () => { focusControl.requestFocus('message-input'); } }) {
             TextArea({ placeholder: 'Message', text: this.workspace.draft }).id('message-input').placeholderColor(this.colors.muted).width('100%').constraintSize({ minHeight: 40, maxHeight: 180 })
               .fontSize(16).fontColor(this.colors.text).backgroundColor(Color.Transparent).padding(10).borderRadius(0)
-              .maxLines(7, { overflowMode: MaxLinesMode.SCROLL }).enterKeyType(EnterKeyType.NEW_LINE)
+              // ArkUI requires explicit textOverflow for maxLines scrolling to take effect.
+              .maxLines(7, { overflowMode: MaxLinesMode.SCROLL }).textOverflow(TextOverflow.Clip)
+              .enterKeyType(EnterKeyType.NEW_LINE)
               .onChange((text: string, preview: PreviewText) => { this.composingText = !!preview.value; this.commandIndex = -1; this.commandHidden = false; this.workspace.setDraft(text); })
               .onFocus(() => { this.composerFocused = true; this.nativeHints.focus('message-input'); }).onBlur(() => { this.composerFocused = false; this.nativeHints.blur('message-input'); this.composerMeta = false; })
               .onKeyPreIme((event: KeyEvent): boolean => this.composerKey(event))
