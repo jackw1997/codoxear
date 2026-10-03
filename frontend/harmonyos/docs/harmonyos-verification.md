@@ -543,3 +543,29 @@ including `web-colors.json`, before/after screenshots, native UI drivers and log
 - SDK build and install passed. `tests/native_composer_overflow.py` passed against a dedicated Docker fixture on loopback19754: short-to-multiline growth, capped height, scrollability, appended Chinese/emoji, long wrapped paragraphs, shrink after replacement, independent server draft readback, force-stop restoration and no message submission.
 - Actual screenshots visually confirm scrolling to Line01 and back to Line25/LAST LINE, caret visibility above the system keyboard, and WRAPPED END with the keyboard hidden. Screenshots and build/test logs are in local artifacts/harmonyos/composer-20261003.
 - The phone was absent. Same-identity signed entry HAP retained versionCode10000 for the existing updater; delivered for phone acceptance. No server deployment or real model call was needed.
+
+## Remembered native login — 2026-10-03
+
+- Login offers `Remember password`, selected by default. The last successful
+  endpoint/password pair is stored in the OS Asset Store SECRET, scoped to this
+  app and readable while the device is unlocked. Plain preferences retain only
+  the server address and existing appearance settings. Cookies stay in memory.
+- Startup restores only the exact normalized endpoint. A temporary server
+  failure retains the credential for explicit retry, while HTTP 401 removes it.
+  Editing the server clears the password field. Logout removes the secret before
+  network cleanup, and opting out does not save it. Serialized vault writes make
+  logout removal win over an in-flight save.
+- `saved_login_behavior.cjs` executes the real service with the OS boundary
+  mocked: Unicode, endpoint/port/protocol/path isolation, replacement, asset size
+  limit, OS errors, removal, and concurrent save/logout ordering passed.
+- `native_saved_login.py` uses owned emulator 15558 and a disposable Docker proxy
+  on 19754. Actual Asset Store save, force-stop restart auto-login, same-identity
+  HAP replacement, 503 retry without retyping, offline logout, opt-out, and 401
+  cleanup passed. Existing model behavioral checks and SDK build passed.
+- Evidence: `artifacts/harmonyos/saved-login-20261003` in the agent workspace.
+  Screenshots show the checked option, masked remembered password after a
+  temporary outage, and the authenticated catalog after restart. The phone
+  package preserves bundle/signature/versionCode 10000 and awaits installation
+  and owner acceptance. First login after upgrading an older build needs the
+  password once; subsequent app opens restore it. No production server changes
+  or AI inference were made.

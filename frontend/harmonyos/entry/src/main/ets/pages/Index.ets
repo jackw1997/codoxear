@@ -1,3 +1,5 @@
+import { SavedLogin } from '../services/SavedLogin';
+import { ApiError } from '../services/ApiClient';
 import { ThemeDropdown } from '../components/ui/ThemeDropdown';
 import { ToggleTheme } from '../components/ControlTheme';
 import { SessionDetails } from '../components/SessionDetails';
@@ -55,6 +57,9 @@ struct Index {
   @State server: string = '';
   @State password: string = '';
   @State connecting: boolean = false;
+  @State rememberPassword: boolean = true;
+  private savedLogin: SavedLogin = new SavedLogin();
+  private loginAttempt: number = 0;
   @State viewportWidth: number = 400;
   @State viewportHeight: number = 760;
   @State fileFull: boolean = false;
@@ -131,8 +136,9 @@ struct Index {
     this.foldStatus = display.getFoldStatus();
     display.on('foldStatusChange', this.foldChanged);
     this.notificationChanged();
+    this.restoreLogin();
   }
-  aboutToDisappear(): void { this.confirmation?.close(); if (this.scrollTimer !== -1) clearTimeout(this.scrollTimer); this.announcements.dispose(this.workspace.api); this.workspace.dispose(); display.off('foldStatusChange', this.foldChanged); }
+  aboutToDisappear(): void { this.loginAttempt++; this.workspace.api.invalidate(); this.confirmation?.close(); if (this.scrollTimer !== -1) clearTimeout(this.scrollTimer); this.announcements.dispose(this.workspace.api); this.workspace.dispose(); display.off('foldStatusChange', this.foldChanged); }
   onBackPress(): boolean {
     if (this.workspace.panel === 'file' && this.fileFull) { this.fileFull = false; return true; }
     if (this.workspace.panel) { this.closePanel(); return true; }
@@ -259,14 +265,56 @@ struct Index {
         if (this.workspace.selected?.session_id === id && this.workspace.draft === draft) this.run(() => this.workspace.send(false, true));
       } } });
   }
+  private async restoreLogin(): Promise<void> {
+    if (this.connecting || !this.server) return;
+    this.connecting = true;
+    const attempt = ++this.loginAttempt;
+    const server = this.server;
+    try {
+      const password = await this.savedLogin.password(server);
+      if (attempt !== this.loginAttempt || server !== this.server) return;
+      this.password = password;
+      if (password) await this.signIn(server, password, attempt);
+    } catch (reason) { if (attempt === this.loginAttempt) this.workspace.error = (reason as Error).message; }
+    finally { if (attempt === this.loginAttempt) this.connecting = false; }
+  }
   private async connect(): Promise<void> {
     if (this.connecting) return;
     this.connecting = true;
-    try { await this.workspace.login(this.server, this.password); this.password = ''; this.savePreferences(); this.notificationChanged();
-      if (nativePush.requested(this.workspace.api.address('/api/me'))) await this.announcements.setNotifications(this.workspace.api, true, getContext(this) as common.UIAbilityContext);
-      else if (nativePush.hasRegistration()) await nativePush.revokeLocal(); }
-    catch (reason) { this.workspace.error = (reason as Error).message; }
-    this.connecting = false;
+    const attempt = ++this.loginAttempt;
+    try { await this.signIn(this.server, this.password, attempt); }
+    catch (reason) { if (attempt === this.loginAttempt) this.workspace.error = (reason as Error).message; }
+    finally { if (attempt === this.loginAttempt) this.connecting = false; }
+  }
+  private async signIn(server: string, password: string, attempt: number): Promise<void> {
+    this.workspace.error = '';
+    if (!this.rememberPassword) await this.savedLogin.clear();
+    try { await this.workspace.login(server, password); }
+    catch (reason) {
+      if (attempt === this.loginAttempt && (reason as ApiError).status === 401) {
+        this.password = '';
+        await this.savedLogin.clear();
+      }
+      throw reason as Error;
+    }
+    if (attempt !== this.loginAttempt || !this.workspace.authenticated) return;
+    this.password = ''; this.savePreferences();
+    if (this.rememberPassword) {
+      try { await this.savedLogin.save(server, password); }
+      catch (reason) { this.workspace.error = (reason as Error).message; }
+    }
+    if (attempt !== this.loginAttempt) return;
+    this.notificationChanged();
+    if (nativePush.requested(this.workspace.api.address('/api/me'))) await this.announcements.setNotifications(this.workspace.api, true, getContext(this) as common.UIAbilityContext);
+    else if (nativePush.hasRegistration()) await nativePush.revokeLocal();
+  }
+  private async signOut(): Promise<void> {
+    // Clear before network cleanup so an offline logout cannot auto-sign in later.
+    this.loginAttempt++; this.password = '';
+    await this.savedLogin.clear();
+    await nativePush.disable(this.workspace.api);
+    this.announcements.dispose(this.workspace.api);
+    await this.workspace.logout();
   }
   private async pickFile(): Promise<void> {
     const sessionId = this.workspace.selected?.session_id;
@@ -539,7 +587,7 @@ struct Index {
   login() {
     Column({ space: 16 }) {
       Text('Codoxear login').fontSize(22).fontWeight(FontWeight.Bold).fontColor(this.colors.ink).width('100%')
-      this.field('Server address', () => this.server, (value: string) => { this.server = value; })
+      this.field('Server address', () => this.server, (value: string) => { if (this.server !== value) this.password = ''; this.server = value; })
       Row({ space: 10 }) {
         TextInput({ placeholder: 'Password', text: this.password }).id('password').placeholderColor(this.colors.muted).type(InputType.Password).passwordIcon({ onIconSrc: $rawfile('icons/' + this.colors.mode + '/eye.svg'), offIconSrc: $rawfile('icons/' + this.colors.mode + '/eye-off.svg') })
           .height(44).layoutWeight(1).borderRadius(this.colors.radius).backgroundColor(this.colors.paper)
@@ -547,8 +595,16 @@ struct Index {
           .onChange((value: string) => { this.password = value; }).onSubmit(() => { this.connect(); })
         this.button(() => this.connecting ? '…' : 'Login', () => { this.connect(); }, true)
       }
+      Row({ space: 8 }) {
+        Checkbox({ name: 'remember-password' }).id('remember-password').select(this.rememberPassword)
+          .selectedColor(this.colors.accent).onChange((value: boolean) => { this.rememberPassword = value; })
+        Text('Remember password').fontSize(14).fontColor(this.colors.text)
+          .onClick(() => { this.rememberPassword = !this.rememberPassword; })
+      }.width('100%')
+      Text('Sign in automatically on this device. Logging out removes the saved password.')
+        .fontSize(12).fontColor(this.colors.muted).width('100%')
       if (this.workspace.error) { Text(this.workspace.error).fontColor(this.colors.danger).fontSize(13).width('100%') }
-    }.width('100%').constraintSize({ maxWidth: 420 }).padding(24)
+    }.width('100%').constraintSize({ maxWidth: 420 }).padding(24).enabled(!this.connecting)
   }
   private currentSession(session: Session): Session {
     return this.workspace.sessions.find((row: Session) => row.session_id === session.session_id) || session;
@@ -644,7 +700,7 @@ struct Index {
       Row({ space: 12 }) {
         this.sidebarFooterButton('help', 'Help', () => { this.open('help'); })
         this.sidebarFooterButton('settings', 'Settings', () => { this.open('settings'); })
-        this.sidebarFooterButton('logout', 'Log out', () => { this.run(async () => { await nativePush.disable(this.workspace.api); this.announcements.dispose(this.workspace.api); await this.workspace.logout(); }); })
+        this.sidebarFooterButton('logout', 'Log out', () => { this.run(async () => { await this.signOut(); }); })
       }.padding({ left: 12, right: 12, top: 3, bottom: 3 }).width('100%').border({ width: { top: 1 }, color: this.colors.hairline })
     }.height('100%').width(this.viewportWidth <= 520 ? this.viewportWidth : this.viewportWidth >= 880 ? 380 : this.foldStatus !== 0 && this.foldStatus !== 2 && this.viewportWidth >= 680 ? 240 : 320).backgroundColor(this.colors.panel).border({ width: { right: 1 }, color: this.colors.hairline })
   }

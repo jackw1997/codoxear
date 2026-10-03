@@ -20,7 +20,7 @@ interface LoginRequest {
   password: string;
 }
 
-// The password is never persisted. Cookies are scoped to this client/endpoint.
+// Cookies are scoped to this client/endpoint. SavedLogin owns OS credential storage.
 // Mutation calls are deliberately never retried: a lost send response may have
 // committed a prompt to the PTY, so repeating it would duplicate the user's turn.
 export class ApiClient {

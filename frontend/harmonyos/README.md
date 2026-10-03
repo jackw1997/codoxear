@@ -34,8 +34,22 @@ JAVA_HOME=/Applications/DevEco-Studio.app/Contents/jbr/Contents/Home \
 The output is `entry/build/default/outputs/default/entry-default-unsigned.hap`.
 Install with DevEco or `hdc install -r <hap>`, then start `EntryAbility` in
 `com.codoxear.mobile`. Enter the Codoxear server address and its password.
-Authentication cookies remain in process memory; drafts and appearance settings
-are saved in the app's private files directory.
+`Remember password` is selected by default. After a successful login, the last
+server/password pair is encrypted in the OS app-private Asset Store, accessible
+while the device is unlocked. Reopening the app signs in automatically; changing
+the server never sends that saved password to another address. A temporary
+network failure retains it for retry. A rejected password or explicit Log out
+removes it, including when the server is offline. Uncheck the option before
+login to avoid saving. Updating with the same application identity preserves it.
+Cookies themselves remain in process memory; drafts and appearance settings
+are saved in the app's private files directory. No plaintext password is written
+to those files. The first login after upgrading an older build still requires
+entering the password once.
+
+The native vault uses API 11+ Asset Store operations from the installed SDK;
+`SECRET` carries both the endpoint and password, without sensitive asset labels.
+See [Huawei's asset attribute documentation](https://developer.huawei.com/consumer/cn/doc/doccenter-capabilities/asset-native-update)
+for the distinction between encrypted secrets and unencrypted labels.
 
 For AGC test distribution, see [AppGallery preparation](docs/appgallery-distribution.md).
 
