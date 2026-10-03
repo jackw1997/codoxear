@@ -32,6 +32,9 @@ class Proxy(http.server.BaseHTTPRequestHandler):
         if Path('/tmp/network-unavailable').exists():
             self.respond(503, b'{"error":"temporary fixture outage"}')
             return
+        if self.path == '/api/login' and Path('/tmp/reject-password').exists():
+            self.respond(403, b'{"error":"bad password"}')
+            return
         if Path('/tmp/reject-auth').exists() and self.path.startswith('/api/'):
             self.respond(401, b'{"error":"authentication expired"}')
             return

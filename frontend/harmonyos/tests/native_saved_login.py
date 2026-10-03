@@ -55,11 +55,12 @@ print('PASS offline logout removes saved password',flush=True)
 enter(False); restart(); wait('Codoxear login'); assert not u.node('password').get('text')
 print('PASS remember-password opt-out',flush=True)
 # Invalidated saved credentials are cleared rather than retried each restart.
-enter(True); fault('reject-auth',True)
-try:
-    restart(); wait('authentication expired'); assert not u.node('password').get('text')
-finally: fault('reject-auth',False)
-restart(); wait('Codoxear login'); assert not u.node('password').get('text')
+for fault_name, error in [('reject-auth', 'authentication expired'), ('reject-password', 'bad password')]:
+    enter(True); fault(fault_name,True)
+    try:
+        restart(); wait(error); assert not u.node('password').get('text')
+    finally: fault(fault_name,False)
+    restart(); wait('Codoxear login'); assert not u.node('password').get('text')
 u.capture(evidence/'expired-login.png')
 print('PASS rejected credentials cleared, no automatic retry loop',flush=True)
 # Leave the shared test environment at its original endpoint, without saving.

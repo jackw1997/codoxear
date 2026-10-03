@@ -551,7 +551,7 @@ including `web-colors.json`, before/after screenshots, native UI drivers and log
   app and readable while the device is unlocked. Plain preferences retain only
   the server address and existing appearance settings. Cookies stay in memory.
 - Startup restores only the exact normalized endpoint. A temporary server
-  failure retains the credential for explicit retry, while HTTP 401 removes it.
+  failure retains the credential for explicit retry, while HTTP 401 or 403 removes it.
   Editing the server clears the password field. Logout removes the secret before
   network cleanup, and opting out does not save it. Serialized vault writes make
   logout removal win over an in-flight save.
@@ -560,7 +560,7 @@ including `web-colors.json`, before/after screenshots, native UI drivers and log
   limit, OS errors, removal, and concurrent save/logout ordering passed.
 - `native_saved_login.py` uses owned emulator 15558 and a disposable Docker proxy
   on 19754. Actual Asset Store save, force-stop restart auto-login, same-identity
-  HAP replacement, 503 retry without retyping, offline logout, opt-out, and 401
+  HAP replacement, 503 retry without retyping, offline logout, opt-out, and 401/403
   cleanup passed. Existing model behavioral checks and SDK build passed.
 - Evidence: `artifacts/harmonyos/saved-login-20261003` in the agent workspace.
   Screenshots show the checked option, masked remembered password after a

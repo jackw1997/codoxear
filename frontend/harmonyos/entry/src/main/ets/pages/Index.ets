@@ -291,7 +291,8 @@ struct Index {
     if (!this.rememberPassword) await this.savedLogin.clear();
     try { await this.workspace.login(server, password); }
     catch (reason) {
-      if (attempt === this.loginAttempt && (reason as ApiError).status === 401) {
+      const status = (reason as ApiError).status;
+      if (attempt === this.loginAttempt && (status === 401 || status === 403)) {
         this.password = '';
         await this.savedLogin.clear();
       }
