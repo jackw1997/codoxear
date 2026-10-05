@@ -338,6 +338,9 @@ export class NativeRuntime implements Runtime {
   async createTerminal(backend: Backend, name: string, launch: unknown = {}) {
     return this.launch(backend, name, launch, true);
   }
+  async sendQueued(localId: string, text: string) {
+    return this.control(localId, "send", { text, require_idle: true });
+  }
   private async catalogue() {
     const metadata = this.listMetadata();
     const activeIds = new Set(metadata.map((meta) => meta.session_id));
@@ -797,6 +800,9 @@ export class NativeRuntime implements Runtime {
       try {
         state = await this.control(id, "state");
       } catch {}
+      const boundaries = [...transcript.boundaries];
+      if (state.interrupted_idle && !boundaries.includes("aborted"))
+        boundaries.push("aborted");
       return {
         events,
         matches: action === "search" ? events : undefined,
@@ -814,10 +820,10 @@ export class NativeRuntime implements Runtime {
           action === "messages/live"
             ? transcript.delta
             : { thinking: 0, thinking_tokens: 0, tool: 0, system: 0 },
-        turn_start: transcript.boundaries.includes("start"),
-        turn_end: transcript.boundaries.includes("end"),
-        turn_aborted: transcript.boundaries.includes("aborted"),
-        turn_boundaries: transcript.boundaries,
+        turn_start: boundaries.includes("start"),
+        turn_end: boundaries.includes("end"),
+        turn_aborted: boundaries.includes("aborted"),
+        turn_boundaries: boundaries,
         live_cursor: `${id}:live:${logRevision}:${end}:${transcript.rows}`,
         history_cursor: start > 0 ? `${id}:${start}` : null,
         has_older: start > 0,

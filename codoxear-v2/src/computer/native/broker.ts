@@ -109,7 +109,6 @@ const meta: Metadata = {
 };
 let output = "",
   startup = "",
-  sentAt = 0,
   lastDiscovery = 0;
 let piToken: any = null;
 let stopping = false;
@@ -131,6 +130,42 @@ let draft = "",
   },
   lastUnattended = 0;
 const receipts = new Map<string, unknown>();
+const pendingReceipts = new Map<string, Promise<unknown>>();
+let sending: Promise<unknown> = Promise.resolve();
+let submissionPending = false;
+let interruptEpoch = 0;
+type ProducerActivity = { path: string | null; rows: number; users: number };
+let terminalActivity: ProducerActivity | undefined;
+let sendActivity: ProducerActivity | undefined;
+let lastRemotePrompt: string | undefined;
+let claudeInterrupt: { output: string; prompt: string | undefined } | undefined;
+let claudeInterruptedIdle: ProducerActivity | undefined;
+let clearRestoredRemotePrompt: string | undefined;
+function producerActivity(): ProducerActivity {
+  const transcript = readTranscript(meta.log_path, input.backend);
+  return {
+    path: meta.log_path,
+    rows: transcript.rows,
+    users: transcript.events.filter((event) => event.role === "user").length,
+  };
+}
+function producerProvesIdle(activity: ProducerActivity): boolean {
+  const transcript = readTranscript(meta.log_path, input.backend);
+  const samePath = activity.path === meta.log_path;
+  const newRows = readTranscript(
+    meta.log_path,
+    input.backend,
+    samePath ? activity.rows : 0,
+  );
+  return (
+    transcript.events.filter((event) => event.role === "user").length >
+      (samePath ? activity.users : 0) &&
+    !newRows.busy &&
+    newRows.boundaries.some(
+      (boundary) => boundary === "end" || boundary === "aborted",
+    )
+  );
+}
 const attached = new Set<import("node:net").Socket>();
 function persist() {
   meta.updated_ts = Date.now() / 1000;
@@ -156,32 +191,129 @@ function readinessError() {
     `${input.backend === "cc" ? "Claude Code" : input.backend === "codex" ? "Codex" : "Pi"} is starting: wait for the native prompt, or complete runtime setup in a local terminal. Your prompt was not sent.`
   );
 }
-function send(text: string) {
-  if (meta.readiness !== "ready")
-    throw Object.assign(Error(readinessError()), {
-      status: 409,
-      code: "setup_required",
-    });
-  if (!text.trim())
-    throw Object.assign(Error("Enter a message"), {
-      status: 400,
-      code: "invalid_message",
-    });
-  const files = attachments
-    .map((a) => `\n${a.kind === "image" ? "Image" : "File"}: ${a.path}`)
-    .join("");
-  terminal.write("\x1b[200~" + text + files + "\x1b[201~");
-  setTimeout(() => terminal.write("\r"), 50);
-  attachments = [];
-  meta.busy = true;
-  sentAt = Date.now();
-  persist();
-  return { ok: true, accepted: true, commit_unknown: false };
+function requireQueuedIdle() {
+  if (
+    meta.busy ||
+    queue.length ||
+    attachments.length ||
+    submissionPending ||
+    terminalActivity ||
+    meta.readiness !== "ready"
+  )
+    throw Object.assign(
+      Error(
+        "The native session is no longer idle; the queued prompt was not sent. Local terminal input holds the queue until a new backend turn finishes.",
+      ),
+      {
+        status: 409,
+        code: "queue_not_dispatched",
+      },
+    );
+}
+function send(text: string, requireIdle = false): Promise<unknown> {
+  const operation = sending.then(async () => {
+    if (requireIdle) requireQueuedIdle();
+    if (meta.readiness !== "ready")
+      throw Object.assign(Error(readinessError()), {
+        status: 409,
+        code: "setup_required",
+      });
+    if (!text.trim())
+      throw Object.assign(Error("Enter a message"), {
+        status: 400,
+        code: "invalid_message",
+      });
+    const files = attachments
+      .map((a) => `\n${a.kind === "image" ? "Image" : "File"}: ${a.path}`)
+      .join("");
+    attachments = [];
+    claudeInterruptedIdle = undefined;
+    meta.busy = true;
+    sendActivity = producerActivity();
+    persist();
+    submissionPending = true;
+    const initialInterruptEpoch = interruptEpoch;
+    try {
+      // Claude restores the canceled remote prompt into its editor. Clear it
+      // only after the producer positively echoed that same owned prompt.
+      if (clearRestoredRemotePrompt && !terminalActivity)
+        terminal.write(
+          "\x15\x7f".repeat(
+            clearRestoredRemotePrompt.split(/\r?\n/).length - 1,
+          ) + "\x15",
+        );
+      clearRestoredRemotePrompt = undefined;
+      terminal.write("\x1b[200~" + text + files + "\x1b[201~");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      if (
+        meta.readiness !== "ready" ||
+        stopping ||
+        initialInterruptEpoch !== interruptEpoch ||
+        (requireIdle && terminalActivity)
+      )
+        throw Error("The native process stopped before submission");
+      sendActivity = producerActivity();
+      lastRemotePrompt = text + files;
+      terminal.write("\r");
+      meta.busy = true;
+      persist();
+    } catch {
+      throw Object.assign(
+        Error(
+          "Native send outcome unknown. Check the transcript before sending again.",
+        ),
+        {
+          status: 504,
+          code: "runtime_uncertain",
+        },
+      );
+    } finally {
+      submissionPending = false;
+    }
+    return { ok: true, accepted: true, commit_unknown: false };
+  });
+  sending = operation.catch(() => {});
+  return operation;
 }
 terminal.onData((chunk) => {
   output = (output + chunk).slice(-65536);
-  if (meta.readiness === "starting" || meta.readiness === "setup_required") {
-    startup = (startup + chunk).slice(-16384);
+  if (claudeInterrupt) {
+    claudeInterrupt.output = (claudeInterrupt.output + chunk).slice(-32768);
+    const observed = claudeInterrupt.output;
+    const idleTitle = /\x1b\]0;✳ Claude Code(?:\x07|\x1b\\)/.test(observed);
+    const compact = (text: string) => text.replace(/\s/g, "");
+    const editorOutput = observed.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+    const restored =
+      !claudeInterrupt.prompt ||
+      [...editorOutput.matchAll(/❯/g)].some((match) =>
+        compact(editorOutput.slice(match.index! + 1)).startsWith(
+          compact(claudeInterrupt!.prompt!),
+        ),
+      );
+    // Supported Claude 2.1.287 cancels inference without a log end row. Its
+    // fresh foreground-idle title and restored editor are producer evidence;
+    // startup output and background task state never satisfy this fence.
+    if (idleTitle && restored) {
+      clearRestoredRemotePrompt = claudeInterrupt.prompt;
+      claudeInterrupt = undefined;
+      claudeInterruptedIdle = producerActivity();
+      sendActivity = undefined;
+      meta.busy = false;
+    }
+  }
+  if (
+    meta.readiness === "starting" ||
+    meta.readiness === "setup_required" ||
+    input.backend === "codex"
+  ) {
+    const clear = Math.max(
+      chunk.lastIndexOf("\x1b[J"),
+      chunk.lastIndexOf("\x1b[2J"),
+    );
+    startup =
+      clear < 0
+        ? (startup + chunk).slice(-16384)
+        : chunk.slice(clear).slice(-16384);
     const observed = startupState(input.backend, startup);
     if (observed.ready) {
       meta.readiness = "ready";
@@ -190,6 +322,7 @@ terminal.onData((chunk) => {
     } else if (observed.message) {
       meta.readiness = "setup_required";
       meta.setup_message = observed.message;
+      startup = "";
     }
   }
   // Answer native terminal queries without user input or answering runtime setup prompts.
@@ -241,8 +374,13 @@ const server = createServer((socket) => {
                 message.type === "input" &&
                 typeof message.data === "string" &&
                 message.data.length < 200000
-              )
+              ) {
+                terminalActivity = producerActivity();
+                lastRemotePrompt = undefined;
+                clearRestoredRemotePrompt = undefined;
+                if (claudeInterrupt) claudeInterrupt.prompt = undefined;
                 terminal.write(message.data);
+              }
               if (message.type === "resize") {
                 const cols = Math.max(
                     20,
@@ -283,6 +421,7 @@ async function control(request: BrokerRequest): Promise<unknown> {
     case "state":
       return {
         ...meta,
+        interrupted_idle: !!claudeInterruptedIdle,
         codex_live_settings: !!codexControl,
         tail: output,
         token: piToken ?? readTranscript(meta.log_path, input.backend).token,
@@ -297,17 +436,26 @@ async function control(request: BrokerRequest): Promise<unknown> {
     case "send": {
       const key = typeof body.request_id === "string" ? body.request_id : "";
       if (key && receipts.has(key)) return receipts.get(key);
+      if (key && pendingReceipts.has(key)) return pendingReceipts.get(key);
+      if (body.require_idle === true) requireQueuedIdle();
       const text = String(body.text ?? "");
       const slash = /^\/(model|effort|thinking)\s+(.+)$/.exec(text.trim());
-      const result =
+      const operation =
         input.backend === "pi" && slash
-          ? await control({
+          ? control({
               operation: "settings",
               body: {
                 [slash[1] === "model" ? "model" : "reasoning_effort"]: slash[2],
               },
             })
-          : send(text);
+          : send(text, body.require_idle === true);
+      if (key) pendingReceipts.set(key, operation);
+      let result: unknown;
+      try {
+        result = await operation;
+      } finally {
+        if (key) pendingReceipts.delete(key);
+      }
       if (key) {
         receipts.set(key, result);
         if (receipts.size > 1000)
@@ -316,6 +464,9 @@ async function control(request: BrokerRequest): Promise<unknown> {
       return result;
     }
     case "interrupt":
+      interruptEpoch++;
+      if (input.backend === "cc" && meta.busy)
+        claudeInterrupt = { output: "", prompt: lastRemotePrompt };
       // Native Codex, Pi and Claude all use Escape to interrupt a turn.
       // Keep busy until their transcript records the actual aborted/end turn.
       terminal.write("\x1b");
@@ -642,14 +793,20 @@ const poll = setInterval(async () => {
     if (meta.log_path) {
       const transcript = readTranscript(meta.log_path, input.backend);
       meta.thread_id = transcript.threadId ?? meta.thread_id;
-      const last = transcript.events.at(-1);
-      if (
-        transcript.completedAt >= sentAt - 200 ||
-        (last?.role === "assistant" &&
-          last.message_class === "final_response" &&
-          last.ts * 1000 >= sentAt - 200)
-      )
-        meta.busy = transcript.busy;
+      if (!submissionPending) {
+        if (sendActivity && producerProvesIdle(sendActivity))
+          sendActivity = undefined;
+        if (
+          claudeInterruptedIdle &&
+          transcript.events.filter((event) => event.role === "user").length >
+            claudeInterruptedIdle.users
+        )
+          claudeInterruptedIdle = undefined;
+        meta.busy =
+          !!sendActivity || (!claudeInterruptedIdle && transcript.busy);
+      }
+      if (terminalActivity && producerProvesIdle(terminalActivity))
+        terminalActivity = undefined;
     }
     if (
       meta.readiness === "starting" &&
@@ -659,12 +816,18 @@ const poll = setInterval(async () => {
     ) {
       meta.readiness = "ready";
     }
-    if (!meta.busy && meta.readiness === "ready" && queue.length) {
+    if (
+      !meta.busy &&
+      !terminalActivity &&
+      meta.readiness === "ready" &&
+      queue.length
+    ) {
       const item = queue.shift()!;
-      send(item.text);
+      await send(item.text);
     }
     if (
       !meta.busy &&
+      !terminalActivity &&
       !queue.length &&
       !attachments.length &&
       meta.readiness === "ready" &&
@@ -683,6 +846,7 @@ const poll = setInterval(async () => {
       // current config before committing an automatic send.
       if (
         !meta.busy &&
+        !terminalActivity &&
         !queue.length &&
         !attachments.length &&
         meta.readiness === "ready" &&
@@ -694,7 +858,9 @@ const poll = setInterval(async () => {
           lastUnattended,
         )
       ) {
-        send(prompt + (unattended.request ? "\n\n" + unattended.request : ""));
+        await send(
+          prompt + (unattended.request ? "\n\n" + unattended.request : ""),
+        );
         lastUnattended = Date.now();
         unattended.remaining_injections--;
         if (!unattended.remaining_injections) unattended.enabled = false;

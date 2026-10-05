@@ -25,7 +25,6 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
   const LIVE_AUDIO_STALL_GRACE_MS = 12000;
   const LIVE_AUDIO_RESTART_THROTTLE_MS = 4000;
   const ANNOUNCEMENT_HEARTBEAT_INTERVAL_MS = 15000;
-  const VOICE_SAVE_DEBOUNCE_MS = 250;
 
   function requireFunction(value, name) {
     if (typeof value !== "function") throw new TypeError(`voice controller dependency missing: ${name}`);
@@ -157,7 +156,6 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
 
     // --- Voice / settings / announcement state owned by this controller ---
 
-    let voiceSaveTimer = null;
     let voiceSettings = {
       tts_enabled_for_narration: false,
       tts_enabled_for_final_response: true,
@@ -187,6 +185,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     let liveAudioErrorState = false;
     let liveAudioSourceUrl = "";
     let liveAudioHls = null;
+    let liveAudioEpoch = 0;
     let liveAudioLastProgressTs = 0;
     let liveAudioLastCurrentTime = 0;
     let liveAudioSuspectSinceTs = 0;
@@ -195,6 +194,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     // dialog's activate and deactivate calls. While set, background snapshots
     // must not overwrite the user's draft in the form.
     let settingsOpen = false;
+    let settingsEpoch = 0;
 
     const eventBindings = options.eventBindings;
     if (!eventBindings || typeof eventBindings.on !== "function") {
@@ -261,7 +261,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       if (!browserSupportsMseLiveAudioPlayback(windowTarget)) {
         throw new Error("this browser does not support HLS audio playback in this app");
       }
-      const HlsCtor = windowTarget.Hls;
+      const HlsCtor = CodoxearVoiceHelpers.liveAudioHlsConstructor(windowTarget);
       const needsReload = resetSource || !liveAudioHls || liveAudioSourceUrl !== nextSrc;
       if (!needsReload) return;
       destroyLiveAudioHls();
@@ -273,6 +273,12 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       hls.on(HlsCtor.Events.ERROR, (_event, data) => {
         if (!data) return;
         console.error("live hls error", data.type, data.details, data);
+        const status = Number(data.response && data.response.code);
+        if ([401, 403, 404, 409].includes(status) && liveAudioHls === hls) {
+          setAnnouncementEnabled(false);
+          if (status === 401) handleAppAuthLoss();
+          return;
+        }
         if (!data.fatal || liveAudioHls !== hls) return;
         switch (data.type) {
           case HlsCtor.ErrorTypes.NETWORK_ERROR:
@@ -331,6 +337,10 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
         });
       } catch (e) {
         console.error("announcement heartbeat failed", e);
+        if (enabled && localAnnouncementEnabled && e && [401, 403, 404, 409].includes(e.status)) {
+          setAnnouncementEnabled(false);
+          if (e.status === 401) handleAppAuthLoss();
+        }
       }
     }
 
@@ -347,6 +357,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     }
 
     function resetLiveAudioState() {
+      liveAudioEpoch++;
       destroyLiveAudioHls();
       try {
         liveAudio.pause();
@@ -428,14 +439,21 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       if (localAnnouncementEnabled) storageSetItem("codoxear.announcementEnabled", "1");
       else storageRemoveItem("codoxear.announcementEnabled");
       if (!localAnnouncementEnabled) {
+        // A new listener starts a fresh server stream. Retired segments must
+        // not start a source while that new stream is still empty.
+        voiceSettings.audio = { ...voiceSettings.audio, segment_count: 0 };
         stopAnnouncementHeartbeat();
         stopLiveAudioWatchdog();
         if (liveAudioRetryTimer) clearTimeoutFn(liveAudioRetryTimer);
         liveAudioRetryTimer = null;
         resetLiveAudioState();
       } else {
+        voiceSettings.audio = { ...voiceSettings.audio, segment_count: 0 };
         startAnnouncementHeartbeat();
         startLiveAudioWatchdog();
+        void sendAnnouncementHeartbeat(true).then(() => {
+          if (localAnnouncementEnabled && !isAppDisposed()) return loadVoiceSettings();
+        }).catch((error) => console.error("refresh voice listener failed", error));
       }
       updateVoiceUi();
     }
@@ -498,9 +516,9 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       return data;
     }
 
-    async function saveUnattendedPrompt() {
+    async function saveUnattendedPrompt(prompt = unattendedPromptInput && unattendedPromptInput.value) {
       if (!unattendedPromptInput) return null;
-      const data = await api("/api/settings/unattended-prompt", { method: "POST", body: { prompt: unattendedPromptInput.value } });
+      const data = await api("/api/settings/unattended-prompt", { method: "POST", body: { prompt } });
       if (!data || typeof data !== "object" || typeof data.prompt !== "string" || typeof data.default_prompt !== "string") {
         throw new Error("invalid unattended prompt response");
       }
@@ -546,7 +564,13 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     }
 
     async function loadVoiceSettings() {
-      const data = await api("/api/settings/voice");
+      let data;
+      try {
+        data = await api("/api/settings/voice");
+      } catch (error) {
+        if (localAnnouncementEnabled && error && [401, 403, 404, 409].includes(error.status)) setAnnouncementEnabled(false);
+        throw error;
+      }
       if (isAppDisposed()) return data;
       if (!data || typeof data !== "object") throw new Error("invalid voice settings response");
       voiceSettings = {
@@ -572,7 +596,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     async function saveVoiceSettings() {
       const clearApiKey = !!(voiceClearApiKeyToggle && voiceClearApiKeyToggle.checked);
       const payload = {
-        tts_enabled_for_narration: !!voiceSettings.tts_enabled_for_narration,
+        tts_enabled_for_narration: !!narrationSettingToggle.checked,
         tts_enabled_for_final_response: true,
         tts_base_url: String(voiceBaseUrlInput.value || voiceSettings.tts_base_url || "").trim(),
         tts_api_key: clearApiKey ? "" : String(voiceApiKeyInput.value || "").trim(),
@@ -590,22 +614,6 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       return data;
     }
 
-    function scheduleVoiceSave() {
-      if (voiceSaveTimer) clearTimeoutFn(voiceSaveTimer);
-      voiceSaveTimer = setTimeoutFn(async () => {
-        voiceSaveTimer = null;
-        try {
-          await saveVoiceSettings();
-        } catch (e) {
-          console.error("save voice settings failed", e);
-          setToast(`voice settings error: ${e && e.message ? e.message : "unknown error"}`);
-          try {
-            await loadVoiceSettings();
-          } catch (_error) {}
-        }
-      }, VOICE_SAVE_DEBOUNCE_MS);
-    }
-
     async function startLiveAudioPlayback({ resetSource = false } = {}) {
       if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) {
         throw new Error("this browser does not support HLS audio playback in this app");
@@ -614,8 +622,14 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
         throw new Error("no live audio segments are available yet; wait for the first announcement and try again");
       }
       const nextSrc = currentVoiceStreamUrl();
+      const epoch = liveAudioEpoch + (resetSource ? 1 : 0);
       await ensureLiveAudioPlaybackSource(nextSrc, { resetSource });
+      if (!localAnnouncementEnabled || isAppDisposed() || liveAudioEpoch !== epoch) return;
       await liveAudio.play();
+      if (!localAnnouncementEnabled || isAppDisposed() || liveAudioEpoch !== epoch) {
+        liveAudio.pause();
+        return;
+      }
       liveAudioStarted = true;
       liveAudioErrorState = false;
       markLiveAudioProgress();
@@ -639,11 +653,15 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     // from the last snapshot and fetch the unattended prompt.
     function activateSettingsSection() {
       settingsOpen = true;
+      const epoch = ++settingsEpoch;
       updateVoiceUi();
       syncVoiceSettingsFormFromState();
+      const promptBeforeLoad = unattendedPromptInput ? unattendedPromptInput.value : "";
       void loadUnattendedPrompt().then(() => {
-        if (isSettingsOpen()) syncVoiceSettingsFormFromState();
+        if (isSettingsOpen() && settingsEpoch === epoch && unattendedPromptInput && unattendedPromptInput.value === promptBeforeLoad)
+          unattendedPromptInput.value = String(unattendedPrompt.prompt || unattendedPrompt.default_prompt || "");
       }).catch((e) => {
+        if (!isSettingsOpen() || settingsEpoch !== epoch) return;
         console.error("load unattended prompt failed", e);
         voiceSettingsStatus.textContent = `unattended prompt error: ${e && e.message ? e.message : "unknown error"}`;
       });
@@ -652,6 +670,9 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
     // Called by the Settings dialog when it hides: unsaved edits are dropped
     // and the next activation re-seeds the form from state.
     function deactivateSettingsSection() {
+      settingsEpoch++;
+      voiceApiKeyInput.value = "";
+      voiceClearApiKeyToggle.checked = false;
       voiceSettingsStatus.textContent = "";
       settingsOpen = false;
     }
@@ -665,6 +686,10 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       if (next && !hasAnnouncementCredentials()) {
         openSettings();
         voiceSettingsStatus.textContent = "Set the OpenAI-compatible API base URL and API key before enabling announcements.";
+        return;
+      }
+      if (next && !browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) {
+        setToast("This browser cannot play AAC announcements. Use a browser with AAC playback support.");
         return;
       }
       setAnnouncementEnabled(next);
@@ -715,10 +740,6 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       liveAudioSuspectSinceTs = 0;
       updateVoiceUi();
     });
-    narrationSettingToggle.onchange = (e) => {
-      voiceSettings.tts_enabled_for_narration = Boolean(e.target.checked);
-      scheduleVoiceSave();
-    };
     if (unattendedPromptResetBtn) {
       unattendedPromptResetBtn.onclick = () => {
         if (unattendedPromptInput) unattendedPromptInput.value = unattendedPrompt.default_prompt;
@@ -733,22 +754,28 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       resumeAnnouncementRuntime({ resetSource: false });
     });
     voiceSettingsSaveBtn.onclick = async () => {
+      const epoch = settingsEpoch;
+      const prompt = unattendedPromptInput && unattendedPromptInput.value;
+      voiceSettingsSaveBtn.disabled = true;
       try {
         voiceSettingsStatus.textContent = "Saving...";
         await saveVoiceSettings();
-        await saveUnattendedPrompt();
+        await saveUnattendedPrompt(prompt);
         await notificationRuntime.syncState(notificationSnapshot(voiceSettings));
-        voiceSettingsStatus.textContent = "";
-        closeSettings();
+        if (isSettingsOpen() && epoch === settingsEpoch) {
+          voiceSettingsStatus.textContent = "";
+          closeSettings();
+        }
       } catch (e) {
         console.error("save voice settings failed", e);
-        voiceSettingsStatus.textContent = `save error: ${e && e.message ? e.message : "unknown error"}`;
+        if (isSettingsOpen() && epoch === settingsEpoch)
+          voiceSettingsStatus.textContent = `save error: ${e && e.message ? e.message : "unknown error"}`;
+      } finally {
+        voiceSettingsSaveBtn.disabled = false;
       }
     };
 
     function dispose() {
-      if (voiceSaveTimer) clearTimeoutFn(voiceSaveTimer);
-      voiceSaveTimer = null;
       if (liveAudioRetryTimer) clearTimeoutFn(liveAudioRetryTimer);
       liveAudioRetryTimer = null;
       stopAnnouncementHeartbeat();
@@ -757,7 +784,6 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       notificationRuntime.dispose();
       settingsOpen = false;
       announceBtn.onclick = null;
-      narrationSettingToggle.onchange = null;
       if (unattendedPromptResetBtn) unattendedPromptResetBtn.onclick = null;
       voiceSettingsCancelBtn.onclick = null;
       voiceSettingsSaveBtn.onclick = null;

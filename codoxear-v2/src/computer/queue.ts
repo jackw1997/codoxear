@@ -23,9 +23,10 @@ export interface QueueRuntime {
   authorize(permit: string, localId: string): Promise<void>;
   send(localId: string, text: string): Promise<void>;
 }
-/** Saved before acknowledgement. Authorization precedes dispatch, which is saved
- * before calling the runtime. Any ambiguous dispatch (including process death)
- * requires explicit review; neither reconnect nor restart replays it. */
+/** Saved before acknowledgement. Authorization precedes a fresh idle check;
+ * dispatch is saved before calling the runtime's atomic idle-only send. Only an
+ * explicit queue_not_dispatched rejection can restore pending work. Any ambiguous
+ * dispatch (including process death) requires review and is never replayed. */
 export class ComputerQueue {
   private db: DatabaseSync;
   private draining = false;
@@ -217,6 +218,16 @@ export class ComputerQueue {
           );
           continue;
         } // No authorization while offline, revoked or expired: stays pending.
+        // A terminal turn or local queue may have started while the hub answered.
+        try {
+          if (!(await this.runtime.idle(localId))) {
+            pause("Waiting for the current turn or local queue");
+            continue;
+          }
+        } catch {
+          pause("Computer runtime unavailable");
+          continue;
+        }
         const committed = this.change((items) => {
           const first = items.find((i) => i.localId === localId);
           if (
@@ -238,11 +249,21 @@ export class ComputerQueue {
               1,
             ),
           );
-        } catch {
+        } catch (error) {
           this.change((items) => {
             const item = items.find((i) => i.id === candidate.id);
-            if (item) item.state = "unknown";
+            if (item)
+              item.state =
+                error instanceof DomainError &&
+                error.code === "queue_not_dispatched"
+                  ? "pending"
+                  : "unknown";
           });
+          if (
+            error instanceof DomainError &&
+            error.code === "queue_not_dispatched"
+          )
+            pause(error.message);
         }
       }
     } finally {

@@ -111,8 +111,6 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
   }
   if (launch.service_tier === "fast") {
     if (backend === "codex") args.push("-c", 'service_tier="fast"');
-    if (backend === "cc")
-      args.push("--settings", JSON.stringify({ fastMode: true }));
   }
   if (launch.preferred_auth_method && backend === "codex")
     args.push(
@@ -248,8 +246,37 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
           ? ["--resume", launch.resume_session_id]
           : ["--session", input.resumePath ?? launch.resume_session_id]),
     );
-  if (backend === "cc" && preflight) requireClaudeSetup(env, cwd, args);
+  if (backend === "cc") {
+    // Current Claude migrates its accepted permissions disclaimer from
+    // .claude.json into settings.json. Custom providers exclude user settings,
+    // so carry that existing consent alone into the launch settings.
+    const savedConsent = claudePermissionConsent(env, cwd);
+    if (savedConsent || launch.service_tier === "fast")
+      args.push(
+        "--settings",
+        JSON.stringify({
+          ...(savedConsent ? { skipDangerousModePermissionPrompt: true } : {}),
+          ...(launch.service_tier === "fast" ? { fastMode: true } : {}),
+        }),
+      );
+    if (preflight) requireClaudeSetup(env, cwd, args);
+  }
   return { command, args, env };
+}
+function claudePermissionConsent(env: Record<string, string>, cwd: string) {
+  let consent: unknown;
+  for (const path of [
+    join(env.CLAUDE_CONFIG_DIR ?? join(env.HOME!, ".claude"), "settings.json"),
+    join(cwd, ".claude", "settings.json"),
+    join(cwd, ".claude", "settings.local.json"),
+  ]) {
+    try {
+      const settings = JSON.parse(readFileSync(path, "utf8"));
+      if (Object.hasOwn(settings, "skipDangerousModePermissionPrompt"))
+        consent = settings.skipDangerousModePermissionPrompt;
+    } catch {}
+  }
+  return consent === true;
 }
 export function requireClaudeSetup(
   env: Record<string, string>,
@@ -298,7 +325,8 @@ export function requireClaudeSetup(
     fail("review its API key confirmation");
   if (
     args.includes("--dangerously-skip-permissions") &&
-    config.bypassPermissionsModeAccepted !== true
+    config.bypassPermissionsModeAccepted !== true &&
+    !claudePermissionConsent(env, cwd)
   )
     fail("review its permissions-mode confirmation");
 }
@@ -329,16 +357,26 @@ export function startupState(
           "Claude Code setup required: review onboarding, authentication, workspace trust and provider confirmations in a local terminal. Your prompt was not sent.",
       };
   } else if (backend === "codex") {
-    if (compact.includes("trustthisfolder?"))
+    if (
+      /\x1b\[(?:1;1H|2?J)/.test(text) &&
+      compact.includes("folderaccess") &&
+      compact.includes("trustthisfolder?") &&
+      compact.includes("trustandcontinue") &&
+      compact.includes("quit")
+    )
       return {
         ready: false,
         message:
           "Codex setup required: review workspace trust in a local terminal on this Computer. Your prompt was not sent.",
       };
+    if (compact.includes("resumingsession")) return { ready: false };
+    const editorFooter =
+      /(?:default|minimal|low|medium|high|xhigh|max|none|ultra)·/.test(compact);
     if (
       compact.includes("contextleft") ||
       (compact.includes("askcodextodoanything") &&
-        compact.includes("permissions:yolomode")) ||
+        compact.includes("permissions:yolomode") &&
+        editorFooter) ||
       (compact.includes("?forshortcuts") &&
         !compact.includes("resumingsession"))
     )

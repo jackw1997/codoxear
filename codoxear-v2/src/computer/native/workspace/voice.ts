@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -24,6 +24,7 @@ export class NativeVoice {
   private since = Date.now();
   private error: string | null = null;
   private abort = new AbortController();
+  private listenerAbort = new AbortController();
   constructor(private runtime: NativeRuntime) {
     this.timer = setInterval(() => void this.poll().catch(() => {}), 1000);
     this.timer.unref();
@@ -31,6 +32,12 @@ export class NativeVoice {
   close() {
     clearInterval(this.timer);
     this.abort.abort();
+    this.listenerAbort.abort();
+  }
+  private cancelListenerWork() {
+    this.listenerEpoch++;
+    this.listenerAbort.abort();
+    this.listenerAbort = new AbortController();
   }
   private get directory() {
     return join(this.runtime.stateHome, "audio");
@@ -41,8 +48,7 @@ export class NativeVoice {
   async snapshot() {
     const state = await this.saved();
     const settings = { ...DEFAULTS, ...(state.voice as object) };
-    for (const [id, until] of this.listeners)
-      if (until < Date.now()) this.listeners.delete(id);
+    this.pruneListeners();
     return {
       ok: true,
       ...settings,
@@ -63,7 +69,7 @@ export class NativeVoice {
       const previous = { ...DEFAULTS, ...(state.voice as object) };
       const next = {
         ...previous,
-        ...body,
+        ...Object.fromEntries(Object.keys(DEFAULTS).filter((key) => key in body).map((key) => [key, body[key]])),
         tts_api_key:
           body.tts_api_key_clear === true
             ? ""
@@ -87,9 +93,14 @@ export class NativeVoice {
             "invalid_voice_setting",
             key + " must be a string",
           );
+      for (const key of ["tts_enabled_for_narration", "tts_enabled_for_final_response"])
+        if (typeof (next as Record<string, unknown>)[key] !== "boolean")
+          throw new DomainError(400, "invalid_voice_setting", key + " must be a boolean");
       delete (next as Record<string, unknown>).tts_api_key_clear;
       state.voice = next;
     });
+    const current = { ...DEFAULTS, ...((await this.saved()).voice as object) };
+    if (!current.tts_api_key || (!current.tts_enabled_for_final_response && !current.tts_enabled_for_narration)) this.cancelListenerWork();
     return this.snapshot();
   }
   listener(body: Record<string, unknown>) {
@@ -106,16 +117,18 @@ export class NativeVoice {
     else this.listeners.set(id, Date.now() + 45000);
     if (previous === 0 && this.listeners.size > 0) {
       this.since = Date.now();
-      this.listenerEpoch++;
+      this.cancelListenerWork();
       this.clips = [];
       this.sequence = 0;
     }
-    if (previous > 0 && this.listeners.size === 0) this.listenerEpoch++;
+    if (previous > 0 && this.listeners.size === 0) this.cancelListenerWork();
     return { ok: true, active_listener_count: this.listeners.size };
   }
   private pruneListeners() {
+    const previous = this.listeners.size;
     for (const [id, until] of this.listeners)
       if (until < Date.now()) this.listeners.delete(id);
+    if (previous && !this.listeners.size) this.cancelListenerWork();
   }
 
   playlist() {
@@ -156,7 +169,8 @@ export class NativeVoice {
     };
     this.active = true;
     const epoch = this.listenerEpoch,
-      since = this.since;
+      since = this.since,
+      signal = this.listenerAbort.signal;
     try {
       for (const session of catalogue.sessions.slice(0, 64)) {
         const transcript = (await this.runtime.request(
@@ -198,14 +212,16 @@ export class NativeVoice {
             const maxWords = event.message_class === "narration" ? 15 : 30;
             let input = event.text.replace(/\s+/g, " ").trim();
             if (input.split(/\s+/).length >= maxWords)
-              input = await this.summarize(input, settings, maxWords);
+              input = await this.summarize(input, settings, maxWords, signal);
             if (this.listenerEpoch !== epoch || !this.listeners.size) return;
             await this.synthesize(
               `From ${session.alias || "the agent"}. ${input}`,
               settings,
               epoch,
+              signal,
             );
           } catch {
+            if (signal.aborted) return;
             this.error =
               "Voice synthesis failed; check the configured TTS provider and ffmpeg.";
           }
@@ -219,6 +235,7 @@ export class NativeVoice {
     input: string,
     settings: typeof DEFAULTS,
     maxWords: number,
+    signal: AbortSignal,
   ) {
     const response = await fetch(
       settings.tts_base_url.replace(/\/$/, "") + "/chat/completions",
@@ -242,6 +259,7 @@ export class NativeVoice {
         }),
         signal: AbortSignal.any([
           this.abort.signal,
+          signal,
           AbortSignal.timeout(60000),
         ]),
         redirect: "error",
@@ -262,6 +280,7 @@ export class NativeVoice {
     input: string,
     settings: typeof DEFAULTS,
     epoch: number,
+    signal: AbortSignal,
   ) {
     const url = new URL(
       settings.tts_base_url.replace(/\/$/, "") + "/audio/speech",
@@ -278,7 +297,7 @@ export class NativeVoice {
         voice: "alloy",
         response_format: "wav",
       }),
-      signal: AbortSignal.any([this.abort.signal, AbortSignal.timeout(60000)]),
+      signal: AbortSignal.any([this.abort.signal, signal, AbortSignal.timeout(60000)]),
       redirect: "error",
     });
     if (!response.ok) throw new Error("TTS failed");
@@ -292,6 +311,7 @@ export class NativeVoice {
       source = join(this.directory, id + ".wav"),
       playlist = join(this.directory, id + ".m3u8");
     await writeFile(source, audio, { flag: "wx", mode: 0o600 });
+    let published = false;
     try {
       await new Promise<void>((yes, no) =>
         execFile(
@@ -317,7 +337,7 @@ export class NativeVoice {
           ],
           {
             timeout: 120000,
-            signal: this.abort.signal,
+            signal: AbortSignal.any([this.abort.signal, signal]),
             maxBuffer: 1024 * 1024,
           },
           (error) => (error ? no(error) : yes()),
@@ -338,9 +358,13 @@ export class NativeVoice {
         await unlink(join(this.directory, removed.name)).catch(() => {});
       }
       this.error = null;
+      published = true;
     } finally {
       await unlink(source).catch(() => {});
       await unlink(playlist).catch(() => {});
+      if (!published)
+        for (const name of await readdir(this.directory).catch(() => []))
+          if (name.startsWith(id + "-")) await unlink(join(this.directory, name)).catch(() => {});
     }
   }
 }

@@ -555,6 +555,23 @@ test("independent hubs authenticate, authorize and revoke without any remote aut
       cors.headers["access-control-allow-origin"],
       "https://client.test",
     );
+    const events = await a.app.inject({
+      method: "OPTIONS",
+      url: "/workspace/api/sessions/session/live",
+      headers: {
+        origin: "https://client.test",
+        "access-control-request-method": "GET",
+        "access-control-request-headers":
+          "authorization,cache-control,last-event-id",
+      },
+    });
+    assert.equal(events.statusCode, 204);
+    const permitted = String(events.headers["access-control-allow-headers"])
+      .toLowerCase()
+      .split(",")
+      .map((value) => value.trim());
+    for (const header of ["authorization", "cache-control", "last-event-id"])
+      assert.ok(permitted.includes(header), header);
     const denied = await a.app.inject({
       method: "OPTIONS",
       url: "/oauth/token",

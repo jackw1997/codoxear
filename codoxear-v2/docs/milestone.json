@@ -70,16 +70,16 @@
     },
     {
       "function": "Codex backend end-to-end acceptance",
-      "state": "Configured native browser flow verified; import/interrupt acceptance pending",
-      "reason": "Docker browser tests use the installed Codex CLI in a real broker PTY. Creation, private gateway send, transcript and browser reload pass; the supplied model and fixture key are verified at the Responses endpoint. Import and interrupt are not yet exercised.",
-      "exit": "Complete native import and interrupt acceptance, then the full durable restart matrix.",
+      "state": "Native creation/resume/import/interrupt/reconnect verified; complete fault matrix pending",
+      "reason": "Installed Codex 0.160 in real Docker PTYs passes independent-client terminal import, genuine provider-request interruption and another turn, Computer service restart and tunnel reconnect without replacing CLI PIDs. Actual untrusted resume blocks the first browser send with actionable local setup, preserves the composer and sends no inference. Initial creation/resume frames and late trust frames have broker regression coverage. Controlled Responses gateway; no live-provider quality claim.",
+      "exit": "Complete the hard broker/queue/Hub commit-boundary fault matrix and remaining live-provider acceptance. Trusted resumed Codex live model/effort controls remain unavailable.",
       "owner": "Implementation agent"
     },
     {
       "function": "Claude Code backend end-to-end acceptance",
-      "state": "Configured native flow and first-use guards verified; terminal setup/import/interrupt acceptance pending",
-      "reason": "Real Docker CLI and browser checks cover configured private-provider creation, sending, transcript and reload. Missing onboarding, workspace trust, key approval and permissions acknowledgement produce actionable setup feedback without changing configuration. Runtime startup/trust/key gates reject early prompts before PTY injection; the browser retains text and permits a retry when ready. Setup decisions still occur in the Computer’s local terminal.",
-      "exit": "Implement explicit remote setup controls if desired; complete native import, interrupt and durable restart acceptance.",
+      "state": "Native saved resume/import/interrupt/reconnect and first-use guards verified; complete fault matrix pending",
+      "reason": "Installed Claude Code 2.1.287 in real Docker PTYs passes saved-session resume, terminal import, genuine provider-request cancellation, multiline canceled-prompt cleanup and an exact independent next prompt, Computer service restart and tunnel reconnect. Fresh producer foreground-idle title plus owned restored editor acknowledges cancellation when the CLI writes no completion row. Existing permissions consent survives CLI settings migration; setup decisions remain local. Controlled Anthropic gateway; custom terminal-title/version variants are not certified.",
+      "exit": "Complete hard commit-boundary faults and remaining live-provider/platform acceptance. Remote trust automation is not a requirement.",
       "owner": "Implementation agent"
     },
     {
@@ -109,13 +109,6 @@
       "reason": "OTP behavior has fixture coverage. No SMS delivery account, sender configuration or test number is configured.",
       "exit": "Receive and verify an actual SMS and repeat the expiration/linking/rate-limit cases.",
       "owner": "User provides delivery account and test number; implementation agent verifies"
-    },
-    {
-      "function": "Arbitrary per-agent sharing",
-      "state": "Implemented; included in the public demo release",
-      "reason": "Independent v2 Agent access controls share a concrete agent with an active hub member as Viewer or Operator. Owner/binding fencing, direct revocation, creation/file boundaries and current stream/queue/push authorization pass Docker tests and two-account browser checks.",
-      "exit": "Available in the demo release; see docs/access-sharing.html.",
-      "owner": "Implementation agent"
     },
     {
       "function": "Multiple delegated workspace roots and per-path grants",
@@ -148,36 +141,29 @@
     {
       "function": "Unified terminal-local and remote queue management",
       "state": "Not implemented",
-      "reason": "Remote prompts use the new durable authorized queue; existing local queues remain separate. The remote queue waits for local work, but there is no single ordered queue or local UI for all remote items.",
+      "reason": "Remote prompts use the new durable authorized queue; existing local queues remain separate. The remote queue waits for local work, but there is no single ordered queue or local UI for all remote items. This iteration rechecks idle after Hub authorization, enforces broker idle-only queue acceptance, acknowledges only after writing Enter and blocks ambiguous submissions across restart. Terminal-local and remote queue ordering remains separate.",
       "exit": "Define one ordering/dispatch boundary and test simultaneous local/remote edits, revocation and restart without duplicate sends.",
       "owner": "Implementation agent"
     },
     {
       "function": "Remaining lifecycle parity",
-      "state": "Duplicate/edit/dependency and saved-session resume slice verified; full runtime/unattended acceptance pending",
-      "reason": "New session supports Resume saved session, original working directory, a Computer/runtime-scoped candidate picker and explicit ID fallback. Native trusted Codex resume restores prior history and accepts another private-provider turn. Resume bypasses the incompatible sibling remote app-server path; live model/effort controls are unavailable on that resumed native session. Pi and Claude resume controls are present but their native resume matrix is not yet verified. Prior duplicate/edit/dependency checks remain valid.",
-      "exit": "Verify native Pi/Claude resume, untrusted Codex setup, unattended/dependency scheduling and durable native restart behavior.",
+      "state": "Native Pi/Claude resume, import, interruption and reconnect verified; broader unattended/fault acceptance pending",
+      "reason": "Nine independent-client browser checks use installed Pi/Codex/Claude CLIs: saved Pi/Claude history resumes, terminal Codex/Claude import, cancellation and continuation, new Computer service from saved attachment and tunnel reconnect, and untrusted Codex first-send guard. Original native identities and broker/CLI PIDs survive reconnects. Metadata/duplicate/dependency organization checks remain valid; trusted resumed Codex live model/effort controls remain unavailable.",
+      "exit": "Finish broader unattended restart/fault acceptance and hard broker/queue/Hub termination at each commit boundary.",
       "owner": "Implementation agent"
-    },
-    {
-      "function": "Voice narration and settings parity",
-      "state": "Incomplete acceptance",
-      "reason": "Media transport tests pass, but complete user-facing voice setup, provider playback, key handling and all settings workflows have not passed the v2 browser matrix.",
-      "exit": "Run actual settings and voice workflows against a controlled service; verify access loss, playback and secret handling.",
-      "owner": "Implementation agent; live provider acceptance may need credentials"
     },
     {
       "function": "HarmonyOS account-login presenter",
       "state": "Not implemented",
-      "reason": "Relay-aware ApiClient and shared login contracts exist. The native screen still presents direct-server password login; system-browser central login and hub/computer selection are not wired into it.",
-      "exit": "Implement the native login and selection UI, callback handling and cancellation; validate with the SDK and real UI.",
+      "reason": "Relay-aware ApiClient and shared login contracts exist. The native screen still presents direct-server password login; per-Hub login collection, hub/Computer selection, callback handling and cancellation are not wired.",
+      "exit": "Implement native per-Hub login and selection, callback handling and cancellation; validate with SDK and real UI while preserving the direct profile.",
       "owner": "Implementation agent"
     },
     {
       "function": "HarmonyOS refresh-token vault and refresh lifecycle",
       "state": "Not implemented",
-      "reason": "The OS vault currently stores the direct-mode password. Central-account refresh credentials, rotation and secure account switching are not integrated into the native app.",
-      "exit": "Wire the OS secure vault, serialize rotation, clear on logout, and verify restart/locked-device/lost-refresh cases.",
+      "reason": "The OS vault currently stores the direct-mode password. Per-Hub refresh credentials, rotation and secure account switching are not integrated into the native app.",
+      "exit": "Wire the OS secure vault, serialize per-Hub rotation, clear on logout, and verify restart/locked-device/lost-refresh cases.",
       "owner": "Implementation agent"
     },
     {
@@ -197,8 +183,8 @@
     {
       "function": "Web Push notifications",
       "state": "Not implemented",
-      "reason": "No Web Push provider, browser subscription workflow or service worker is implemented.",
-      "exit": "Implement VAPID/encrypted delivery, permission UI, subscription revocation and service-worker tap routing; test real browser delivery.",
+      "reason": "The browser routing service worker exists, but Web Push delivery, browser subscription/revocation and notification-handler tap delivery are not implemented.",
+      "exit": "Implement VAPID/encrypted delivery, permission and subscription revocation, and notification service-worker tap routing; test actual browser delivery.",
       "owner": "Implementation agent"
     },
     {
@@ -210,10 +196,11 @@
     },
     {
       "function": "Production load and complete fault matrix",
-      "state": "Unverified",
-      "reason": "Bounded-flow tests and a private-network TLS experiment pass. Sustained mixed load, production-size histories, service restarts at every commit boundary and resource budgets have not been demonstrated.",
-      "exit": "Run a reproducible load/fault suite with measured latency, memory, recovery and mutation-duplication limits.",
-      "owner": "Implementation agent"
+      "state": "Bounded native load/reconnect slice measured; production and complete commit-boundary matrix pending",
+      "reason": "Reproducible Docker suite uses an independent Hub, native Computer and two installed Pi PTYs; real shell tools run once across outage/edited-queue reauthorization and a lost post-broker-ACK reply followed by Computer restart. Two synthetic valid 2.25 MB histories measure parsing, with three stalled downloads bounded by credits. Mixed-history p95 251 ms, event-loop maximum 133 ms, shared harness RSS peak 276594688 bytes, recovery 3046 ms. These are observations, not production SLOs; broker hard-kill coverage remains open.",
+      "exit": "Extend production concurrency/history sizes, separated-process resource accounting, sustained soak/network/permission faults and hard termination at every mutation commit boundary.",
+      "owner": "Implementation agent",
+      "evidence": "artifacts/native-load-fault-results.json"
     },
     {
       "function": "Complete accessibility acceptance",
@@ -253,23 +240,9 @@
     {
       "function": "Public production deployment",
       "state": "No-Go",
-      "reason": "The full release gates above remain open. This milestone runs isolated demo data over loopback/SSH, with scripted inference and no production credentials.",
+      "reason": "An isolated HTTPS native preview is available. Required engineering and external acceptance gates, production domain/configuration, secrets and operational readiness remain open.",
       "exit": "Close the required engineering and external acceptance gates, configure a production domain and secrets, and deploy a reviewed committed snapshot.",
       "owner": "Implementation agent and deployment owner"
-    },
-    {
-      "function": "Session discovery feedback",
-      "state": "Implemented and browser verified",
-      "reason": "Initial discovery, signed-out hubs, failed hub catalogs and unreachable Computers have distinct feedback and retry/reconnect controls. Known sessions survive an unreachable Computer only while the current authenticated directory still grants access. A genuine empty catalog alone shows No sessions yet. Docker browser checks pass at 390 and 1440 with no overflow or page errors.",
-      "exit": "Available in the demo; live outage/load acceptance remains part of the broader fault matrix.",
-      "owner": "Implementation agent"
-    },
-    {
-      "function": "Untrusted Codex workspace during native resume",
-      "state": "First-use acceptance pending",
-      "reason": "The native Codex resume fixture explicitly trusts its isolated project. A fresh untrusted project can stop at a Folder access prompt; remote setup controls for that prompt are not implemented. Trust must be reviewed locally on the selected Computer.",
-      "exit": "Expose actionable Codex setup readiness and verify the untrusted first-use resume flow without automatically accepting trust.",
-      "owner": "Implementation agent"
     }
   ],
   "agentCreationUpdate": {
@@ -329,18 +302,50 @@
     "status": "Linux native TypeScript runtime and self-contained source verified",
     "runtime": "Detached Node PTYs; no Python, original-package assets or loopback runtime server",
     "boundaries": "Static client, separate hub accounts/database/signing key, Computer tunnel and session broker; shared libraries carry no mandatory peer-process dependency",
-    "verification": "Fresh v2-only production build and 157/157 Docker TypeScript tests passed with no skips. Installed Pi across three private API protocols, Codex and Claude endpoint/key/model checks 5/5; Codex and Claude browser create/send/transcript/reload and trusted Codex resume 7/7; native HTTP/Git/media 19/19 and PTY/session 12/12. Actual Pi browser verifies tools during hub outage, files/Git/CAS/search/queue, producer-confirmed model/effort controls, real provider stream interruption, creation receipt recovery, attachment metadata and private drafts. All 23 native workspace acceptance checks pass, including delegated edit/revocation, membership loss, owner deletion authorization and hub-first read-only retention. The Docker wrapper exits 0 and cleans up its own resources.",
+    "verification": "Historical native migration snapshot (2026-10-05): fresh v2-only production build and 157/157 Docker TypeScript tests passed with no skips. Installed Pi across three private API protocols, Codex and Claude endpoint/key/model checks 5/5; Codex and Claude browser create/send/transcript/reload and trusted Codex resume 7/7; native HTTP/Git/media 19/19 and PTY/session 12/12. Actual Pi browser verifies tools during hub outage, files/Git/CAS/search/queue, producer-confirmed model/effort controls, real provider stream interruption, creation receipt recovery, attachment metadata and private drafts. All 23 native workspace acceptance checks pass, including delegated edit/revocation, membership loss, owner deletion authorization and hub-first read-only retention. The Docker wrapper exits 0 and cleans up its own resources.",
     "limitations": [
       "macOS secure workspace adapter and acceptance remain pending",
       "Existing legacy deployment sessions stay running; native preview uses separate state"
     ],
     "preview": {
-      "client": "https://codoxear.gzeek.com:8451/",
-      "homeHub": "https://codoxear.gzeek.com:8452",
-      "workHub": "https://codoxear.gzeek.com:8453",
-      "state": "Separate native runtime and data; original demo and running sessions retained",
-      "verification": "Docker phone browser: independent Home/Work OAuth login, terminal session import, actual Pi shell tool file write and transcript after reload; no page errors or horizontal overflow. Standalone source archive downloaded over HTTPS and built independently."
+      "client": "https://codoxear.gzeek.com:8461/",
+      "homeHub": "https://codoxear.gzeek.com:8462",
+      "workHub": "https://codoxear.gzeek.com:8463",
+      "state": "Fresh separate committed preview; existing Kimi and older deployments are retained",
+      "verification": "Release preview verification is recorded separately in its private deployment manifest; fixture playback and CLI acceptance are recorded above."
     },
-    "prReview": "Fresh isolated production build and 160/160 tests pass with no skips after session metadata and unattended idle regressions were fixed. Clean npm install/build succeeds with npm configured to an unavailable Python path; npm audit reports zero vulnerabilities. The final generic Docker verifier exits 0: 46 browser checks with no errors. A v2-only GitHub Docker verification workflow is added; hosted CI and the updated image build remain to run on the PR."
-  }
+    "prReview": "Fresh isolated production build and 177/177 tests pass with no skips; 46 generic browser checks, nine installed-CLI lifecycle checks and eight real voice/settings browser checks pass; the generic and voice suites report no page errors. Lifecycle console diagnostics remain recorded in its artifact. Native PTY behavior suite has 24 cases; voice media suite has six. Hosted CI and the updated Docker image build remain unexecuted."
+  },
+  "completedItems": [
+    {
+      "function": "Arbitrary per-agent sharing",
+      "state": "Implemented; included in the public demo release",
+      "reason": "Independent v2 Agent access controls share a concrete agent with an active hub member as Viewer or Operator. Owner/binding fencing, direct revocation, creation/file boundaries and current stream/queue/push authorization pass Docker tests and two-account browser checks.",
+      "exit": "Available in the demo release; see docs/access-sharing.html.",
+      "owner": "Implementation agent"
+    },
+    {
+      "function": "Session discovery feedback",
+      "state": "Implemented and browser verified",
+      "reason": "Initial discovery, signed-out hubs, failed hub catalogs and unreachable Computers have distinct feedback and retry/reconnect controls. Known sessions survive an unreachable Computer only while the current authenticated directory still grants access. A genuine empty catalog alone shows No sessions yet. Docker browser checks pass at 390 and 1440 with no overflow or page errors.",
+      "exit": "Available in the demo; live outage/load acceptance remains part of the broader fault matrix.",
+      "owner": "Implementation agent"
+    },
+    {
+      "function": "Voice narration and settings parity",
+      "state": "Controlled native and independent-browser workflow verified",
+      "reason": "Eight Docker browser checks in full Chrome 154 pass: flat Settings, Save/Cancel/Escape, masked and preserved/cleared keys, actual Pi completion through controlled TTS and ffmpeg HLS playback, opt-out provider cancellation, and account access-loss browser cleanup. Six native media tests pass. Actual EventSource relay succeeds after Hub CORS fix.",
+      "exit": "Completed for the controlled Linux/browser slice. Live speech quality and real-device/Safari behavior remain separate acceptance; server listener expiry remains 45 seconds.",
+      "owner": "Implementation agent; live provider acceptance may need credentials",
+      "evidence": "artifacts/native-voice-results.json"
+    },
+    {
+      "function": "Untrusted Codex workspace during native resume",
+      "state": "Actual installed CLI and browser first-use guard verified",
+      "reason": "The actual untrusted Codex resume stops at native Folder access. The browser receives actionable setup_required, retains the unsent prompt and makes no inference request. Broker startup no longer accepts preliminary Resuming/YOLO frames as readiness, and recognizes a structured late native trust redraw. Ordinary quoted trust text cannot demote a ready session. Browser send does not change trust configuration; native CLI screen-reader detection changes are not trust approval.",
+      "exit": "Completed for Linux installed Codex 0.160 and controlled browser fixture. Workspace trust remains an explicit local decision on the selected Computer.",
+      "owner": "Implementation agent",
+      "evidence": "artifacts/native-lifecycle-results.json"
+    }
+  ]
 }

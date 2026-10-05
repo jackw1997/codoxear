@@ -8,8 +8,10 @@
   }
 
   function browserSupportsMseLiveAudioPlayback(windowLike) {
-    const HlsCtor = windowLike && windowLike.Hls;
-    return !!(HlsCtor && typeof HlsCtor.isSupported === "function" && HlsCtor.isSupported());
+    const HlsCtor = liveAudioHlsConstructor(windowLike);
+    const MediaSourceCtor = windowLike && (windowLike.MediaSource || windowLike.WebKitMediaSource);
+    const aacSupported = !MediaSourceCtor || typeof MediaSourceCtor.isTypeSupported !== "function" || MediaSourceCtor.isTypeSupported('audio/mp4; codecs="mp4a.40.2"');
+    return !!(aacSupported && HlsCtor && typeof HlsCtor.isSupported === "function" && HlsCtor.isSupported());
   }
 
   function shouldPreferNativeLiveAudioPlayback(liveAudio, navigatorLike) {
@@ -45,4 +47,9 @@
     return isMobileNotificationDevice(navigatorLike) ? "mobile" : "desktop";
   }
 
-export { browserSupportsNativeLiveAudioPlayback, browserSupportsMseLiveAudioPlayback, shouldPreferNativeLiveAudioPlayback, browserSupportsLiveAudioPlayback, base64UrlToUint8Array, isMobileNotificationDevice, notificationDeviceClass };
+export { liveAudioHlsConstructor, browserSupportsNativeLiveAudioPlayback, browserSupportsMseLiveAudioPlayback, shouldPreferNativeLiveAudioPlayback, browserSupportsLiveAudioPlayback, base64UrlToUint8Array, isMobileNotificationDevice, notificationDeviceClass };
+import Hls from "hls.js";
+
+  function liveAudioHlsConstructor(windowLike) {
+    return windowLike && windowLike.Hls ? windowLike.Hls : Hls;
+  }

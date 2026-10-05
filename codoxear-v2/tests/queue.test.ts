@@ -5,7 +5,70 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ComputerQueue, type QueueRuntime } from "../src/computer/queue.js";
+import { DomainError } from "../src/contracts/model.js";
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
+test("a local turn starting during authorization keeps remote work pending", async () => {
+  let busy = false,
+    calls = 0;
+  const sent: string[] = [];
+  const q = new ComputerQueue(":memory:", "attachment", {
+    idle: async () => !busy,
+    authorize: async () => {
+      calls++;
+      if (calls === 1) busy = true;
+    },
+    send: async (_, text) => {
+      sent.push(text);
+    },
+  });
+  try {
+    q.enqueue("local", "after local work", "alice", "permit");
+    await q.drain();
+    assert.deepEqual(sent, []);
+    assert.equal(q.list("local")[0]!.commit_unknown, false);
+    assert.match(q.list("local")[0]!.pause_reason!, /current turn/);
+    busy = false;
+    await q.drain();
+    assert.deepEqual(sent, ["after local work"]);
+    assert.equal(calls, 2);
+  } finally {
+    q.close();
+  }
+});
+
+test("only a broker-proven rejection before dispatch permits a fresh queue retry", async () => {
+  let blocked = true,
+    authorizations = 0;
+  const sent: string[] = [];
+  const q = new ComputerQueue(":memory:", "attachment", {
+    idle: async () => true,
+    authorize: async () => {
+      authorizations++;
+    },
+    send: async (_, text) => {
+      if (blocked)
+        throw new DomainError(
+          409,
+          "queue_not_dispatched",
+          "Waiting for local work",
+        );
+      sent.push(text);
+    },
+  });
+  try {
+    q.enqueue("local", "one authorized send", "alice", "permit");
+    await q.drain();
+    assert.equal(q.list("local")[0]!.commit_unknown, false);
+    assert.match(q.list("local")[0]!.pause_reason!, /local work/);
+    blocked = false;
+    await q.drain();
+    assert.deepEqual(sent, ["one authorized send"]);
+    assert.equal(authorizations, 2);
+    assert.deepEqual(q.list("local"), []);
+  } finally {
+    q.close();
+  }
+});
 test("durable queue survives restart, checks current access before dispatch and fences attachment changes", async () => {
   const dir = await mkdtemp(join(tmpdir(), "queue-test-")),
     path = join(dir, "queue.sqlite"),

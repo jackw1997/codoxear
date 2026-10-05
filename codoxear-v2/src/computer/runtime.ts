@@ -6,6 +6,7 @@ import { type Operation } from "../contracts/tunnel.js";
 export interface Runtime {
   readonly kind: "native" | "fixture";
   execute(operation: Operation): Promise<unknown>;
+  sendQueued?(localId: string, text: string): Promise<unknown>;
   close(): void;
   supportsProviderLaunch?(): Promise<boolean>;
   completions?(since: number): Promise<Notification[]>;

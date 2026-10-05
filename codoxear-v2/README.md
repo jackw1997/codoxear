@@ -25,6 +25,6 @@ Behavioral verification runs in Docker:
 npm run verify:docker
 ```
 
-`npm run check:boundaries` checks module import boundaries. This is a structural build check, not proof of feature parity. Behavioral acceptance and remaining design work are recorded in `docs/milestone.json`. The migration scope, PR checklist and remaining parity gaps are recorded in [docs/pr-readiness.md](docs/pr-readiness.md).
+`npm run check:boundaries` checks module import boundaries. This is a structural build check, not proof of feature parity. Behavioral acceptance and remaining design work are recorded in `docs/milestone.json`. The migration scope and remaining parity gaps are recorded in [docs/pr-readiness.md](docs/pr-readiness.md), with the latest step-by-step [work-progress.json](docs/work-progress.json) and detailed historical-versus-current requirement decisions in [docs/requirements-reconciliation.md](docs/requirements-reconciliation.md).
 
 Git is required for Git features. Media and voice features may require their configured external tools or provider; missing tools must produce an explicit error. Provider keys, CLI logs and local runtime state stay outside the release source.

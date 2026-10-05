@@ -1,0 +1,106 @@
+{
+  "request": "Finish pending items step by step; current conversation takes precedence over outdated documentation",
+  "baselineCommit": "3c2e2fc455d59f3c90ab171d3e8967c097d1064d",
+  "requirements": "requirements-reconciliation.md",
+  "steps": [
+    {
+      "id": "requirements",
+      "status": "completed",
+      "model": "GPT-6.1-Sol",
+      "outcome": "31 documented decisions; v2 scoped AGENTS preserves current Docker/testing/design requirements"
+    },
+    {
+      "id": "registers",
+      "status": "completed",
+      "model": "GPT-6-luna",
+      "outcome": "Corrected stale identity/deployment/scheduling wording; separated two completed items from the active No-Go array"
+    },
+    {
+      "id": "native-lifecycle",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Real installed Pi/Claude resume, Codex/Claude terminal import and interruption, Computer reconnect and untrusted Codex readiness",
+      "evidence": "artifacts/native-lifecycle-results.json",
+      "checks": 9,
+      "nativeRuntimeTests": 24,
+      "outcome": "Actual Pi/Claude saved resume, Codex/Claude terminal import and HTTP request cancellation with subsequent exact next turn; Computer restart/tunnel reconnect retain native PIDs and identities; untrusted Codex first browser prompt blocked without trust changes",
+      "limitations": [
+        "Installed Codex 0.160 and Claude 2.1.287; controlled provider gateways, not live inference quality",
+        "Trusted resumed Codex live model/effort controls remain unavailable",
+        "Hard broker/queue/Hub termination and broader unattended matrix remain open"
+      ]
+    },
+    {
+      "id": "voice-settings",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Flat Settings Save/Cancel, secret masking, actual TTS/HLS playback, cancellation and access-loss behavior",
+      "evidence": "artifacts/native-voice-results.json",
+      "checks": 8,
+      "nativeMediaTests": 6,
+      "browser": "Chrome 154.0.8037.97",
+      "outcome": "Actual independent-client Settings Save/Cancel/Escape/key masking and clear; real Pi completion, TTS/ffmpeg HLS playback, opt-out cancels provider work, account access loss removes browser opt-in and pauses playback; EventSource 200",
+      "limitations": [
+        "Controlled inference and tone WAV; no live speech-quality claim",
+        "Browser access-loss cleanup proven; per-actor server listener expiration remains 45 seconds",
+        "Notifications implementation is separately tracked as Web Push"
+      ]
+    },
+    {
+      "id": "queue-dispatch-race",
+      "status": "verified-local",
+      "scope": "Recheck idle after authorization and require broker-proven idle-only acceptance; ambiguous sends remain blocked across restart",
+      "nativeRuntimeTests": 24,
+      "outcome": "Fresh post-authorization idle check; atomic broker rejection before paste; terminal draft and new-turn producer fences; ACK after Enter; serialized sends and in-flight receipt deduplication; input, interruption or process exit during paste yields uncertainty",
+      "limitations": [
+        "Definite queue_not_dispatched alone returns work to pending; ambiguous results remain blocked across restart",
+        "This does not provide unified terminal-local/remote queue ordering",
+        "Accepted submission is Enter written to PTY, not a claim that the model executed it; full broker hard-kill matrix remains open"
+      ]
+    },
+    {
+      "id": "large-download-transport",
+      "status": "verified-local",
+      "evidence": "/tmp/codoxear-queue-download-review.log",
+      "scope": "257 MiB native file streams through real WebSocket HttpMux with byte hash, bounded queues, concurrent request, range, cancellation and HEAD",
+      "remaining": "Primary browser Download still buffers and limits files to 256 MiB; authenticated streaming handoff and cross-browser acceptance remain open"
+    },
+    {
+      "id": "native-load-faults",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Measured bounded native relay load and reconnect/fault scenarios; does not alone establish complete production acceptance",
+      "evidence": "artifacts/native-load-fault-results.json",
+      "outcome": "Two actual Pi PTYs; mixed authenticated reads and three stalled downloads; Hub outage queue edit/reauthorization; lost post-broker-ack response and Computer restart without replay",
+      "measurements": {
+        "mixedP95Ms": 251,
+        "eventLoopMaximumMs": 133,
+        "harnessPeakRssBytes": 276594688,
+        "recoveryMs": 3046
+      },
+      "limitations": [
+        "Two synthetic valid histories of 2253038 bytes each appended after a real completed tool turn; this measures parser behavior, not large model context",
+        "Shared Hub/Computer fixture process; no production SLO or full commit-boundary matrix",
+        "Broker crash during submission remains a separate correctness boundary"
+      ]
+    }
+  ],
+  "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
+  "platformScope": "Linux native acceptance; macOS/device/live-provider gates remain individually tracked",
+  "integration": {
+    "tests": 177,
+    "failed": 0,
+    "skipped": 0,
+    "genericBrowserChecks": 46,
+    "verifierExitCode": 0,
+    "log": "/tmp/codoxear-v2-final-integration.log",
+    "scope": "Fresh combined production source; independent CLI lifecycle and voice browser suites recorded separately"
+  },
+  "registerCounts": {
+    "active": 26,
+    "completed": 4,
+    "historicalBaseline": 30,
+    "note": "Broader rows overlap narrower ones; active entries also include external setup, later stages, compatibility limits and the aggregate production decision"
+  },
+  "preview": "https://codoxear.gzeek.com:8461/"
+}

@@ -166,6 +166,7 @@ export function readTranscript(
     completedAt = 0,
     assistantFinalInTurn = false;
   const subagents = new Map<string, any>();
+  let codexUserInTurn: string | undefined;
   let rows = 0;
   const delta = { thinking: 0, thinking_tokens: 0, tool: 0, system: 0 };
   const boundaries: string[] = [];
@@ -209,9 +210,14 @@ export function readTranscript(
         if (p.type === "user_message") {
           assistantFinalInTurn = false;
           add("user", p.message ?? "", at);
+          codexUserInTurn = p.message;
           busy = true;
         }
-        if (p.type === "task_started") busy = true;
+        if (p.type === "task_started") {
+          busy = true;
+          codexUserInTurn = undefined;
+          assistantFinalInTurn = false;
+        }
         if (p.type === "error") {
           add("assistant", String(p.message ?? "Backend error"), at, "error");
           busy = false;
@@ -224,8 +230,16 @@ export function readTranscript(
         ) {
           busy = false;
           completedAt = at;
-          if (p.last_agent_message && !assistantFinalInTurn)
-            add("assistant", p.last_agent_message, at, "final_response");
+          codexUserInTurn = undefined;
+          if (p.last_agent_message && !assistantFinalInTurn) {
+            const last = events.at(-1);
+            if (
+              last?.role === "assistant" &&
+              last.text === p.last_agent_message
+            )
+              last.message_class = "final_response";
+            else add("assistant", p.last_agent_message, at, "final_response");
+          }
           if (p.type === "turn_aborted")
             add(
               "assistant",
@@ -243,6 +257,27 @@ export function readTranscript(
                 limit: p.info?.model_context_window ?? 0,
               }
             : token;
+        }
+      }
+      if (
+        row.type === "response_item" &&
+        p.type === "message" &&
+        p.role === "user"
+      ) {
+        const text = contentText(p.content);
+        const kinds =
+          p.internal_chat_message_metadata_passthrough?.content_item_kinds;
+        // Current Codex logs include environment context as a user message;
+        // only genuine user input belongs in the chat transcript.
+        if (
+          (!kinds || kinds.some((kind: string) => kind.startsWith("user."))) &&
+          !text.trimStart().startsWith("<environment_context>") &&
+          codexUserInTurn !== text
+        ) {
+          add("user", text, at);
+          codexUserInTurn = text;
+          assistantFinalInTurn = false;
+          busy = true;
         }
       }
       if (

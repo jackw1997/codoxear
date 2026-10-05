@@ -1,0 +1,23 @@
+# v2 scope and requirement precedence
+
+The current conversation takes precedence over historical implementation prescriptions. Read [docs/requirements-reconciliation.md](docs/requirements-reconciliation.md) when deciding whether an older design statement is still a requirement. This file applies only to `codoxear-v2/`; it does not change the legacy application or its deployment.
+
+- Computer backend, Hub backend, native PTY/broker implementation and new test/verification tools use TypeScript. Retained frontend JavaScript and ordinary Node build/bootstrap scripts are permitted. Do not add Python or import, read, copy at build time, or execute the original `codoxear/` application as a v2 dependency. Assets already owned by v2 stay self-contained.
+- Use native detached Node PTYs and private broker sockets. A loopback Python runtime adapter does not satisfy the native-runtime requirement. External installed Codex, Pi and Claude Code CLIs, Git and configured media executables are allowed interfaces.
+- Preserve independently runnable Computer → Hub ← Client boundaries. A Computer has one active Hub binding and owns execution, native logs, files/Git and authorized remote work. Each independent Hub owns its accounts, database, signing key, membership and permissions. Client presentation does not require a server gateway or mandatory global identity service. Explicit optional shared-authority compatibility may remain; it must not become an independent-Hub dependency.
+- Keep the agent sidebar and conversation workspace primary, with Hub/Computer placement secondary. Preserve existing v2 functions, three theme families, root design invariants, store/widget ownership and explicit transcript replacement rules. RAFT-inspired creation offers the same Pi/Codex/Claude runtime choices, provider URL, API key, model/custom model and relevant launch settings.
+- Dependencies, priority and snooze are conversation organization metadata. Preserving them does not authorize adding an execution scheduler. The accepted durable remote queue is separate from terminal-local queue unification.
+- Preserve the user's existing Kimi configuration, legacy deployment and running CLI sessions. Do not restart or terminate them to validate v2. Reject unsafe PID-only relay imports; use proven runtime incarnation identities.
+- Linux is the accepted native migration target. macOS secure workspace support and real-device/mobile-platform acceptance remain pending until separately verified. A phone viewport does not establish Safari, HarmonyOS, iOS or Android acceptance.
+
+The root [AGENTS.md](../AGENTS.md) remains binding for testing and product behavior:
+
+- All behavioral verification of server, broker, PTY, sessions, browser and related runtime work runs in Docker. A throwaway host `HOME` is not isolation. Never test the production listener at `127.0.0.1:8743`.
+- Never clean up by process patterns (`pkill -f`, `killall`, broad `pgrep | xargs kill`). Prefer owned container teardown. If a non-session host process is explicitly started, record and clean up its exact PID only.
+- No raw source-string tests. Execute behavior and assert outcomes; CSS checks parse rules. Import-graph/build checks are architectural checks, not behavioral acceptance.
+- Exercise the real interface before claiming a user-facing feature works. Report implemented slices, native/browser evidence, missing acceptance and external blockers separately. Record every requested task's resolution or explicit deferral.
+- Keep one authoritative writer per displayed value; retain widget-owned subscriptions, atomic stores, producer-backed model/effort/runtime state, scoped caches and stale-response fencing. Escape does not close/cancel a dialog. Downloads must preserve the mounted application and follow its teardown contract.
+- Preserve root appearance tokens, family-invariant fonts, 44px touch targets, undimmed bounded overlays, and the locked touch/desktop session-card branches. Apply semantic design rules, not legacy file locations.
+- Do not commit secrets or private runtime state. Deliver reviewed committed snapshots; keep configuration and credentials external. Preserve running agents during changes.
+
+Root instructions about `codoxear/util.py`, Python module locations, `pip install`, `pipx`, `scripts/deploy.sh`, the global password gate and restarting `codoxear-server.service` describe the legacy product. They do not prescribe v2 implementation or authorize using the legacy deploy command for v2. Use the v2 entry points and isolated verification configuration. This clarification preserves the root Docker, safety, design and behavioral-testing rules.

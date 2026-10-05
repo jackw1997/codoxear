@@ -28,7 +28,10 @@ import { FixtureRuntime, type Runtime } from "./runtime.js";
 
 export type ComputerDependencies = {
   runtime?: (config: Attachment, home: string) => Runtime;
-  httpTarget?: (runtime: Runtime, config: Attachment) => {execute(request: HttpRequest): Promise<HttpResponse>; close?(): void};
+  httpTarget?: (
+    runtime: Runtime,
+    config: Attachment,
+  ) => { execute(request: HttpRequest): Promise<HttpResponse>; close?(): void };
 };
 export type ComputerStatus = {
   state:
@@ -45,7 +48,9 @@ export class ComputerService {
   private writes: Promise<void> = Promise.resolve();
   private running = new Set<Promise<unknown>>();
   private http: HttpMux | undefined;
-  private httpTarget: {execute(request: HttpRequest): Promise<HttpResponse>; close?(): void} | undefined;
+  private httpTarget:
+    | { execute(request: HttpRequest): Promise<HttpResponse>; close?(): void }
+    | undefined;
   private socket: WebSocket | undefined;
   private stopped = false;
   private retry: ReturnType<typeof setTimeout> | undefined;
@@ -76,10 +81,15 @@ export class ComputerService {
         throw new Error("Computer is not attached; use attach first");
       if (config.runtime === "native" && !config.workspacePath)
         throw new Error("Native runtime requires an explicit workspace path");
-      this.runtime = this.dependencies.runtime?.(config, this.home) ??
+      this.runtime =
+        this.dependencies.runtime?.(config, this.home) ??
         (config.runtime === "fixture"
           ? new FixtureRuntime(join(this.home, "fixture.sqlite"))
-          : new NativeRuntime(config.nativeHome ?? homedir(), config.workspacePath!, config.nativeStateHome ?? this.home));
+          : new NativeRuntime(
+              config.nativeHome ?? homedir(),
+              config.workspacePath!,
+              config.nativeStateHome ?? this.home,
+            ));
       this.providerLaunch =
         (await this.runtime!.supportsProviderLaunch?.().catch(() => false)) ??
         false;
@@ -183,12 +193,16 @@ export class ComputerService {
               await response.body?.cancel();
             },
             send: async (localId, text) => {
-              const result = (await this.runtime!.execute({
-                op: "send",
-                agentId: config.computerId,
-                localId,
-                text,
-              })) as { ok?: boolean; commit_unknown?: boolean };
+              const result = (
+                this.runtime!.sendQueued
+                  ? await this.runtime!.sendQueued(localId, text)
+                  : await this.runtime!.execute({
+                      op: "send",
+                      agentId: config.computerId,
+                      localId,
+                      text,
+                    })
+              ) as { ok?: boolean; commit_unknown?: boolean };
               if (result.ok !== true || result.commit_unknown)
                 throw new Error("Queued send outcome is unknown");
             },
@@ -285,10 +299,14 @@ export class ComputerService {
           !!welcome.data.capabilities?.includes("notifications");
         this.http?.close();
         this.httpTarget?.close?.();
-        const target = c.runtime === "native"
-          ? (this.dependencies.httpTarget?.(this.runtime!, c) ??
-             new NativeHttpTarget(this.runtime! as NativeRuntime, c.workspacePath!))
-          : undefined;
+        const target =
+          c.runtime === "native"
+            ? (this.dependencies.httpTarget?.(this.runtime!, c) ??
+              new NativeHttpTarget(
+                this.runtime! as NativeRuntime,
+                c.workspacePath!,
+              ))
+            : undefined;
         this.httpTarget = target;
         this.http = new HttpMux(
           ws,

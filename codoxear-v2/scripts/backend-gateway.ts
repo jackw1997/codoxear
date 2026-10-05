@@ -6,11 +6,15 @@ export type GatewayRequest = {
   path: string;
   model: unknown;
   authorized: boolean;
+  held?: boolean;
+  aborted?: boolean;
 };
 export async function backendGateway(port = 19821) {
   if (!existsSync("/.dockerenv")) throw new Error("Docker only");
   const requests: GatewayRequest[] = [],
     marker = "PRIVATE_PROVIDER_OK";
+  let heldPath: string | undefined;
+  let heldPrompt: string | undefined;
   const server = createServer(async (req, res) => {
     if (req.method === "GET") {
       res.setHeader("Content-Type", "application/json");
@@ -21,19 +25,41 @@ export async function backendGateway(port = 19821) {
     for await (const chunk of req) body += chunk;
     const payload = JSON.parse(body || "{}"),
       path = req.url ?? "/";
-    requests.push({
+    const record: GatewayRequest = {
       path,
       model: payload.model,
       authorized:
         req.headers.authorization === "Bearer fixture-private-key" ||
         req.headers["x-api-key"] === "fixture-private-key",
-    });
+    };
+    requests.push(record);
     if (path.includes("count_tokens")) {
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ input_tokens: 10 }));
       return;
     }
     res.setHeader("Content-Type", "text/event-stream");
+    const actualPrompt =
+      !heldPrompt ||
+      (payload.messages ?? []).some(
+        (message: any) =>
+          message.role === "user" &&
+          (message.content === heldPrompt ||
+            (Array.isArray(message.content) &&
+              message.content.some(
+                (part: any) => part.type === "text" && part.text === heldPrompt,
+              ))),
+      );
+    if (heldPath && path.split("?")[0]!.endsWith(heldPath) && actualPrompt) {
+      heldPath = undefined;
+      heldPrompt = undefined;
+      record.held = true;
+      res.on("close", () => {
+        record.aborted = !res.writableEnded;
+      });
+      res.write(": controlled held inference\n\n");
+      return;
+    }
     const send = (event: string, data: unknown) =>
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     if (path.split("?")[0]!.endsWith("/chat/completions")) {
@@ -179,10 +205,15 @@ export async function backendGateway(port = 19821) {
   return {
     requests,
     origin: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+    holdNext(path: string, prompt?: string) {
+      heldPath = path;
+      heldPrompt = prompt;
+    },
     close: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((e) => (e ? reject(e) : resolve())),
-      ),
+      new Promise<void>((resolve, reject) => {
+        server.closeAllConnections();
+        server.close((e) => (e ? reject(e) : resolve()));
+      }),
   };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)

@@ -155,7 +155,7 @@ export async function createHubApp(o: HubOptions) {
         )
         .header(
           "Access-Control-Allow-Headers",
-          "Authorization, Content-Type, Range, If-None-Match, If-Match, X-Codoxear-Request-Id",
+          "Authorization, Content-Type, Range, If-None-Match, If-Match, X-Codoxear-Request-Id, Cache-Control, Last-Event-ID",
         );
     }
     if (r.method === "OPTIONS" && o.localIdentity) {

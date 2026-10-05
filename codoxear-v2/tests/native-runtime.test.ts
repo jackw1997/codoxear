@@ -30,7 +30,16 @@ async function until<T>(
   }
   throw Error("Condition timed out");
 }
-async function fixture() {
+async function fixture(
+  options: {
+    reportInput?: boolean;
+    exitOnPaste?: boolean;
+    responseDelay?: number;
+    delayedUser?: boolean;
+    delayedTrust?: boolean;
+    newSessionTrust?: boolean;
+  } = {},
+) {
   const home = await mkdtemp(join(tmpdir(), "native-runtime-")),
     workspace = join(home, "workspace");
   await mkdir(workspace);
@@ -44,8 +53,8 @@ const resume=process.argv.indexOf('resume');const id=resume<0?'native-'+process.
 const dir=path.join(home,'.codex','sessions');fs.mkdirSync(dir,{recursive:true});const log=path.join(dir,id+'.jsonl');
 const fd=fs.openSync(log,'a');function row(type,payload){fs.writeSync(fd,JSON.stringify({type,payload,timestamp:new Date().toISOString()})+'\\n');}
 if(fs.statSync(log).size===0)row('session_meta',{id,cwd});
-process.stdout.write('100% context left ? for shortcuts\\n');if(process.stdin.isTTY)process.stdin.setRawMode(true);
-let buffer='';process.stdin.on('data',data=>{buffer+=data.toString().replace(/\\x1b\\[(?:200|201)~/g,'');if(buffer.includes('\\x03')){buffer='';return;}if(!buffer.includes('\\r'))return;const text=buffer.split('\\r')[0];buffer='';row('event_msg',{type:'user_message',message:text});setTimeout(()=>{row('response_item',{type:'message',role:'assistant',phase:'final_answer',content:[{type:'output_text',text:'Native reply: '+text}]});row('event_msg',{type:'task_complete'});process.stdout.write('100% context left ? for shortcuts\\n');},80);});
+if(${options.delayedTrust === true}){process.stdout.write('OpenAI Codex permissions: YOLO mode Ask Codex to do anything '+(${options.newSessionTrust === true}?'':'Resuming session…')+'\\n');setTimeout(()=>process.stdout.write('\\x1b[1;1H\\x1b[JFolder access\\nTrust this folder?\\n1. Trust and continue\\n2. Quit\\n'),250);}else process.stdout.write('100% context left ? for shortcuts\\n');if(process.stdin.isTTY)process.stdin.setRawMode(true);
+let buffer='';process.stdin.on('data',data=>{buffer+=data.toString().replace(/\\x1b\\[(?:200|201)~/g,'');if(${options.exitOnPaste === true}&&buffer.includes('FAIL_BEFORE_SUBMIT'))process.exit(0);if(${options.reportInput === true})process.stdout.write('INPUT_OBSERVED\\n');if(buffer.includes('\\x03')){buffer='';return;}if(!buffer.includes('\\r'))return;const text=buffer.split('\\r')[0];buffer='';process.stdout.write('Native reply echo: '+text+'\\n');setTimeout(()=>{row('event_msg',{type:'user_message',message:text});setTimeout(()=>{row('response_item',{type:'message',role:'assistant',phase:'final_answer',content:[{type:'output_text',text:'Native reply: '+text}]});row('event_msg',{type:'task_complete'});process.stdout.write('100% context left ? for shortcuts\\n');},${options.responseDelay ?? 80});},${options.delayedUser === true}&&text==='Delayed producer row'?900:0);});
 `,
     { mode: 0o755 },
   );
@@ -357,6 +366,43 @@ test("provider routing is child-local and Claude setup fails before dispatch", a
   assert.equal(claude.env.ANTHROPIC_API_KEY, "private-key");
   assert.ok(claude.args.includes("--setting-sources"));
   assert.ok(claude.args.includes("project,local"));
+  // Claude 2.1.287 removes the legacy consent after migrating it to settings.
+  const migratedConfig = JSON.parse(readFileSync(configPath, "utf8"));
+  delete migratedConfig.bypassPermissionsModeAccepted;
+  await writeFile(configPath, JSON.stringify(migratedConfig));
+  const settingsPath = join(f.home, ".claude", "settings.json");
+  await writeFile(
+    settingsPath,
+    JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+  );
+  const migrated = backendCommand({
+    ...input,
+    backend: "cc",
+    launch: { ...input.launch, service_tier: "fast" },
+  });
+  assert.deepEqual(
+    JSON.parse(migrated.args[migrated.args.indexOf("--settings") + 1]!),
+    {
+      skipDangerousModePermissionPrompt: true,
+      fastMode: true,
+    },
+  );
+  assert.equal(
+    JSON.parse(readFileSync(configPath, "utf8")).bypassPermissionsModeAccepted,
+    undefined,
+  );
+  await writeFile(
+    settingsPath,
+    JSON.stringify({ skipDangerousModePermissionPrompt: false }),
+  );
+  assert.throws(
+    () => backendCommand({ ...input, backend: "cc" }),
+    /permissions-mode confirmation/,
+  );
+  await writeFile(
+    settingsPath,
+    JSON.stringify({ skipDangerousModePermissionPrompt: true }),
+  );
   assert.throws(
     () =>
       backendCommand({
@@ -666,17 +712,106 @@ test("Codex native 0.160 editor is recognized after permissions are initialized"
   assert.equal(
     startupState(
       "codex",
-      "OpenAI Codex permissions: YOLO mode Ask Codex to do anything PrivateModel default",
+      "OpenAI Codex permissions: YOLO mode Ask Codex to do anything PrivateModel default · ~/workspace",
     ).ready,
     true,
   );
   assert.equal(
     startupState(
       "codex",
-      "trust this folder? Ask Codex to do anything permissions: YOLO mode",
+      "\x1b[1;1H\x1b[JFolder access Trust this folder? 1. Trust and continue 2. Quit Ask Codex to do anything permissions: YOLO mode",
     ).ready,
     false,
   );
+});
+
+for (const newSessionTrust of [false, true])
+  test(`a delayed native Codex ${newSessionTrust ? "new-session" : "resume"} trust frame blocks first use and never accepts trust`, async () => {
+    const f = await fixture({ delayedTrust: true, newSessionTrust }),
+      prior = process.env.CODEX_BIN;
+    process.env.CODEX_BIN = f.command;
+    const runtime = new NativeRuntime(f.home, f.workspace);
+    let id: string | undefined;
+    try {
+      id = (await runtime.createTerminal("codex", "Delayed trust")).localId;
+      await until(async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).tail.includes(
+          "permissions: YOLO mode",
+        ),
+      );
+      assert.equal(
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness,
+        "starting",
+        "the preliminary YOLO header is not a ready editor",
+      );
+      await assert.rejects(
+        runtime.request(`/api/sessions/${id}/send`, "POST", {
+          text: "Never accept trust",
+        }),
+        (e: any) => e.code === "setup_required",
+      );
+      await until(
+        async () =>
+          (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+          "setup_required",
+      );
+      const state = await runtime.request(`/api/sessions/${id}/state`);
+      assert.match(state.setup_message, /workspace trust.*local terminal/);
+      await assert.rejects(
+        runtime.request(`/api/sessions/${id}/send`, "POST", {
+          text: "Still never accept trust",
+        }),
+        (e: any) => e.code === "setup_required",
+      );
+      assert.equal(
+        (await runtime.request(`/api/sessions/${id}/messages/tail`)).events
+          .length,
+        0,
+      );
+      assert.equal(existsSync(join(f.home, ".codex", "config.toml")), false);
+    } finally {
+      if (id)
+        await runtime
+          .request(`/api/sessions/${id}/delete`, "POST")
+          .catch(() => {});
+      if (prior === undefined) delete process.env.CODEX_BIN;
+      else process.env.CODEX_BIN = prior;
+    }
+  });
+
+test("ordinary native output quoting the trust UI does not demote a ready Codex session", async () => {
+  const f = await fixture(),
+    prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Quoted setup words")).localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    const text =
+      "Folder access Trust this folder? 1. Trust and continue 2. Quit";
+    await runtime.request(`/api/sessions/${id}/send`, "POST", { text });
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Native reply: " + text,
+      ),
+    );
+    assert.equal(
+      (await runtime.request(`/api/sessions/${id}/state`)).readiness,
+      "ready",
+    );
+  } finally {
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CODEX_BIN;
+    else process.env.CODEX_BIN = prior;
+  }
 });
 
 test("Claude background Agent remains running until its producer task notification", async () => {
@@ -846,6 +981,17 @@ row('session_meta',{id:'interrupt-producer',cwd:process.cwd()});process.stdout.w
         (await runtime.request(`/api/sessions/${id}/messages/tail`)).events
           .length > 0,
     );
+    await assert.rejects(
+      runtime.sendQueued(id!, "Queued prompt must wait"),
+      (error: any) =>
+        error.status === 409 && error.code === "queue_not_dispatched",
+    );
+    assert.equal(
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (event: any) => event.text === "Queued prompt must wait",
+      ),
+      false,
+    );
     const requested = await runtime.request(
       `/api/sessions/${id}/interrupt`,
       "POST",
@@ -863,6 +1009,470 @@ row('session_meta',{id:'interrupt-producer',cwd:process.cwd()});process.stdout.w
       (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
         (e: any) => e.message_class === "error",
       ),
+    );
+  } finally {
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CODEX_BIN;
+    else process.env.CODEX_BIN = prior;
+  }
+});
+
+test("terminal drafts fence idle-only sends until a new producer turn proves idle", async () => {
+  const f = await fixture({ reportInput: true, responseDelay: 500 }),
+    prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  let socket: ReturnType<typeof connect> | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Terminal input fence"))
+      .localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    await runtime.request(`/api/sessions/${id}/send`, "POST", {
+      text: "Already completed",
+    });
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Already completed" && e.role === "user",
+      ),
+    );
+    socket = connect(socketPath(runtime.stateHome, id));
+    await new Promise<void>((resolve, reject) => {
+      socket!.once("connect", resolve);
+      socket!.once("error", reject);
+    });
+    socket.resume();
+    socket.write(JSON.stringify({ operation: "attach" }) + "\n");
+    const priorReports = (
+      (await runtime.request(`/api/sessions/${id}/state`)).tail.match(
+        /INPUT_OBSERVED/g,
+      ) ?? []
+    ).length;
+    socket.write(
+      JSON.stringify({ type: "input", data: "unfinished terminal draft" }) +
+        "\n",
+    );
+    await until(
+      async () =>
+        (
+          (await runtime.request(`/api/sessions/${id}/state`)).tail.match(
+            /INPUT_OBSERVED/g,
+          ) ?? []
+        ).length > priorReports,
+    );
+    const rejectQueued = () =>
+      assert.rejects(
+        runtime.sendQueued(id!, "Do not append to the terminal draft"),
+        (e: any) => e.code === "queue_not_dispatched",
+      );
+    await rejectQueued();
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    await rejectQueued(); // Old completion and a full poll cannot erase local draft activity.
+    assert.equal(
+      (
+        await runtime.request(`/api/sessions/${id}/messages/tail`)
+      ).events.filter((e: any) => e.role === "user").length,
+      1,
+    );
+    socket.write(JSON.stringify({ type: "input", data: "\x03" }) + "\n");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    socket.write(
+      JSON.stringify({ type: "input", data: "Local completed turn\r" }) + "\n",
+    );
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Native reply: Local completed turn",
+      ),
+    );
+    await until(async () => {
+      try {
+        await runtime.sendQueued(id!, "Queue after actual terminal idle");
+        return true;
+      } catch (e: any) {
+        if (e.code === "queue_not_dispatched") return false;
+        throw e;
+      }
+    });
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Native reply: Queue after actual terminal idle",
+      ),
+    );
+  } finally {
+    socket?.destroy();
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CODEX_BIN;
+    else process.env.CODEX_BIN = prior;
+  }
+});
+
+test("send receipts await submission and deduplicate concurrent request IDs while serializing separate prompts", async () => {
+  const f = await fixture(),
+    prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Concurrent receipt")).localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    const start = performance.now();
+    const duplicate = () =>
+      runtime.request(`/api/sessions/${id}/send`, "POST", {
+        text: "One submission",
+        request_id: "same-request",
+      });
+    const [first, second] = await Promise.all([duplicate(), duplicate()]);
+    assert.deepEqual(first, second);
+    assert.equal(first.accepted, true);
+    assert.ok(
+      performance.now() - start >= 45,
+      "ACK waits through the paste/Enter delay",
+    );
+    await Promise.all(
+      ["Separate first", "Separate second"].map((text) =>
+        runtime.request(`/api/sessions/${id}/send`, "POST", { text }),
+      ),
+    );
+    await until(
+      async () =>
+        (
+          await runtime.request(`/api/sessions/${id}/messages/tail`)
+        ).events.filter((e: any) => e.role === "user").length === 3,
+    );
+    assert.deepEqual(
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events
+        .filter((e: any) => e.role === "user")
+        .map((e: any) => e.text),
+      ["One submission", "Separate first", "Separate second"],
+    );
+  } finally {
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CODEX_BIN;
+    else process.env.CODEX_BIN = prior;
+  }
+});
+
+for (const interference of ["terminal input", "interrupt"] as const)
+  test(`${interference} during queued paste returns uncertain without writing Enter`, async () => {
+    const f = await fixture({ reportInput: true }),
+      prior = process.env.CODEX_BIN;
+    process.env.CODEX_BIN = f.command;
+    const runtime = new NativeRuntime(f.home, f.workspace);
+    let id: string | undefined, socket: ReturnType<typeof connect> | undefined;
+    try {
+      id = (await runtime.createTerminal("codex", "Concurrent terminal input"))
+        .localId;
+      await until(
+        async () =>
+          (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+          "ready",
+      );
+      socket = connect(socketPath(runtime.stateHome, id));
+      await new Promise<void>((resolve, reject) => {
+        socket!.once("connect", resolve);
+        socket!.once("error", reject);
+      });
+      let interfered = false;
+      let interrupt: Promise<any> | undefined;
+      socket.on("data", (chunk) => {
+        if (!interfered && chunk.toString().includes("INPUT_OBSERVED")) {
+          interfered = true;
+          if (interference === "interrupt")
+            interrupt = runtime.request(
+              `/api/sessions/${id}/interrupt`,
+              "POST",
+            );
+          else
+            socket!.write(
+              JSON.stringify({ type: "input", data: "local draft" }) + "\n",
+            );
+        }
+      });
+      socket.write(JSON.stringify({ operation: "attach" }) + "\n");
+      await assert.rejects(
+        runtime.sendQueued(id!, "Queued paste"),
+        (e: any) => e.code === "runtime_uncertain",
+      );
+      assert.equal(interfered, true);
+      if (interrupt) assert.equal((await interrupt).interrupt_requested, true);
+      assert.equal(
+        (await runtime.request(`/api/sessions/${id}/messages/tail`)).events
+          .length,
+        0,
+      );
+    } finally {
+      socket?.destroy();
+      if (id)
+        await runtime
+          .request(`/api/sessions/${id}/delete`, "POST")
+          .catch(() => {});
+      if (prior === undefined) delete process.env.CODEX_BIN;
+      else process.env.CODEX_BIN = prior;
+    }
+  });
+
+test("a previous completion cannot clear busy before the new producer user row arrives", async () => {
+  const f = await fixture({ delayedUser: true }),
+    prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Delayed producer row"))
+      .localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    await runtime.request(`/api/sessions/${id}/send`, "POST", {
+      text: "Old completed turn",
+    });
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Native reply: Old completed turn",
+      ),
+    );
+    const state = await runtime.request(`/api/sessions/${id}/state`);
+    // Make the old completion recent enough to reproduce the former timestamp shortcut.
+    await writeFile(
+      state.log_path,
+      readFileSync(state.log_path, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => ({
+          ...JSON.parse(line),
+          timestamp: new Date().toISOString(),
+        }))
+        .map((row) => JSON.stringify(row))
+        .join("\n") + "\n",
+    );
+    await runtime.request(`/api/sessions/${id}/send`, "POST", {
+      text: "Delayed producer row",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.equal(
+      (await runtime.request(`/api/sessions/${id}/state`)).busy,
+      true,
+    );
+    await assert.rejects(
+      runtime.sendQueued(id!, "Must remain queued"),
+      (e: any) => e.code === "queue_not_dispatched",
+    );
+    await until(
+      async () => !(await runtime.request(`/api/sessions/${id}/state`)).busy,
+    );
+    assert.equal(
+      (
+        await runtime.request(`/api/sessions/${id}/messages/tail`)
+      ).events.filter((e: any) => e.role === "user").length,
+      2,
+    );
+  } finally {
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CODEX_BIN;
+    else process.env.CODEX_BIN = prior;
+  }
+});
+
+test("Claude interrupt waits for a fresh producer idle title and clears only its restored remote prompt", async () => {
+  const f = await fixture(),
+    prior = process.env.CLAUDE_BIN;
+  await mkdir(join(f.home, ".claude"), { recursive: true });
+  await writeFile(
+    join(f.home, ".claude", ".claude.json"),
+    JSON.stringify({
+      hasCompletedOnboarding: true,
+      bypassPermissionsModeAccepted: true,
+      projects: { [f.workspace]: { hasTrustDialogAccepted: true } },
+    }),
+  );
+  await writeFile(
+    f.command,
+    `#!${process.execPath}
+const fs=require('fs'),path=require('path');const dir=path.join(process.env.HOME,'.claude','projects','fixture');fs.mkdirSync(dir,{recursive:true});const fd=fs.openSync(path.join(dir,'claude-fixture.jsonl'),'a');function row(type,message){fs.writeSync(fd,JSON.stringify({type,message,sessionId:'claude-fixture',cwd:process.cwd(),timestamp:new Date().toISOString()})+'\\n');}row('system',{});process.stdin.setRawMode(true);process.stdout.write('Claude Code ? for shortcuts\\n❯ \\x1b]0;✳ Claude Code\\x07');let buffer='',held=false;process.stdin.on('data',data=>{const text=data.toString().replace(/\\x1b\\[(?:200|201)~/g,'');if(text==='\\x1b'&&held){held=false;setTimeout(()=>process.stdout.write('\\x1b]0;✳ Claude Code\\x07\\n❯ '+buffer+'\\r\\n'),180);return;}const clear=text.lastIndexOf('\\x15');if(clear>=0)buffer='';buffer+=clear>=0?text.slice(clear+1):text;if(!buffer.includes('\\r'))return;const prompt=buffer.split('\\r')[0];buffer='';row('user',{role:'user',content:prompt});if(prompt==='Held remote prompt'){buffer=prompt;held=true;process.stdout.write('\\x1b]0;◐ Claude Code\\x07');return;}row('assistant',{role:'assistant',content:[{type:'text',text:'Claude reply: '+prompt}],stop_reason:'end_turn'});process.stdout.write('\\x1b]0;✳ Claude Code\\x07\\n❯ \\n');});
+`,
+    { mode: 0o755 },
+  );
+  process.env.CLAUDE_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  try {
+    id = (
+      await runtime.createTerminal("cc", "Claude cancellation", {
+        cwd: f.workspace,
+      })
+    ).localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    await runtime.request(`/api/sessions/${id}/send`, "POST", {
+      text: "Held remote prompt",
+    });
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Held remote prompt",
+      ),
+    );
+    await runtime.request(`/api/sessions/${id}/interrupt`, "POST");
+    assert.equal(
+      (await runtime.request(`/api/sessions/${id}/state`)).busy,
+      true,
+      "cached startup idle title cannot acknowledge cancellation",
+    );
+    await until(
+      async () => !(await runtime.request(`/api/sessions/${id}/state`)).busy,
+    );
+    const canceled = await runtime.request(`/api/sessions/${id}/messages/tail`);
+    assert.equal(canceled.turn_aborted, true);
+    assert.equal(
+      canceled.events.filter((event: any) => event.role === "assistant").length,
+      0,
+      "terminal acknowledgment does not invent assistant text",
+    );
+    await runtime.sendQueued(id!, "Fresh prompt after cancellation");
+    await until(async () =>
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some(
+        (e: any) => e.text === "Claude reply: Fresh prompt after cancellation",
+      ),
+    );
+    assert.deepEqual(
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).events
+        .filter((e: any) => e.role === "user")
+        .map((e: any) => e.text),
+      ["Held remote prompt", "Fresh prompt after cancellation"],
+    );
+    assert.equal(
+      (await runtime.request(`/api/sessions/${id}/messages/tail`)).turn_aborted,
+      false,
+      "producer idle acknowledgment is scoped to the canceled turn",
+    );
+  } finally {
+    if (id)
+      await runtime
+        .request(`/api/sessions/${id}/delete`, "POST")
+        .catch(() => {});
+    if (prior === undefined) delete process.env.CLAUDE_BIN;
+    else process.env.CLAUDE_BIN = prior;
+  }
+});
+
+test("current Codex retained user messages render without environment or duplicate final replies", async () => {
+  const home = await mkdtemp(join(tmpdir(), "codex-current-log-"));
+  const path = join(home, "current.jsonl");
+  const rows = [
+    { type: "event_msg", payload: { type: "task_started" } },
+    {
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "<environment_context>fixture</environment_context>",
+          },
+        ],
+        internal_chat_message_metadata_passthrough: {
+          content_item_kinds: ["environments.environment_context"],
+        },
+      },
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text: "Actual terminal prompt" }],
+        internal_chat_message_metadata_passthrough: {
+          content_item_kinds: ["user.text"],
+        },
+      },
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Actual answer" }],
+      },
+    },
+    {
+      type: "event_msg",
+      payload: { type: "task_complete", last_agent_message: "Actual answer" },
+    },
+  ];
+  await writeFile(
+    path,
+    rows
+      .map((row, i) =>
+        JSON.stringify({
+          ...row,
+          timestamp: new Date(Date.now() + i).toISOString(),
+        }),
+      )
+      .join("\n") + "\n",
+  );
+  const transcript = readTranscript(path, "codex");
+  assert.deepEqual(
+    transcript.events.map((e) => [e.role, e.text]),
+    [
+      ["user", "Actual terminal prompt"],
+      ["assistant", "Actual answer"],
+    ],
+  );
+  assert.equal(transcript.events[1]!.message_class, "final_response");
+  assert.equal(transcript.busy, false);
+  assert.deepEqual(transcript.boundaries, ["start", "end"]);
+});
+
+test("native process death after paste and before Enter returns uncertain instead of an accepted receipt", async () => {
+  const f = await fixture({ exitOnPaste: true }),
+    prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Pre-submit death")).localId;
+    await until(
+      async () =>
+        (await runtime.request(`/api/sessions/${id}/state`)).readiness ===
+        "ready",
+    );
+    await assert.rejects(
+      runtime.request(`/api/sessions/${id}/send`, "POST", {
+        text: "FAIL_BEFORE_SUBMIT",
+      }),
+      (e: any) => e.code === "runtime_uncertain",
+    );
+    const history = await runtime.request(`/api/sessions/${id}/messages/tail`);
+    assert.equal(
+      history.events.some(
+        (e: any) => e.role === "user" && e.text === "FAIL_BEFORE_SUBMIT",
+      ),
+      false,
     );
   } finally {
     if (id)

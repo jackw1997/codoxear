@@ -318,3 +318,61 @@ test("Voice requires an active listener and uses the configured narration summar
     await f.close();
   }
 });
+
+test("Voice settings reject non-boolean toggles and mask fixture secrets after blank-key saves", async () => {
+  assert.ok(existsSync("/.dockerenv"), "Docker only");
+  const f = await fixture();
+  try {
+    assert.equal((await f.call("/api/settings/voice", "POST", { tts_api_key: "fixture-masking-secret", tts_enabled_for_narration: "false" })).status, 400);
+    assert.equal((await f.call("/api/settings/voice")).json().has_tts_api_key, false);
+    const saved = await f.call("/api/settings/voice", "POST", { tts_api_key: "fixture-masking-secret", injected_secret: "fixture-unrecognized-secret" });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json().tts_api_key, "");
+    assert.equal(saved.json().has_tts_api_key, true);
+    assert.ok(!saved.content.includes(Buffer.from("fixture-masking-secret")));
+    assert.equal("injected_secret" in saved.json(), false);
+    const kept = await f.call("/api/settings/voice", "POST", { tts_api_key: "" });
+    assert.equal(kept.json().has_tts_api_key, true);
+    const cleared = await f.call("/api/settings/voice", "POST", { tts_api_key_clear: true });
+    assert.equal(cleared.json().has_tts_api_key, false);
+  } finally { await f.close(); }
+});
+
+for (const stage of ["speech", "summary"] as const) {
+  test(`Disabling the final listener aborts pending ${stage} without publishing stale audio`, async () => {
+    assert.ok(existsSync("/.dockerenv"), "Docker only");
+    const f = await fixture();
+    let calls = 0, closed = false;
+    const server = createServer(async (request, response) => {
+      for await (const _chunk of request) {}
+      calls++;
+      assert.ok(request.headers.authorization === "Bearer fixture-cancel-key");
+      assert.equal(request.url, stage === "summary" ? "/v1/chat/completions" : "/v1/audio/speech");
+      response.once("close", () => { closed = true; });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (server.address() as {port:number}).port;
+      if (stage === "summary") f.event.text = "Concrete reported progress ".repeat(40);
+      await f.call("/api/settings/voice", "POST", { tts_api_key: "fixture-cancel-key", tts_base_url: `http://127.0.0.1:${port}/v1` });
+      await f.call("/api/audio/listener", "POST", {client_id:"cancel-listener",enabled:true});
+      f.event.ts = Date.now()/1000 + 0.5;
+      let deadline = Date.now()+15000;
+      while (!calls && Date.now()<deadline) await setTimeout(50);
+      assert.equal(calls, 1);
+      await f.call("/api/audio/listener", "POST", {client_id:"cancel-listener",enabled:false});
+      deadline = Date.now()+3000;
+      while (!closed && Date.now()<deadline) await setTimeout(50);
+      assert.equal(closed,true,"Provider connection must close promptly after listener opt-out");
+      const snapshot = (await f.call("/api/settings/voice")).json();
+      assert.equal(snapshot.audio.active_listener_count,0);
+      assert.equal(snapshot.audio.segment_count,0);
+      assert.equal(snapshot.audio.last_error,null);
+      assert.ok(!(await f.call("/api/audio/live.m3u8")).content.includes(Buffer.from("#EXTINF:")));
+    } finally {
+      f.target.close(); server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(()=>resolve()));
+      await f.close();
+    }
+  });
+}
