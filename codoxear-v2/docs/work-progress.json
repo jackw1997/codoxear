@@ -102,5 +102,12 @@
     "historicalBaseline": 30,
     "note": "Broader rows overlap narrower ones; active entries also include external setup, later stages, compatibility limits and the aggregate production decision"
   },
-  "preview": "https://codoxear.gzeek.com:8461/"
+  "preview": "https://codoxear.gzeek.com:8461/",
+  "previewVerification": {
+    "checks": 4,
+    "evidence": "artifacts/progress-preview-results.json",
+    "outcome": "Actual phone browser connects two independent Hubs through OAuth, imports a real terminal Pi PTY, executes a shell file write and recovers its transcript after reload; no page errors or overflow",
+    "provider": "Scripted demo responses with actual installed CLI and shell tools; custom provider URL/key/model creation remains available",
+    "browserHarness": "Loopback online simulation inside network-isolated Docker; certificate exception scoped to fixture certificate SPKI"
+  }
 }

@@ -312,7 +312,7 @@
       "homeHub": "https://codoxear.gzeek.com:8462",
       "workHub": "https://codoxear.gzeek.com:8463",
       "state": "Fresh separate committed preview; existing Kimi and older deployments are retained",
-      "verification": "Release preview verification is recorded separately in its private deployment manifest; fixture playback and CLI acceptance are recorded above."
+      "verification": "Actual phone browser connects two independent Hubs through OAuth, imports a real terminal Pi PTY, executes a shell file write and recovers its transcript after reload; no page errors or overflow; committed Computer source archive and requirements report return HTTP 200 over HTTPS, archive SHA-256 matches published file."
     },
     "prReview": "Fresh isolated production build and 177/177 tests pass with no skips; 46 generic browser checks, nine installed-CLI lifecycle checks and eight real voice/settings browser checks pass; the generic and voice suites report no page errors. Lifecycle console diagnostics remain recorded in its artifact. Native PTY behavior suite has 24 cases; voice media suite has six. Hosted CI and the updated Docker image build remain unexecuted."
   },
