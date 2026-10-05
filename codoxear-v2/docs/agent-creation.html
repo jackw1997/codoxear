@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Codoxear v2 — agent creation</title>
+    <style>
+      body {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        font: 16px/1.6 system-ui;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      th,
+      td {
+        border: 1px solid;
+        padding: 12px;
+        text-align: left;
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Agent creation</h1>
+    <p>
+      Choose a computer, then Pi, Codex, or Claude Code. The form follows RAFT’s
+      Runtime → Provider → Model layout. Choose “Configured on computer” to use
+      existing credentials, or “Custom API” to enter an API URL, API key, and
+      private model ID directly.
+    </p>
+    <table>
+      <tr>
+        <th>Runtime</th>
+        <th>Provider choices</th>
+        <th>More / Advanced</th>
+      </tr>
+      <tr>
+        <td>Pi</td>
+        <td>
+          Configured providers, DeepSeek with API key, Custom API with OpenAI
+          Chat Completions, OpenAI Responses, or Anthropic Messages
+          compatibility and optional image input
+        </td>
+        <td>Thinking level, working directory, environment variables</td>
+      </tr>
+      <tr>
+        <td>Codex</td>
+        <td>
+          ChatGPT, OpenAI API with optional API key, configured providers,
+          Custom API using OpenAI Responses
+        </td>
+        <td>Reasoning, Fast mode, working directory, environment variables</td>
+      </tr>
+      <tr>
+        <td>Claude Code</td>
+        <td>Configured on computer, Custom API using Anthropic Messages</td>
+        <td>
+          Reasoning, Fast mode, working directory, Claude executable override,
+          environment variables
+        </td>
+      </tr>
+    </table>
+    <p>
+      Custom endpoints require a valid HTTP(S) URL, an API key, and a model ID.
+      Keys and environment values use password inputs. Switching providers
+      clears the URL/key; switching runtimes or computers resets incompatible
+      fields. Environment variables have add/remove rows and reject duplicate
+      names. Computer defaults remain available when its catalog cannot be
+      loaded.
+    </p>
+    <p>
+      The same creation form serves the independent client, account UI, and
+      account workspace. Provider settings travel through the hub and Computer
+      tunnel into the native launcher. Credentials are passed in each child
+      process’s environment; they are not written to browser storage, hub agent
+      records, the launch journal, or global CLI configuration. Claude custom
+      providers remove inherited OAuth and cloud routing unless explicitly
+      supplied in Advanced. Computer owners may supply launch settings; shared
+      operators retain default creation.
+    </p>
+    <p>
+      Use the self-contained TypeScript Computer to configure provider settings.
+      Its native runtime advertises provider-launch support and starts detached
+      Node PTY brokers. Python and the original Codoxear package are not required.
+    </p>
+    <h2>Design reference</h2>
+    <p>
+      The control structure follows Botiverse’s
+      <a
+        href="https://github.com/botiverse/raft-source/blob/main/packages/web/src/components/agent/RuntimeConfigFields.tsx"
+        >RAFT runtime form</a
+      >
+      and
+      <a
+        href="https://github.com/botiverse/raft-source/blob/main/packages/web/src/utils/reasoningEffortOptions.ts"
+        >model-dependent reasoning selection</a
+      >, inspected at release <code>05f7d8f</code> (v1.13.0-source.1).
+      Codoxear’s implementation uses its own Computer catalog and launch
+      contracts.
+    </p>
+    <h2>Verification</h2>
+    <p>
+      Run
+      <code>node --import tsx scripts/browser-agent-creation.mjs</code> inside
+      the built Docker verification environment. It exercises the actual
+      independent client and service worker, the shared form, outgoing launch
+      payloads, stale catalog responses, and all three mobile layouts. The
+      upstream hub is a controlled fixture. Native CLI verification uses local
+      scripted gateways and disposable credentials; it proves endpoint/key/model
+      routing, not live inference or provider login.
+    </p>
+    <p>
+      <a href="../artifacts/agent-creation-results.json">Browser results</a> ·
+      <a href="../artifacts/agent-creation-tests.tap">Behavioral tests</a> ·
+      <a href="../artifacts/creation-codex-mobile.png">Mobile preview</a> ·
+      <a href="../artifacts/private-provider-cli-results.json"
+        >Native CLI verification</a
+      >
+    </p>
+  </body>
+</html>

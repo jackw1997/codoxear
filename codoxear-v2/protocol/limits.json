@@ -1,0 +1,21 @@
+{
+  "version": {
+    "major": 1,
+    "minor": 0
+  },
+  "chunkBytes": 65536,
+  "streamQueuedBytes": 1048576,
+  "computerQueuedBytes": 16777216,
+  "maxConcurrentStreams": 16,
+  "maxUploadBytes": 268435456,
+  "mutationRetry": false,
+  "notifications": {
+    "ttlSeconds": 86400,
+    "acknowledgement": "after durable hub acceptance",
+    "maxOutboxEvents": 10000,
+    "maxHubEvents": 10000,
+    "maxDeliveries": 100000,
+    "providerSemantics": "at-least-once hint; delivery is not guaranteed"
+  },
+  "maxPolicyLeaseSeconds": 30
+}

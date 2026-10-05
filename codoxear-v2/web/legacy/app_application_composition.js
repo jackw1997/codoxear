@@ -1,0 +1,1296 @@
+import * as CodoxearChatInteraction from "./app_chat_interaction.js";
+import * as CodoxearClipboard from "./app_file_ops.js";
+import * as CodoxearConversationCopy from "./app_conversation_copy.js";
+import * as CodoxearCodeCopy from "./app_code_copy.js";
+import * as CodoxearDiagnostics from "./app_diagnostics.js";
+import * as CodoxearDialogMenu from "./app_dialog_menu.js";
+import * as CodoxearFileEditorOps from "./app_file_editor_ops.js";
+import * as CodoxearFileOps from "./app_file_ops.js";
+import * as CodoxearFilePickerOps from "./app_file_picker_ops.js";
+import * as CodoxearFileVim from "./app_file_vim.js";
+import * as CodoxearHelp from "./app_help.js";
+import * as CodoxearIOSViewport from "./app_ios_viewport.js";
+import * as CodoxearMessageHistory from "./app_message_history.js";
+import * as CodoxearModal from "./app_modal.js";
+import * as CodoxearQueue from "./app_queue.js";
+import * as CodoxearSendLifecycle from "./app_send_lifecycle.js";
+import * as CodoxearSessionLifecycle from "./app_session_lifecycle.js";
+import * as CodoxearSessionCatalog from "./app_session_catalog.js";
+import * as CodoxearSessionRefresh from "./app_session_refresh.js";
+import * as CodoxearSessionState from "./app_session_state.js";
+import * as CodoxearSessionTitle from "./app_session_title.js";
+import * as CodoxearTranscriptRender from "./app_transcript_render.js";
+import * as CodoxearUnattended from "./app_unattended.js";
+import * as CodoxearWiring from "./app_wiring.js";
+
+
+/* Application composition owns shell construction, controller assembly, boot
+ * sequencing, polling ticks, and cleanup-registered application listeners. */
+
+  function createEventBindings(options = {}) {
+    const addEvent = options.addEvent;
+    if (typeof addEvent !== "function") throw new TypeError("event bindings dependency missing: addEvent");
+
+    function on(target, type, handler, listenerOptions) {
+      if (!target || typeof handler !== "function") throw new TypeError(`event binding requires ${type} target and handler`);
+      return addEvent(target, type, handler, listenerOptions);
+    }
+
+    function onClick(target, handler, listenerOptions) {
+      return on(target, "click", handler, listenerOptions);
+    }
+
+    return Object.freeze({ on, onClick });
+  }
+
+  function createToastController(options = {}) {
+    function requireToastNode(value, name) {
+      if (!value || typeof value !== "object" || !("textContent" in value)) {
+        throw new TypeError(`toast dependency missing: ${name}`);
+      }
+      return value;
+    }
+
+    if (!options || typeof options !== "object") throw new TypeError("toast dependency missing: options");
+    const toast = requireToastNode(options.toast, "toast");
+    const setTimeoutFn = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
+    const dismissAfterMs = Number.isFinite(options.dismissAfterMs) ? Math.max(0, options.dismissAfterMs) : 2200;
+
+    function show(value) {
+      const text = value ? String(value) : "";
+      toast.textContent = text;
+      if (!text) return "";
+      setTimeoutFn(() => {
+        if (toast.textContent === text) toast.textContent = "";
+      }, dismissAfterMs);
+      return text;
+    }
+
+    return Object.freeze({ show });
+  }
+
+  function createApplicationComposition(deps = {}) {
+    const {
+      window, document, navigator, HTMLElement, EventSource, AbortController, getComputedStyle,
+      requestAnimationFrame, setTimeout, clearTimeout, $, UI_VERSION, ATTACH_UPLOAD_MAX_BYTES,
+      isTextEntryElement, updateAppHeightVar,
+      codoxearViewport, codoxearDisplay, codoxearVoice, el, codoxearShell, codoxearSessions, codoxearComposer, codoxearAttachments, codoxearTopbar,
+      codoxearSettings, themeController,
+      codoxearMessageFlow, codoxearInterrupt, codoxearDialogMenus,
+      codoxearDraftSync,
+      codoxearFileEditMode, codoxearPendingUser, codoxearNavigationPulse,
+      codoxearFileTouch, pushPerfSample,
+      resolveAppUrl, versionedShellAssetPath, storageGetItem,
+      storageSetItem, storageRemoveItem, codoxearLaunch, codoxearNewSession,
+      apiResponseNotModified, clearApiCache, api, fmtTs, fmtBytes, codoxearFileHelpers,
+      listFromFilesField, listFromFileRecords, baseName,
+      sessionDisplayName, sidebarEffortCode, sidebarModelText, sessionIdFromHash, setSessionHash, sessionLaunchIcon, sessionLaunchFailed,
+      sessionLaunchPending, sessionHasUnknownSend, sessionIsOrphanRecovery,
+      sessionHasOrphanQueueRecovery, sidebarSessionEntries,
+      sidebarRenderSignature, sessionSelectable, diagnosticsProviderDisplay, diagnosticsCopyText, codoxearPolling, codoxearNetwork, copyConversationFailureToast, normalizeAgentBackendName,
+      agentBackendDisplayName, agentBackendLogoPath, sessionAgentBackend, legacyCodexLaunchDefaults,
+      emptyPiLaunchDefaults, emptyCcLaunchDefaults, redactedLaunchErrorText, sessionLaunchLabel,
+      sessionIsFast, providerChoiceToSettings, sessionProviderChoice, fmtRelativeAge, sessionTitleWithId, stripPathLocationSuffix,
+      isTextFileKind, isDiffableFileKind, blockedFileMessage, formatPriorityOffset,
+      normalizeDraftFilePath, filePickerSectionLabel,
+      duplicateFilePickerPaths, rawByteDuplicatePaths, filePickerIdentityHint, filePickerTitle,
+      dataTransferHasFiles, extractFilesFromClipboardData, extractFilesFromDropData, safeAttachmentStem,
+      isLikelyHeic, looksLikeImage, b64FromBytes, codoxearFilePicker, codoxearFileViewer,
+      codoxearFileEditor, normalizeLineNumber, parseLocalFileRef,
+      isMarkdownPreviewable, markdownPreviewHtml, chatMarkdownHtmlCached, iconSvg,
+      cleanupActiveApp, renderLogin, setActiveAppCleanup, clearActiveAppCleanup
+    } = deps;
+    if (typeof cleanupActiveApp !== "function" || typeof setActiveAppCleanup !== "function" || typeof clearActiveAppCleanup !== "function") {
+      throw new Error("Codoxear application runtime requires cleanup lifecycle dependencies");
+    }
+
+      function renderApp() {
+            cleanupActiveApp();
+	        const root = $("#root");
+        const wiring = CodoxearWiring.createWiring();
+        const shellDOM = codoxearShell.createShellDOM(wiring.createShellDOMOptions({
+          root,
+          el,
+          iconSvg,
+          resolveAppUrl,
+          versionedShellAssetPath,
+        }));
+        const {
+          app,
+          backdrop,
+          sessionsWrap,
+          sidebarEmptyHint,
+          chatEmptyState,
+          chat,
+          chatInner,
+          olderWrap,
+          olderBtn,
+          olderRetryBtn,
+          olderError,
+          olderErrorText,
+          bottomSentinel,
+          jumpBtn,
+          chatTimeChip,
+          chatSearchInput,
+          chatSearchPrevBtn,
+          chatSearchNextBtn,
+          chatSearchCloseBtn,
+          chatSearchStatus,
+          chatSearchAllHintEl,
+          chatSearchBar,
+          chatNavRail,
+          titleLabel,
+          topMeta,
+          topActions,
+          toast,
+          networkBanner,
+          toggleSidebarBtn,
+          unattendedBtn,
+          diagBtn,
+          prevUserBtn,
+          nextUserBtn,
+          chatSearchBtn,
+          fileBtn,
+          composer,
+          form,
+          textarea,
+          msgPh,
+          modelPicker,
+          imgInput,
+          attachBtn,
+          queueBtn,
+          sendBtn,
+        } = shellDOM.elements;
+        const networkStatus = codoxearNetwork.createNetworkStatusController(wiring.createNetworkStatusOptions({
+          banner: networkBanner,
+          navigatorLike: typeof navigator === "undefined" ? undefined : navigator,
+        }));
+        const unattendedDom = CodoxearUnattended.createUnattendedDom(wiring.createUnattendedDomOptions({ el, iconSvg, unattendedBtn }));
+        const { unattendedMenu, enabledEl: unattendedEnabledEl, cooldownEl: unattendedCooldownEl, remainingEl: unattendedRemainingEl, requestEl: unattendedRequestEl } = unattendedDom;
+        root.appendChild(unattendedMenu);
+        const INIT_PAGE_LIMIT = 24;
+        const OLDER_PAGE_LIMIT = 60;
+        const CHAT_DOM_WINDOW = 260;
+        const CHAT_DOM_WINDOW_WITH_HISTORY_SLACK = CHAT_DOM_WINDOW + OLDER_PAGE_LIMIT;
+        const OLDER_TOP_TRIGGER_PX = 1;
+        const OLDER_CANCEL_PX = 48;
+        const OLDER_AUTO_COOLDOWN_MS = 450;
+        // Epoch is intentionally separate from polling: every async consumer
+        // may compare it, while only this composition owns scheduling powers.
+        const asyncEpoch = codoxearPolling.createAsyncEpoch();
+        const pollingRuntime = codoxearPolling.createPollingRuntime({ setTimeout, clearTimeout });
+        const sessionState = CodoxearSessionState.createSessionState({ consoleError: (...args) => console.error(...args) });
+        const sessionCatalog = CodoxearSessionCatalog.createSessionCatalog({ consoleError: (...args) => console.error(...args) });
+        let attachmentsController = null;
+        let composerController = null;
+        let draftSyncController = null;
+        let messageFlowController = null;
+        let sessionLifecycleController = null;
+        let sessionRefreshController = null;
+        function resizeComposer() {
+          if (composerController) composerController.autoGrow();
+        }
+        function clearComposerInput() {
+          if (!composerController) return;
+          composerController.clearComposer();
+          // Reached from the queue flow after the composer text was drained
+          // into the queue: that text has left the draft, so the server copy
+          // must be cleared too.
+          const sid = sessionState.get("selected");
+          if (sid && draftSyncController) draftSyncController.handleSendCleared(sid);
+        }
+        function saveSelectedComposerDraft(sessionId) {
+          if (composerController) composerController.saveSessionDraft(sessionId);
+        }
+        function loadSelectedComposerDraft(sessionId) {
+          if (composerController) composerController.loadSessionDraft(sessionId);
+        }
+        function closeSendChoiceDialog(options) {
+          if (composerController) composerController.hideSendChoice(options);
+        }
+        let sessionEditController = null;
+        let interruptController = null;
+        let modalPolicyController = null;
+              // Unattended menu state, cfg cache, number-input drafts, and the
+              // per-session save timers/in-flight/pending maps live in the
+              // CodoxearUnattended controller (codoxear/static/app_unattended.js).
+        let appDisposed = false;
+        const appEventCleanups = [];
+        function addAppEvent(target, type, handler, options) {
+          if (!target || typeof target.addEventListener !== "function") return handler;
+          target.addEventListener(type, handler, options);
+          appEventCleanups.push(() => target.removeEventListener(type, handler, options));
+          return handler;
+        }
+        const eventBindings = CodoxearEventBindings.createEventBindings(wiring.createEventBindingsOptions({ addEvent: addAppEvent }));
+        function stopMessagePolling() {
+          sessionState.set("selected", null);
+          asyncEpoch.incrementGeneration();
+          if (messageFlowController) messageFlowController.stop();
+          sessionState.set("turnOpen", false);
+        }
+        function cleanupApp() {
+          if (appDisposed) return;
+          appDisposed = true;
+          pollingRuntime.disable();
+          stopMessagePolling();
+          if (newSessionDialogController) {
+            newSessionDialogController.close();
+            newSessionDialogController.dispose();
+          }
+          if (voiceController) voiceController.dispose();
+          if (settingsDialogController) settingsDialogController.dispose();
+          if (unattendedController) unattendedController.dispose();
+          if (fileOpsController) fileOpsController.dispose();
+          filePickerSearchState.dispose();
+          if (iosViewportController) iosViewportController.dispose();
+          if (chatSearchController) chatSearchController.dispose();
+          if (sessionTitleController) sessionTitleController.dispose();
+          if (chatInteractionController) chatInteractionController.dispose();
+          if (topbarController) topbarController.dispose();
+          if (queueController) queueController.dispose();
+          if (diagController) diagController.dispose();
+          if (chatNavigationController) chatNavigationController.dispose();
+          if (hintModeController) hintModeController.dispose();
+          olderLoadRuntime.invalidate();
+          fileViewerController.abortPendingFileOpenTransport();
+          hideUnattendedMenu();
+          hideFilePasteDialog();
+          fileUnsavedController.hideFileUnsavedDialog("cancel");
+          closeSendChoiceDialog();
+          if (composerController) composerController.dispose();
+          if (draftSyncController) draftSyncController.dispose();
+          sidebarController.dispose();
+          while (appEventCleanups.length) {
+            const cleanup = appEventCleanups.pop();
+            try {
+              cleanup();
+            } catch (_error) {}
+          }
+          clearApiCache();
+          shellDOM.cleanup();
+          clearActiveAppCleanup(cleanupApp);
+        }
+        function handleAppAuthLoss() {
+          if (appDisposed) return;
+          cleanupApp();
+          renderLogin(renderApp);
+        }
+        function sessionsPollDelayMs() {
+          return codoxearPolling.networkRetryDelayMs({
+            normalDelayMs: codoxearPolling.sessionsPollDelayMs(document.visibilityState),
+            offline: browserOffline(),
+            errorStreak: pollingRuntime.sessionsPollErrorStreak(),
+          });
+        }
+        function secondaryPollDelayMs() {
+          return codoxearPolling.networkRetryDelayMs({
+            normalDelayMs: codoxearPolling.secondaryPollDelayMs(document.visibilityState),
+            offline: browserOffline(),
+            errorStreak: pollingRuntime.secondaryPollErrorStreak(),
+          });
+        }
+        function browserOffline() {
+          return codoxearPolling.browserOffline(typeof navigator === "undefined" ? undefined : navigator);
+        }
+        function markSessionsPollSuccess() {
+          pollingRuntime.markSessionsPollSuccess();
+          networkStatus.reportSuccess();
+        }
+        function markSessionsPollFailure(transportFailed = true) {
+          pollingRuntime.markSessionsPollFailure();
+          if (transportFailed) networkStatus.reportFailure();
+        }
+        function markSecondaryPollSuccess() {
+          pollingRuntime.markSecondaryPollSuccess();
+          networkStatus.reportSuccess();
+        }
+        function markSecondaryPollFailure(transportFailed = true) {
+          pollingRuntime.markSecondaryPollFailure();
+          if (transportFailed) networkStatus.reportFailure();
+        }
+
+        async function runSessionsPollTick() {
+          if (appDisposed) return;
+          try {
+            await refreshSessions();
+            markSessionsPollSuccess();
+          } catch (e2) {
+            if (e2 && e2.status === 401) {
+              handleAppAuthLoss();
+              return;
+            }
+            markSessionsPollFailure(!(e2 && typeof e2.status === "number"));
+            console.error("refreshSessions timer failed", e2);
+          }
+          scheduleSessionsPoll();
+        }
+        async function runSecondaryPollTick() {
+          if (appDisposed) return;
+          try {
+            await refreshVoiceBackgroundState();
+            markSecondaryPollSuccess();
+          } catch (e2) {
+            if (e2 && e2.status === 401) {
+              handleAppAuthLoss();
+              return;
+            }
+            markSecondaryPollFailure(!(e2 && typeof e2.status === "number"));
+            console.error("secondary poll failed", e2);
+          }
+          scheduleSecondaryPoll();
+        }
+        function scheduleSessionsPoll(delayMs = sessionsPollDelayMs()) {
+          if (appDisposed) return;
+          pollingRuntime.scheduleSessions(delayMs, runSessionsPollTick);
+        }
+        function scheduleSecondaryPoll(delayMs = secondaryPollDelayMs()) {
+          if (appDisposed) return;
+          pollingRuntime.scheduleSecondary(delayMs, runSecondaryPollTick);
+        }
+
+        const sessionTitleController = CodoxearSessionTitle.createSessionTitleController(wiring.createSessionTitleOptions({
+          titleLabel,
+          sessionState,
+          sessionCatalog,
+          sessionTitleWithId,
+          openEditSession: (sessionId) => sessionEditController.openEditSession(sessionId),
+        }));
+
+        const applicationModalDOM = codoxearShell.createApplicationModalDOM(wiring.createApplicationModalDOMOptions({
+          root, el, iconSvg, windowTarget: window, codoxearVoice, voiceHost: shellDOM.elements.voiceHost,
+        }));
+        const {
+          fileBackdrop, fileCloseBtn, fileStatus, filePickerInput, filePickerMenu, filePickerField,
+      fileModeDiffBtn, fileModePreviewBtn, fileEditBtn, fileVideoPreviewBtn, fileDownloadBtn,
+      fileTouchSelectBtn, fileTouchCopyBtn, fileTouchPasteBtn, fileTouchUpBtn, fileTouchLeftBtn,
+      fileTouchDownBtn, fileTouchRightBtn, fileTouchDpad, fileTouchActions, fileTouchToolbar,
+      fileDiff, fileImage, fileVideo, fileViewer, fileUnsavedBackdrop, fileUnsavedDialog,
+      filePasteBackdrop, filePasteInput, filePasteDialog, fileVimModeChip, sendChoiceBackdrop, sendChoice,
+      appConfirmBackdrop, appConfirmTitle, appConfirmMessage, appConfirmConfirmBtn,
+      appConfirmCancelBtn, appConfirm, queueBackdrop, queueCloseBtn, queueList, queueEmpty,
+      queueViewer, helpBackdrop, helpCloseBtn, helpViewer, diagBackdrop, diagCopyConversationBtn,
+      diagCopyBtn, diagCloseBtn, diagStatus, diagContent, diagViewer, editCloseBtn, editStatus,
+      editNameInput, editPriorityRange, editPriorityValue, editPriorityResetBtn,
+      editSnoozeModeButtons, editSnoozeButtons, editSnoozeCustomDate, editSnoozeCustomTime,
+      editSnoozeCustomRow, editDependencyBtn, editDependencyMenu, editDependencyField,
+      editSaveBtn, editViewer, announceBtn, liveAudio, voiceSettingsSection,
+      voiceSettingsStatus, voiceBaseUrlInput, voiceApiKeyInput,
+      voiceClearApiKeyToggle, narrationSettingToggle, unattendedPromptInput,
+      unattendedPromptResetBtn, voiceSettingsCancelBtn, voiceSettingsSaveBtn
+        } = applicationModalDOM;
+
+        const dialogMenuController = CodoxearDialogMenu.createDialogMenuController(wiring.createDialogMenuOptions({ windowTarget: window }));
+
+        let newSessionDialogController = null;
+        let settingsDialogController = null;
+        let modalIsolationTargets = null;
+        modalPolicyController = CodoxearModal.createModalPolicyController(wiring.createModalPolicyOptions({
+          app,
+          modalTargets: () => modalIsolationTargets,
+          closeUnattended: () => hideUnattendedMenu(),
+          isUnattendedOpen: () => unattendedController.isOpen(),
+          closeSearch: () => closeChatSearch(),
+          isSearchOpen: () => chatSearchController.isOpen(),
+          isSidebarOpen: () => document.body.classList.contains("sidebar-open"),
+          closeSidebar: () => setSidebarOpen(false),
+          closeFilePicker: () => {
+            if (fileOpsController) fileOpsController.closeFilePickerMenu({ restoreInput: false });
+          },
+          closeNewSessionMenus: () => newSessionDialogController.closeMenus(),
+          closeSessionDependencyMenu: () => sessionEditController.closeDependencyMenu(),
+          el,
+          iconSvg,
+        }));
+        const {
+          afterModalVisibilityChanged,
+          focusModalSurface,
+          isModalTargetOpen,
+          prepareModalOpen,
+          restoreModalFocus,
+          setPickerButtonContent,
+        } = modalPolicyController;
+
+        newSessionDialogController = codoxearNewSession.createNewSessionDialogController(wiring.createNewSessionDialogOptions({
+          root,
+          el,
+          iconSvg,
+          document,
+          window,
+          addEvent: addAppEvent,
+          sessionCatalog,
+          sessionState,
+          isMobile: () => codoxearViewport.isMobile(),
+          prepareModalOpen,
+          afterModalVisibilityChanged,
+          isModalTargetOpen,
+          applyDialogMenus: () => dialogMenusController.applyDialogMenus(),
+          positionDialogMenu: (menu, anchorBtn) => dialogMenuController.positionDialogMenu(menu, anchorBtn),
+          setPickerButtonContent,
+          fetchResumeCandidates: (cwd, backend) => api(`/api/session_resume_candidates?cwd=${encodeURIComponent(cwd)}&agent_backend=${encodeURIComponent(backend)}`),
+          spawnSession: (...args) => sessionLifecycleController.spawnSessionWithCwd(...args),
+        }));
+
+        // One flat Settings dialog: appearance controls plus the voice
+        // controller's inline "Voice & notifications" section. The dialog
+        // owns visibility; the voice controller is told when its section is
+        // shown or hidden and asks the dialog to open/close in return.
+        settingsDialogController = codoxearSettings.createSettingsDialogController(wiring.createSettingsDialogOptions({
+          root,
+          el,
+          iconSvg,
+          themeController,
+          openButton: $("#settingsBtnSide"),
+          voiceSection: voiceSettingsSection,
+          activateVoiceSection: () => voiceController.activateSettingsSection(),
+          deactivateVoiceSection: () => voiceController.deactivateSettingsSection(),
+          documentTarget: document,
+          ElementCtor: HTMLElement,
+          prepareModalOpen,
+          afterModalVisibilityChanged,
+          addEvent: addAppEvent,
+          setTimeout,
+          clearTimeout,
+          focusModalSurface,
+          isModalTargetOpen,
+          restoreModalFocus,
+        }));
+
+        modalIsolationTargets = [
+          settingsDialogController.viewer,
+          fileUnsavedDialog,
+          filePasteDialog,
+          fileViewer,
+          sendChoice,
+          appConfirm,
+          queueViewer,
+          helpViewer,
+          diagViewer,
+          editViewer,
+          newSessionDialogController.viewer,
+        ];
+
+        const confirmationController = CodoxearModal.createConfirmationController(wiring.createConfirmationOptions({
+          backdrop: appConfirmBackdrop,
+          viewer: appConfirm,
+          title: appConfirmTitle,
+          message: appConfirmMessage,
+          confirmButton: appConfirmConfirmBtn,
+          cancelButton: appConfirmCancelBtn,
+          documentTarget: document,
+          ElementCtor: HTMLElement,
+          requestFrame: requestAnimationFrame,
+          prepareModalOpen,
+          afterModalVisibilityChanged,
+          addEvent: addAppEvent,
+        }));
+        const {
+          confirm: confirmApp,
+          focusableControls: appConfirmFocusableControls,
+          resolve: resolveAppConfirm,
+        } = confirmationController;
+
+        const toastController = createToastController({ toast, setTimeout });
+        function setToast(text) {
+          return toastController.show(text);
+        }
+
+        const topbarController = codoxearTopbar.createTopbarController(wiring.createTopbarOptions({
+          el,
+          iconSvg,
+          setToast,
+          onInterrupt: () => interruptController && interruptController.interruptSelectedSession(),
+          sessionState,
+          topMeta,
+          topActions,
+          eventBindings,
+        }));
+
+        async function copyToClipboard(text) {
+          return CodoxearClipboard.copyToClipboard(text);
+        }
+
+        const codeBlockCopyRuntime = CodoxearCodeCopy.createCodeBlockCopyRuntime(wiring.createCodeBlockCopyOptions({
+          copyToClipboard,
+          setToast,
+          setTimeout,
+          clearTimeout,
+        }));
+
+        const conversationCopyController = CodoxearConversationCopy.createConversationCopyController(wiring.createConversationCopyOptions({
+          sessionState,
+          api,
+          copyToClipboard,
+          setToast,
+          copyConversationFailureToast,
+        }));
+        const { copyConversation } = conversationCopyController;
+
+        let fileOpsController = null;
+
+        const chatInteractionController = CodoxearChatInteraction.createChatInteractionController(wiring.createChatInteractionOptions({
+          currentGeneration: asyncEpoch.currentGeneration,
+          sessionCatalog,
+          getSessionLifecycleController: () => sessionLifecycleController,
+          getSessionRefreshController: () => sessionRefreshController,
+          sessionState,
+          getSessionEditController: () => sessionEditController,
+          getQueueController: () => queueController,
+          codoxearTranscriptRender: CodoxearTranscriptRender,
+          codoxearMessageHistory: CodoxearMessageHistory,
+          codoxearSendLifecycle: CodoxearSendLifecycle,
+          wiring: wiring,
+          document: document,
+          storageSetItem: storageSetItem,
+          storageRemoveItem: storageRemoveItem,
+          codoxearViewport: codoxearViewport,
+          codoxearSessions: codoxearSessions,
+          sessionsWrap: sessionsWrap,
+          sidebarEmptyHint: sidebarEmptyHint,
+          el: el,
+          iconSvg: iconSvg,
+          sidebarRenderSignature: sidebarRenderSignature,
+          sidebarSessionEntries: sidebarSessionEntries,
+          sessionDisplayName: sessionDisplayName,
+          sessionLaunchFailed: sessionLaunchFailed,
+          sessionLaunchPending: sessionLaunchPending,
+          redactedLaunchErrorText: redactedLaunchErrorText,
+          fmtRelativeAge: fmtRelativeAge,
+          sidebarEffortCode: sidebarEffortCode,
+          sidebarModelText: sidebarModelText,
+          baseName: baseName,
+          sessionIsFast: sessionIsFast,
+          agentBackendLogoPath: agentBackendLogoPath,
+          agentBackendDisplayName: agentBackendDisplayName,
+          sessionAgentBackend: sessionAgentBackend,
+          sessionLaunchIcon: sessionLaunchIcon,
+          sessionLaunchLabel: sessionLaunchLabel,
+          confirmApp: confirmApp,
+          api: api,
+          setToast: setToast,
+          sessionProviderChoice: sessionProviderChoice,
+          queueViewer: queueViewer,
+          refreshQueueViewer: refreshQueueViewer,
+          isAppDisposed: () => appDisposed,
+          isFileViewerOpen: () => fileOpsController.isFileViewerOpen(),
+          upgradeCandidateFileRefs: (...args) => fileOpsController.fileReferenceRuntime.upgradeCandidateRefs(...args),
+          $: $,
+          ATTACH_UPLOAD_MAX_BYTES: ATTACH_UPLOAD_MAX_BYTES,
+          AbortController: AbortController,
+          CHAT_DOM_WINDOW: CHAT_DOM_WINDOW,
+          CHAT_DOM_WINDOW_WITH_HISTORY_SLACK: CHAT_DOM_WINDOW_WITH_HISTORY_SLACK,
+          EventSource: EventSource,
+          INIT_PAGE_LIMIT: INIT_PAGE_LIMIT,
+          Node: window.Node,
+          OLDER_AUTO_COOLDOWN_MS: OLDER_AUTO_COOLDOWN_MS,
+          OLDER_CANCEL_PX: OLDER_CANCEL_PX,
+          OLDER_PAGE_LIMIT: OLDER_PAGE_LIMIT,
+          OLDER_TOP_TRIGGER_PX: OLDER_TOP_TRIGGER_PX,
+          addAppEvent: addAppEvent,
+          appConfirm: appConfirm,
+          attachBtn: attachBtn,
+          b64FromBytes: b64FromBytes,
+          bottomSentinel: bottomSentinel,
+          chat: chat,
+          chatInner: chatInner,
+          chatNavRail,
+          chatEmptyState,
+          chatMarkdownHtmlCached: chatMarkdownHtmlCached,
+          chatSearchAllHintEl: chatSearchAllHintEl,
+          chatSearchBar: chatSearchBar,
+          chatSearchBtn: chatSearchBtn,
+          chatSearchCloseBtn: chatSearchCloseBtn,
+          chatSearchInput: chatSearchInput,
+          chatSearchNextBtn: chatSearchNextBtn,
+          chatSearchPrevBtn: chatSearchPrevBtn,
+          chatSearchStatus: chatSearchStatus,
+          chatTimeChip: chatTimeChip,
+          codeBlockCopyRuntime: codeBlockCopyRuntime,
+          codoxearAttachments: codoxearAttachments,
+          codoxearCodeCopy: CodoxearCodeCopy,
+          codoxearDisplay: codoxearDisplay,
+          codoxearMessageFlow: codoxearMessageFlow,
+          codoxearModal: CodoxearModal,
+          codoxearNavigationPulse: codoxearNavigationPulse,
+          codoxearPendingUser: codoxearPendingUser,
+          composer: composer,
+          copyToClipboard: copyToClipboard,
+          dataTransferHasFiles: dataTransferHasFiles,
+          diagViewer: diagViewer,
+          editViewer: editViewer,
+          extractFilesFromClipboardData: extractFilesFromClipboardData,
+          extractFilesFromDropData: extractFilesFromDropData,
+          fmtBytes: fmtBytes,
+          handleAppAuthLoss: handleAppAuthLoss,
+          helpViewer: helpViewer,
+          imgInput: imgInput,
+          isLikelyHeic: isLikelyHeic,
+          isModalTargetOpen: isModalTargetOpen,
+          isTextEntryElement: isTextEntryElement,
+          jumpBtn: jumpBtn,
+          looksLikeImage: looksLikeImage,
+          modalIsolationTargets: modalIsolationTargets,
+          navigator: navigator,
+          networkStatus: networkStatus,
+          newSessionDialogController: newSessionDialogController,
+          nextUserBtn: nextUserBtn,
+          olderBtn: olderBtn,
+          olderError: olderError,
+          olderErrorText: olderErrorText,
+          olderWrap: olderWrap,
+          performance: performance,
+          prevUserBtn: prevUserBtn,
+          pushPerfSample: pushPerfSample,
+          requestAnimationFrame: requestAnimationFrame,
+          resizeComposer: resizeComposer,
+          resolveAppUrl: resolveAppUrl,
+          safeAttachmentStem: safeAttachmentStem,
+          sendChoice: sendChoice,
+          sessionHasOrphanQueueRecovery: sessionHasOrphanQueueRecovery,
+          sessionHasUnknownSend: sessionHasUnknownSend,
+          sessionIdFromHash: sessionIdFromHash,
+          sessionIsOrphanRecovery: sessionIsOrphanRecovery,
+          sessionSelectable: sessionSelectable,
+          setTimeout: setTimeout,
+          textarea: textarea,
+          window: window,
+        }));
+        ({ attachmentsController, messageFlowController } = chatInteractionController);
+        const {
+          chatSearchController, chatNavigationController, hintModeController, sidebarController, transcriptSlotRuntime,
+          transcriptScrollRuntime, transcriptView, markClickLoad, olderLoadRuntime,
+          resetChatRenderState, clearOlderLoadError,
+          clearRenderedTranscriptRange, dropPendingUserRows,
+          updateSessionTranscriptSlot, tailCacheMatchesSession, applySessionListTranscriptIdentity,
+          updateTypingStatsFromSession, messagePollDelayMs, kickPoll,
+          setPollFastUntilMs, openMessageEventSource, isMobile, useDesktopSessionActions,
+          useTouchFileEditorControls, setSidebarOpen, setSidebarCollapsed, clearCommitUnknownSend,
+          refreshSessions, loadOlderMessages, applySessionRuntimeFromTail, renderSessionTail,
+          recoveryDetailsText, renderPendingTranscriptSlot,
+          renderTranscriptLoading, renderTranscriptLoadError, applyCachedTail, jumpToLatest,
+          rememberPendingHashSession, maybeSelectPendingHashSession,
+        } = chatInteractionController;
+        const unattendedController = (function instantiateUnattendedController() {
+          return CodoxearUnattended.createUnattendedController(wiring.createUnattendedOptions({
+            unattendedBtn,
+            unattendedMenu,
+            enabledEl: unattendedEnabledEl,
+            cooldownEl: unattendedCooldownEl,
+            remainingEl: unattendedRemainingEl,
+            requestEl: unattendedRequestEl,
+            sessionState,
+            sessionCatalog,
+            getSessionInfo: (sid) => sessionCatalog.get("sessionIndex").get(sid),
+            isAppDisposed: () => appDisposed,
+            api,
+            refreshSessions,
+            handleAppAuthLoss,
+            setToast,
+            addAppEvent,
+            documentTarget: document,
+            windowTarget: window,
+            requestFrame: requestAnimationFrame,
+            setTimeout,
+            clearTimeout,
+            storageGetItem,
+            storageSetItem,
+            storageRemoveItem,
+          }));
+        })();
+
+        function hideUnattendedMenu(opts) {
+          return unattendedController.hide(opts);
+        }
+
+        // Voice settings coordinate the combined server snapshot; notification
+        // state, transport, DOM construction, widget rendering, and handlers
+        // stay behind the notification runtime hosted by the shell's voice slot.
+        const notificationOptions = wiring.createNotificationOptions({
+          voiceHost: shellDOM.elements.voiceHost,
+          el,
+          iconSvg,
+          isAppDisposed: () => appDisposed,
+          api,
+          setToast,
+          handleAppAuthLoss,
+          resolveAppUrl,
+          versionedShellAssetPath,
+          storageGetItem,
+          storageSetItem,
+          storageRemoveItem,
+          eventBindings,
+          focusSessionFromNotification: (sid) => {
+            if (sessionIdFromHash() !== sid) setSessionHash(sid);
+            void sessionLifecycleController.selectSessionFromHash({ refreshIfMissing: true, deferIfMissing: true }).catch((e) => {
+              if (e && e.status === 401) handleAppAuthLoss();
+              else console.error("desktop notification session select failed", e);
+            });
+          },
+          windowTarget: window,
+          navigatorTarget: navigator,
+          Notification: window.Notification,
+          AudioContext: window.AudioContext || window.webkitAudioContext,
+          clearTimeout,
+        });
+        let voiceController;
+        function instantiateVoiceController() {
+          return codoxearVoice.createVoiceController(wiring.createVoiceOptions({
+            announceBtn,
+            liveAudio,
+            voiceSettingsStatus,
+            voiceBaseUrlInput,
+            voiceApiKeyInput,
+            voiceClearApiKeyToggle,
+            narrationSettingToggle,
+            unattendedPromptInput,
+            unattendedPromptResetBtn,
+            voiceSettingsCancelBtn,
+            voiceSettingsSaveBtn,
+            notificationOptions,
+            eventBindings,
+            isAppDisposed: () => appDisposed,
+            api,
+            setToast,
+            handleAppAuthLoss,
+            openSettings: () => settingsDialogController.show(),
+            closeSettings: () => settingsDialogController.hide(),
+            resolveAppUrl,
+            storageGetItem,
+            storageSetItem,
+            storageRemoveItem,
+          }));
+        }
+        voiceController = instantiateVoiceController();
+        function refreshVoiceBackgroundState(options) {
+          return voiceController.refreshBackgroundState(options);
+        }
+        function resumeAnnouncementRuntime(opts) {
+          return voiceController.resumeAnnouncementRuntime(opts);
+        }
+        fileOpsController = CodoxearFileOps.createFileOpsController(wiring.createFileOpsOptions({
+          wiring, document, window, HTMLElement, requestAnimationFrame, setTimeout,
+          $, el, iconSvg, resolveAppUrl, api, setToast, confirmApp, addAppEvent,
+          subscribeTheme: (subscriber) => themeController.subscribe(subscriber),
+          sessionLaunchFailed, normalizeLineNumber, markdownPreviewHtml,
+          blockedFileMessage, listFromFilesField, listFromFileRecords, baseName,
+          codoxearFilePicker, codoxearFilePickerOps: CodoxearFilePickerOps,
+          codoxearFileViewer, codoxearFileEditor, codoxearFileEditorOps: CodoxearFileEditorOps,
+          codoxearFileEditMode,
+          codoxearFileVim: CodoxearFileVim,
+          hintModeController,
+          codoxearFileTouch, codoxearDialogMenus,
+          prepareModalOpen, afterModalVisibilityChanged, focusModalSurface, restoreModalFocus,
+          isModalTargetOpen, newSessionDialogController, eventBindings,
+          codoxearFileHelpers, copyToClipboard, dialogMenuController, duplicateFilePickerPaths,
+          editCloseBtn, editDependencyBtn, editDependencyMenu, editNameInput, editPriorityRange,
+          editPriorityResetBtn, editPriorityValue, editSaveBtn, editSnoozeCustomDate,
+          editSnoozeCustomRow, editSnoozeCustomTime, editSnoozeModeButtons, editStatus, editViewer,
+          fileBtn, filePickerIdentityHint, filePickerSectionLabel, filePickerTitle, fmtBytes,
+          formatPriorityOffset, handleAppAuthLoss, isDiffableFileKind, isMarkdownPreviewable,
+          isTextEntryElement, isTextFileKind, modalIsolationTargets, normalizeDraftFilePath,
+          parseLocalFileRef, rawByteDuplicatePaths, refreshSessions: () => sessionRefreshController.refreshSessions(), selectedSessionLaunchFailed,
+          sessionDisplayName, setPickerButtonContent, storageGetItem,
+          storageSetItem, stripPathLocationSuffix,
+          useTouchFileEditorControls: () => codoxearViewport.useTouchFileEditorControls(),
+          filePickerField, filePickerMenu, filePickerInput, fileStatus, fileDiff, fileImage,
+          fileVideo, fileVideoPreviewBtn, fileTouchToolbar, fileTouchActions, fileTouchDpad,
+          fileTouchCopyBtn, fileTouchPasteBtn, fileTouchSelectBtn, fileTouchUpBtn, fileTouchLeftBtn,
+          fileTouchDownBtn, fileTouchRightBtn, fileModeDiffBtn, fileModePreviewBtn, fileDownloadBtn,
+          fileBackdrop, fileViewer, fileCloseBtn, fileUnsavedBackdrop, fileUnsavedDialog,
+          filePasteBackdrop, filePasteDialog, filePasteInput, fileEditBtn, fileVimModeChip, chatInner,
+          codeBlockCopyRuntime, appConfirm, appConfirmFocusableControls, resolveAppConfirm,
+          sendChoice, closeSendChoiceDialog, queueViewer, hideQueueViewer, helpViewer,
+          hideHelpViewer, diagViewer, hideDiagViewer,
+          sessionState,
+          sessionCatalog,
+          getSessionLifecycleController: () => sessionLifecycleController,
+        }));
+        const {
+          dialogMenusController, sessionEditController: fileOpsSessionEditController,
+          filePickerSearchState, fileViewerController, fileUnsavedController, fileReferenceRuntime,
+          hideFilePasteDialog, currentFileViewerSessionId, ensureCurrentFileViewerSession,
+          currentFileDirty, isFileViewerOpen, handleFileViewerSessionUnavailable, refreshFileCandidates,
+        } = fileOpsController;
+        sessionEditController = fileOpsSessionEditController;
+        const queueController = (function instantiateQueueController() {
+          return CodoxearQueue.createQueueController(wiring.createQueueOptions({
+            queueBackdrop,
+            queueCloseBtn,
+            queueList,
+            queueEmpty,
+            queueViewer,
+            queueBtn: $("#queueBtn"),
+            sessionState,
+            sessionCatalog,
+            isAppDisposed: () => appDisposed,
+            api,
+            setToast,
+            clearCommitUnknownSend,
+            refreshSessions,
+            getComposerText: () => (textarea ? textarea.value : ""),
+            clearComposerInput,
+            kickPoll,
+            setPollFastUntilMs,
+            handleAppAuthLoss,
+            prepareModalOpen,
+            afterModalVisibilityChanged,
+            el,
+            iconSvg,
+            confirmAction: (options) => confirmApp(options),
+            recoveryPanelFocusFallback: () => null,
+          }));
+        })();
+
+        function selectedSessionLaunchFailed() {
+          return sessionLaunchFailed(sessionState.get("selected") ? sessionCatalog.get("sessionIndex").get(sessionState.get("selected")) : null);
+        }
+
+        async function enqueueComposerText(raw, opts) {
+          const sid = (opts && opts.sid) || sessionState.get("selected");
+          const ok = await queueController.enqueueComposerText(raw, opts);
+          // The queued text has left the composer, so its server draft must go too.
+          if (ok && sid && draftSyncController) draftSyncController.handleSendCleared(sid);
+          return ok;
+        }
+
+        async function refreshQueueViewer() {
+          return queueController.refreshQueueViewer();
+        }
+
+        function hideQueueViewer() {
+          return queueController.hideQueueViewer();
+        }
+
+        const helpController = CodoxearHelp.createHelpController(wiring.createHelpOptions({
+          backdrop: helpBackdrop,
+          viewer: helpViewer,
+          closeButton: helpCloseBtn,
+          openButton: $("#helpBtnSide"),
+          documentTarget: document,
+          ElementCtor: HTMLElement,
+          prepareModalOpen,
+          afterModalVisibilityChanged,
+          addEvent: addAppEvent,
+          focusModalSurface,
+          isModalTargetOpen,
+          restoreModalFocus,
+        }));
+        function hideHelpViewer() {
+          return helpController.hide();
+        }
+
+        // app_diagnostics.js owns diagnostics availability, modal state,
+        // rendering, and copy actions. Composition supplies its DOM and shared
+        // services, then wires shell events to the controller.
+        const diagController = (function instantiateDiagnosticsController() {
+          return CodoxearDiagnostics.createDiagnosticsController(wiring.createDiagnosticsOptions({
+            diagBackdrop,
+            diagViewer,
+            diagContent,
+            diagStatus,
+            diagCloseBtn,
+            diagBtn,
+            diagCopyConversationBtn,
+            diagCopyBtn,
+            sessionState,
+            getSessionInfo: (sid) => sessionCatalog.get("sessionIndex").get(sid),
+            api,
+            setToast,
+            copyToClipboard,
+            copyConversation,
+            recoveryDetailsText,
+            redactedLaunchErrorText,
+            sessionLaunchLabel,
+            agentBackendDisplayName,
+            diagnosticsProviderDisplay,
+            diagnosticsCopyText,
+            fmtTs,
+            fmtRelativeAge,
+            formatPriorityOffset,
+            prepareModalOpen,
+            afterModalVisibilityChanged,
+            el,
+            uiVersion: UI_VERSION,
+          }));
+        })();
+
+        eventBindings.on(diagCopyConversationBtn, 'click', (e) => void diagController.onCopyConversationClick(e));
+        eventBindings.on(diagCopyBtn, 'click', (e) => diagController.onCopyClick(e));
+
+        async function showDiagViewer(opts) {
+          return diagController.show(opts);
+        }
+
+        function hideDiagViewer(opts) {
+          return diagController.hide(opts);
+        }
+
+        sessionLifecycleController = CodoxearSessionLifecycle.createSessionLifecycleController(wiring.createSessionLifecycleOptions({
+          asyncEpoch,
+          prepareSessionOpen: () => messageFlowController.prepareSessionOpen(),
+          sessionState,
+          saveComposerDraft: saveSelectedComposerDraft,
+          loadComposerDraft: loadSelectedComposerDraft,
+          closeUnattendedForOtherSession: (sessionId) => {
+            if (unattendedController.isOpen() && unattendedController.menuSessionId() !== sessionId) hideUnattendedMenu();
+          },
+          persistSelected: (sessionId) => storageSetItem("codexweb.selected", sessionId),
+          removePersistedSelected: () => storageRemoveItem("codexweb.selected"),
+          setSessionHash,
+          resetTranscriptForSession: () => {
+            transcriptSlotRuntime.setActivePending();
+            clearRenderedTranscriptRange();
+            sessionState.set("turnOpen", false);
+          },
+          clearTranscriptForRemovedSession: clearRenderedTranscriptRange,
+          syncAttachments: () => attachmentsController.syncStagedAttachmentsFromSelectedSession(),
+          clearAttachments: () => attachmentsController.setStagedAttachments([]),
+          resetChatRenderState,
+          getSession: (sessionId) => sessionCatalog.get("sessionIndex").get(sessionId),
+          isCurrent: (sessionId, generation) => sessionState.get("selected") === sessionId && asyncEpoch.currentGeneration() === generation,
+          markClickLoad,
+          updateTypingStats: updateTypingStatsFromSession,
+          beginFileViewerSync: () => {
+            const started = Boolean(isFileViewerOpen() && !currentFileDirty());
+            if (started) void ensureCurrentFileViewerSession().catch((error) => console.error("file viewer session sync failed after selection", error));
+            return started;
+          },
+          finishFileViewerSync: (sessionId, started, refreshCandidates) => {
+            if (isFileViewerOpen() && !currentFileDirty() && !started) void ensureCurrentFileViewerSession();
+            else if (isFileViewerOpen() && !currentFileDirty() && currentFileViewerSessionId() === sessionId) {
+              void refreshCandidates({ sessionId }).catch((error) => console.error("file candidates refresh failed after transcript load", error));
+            }
+          },
+          handleFileViewerSessionUnavailable,
+          getTailCache: (sessionId) => transcriptSlotRuntime.getTailCache(sessionId),
+          tailCacheMatchesSession,
+          applyCachedTail,
+          renderTranscriptLoading,
+          renderTranscriptLoadError,
+          messageFlow: () => messageFlowController,
+          api,
+          initPageLimit: () => INIT_PAGE_LIMIT,
+          handleAuthLoss: handleAppAuthLoss,
+          refreshSessions,
+          isDisposed: () => appDisposed,
+          kickPoll,
+          messagePollDelayMs,
+          updateTranscriptSlot: updateSessionTranscriptSlot,
+          invalidateOlderLoad: () => olderLoadRuntime.invalidate(),
+          renderPendingTranscriptSlot,
+          applySessionRuntimeFromTail,
+          renderSessionTail,
+          replaceWith: (events, options) => transcriptView().replaceWith(events, options),
+          openMessageEventSource,
+          isMobile,
+          closeSidebar: () => setSidebarOpen(false),
+          refreshFileCandidates,
+          isUnattendedOpen: () => unattendedController.isOpen(),
+          hideUnattendedMenu,
+          saveSessionScrollPosition: (sessionId) => transcriptScrollRuntime.saveSessionScrollPosition(sessionId),
+          restoreSessionScrollPosition: (sessionId) => transcriptScrollRuntime.restoreSessionScrollPosition(sessionId),
+          clearSessionScrollPosition: (sessionId) => transcriptScrollRuntime.clearSessionScrollPosition(sessionId),
+          setActiveTranscriptPending: () => transcriptSlotRuntime.setActivePending(),
+          deleteTranscriptSession: (sessionId) => transcriptSlotRuntime.deleteSession(sessionId),
+          dropPendingUserRows: (sessionId) => dropPendingUserRows(sessionId, () => true),
+          sessionIdFromHash,
+          rememberPendingHashSession,
+          sessionSelectable,
+          normalizeAgentBackendName,
+          providerChoiceToSettings,
+          sessionCatalog,
+          backendSupportsFastForDefaults: (backend, defaults) => codoxearLaunch.backendSupportsFast(backend, defaults),
+          setToast,
+          confirmAction: (options) => confirmApp(options),
+          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          consoleError: (...args) => console.error(...args),
+        }));
+
+        sessionRefreshController = CodoxearSessionRefresh.createSessionRefreshController(wiring.createSessionRefreshOptions({
+          api,
+          isDisposed: () => appDisposed,
+          apiResponseNotModified,
+          sessionCatalog,
+          emptyDefaults: () => ({
+            default_backend: "pi",
+            backends: { codex: legacyCodexLaunchDefaults(), pi: emptyPiLaunchDefaults(), cc: emptyCcLaunchDefaults() },
+          }),
+          clearFileDiscoveryCaches: () => fileReferenceRuntime.clearDiscoveryCaches(),
+          useDesktopSessionActions,
+          sessionState,
+          clearSelectedSessionAfterRemoval: (...args) => sessionLifecycleController.clearSelectedSessionAfterRemoval(...args),
+          applySessionListTranscriptIdentity,
+          syncAttachments: () => attachmentsController.syncStagedAttachmentsFromSelectedSession(),
+          clearAttachments: () => attachmentsController.setStagedAttachments([]),
+          renderSessions: (sessions, options) => sidebarController.renderSessions(sessions, options),
+          hasDeferredRefresh: () => sidebarController.hasDeferredRefresh(),
+          updateTypingStats: updateTypingStatsFromSession,
+          maybeSelectPendingHashSession,
+        }));
+
+        eventBindings.on(diagBtn, 'click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          void showDiagViewer({ opener: e.currentTarget });
+        });
+        eventBindings.on(diagCloseBtn, 'click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          hideDiagViewer();
+        });
+        eventBindings.on(diagBackdrop, 'click', () => hideDiagViewer());
+        eventBindings.on($("#newBtn"), 'click', async () => {
+          newSessionDialogController.open();
+        });
+        eventBindings.on($("#chatEmptyNewBtn"), 'click', async () => {
+          newSessionDialogController.open();
+        });
+        interruptController = codoxearInterrupt.createInterruptController(wiring.createInterruptOptions({
+          sessionState,
+          setToast,
+          api,
+          now: Date.now,
+          setPollFastUntilMs,
+          kickPoll,
+        }));
+
+        eventBindings.on($("#logoutBtnSide"), 'click', async () => {
+          try {
+            await api("/api/logout", { method: "POST" });
+          } catch (e) {
+            console.error("logout failed", e);
+          } finally {
+            if (appDisposed) return;
+            cleanupApp();
+            renderLogin(renderApp);
+          }
+        });
+
+        eventBindings.on(toggleSidebarBtn, 'click', () => {
+          if (isMobile()) {
+            setSidebarOpen(!document.body.classList.contains("sidebar-open"));
+            return;
+          }
+          setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
+        });
+	        eventBindings.on(backdrop, 'click', () => setSidebarOpen(false));
+
+        eventBindings.on(chat, "scroll", () => {
+          transcriptView().observeScroll("handleScroll");
+        });
+        eventBindings.on(
+          chat,
+          "wheel",
+          (e) => {
+            transcriptView().observeScroll("handleWheel", e);
+          },
+          { passive: true }
+        );
+        eventBindings.on(
+          chat,
+          "touchstart",
+          (e) => {
+            transcriptView().observeScroll("handleTouchStart", e);
+          },
+          { passive: true }
+        );
+        eventBindings.on(
+          chat,
+          "touchmove",
+          (e) => {
+            // Finger moves down -> content scrolls up.
+            transcriptView().observeScroll("handleTouchMove", e);
+          },
+          { passive: true }
+        );
+        eventBindings.on(jumpBtn, 'click', () => {
+          void jumpToLatest();
+        });
+        eventBindings.on(olderBtn, 'click', () => {
+          void loadOlderMessages({ auto: false });
+        });
+        eventBindings.on(olderRetryBtn, 'click', () => {
+          clearOlderLoadError();
+          void loadOlderMessages({ auto: false });
+        });
+
+        const iosViewportController = CodoxearIOSViewport.createIOSViewportController(wiring.createIOSViewportOptions({
+          windowTarget: window,
+          documentTarget: document,
+          navigatorTarget: navigator,
+          textarea,
+          isTextEntryElement,
+          updateAppHeightVar,
+          transcriptScrollRuntime,
+          addAppEvent,
+          requestAnimationFrame,
+          setTimeout,
+          clearTimeout,
+        }));
+        // Server draft sync. Created before the composer so the composer's
+        // onDraftEdited seam can address it; its composer calls run only from
+        // async reconciliations, well after both controllers exist.
+        draftSyncController = codoxearDraftSync.createDraftSyncController(wiring.createDraftSyncOptions({
+          sessionState,
+          sessionCatalog,
+          api,
+          storageGetItem,
+          storageSetItem,
+          storageRemoveItem,
+          getComposerText: () => (textarea ? textarea.value : ""),
+          applyServerDraft: (sessionId, text) => {
+            if (composerController) composerController.setDraftFromServer(sessionId, text);
+          },
+          resolveAppUrl,
+          windowTarget: window,
+          setTimeout,
+          clearTimeout,
+          consoleError: (...args) => console.error(...args),
+        }));
+        composerController = codoxearComposer.createComposerController(wiring.createComposerOptions({
+          form,
+          textarea,
+          msgPh,
+          modelPicker,
+          sendBtn,
+          sendChoice,
+          sendChoiceBackdrop,
+          sendChoiceNowBtn: $("#sendChoiceNow"),
+          sendChoiceLaterBtn: $("#sendChoiceLater"),
+          sendChoiceCancelBtn: $("#sendChoiceCancel"),
+          sessionState,
+          sessionCatalog,
+          sessionLaunchFailed,
+          getStagedAttachments: () => attachmentsController.getStagedAttachments(),
+          isModalOpen: () => modalIsolationTargets.some(isModalTargetOpen),
+          api,
+          setToast,
+          setPollFastUntilMs,
+          kickPoll,
+          sendText: async (raw, options) => {
+            const sid = (options && options.sid) || sessionState.get("selected");
+            const ok = await messageFlowController.sendText(raw, options);
+            // Send success consumed the draft: clear the server-side copy.
+            if (ok && sid && draftSyncController) draftSyncController.handleSendCleared(sid);
+            return ok;
+          },
+          enqueueComposerText,
+          prepareModalOpen,
+          afterModalVisibilityChanged,
+          restoreModalFocus,
+          storageGetItem,
+          storageSetItem,
+          storageRemoveItem,
+          onDraftEdited: (text) => {
+            if (draftSyncController) draftSyncController.noteDraftEdited(text);
+          },
+          onAutoGrow: () => {
+            if (transcriptScrollRuntime.snapshot().autoScroll) transcriptScrollRuntime.scheduleScrollToBottom();
+          },
+          requestFrame: (callback) => requestAnimationFrame(callback),
+          getComputedStyle: (node) => getComputedStyle(node),
+          activeElement: () => document.activeElement,
+          isHTMLElement: (value) => value instanceof HTMLElement,
+          now: () => Date.now(),
+          consoleError: (...args) => console.error(...args),
+          windowTarget: window,
+        }));
+
+        addAppEvent(window, "hashchange", async () => {
+          await sessionLifecycleController.selectSessionFromHash({ refreshIfMissing: true, deferIfMissing: true });
+        });
+        setActiveAppCleanup(cleanupApp);
+        if (typeof window.__codoxearMarkBootstrapped === "function") window.__codoxearMarkBootstrapped();
+
+	        (async () => {
+          if (storageGetItem("codexweb.sidebarCollapsed") === "1") setSidebarCollapsed(true);
+	          if (storageGetItem("codexweb.sidebarOpen") === "1") setSidebarOpen(true);
+
+	          try {
+          const sessions = await refreshSessions();
+          const hashed = sessionIdFromHash();
+	            const remembered = storageGetItem("codexweb.selected");
+	            const first = sessions && sessions.length ? (sessions.find(sessionSelectable) || {}).session_id || null : null;
+	            const pick =
+	              hashed && sessionSelectable(sessionCatalog.get("sessionIndex").get(hashed))
+	                ? hashed
+	                : remembered && sessionSelectable(sessionCatalog.get("sessionIndex").get(remembered))
+	                  ? remembered
+	                  : first;
+	            if (pick) await sessionLifecycleController.selectSession(pick);
+              void (async () => {
+                try {
+                  await refreshVoiceBackgroundState({ force: true, primeNotifications: true });
+                } catch (e) {
+                  if (e && e.status === 401) handleAppAuthLoss();
+                  else console.error("initial voice and notification sync failed", e);
+                }
+              })();
+          } catch (e) {
+	            if (e && e.status === 401) {
+              handleAppAuthLoss();
+	              return;
+	            }
+	            console.error("initial refreshSessions failed", e);
+	            setToast(`sessions error: ${e && e.message ? e.message : "unknown error"}`);
+	          } finally {
+              if (appDisposed) return;
+	            resizeComposer();
+
+	            scheduleSessionsPoll();
+            scheduleSecondaryPoll();
+
+              addAppEvent(window, "beforeunload", () => {
+                cleanupApp();
+              });
+              addAppEvent(document, "visibilitychange", () => {
+                if (appDisposed) return;
+                if (document.visibilityState === "visible") {
+                  if (sessionState.get("selected")) messageFlowController.resumeLiveDelivery();
+                  scheduleSessionsPoll(0);
+                  scheduleSecondaryPoll(0);
+                  return;
+                }
+                if (sessionState.get("selected")) kickPoll(messagePollDelayMs());
+                scheduleSessionsPoll(sessionsPollDelayMs());
+                scheduleSecondaryPoll(secondaryPollDelayMs());
+              });
+              addAppEvent(window, "online", () => {
+                if (appDisposed) return;
+                networkStatus.reportSuccess();
+                messageFlowController.resetMessagePollBackoff();
+                pollingRuntime.resetStreaks();
+                if (sessionState.get("selected")) {
+                  messageFlowController.resumeLiveDelivery();
+                  kickPoll(0);
+                }
+                scheduleSessionsPoll(0);
+                scheduleSecondaryPoll(0);
+              });
+              addAppEvent(window, "offline", () => {
+                if (appDisposed) return;
+                networkStatus.sync();
+                messageFlowController.closeMessageEventSource();
+                if (sessionState.get("selected")) kickPoll(messagePollDelayMs());
+                scheduleSessionsPoll(sessionsPollDelayMs());
+                scheduleSecondaryPoll(secondaryPollDelayMs());
+              });
+              addAppEvent(window, "pageshow", () => {
+                if (!appDisposed) resumeAnnouncementRuntime({ resetSource: false });
+              });
+              addAppEvent(window, "online", () => {
+                if (!appDisposed) resumeAnnouncementRuntime({ resetSource: true });
+              });
+              addAppEvent(window, "focus", () => {
+                if (!appDisposed) resumeAnnouncementRuntime({ resetSource: false });
+              });
+	          }
+	        })();
+      }
+
+    return Object.freeze({ renderApp });
+  }
+
+const CodoxearEventBindings = { createEventBindings, createToastController, createApplicationComposition };
+
+export { createEventBindings, createToastController, createApplicationComposition };

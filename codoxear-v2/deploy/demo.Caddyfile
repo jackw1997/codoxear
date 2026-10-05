@@ -1,0 +1,39 @@
+{
+    admin off
+    auto_https disable_redirects
+}
+
+(demo_tls) {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+        resolvers 1.1.1.1 8.8.8.8
+    }
+}
+
+https://codoxear.gzeek.com:8444 {
+    import demo_tls
+    @private path /credentials /credentials/*
+    respond @private 404
+    reverse_proxy 127.0.0.1:19500
+}
+
+https://codoxear.gzeek.com:8445 {
+    import demo_tls
+    reverse_proxy 127.0.0.1:19520 {
+        flush_interval -1
+    }
+}
+
+https://codoxear.gzeek.com:8446 {
+    import demo_tls
+    reverse_proxy 127.0.0.1:19530 {
+        flush_interval -1
+    }
+}
+
+https://codoxear.gzeek.com:8447 {
+    import demo_tls
+    reverse_proxy 127.0.0.1:19531 {
+        flush_interval -1
+    }
+}

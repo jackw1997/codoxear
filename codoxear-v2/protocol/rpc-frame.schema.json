@@ -1,0 +1,465 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "request"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "operation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "discover"
+                },
+                "actorId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                }
+              },
+              "required": [
+                "op"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "workspace"
+                }
+              },
+              "required": [
+                "op"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "resume-candidates"
+                },
+                "backend": {
+                  "type": "string",
+                  "enum": [
+                    "codex",
+                    "pi",
+                    "cc"
+                  ]
+                },
+                "cwd": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "op",
+                "backend",
+                "cwd"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "launch-status"
+                },
+                "agentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                }
+              },
+              "required": [
+                "op",
+                "agentId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "create"
+                },
+                "agentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "backend": {
+                  "type": "string",
+                  "enum": [
+                    "codex",
+                    "pi",
+                    "cc",
+                    "fixture"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "launch": {
+                  "type": "object",
+                  "properties": {
+                    "provider_config": {
+                      "type": "object",
+                      "properties": {
+                        "base_url": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "format": "uri"
+                        },
+                        "api_key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 8192,
+                          "writeOnly": true
+                        },
+                        "api": {
+                          "type": "string",
+                          "enum": [
+                            "openai-completions",
+                            "openai-responses",
+                            "anthropic-messages"
+                          ]
+                        },
+                        "image_support": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "api_key"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "env_vars": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                      },
+                      "additionalProperties": {
+                        "type": "string",
+                        "maxLength": 8192
+                      }
+                    },
+                    "command": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    },
+                    "cwd": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 4096
+                    },
+                    "model": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "model_provider": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "preferred_auth_method": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "service_tier": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "resume_session_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "worktree_branch": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "create_in_tmux": {
+                      "type": "boolean",
+                      "const": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "op",
+                "agentId",
+                "backend",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "messages"
+                },
+                "agentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "op",
+                "agentId",
+                "localId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "send"
+                },
+                "agentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200000
+                }
+              },
+              "required": [
+                "op",
+                "agentId",
+                "localId",
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "interrupt"
+                },
+                "agentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "op",
+                "agentId",
+                "localId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "operation"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "result"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "value": {},
+        "error": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "errorCode": {
+          "type": "string",
+          "enum": [
+            "not_dispatched",
+            "setup_required"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "ok"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "welcome"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "protocol": {
+          "type": "number",
+          "const": 1
+        },
+        "capabilities": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "epoch",
+        "protocol"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "notification"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "event": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "localId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "completion",
+                "attention"
+              ]
+            },
+            "occurredAt": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "id",
+            "localId",
+            "kind",
+            "occurredAt"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "epoch",
+        "event"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "notification.ack"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "type",
+        "epoch",
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

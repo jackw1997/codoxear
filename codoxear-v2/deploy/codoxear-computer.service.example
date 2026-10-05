@@ -1,0 +1,16 @@
+# Edit absolute paths and review before installing as a user unit.
+[Unit]
+Description=Codoxear Computer
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+WorkingDirectory=/ABSOLUTE/PATH/codoxear-v2
+Environment=CODOXEAR_COMPUTER_HOME=%h/.local/share/codoxear-v2/computer
+ExecStart=/ABSOLUTE/PATH/node /ABSOLUTE/PATH/codoxear-v2/dist/server/computer/main.js start
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+UMask=0077
+[Install]
+WantedBy=default.target

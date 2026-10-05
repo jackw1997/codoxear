@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <title>Codoxear v2 — invitations and agent sharing</title>
+  <style>
+    body {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font: 16px/1.6 system-ui;
+    }
+    code {
+      overflow-wrap: anywhere;
+    }
+    img {
+      max-width: 390px;
+      width: 100%;
+    }
+    table {
+      border-collapse: collapse;
+    }
+    th,
+    td {
+      border: 1px solid;
+      padding: 12px;
+      text-align: left;
+    }
+  </style>
+  <h1>Invitations and agent sharing</h1>
+  <p>
+    Implemented in the independent v2 client. These changes are local
+    development work; the running demo has not been redeployed.
+  </p>
+  <h2>Invite a hub or computer member</h2>
+  <p>
+    Open Hubs &amp; computers → Hub settings or a Computer → Manage access.
+    Choose email, phone, Feishu, WeChat, or another configured sign-in provider,
+    select Viewer or Operator, and create an invitation code. The recipient
+    opens Hub settings → Accept invitation using their sign-in for that hub.
+  </p>
+  <p>
+    Phone invitations use a verified international number. Provider invitations
+    use the exact sign-in connection, identity ID and tenant; the recipient can
+    copy these from the hub’s Sign-in methods. A display name or a different
+    provider identity cannot redeem the code. Phone and provider accounts do not
+    need a linked email. Email invitations and existing stored email-only
+    invitations continue to work.
+  </p>
+  <p>
+    Only the resource owner can invite. Codes expire after one day, are
+    single-use, and become invalid when ownership changes. Linked identities
+    must still be present and verified when the code is accepted.
+  </p>
+  <h2>Share one agent</h2>
+  <p>
+    As the Computer owner, open an agent’s Edit screen → Agent access. Share
+    this agent lists current hub members. Save Viewer for transcript access or
+    Operator for transcript, send and interrupt access. Choose No shared access
+    to revoke that agent’s explicit and retained grants. Computer membership
+    continues to grant its inherited rights; removing an explicit share does not
+    remove computer membership.
+  </p>
+  <table>
+    <tr>
+      <th>Grant</th>
+      <th>Allows</th>
+    </tr>
+    <tr>
+      <td>Shared viewer</td>
+      <td>Read this agent’s transcript</td>
+    </tr>
+    <tr>
+      <td>Shared operator</td>
+      <td>
+        Read, send, interrupt and authorized queue operations for this agent
+      </td>
+    </tr>
+    <tr>
+      <td>Computer operator membership</td>
+      <td>Create agents, with active hub membership</td>
+    </tr>
+    <tr>
+      <td>Workspace grant</td>
+      <td>Separate delegated file access, requiring computer membership</td>
+    </tr>
+  </table>
+  <p>
+    A share names one concrete agent and never includes other or future agents.
+    It requires current hub access and is fenced by the Computer binding and
+    ownership revision. Removing hub membership clears that user’s shares.
+    Transfer or deletion does not carry an old share onto a new resource. An
+    agent operator acts through the runtime’s existing OS credentials, so the
+    design’s trusted-user execution boundary still applies.
+  </p>
+  <p>
+    Revocation is checked on subsequent requests, before queued dispatch, before
+    notification delivery, and during open transcript streams. Sharing does not
+    grant arbitrary files, owner settings or deletion.
+  </p>
+  <h2>Local evidence</h2>
+  <p>
+    Docker verification passed typecheck, production build and 119 TypeScript
+    tests. The
+    <a href="../artifacts/invitation-results.json">browser report</a> covers the
+    mobile invitation and sharing screens, two independent browser accounts,
+    incorrect and replayed invitation codes, and copied provider invitation
+    details. API tests exercise stream downgrade/closure, queue authorization
+    and notification authorization after revocation. The agent creation browser
+    checks also pass after these changes.
+  </p>
+  <p>
+    Login identities and runtime replies are controlled fixtures. Live
+    Feishu/WeChat registrations, SMS delivery, model inference and physical
+    native devices retain their separate acceptance gates.
+  </p>
+  <img
+    src="../artifacts/agent-sharing-mobile.png"
+    alt="Mobile Agent access screen with selective sharing controls"
+  />
+</html>

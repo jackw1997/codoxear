@@ -1,0 +1,48 @@
+{
+  "name": "codoxear-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run check:boundaries && npm run typecheck && node --import tsx scripts/generate-protocol.ts && vite build && node scripts/build-workspace.mjs && tsup",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "start": "node dist/server/client/web-server.js",
+    "computer": "node dist/server/computer/main.js",
+    "dev": "tsx src/client/web-server.ts",
+    "test:browser": "node --import tsx scripts/browser-verification.ts",
+    "verify:docker": "docker compose -f compose.test.yml up --build --abort-on-container-exit --exit-code-from verification",
+    "identity": "node dist/server/identity/main.js",
+    "client": "node dist/server/client/web-server.js",
+    "hub": "node dist/server/hub/main.js",
+    "package:computer": "node scripts/package-computer.mjs",
+    "check:boundaries": "node --import tsx scripts/check-boundaries.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/static": "^10.1.5",
+    "@fastify/websocket": "^11.2.0",
+    "@lydell/node-pty": "1.2.0-beta.15",
+    "fastify": "^5.12.5",
+    "jose": "^6.2.12",
+    "oauth4webapi": "^3.8.8",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.19.0",
+    "@types/ws": "^8.18.1",
+    "prettier": "^3.9.9",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  }
+}

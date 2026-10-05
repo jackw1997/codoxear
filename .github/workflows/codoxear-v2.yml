@@ -1,0 +1,36 @@
+name: Codoxear v2
+
+on:
+  pull_request:
+    paths:
+      - "codoxear-v2/**"
+      - ".github/workflows/codoxear-v2.yml"
+  push:
+    branches: [main]
+    paths:
+      - "codoxear-v2/**"
+      - ".github/workflows/codoxear-v2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify the self-contained v2 application
+        working-directory: codoxear-v2
+        run: docker compose --project-name codoxear-v2-ci -f compose.test.yml up --build --abort-on-container-exit --exit-code-from verification
+      - name: Preserve verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codoxear-v2-verification
+          path: codoxear-v2/artifacts/
+          if-no-files-found: ignore
+      - name: Remove verification containers
+        if: always()
+        working-directory: codoxear-v2
+        run: docker compose --project-name codoxear-v2-ci -f compose.test.yml down --volumes

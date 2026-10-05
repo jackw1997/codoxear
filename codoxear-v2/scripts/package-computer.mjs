@@ -1,0 +1,37 @@
+import { execFileSync } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+// Export only committed sources; never archive local credentials or runtime data.
+const repository = resolve(".."),
+  revision = process.argv[2] ?? "HEAD";
+const commit = execFileSync("git", ["rev-parse", revision + "^{commit}"], {
+  cwd: repository,
+  encoding: "utf8",
+}).trim();
+execFileSync(
+  "git",
+  ["cat-file", "-e", commit + ":codoxear-v2/src/computer/main.ts"],
+  { cwd: repository },
+);
+const directory = resolve("dist/client/downloads");
+await mkdir(directory, { recursive: true });
+execFileSync(
+  "git",
+  [
+    "archive",
+    "--format=tar.gz",
+    "--prefix=codoxear-computer/",
+    "--output=" + resolve(directory, "codoxear-computer-source.tar.gz"),
+    commit + ":codoxear-v2",
+  ],
+  { cwd: repository },
+);
+await writeFile(
+  resolve(directory, "release.json"),
+  JSON.stringify({
+    commit,
+    format: "source",
+    node: ">=22.13",
+  }) + "\n",
+);
+console.log("Packaged Computer source", commit);

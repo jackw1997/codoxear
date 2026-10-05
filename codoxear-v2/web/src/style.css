@@ -1,0 +1,321 @@
+/* Hub management extends the same appearance tokens as the original workspace. */
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font: var(--font-md)/1.5 var(--font-ui);
+}
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  width: 100%;
+  padding: var(--space-4);
+  min-width: 0;
+}
+textarea {
+  min-height: 72px;
+  max-height: 240px;
+  resize: vertical;
+}
+label {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--font-md);
+  color: var(--text-soft);
+  margin: var(--space-5) 0;
+}
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+h1 {
+  font-size: var(--font-3xl);
+}
+h2 {
+  font-size: var(--font-2xl);
+}
+h3 {
+  font-size: var(--font-lg);
+}
+a {
+  color: var(--text);
+}
+.muted,
+.small {
+  color: var(--text-soft);
+}
+.small {
+  font-size: var(--font-sm);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.spread {
+  justify-content: space-between;
+}
+.stack {
+  display: grid;
+  gap: var(--space-5);
+}
+.brand {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.eyebrow {
+  font-size: var(--font-sm);
+  color: var(--text-soft);
+  margin-bottom: var(--space-3);
+}
+.card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  padding: var(--space-7);
+  background: var(--paper);
+}
+.login {
+  max-width: 360px;
+  margin: 12vh auto;
+  padding: var(--space-7);
+}
+.provider-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.divider {
+  height: 1px;
+  background: var(--hairline);
+  margin: var(--space-7) 0;
+}
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  height: 100dvh;
+}
+.sidebar {
+  padding: var(--space-5);
+  gap: var(--space-5);
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  margin: var(--space-1) 0;
+}
+.nav-item[aria-current="true"] {
+  background: var(--session-active);
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-dot);
+}
+.dot.online {
+  background: var(--muted);
+}
+.sidebar-footer {
+  margin-top: auto;
+}
+.main {
+  overflow: auto;
+}
+.topbar {
+  flex-shrink: 0;
+}
+.topbar h2 {
+  font-size: var(--font-md);
+  margin: 0;
+}
+.content {
+  padding: var(--space-7);
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+.empty {
+  max-width: 600px;
+  margin: 15vh auto;
+}
+.empty h2 {
+  font-size: var(--font-3xl);
+}
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.agent-card {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+.badge {
+  font-size: var(--font-xs);
+  font-family: var(--font-mono);
+  color: var(--text-soft);
+}
+.notice {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-weak);
+  padding: var(--space-5);
+  margin: var(--space-5) 0;
+}
+.error {
+  color: var(--danger);
+}
+.toast {
+  position: fixed;
+  bottom: var(--space-7);
+  right: var(--space-7);
+  padding: var(--space-5);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  z-index: 80;
+  box-shadow: var(--shadow-pop);
+}
+.messages {
+  max-height: 55vh;
+  overflow: auto;
+  min-height: 200px;
+}
+.message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--bubble-assistant);
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-bubble);
+  margin: var(--space-5) 0;
+  max-width: 90%;
+}
+.message.user {
+  margin-left: auto;
+  background: var(--bubble-user);
+}
+.message .role {
+  font-size: var(--font-xs);
+  color: var(--text-soft);
+  display: block;
+}
+.composer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+.management {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-7);
+}
+.member {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--hairline);
+  padding: var(--space-5) 0;
+}
+.invite-token {
+  font: var(--font-sm) var(--font-mono);
+  overflow-wrap: anywhere;
+  background: var(--wash);
+  padding: var(--space-5);
+}
+.modal {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  color: var(--text);
+  padding: var(--space-7);
+  box-shadow: var(--shadow-pop);
+}
+.modal::backdrop {
+  background: transparent;
+}
+.modal .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-7);
+}
+.hidden {
+  display: none !important;
+}
+.mobile-only {
+  display: none;
+}
+.agent-settings-page .layout {
+  grid-template-columns: 1fr;
+}
+.agent-settings-page .sidebar,
+.agent-settings-page #agents-tab,
+.agent-settings-page #manage-tab {
+  display: none;
+}
+.agent-settings-page .content {
+  max-width: 960px;
+}
+@media (max-width: 880px) {
+  .mobile-only {
+    display: block;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 90vw);
+    z-index: 50;
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+  .navigation-open .sidebar {
+    transform: none;
+    visibility: visible;
+  }
+  .management {
+    grid-template-columns: 1fr;
+  }
+  .topbar {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+  }
+  .modal,
+  .content {
+    --font-sm: 13px;
+    --font-md: 14px;
+    --font-lg: 16px;
+  }
+  input,
+  select,
+  textarea {
+    font-size: var(--font-xl);
+  }
+}
+
+.agent-settings-page .topbar .mobile-only {
+  display: none;
+}

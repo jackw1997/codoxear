@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Codoxear v2 — Computer architecture and implementation status</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #302e29;
+      --paper: #f6f3ec;
+      --accent: #9c6046;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font:
+        17px/1.65 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1120px;
+      margin: auto;
+      padding: 50px 28px 100px;
+    }
+    h1 {
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      max-width: 800px;
+    }
+    h2 {
+      margin-top: 50px;
+      font-size: 28px;
+    }
+    p {
+      max-width: 870px;
+    }
+    .eyebrow {
+      color: var(--accent);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-size: 13px;
+    }
+    a {
+      color: #864d35;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    figure {
+      margin: 30px 0;
+    }
+    figcaption {
+      font-size: 14px;
+      color: #68665f;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    td,
+    th {
+      padding: 14px 12px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid #d9d3c8;
+    }
+    th {
+      background: #eae5da;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #eae5da;
+      padding: 20px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+    .notice {
+      border-left: 4px solid var(--accent);
+      padding: 15px 22px;
+      background: #eee2d8;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      padding: 22px;
+      border: 1px solid #d9d3c8;
+      border-radius: 12px;
+      background: #fffefa;
+    }
+    .card h3 {
+      margin: 0;
+    }
+    code {
+      font-size: 0.88em;
+    }
+    .scroll {
+      overflow: auto;
+    }
+  </style>
+  <main>
+    <div class="eyebrow">
+      Codoxear v2 / October 2026 / development implementation
+    </div>
+    <p><strong>Architecture update:</strong> <a href="docs/independent-hubs.html">Independent hubs and local identities</a> supersedes the mandatory central account service and browser gateway described below.</p><h1>A Computer product with a durable local runtime boundary.</h1>
+    <p>
+      This TypeScript project lives inside the existing repository, beside
+      <code>codoxear/</code>. It implements independent hubs with local authentication, a static web client with locally saved hub credentials, a resident Computer API and CLI, bounded streaming, and the agreed ownership and access rules. It is
+      not yet a replacement for every v1 feature.
+    </p>
+    <p class="notice">
+      <a href="docs/demo.html"><strong>Running demo contract and function-by-function No-Go register</strong></a><br><strong>Verified scope:</strong> 85 automated Docker tests plus 1,983 legacy tests and 112 legacy subtests, 29 two-account, identity and two-hub Chromium checkpoints, and a separate-network test with verified TLS. An installed Pi CLI executes an actual shell tool during a hub outage, then its browser conversation reconnects without replay. The model endpoint in that test is scripted. Live provider login, model inference and physical-device delivery are separate, unpassed gates. See the <a href="docs/acceptance.json">full acceptance checklist</a>.
+    </p>
+    <figure>
+      <img
+        src="docs/computer-architecture.svg"
+        alt="Clients connect to the public hub; the Computer initiates its outbound connection and exposes a shared typed local API"
+      />
+      <figcaption>
+        The hub remains in the communication path. Mobile clients never dial the
+        computer’s private address.
+      </figcaption>
+    </figure>
+    <p>Remote drafts are stored on the Computer by account, attachment and session. They do not use the shared legacy draft store. Browser checks prove that two users sharing one agent keep separate unsent text. Owner-confirmed deletion removes the local session and then its hub entry; unconfirmed replies retain the entry for review. The queue shows why a prompt is paused; a live read-only policy change disables sending while preserving the transcript.</p>
+    <h2>What follows Raft Computer</h2>
+    <p>
+      The reference is
+      <a
+        href="https://github.com/botiverse/raft-source/tree/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/computer"
+        >Botiverse’s Computer package at commit 05f7d8f</a
+      >, particularly its public library API, attachment flow and resident
+      service. This is an independent implementation; no Raft implementation
+      code was copied. Raft also has internal daemon workers: the useful
+      distinction is its product and lifecycle boundary.
+    </p>
+    <div class="cards">
+      <div class="card">
+        <h3>Typed local API</h3>
+        <p>
+          <code>createComputerApi(home)</code> owns attach, detach, status,
+          doctor and service construction. The CLI calls this API. A future
+          desktop presenter can use it without parsing shell output.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Durable attachment</h3>
+        <p>
+          A private local file binds one computer identity to one hub. Changing
+          hubs requires explicit detach. A live service excludes attachment
+          mutations through an exclusive lock.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Independent lifetimes</h3>
+        <p>
+          The resident service reconnects with bounded backoff. Its local
+          runtime survives network loss. The transitional bridge leaves existing
+          agent process ownership with v1.
+        </p>
+      </div>
+    </div>
+    <p>
+      Unlike Raft’s multi-server service reconciliation, this project enforces
+      your one-hub-per-computer rule. It does not yet reproduce Raft’s desktop
+      application, installers or child-worker supervision. A Linux user-service
+      example is included in <code>deploy/</code>; it has not been installed or
+      verified under systemd.
+    </p>
+    <h2>Authority and access</h2>
+    <ul>
+      <li>
+        Every hub and computer has exactly one human owner. Ownership can differ
+        between a hub and its computers.
+      </li>
+      <li>
+        Each resource’s owner controls its invitations, membership and policy.
+        Owning a hub does not implicitly grant agent access on someone else’s
+        computer.
+      </li>
+      <li>
+        Creating an agent requires active hub membership and computer operator
+        access. Viewers can read.
+      </li>
+      <li>
+        After computer membership removal, an explicit hub rule overrides the
+        computer rule. If neither is set, access defaults to none.
+      </li>
+      <li>
+        Retain and read-only apply only to concrete agents previously accessible
+        at removal. They grant neither future agents nor creation rights.
+      </li>
+      <li>
+        Current hub membership remains required, even with retained computer
+        grants. This is the narrower interpretation identified in the design; it
+        is not an additional form of retained hub access.
+      </li>
+      <li>
+        Open streams re-check access before returning data. Policy changes also
+        update the browser’s available controls.
+      </li>
+    </ul>
+    <h2>Implementation status</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Current implementation</th>
+            <th>Remaining work</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Computer</td>
+            <td>
+              Typed API, CLI, private attachment, lifecycle lock, status/doctor,
+              outbound authenticated tunnel, recovery
+            </td>
+            <td>
+              Desktop app, packaged installers, macOS/Windows supervision, local
+              IPC and stronger process identity
+            </td>
+          </tr>
+          <tr>
+            <td>Hub and registry</td>
+            <td>
+              Independent TypeScript identity and hub processes, authoritative identity catalog, hub-specific tokens and transactional mutations
+            </td>
+            <td>
+              Deployment load/fault coverage and broader operational account tooling
+            </td>
+          </tr>
+          <tr>
+            <td>Authorization</td>
+            <td>
+              Owners, invitations, viewer/operator roles, transfer, retention
+              snapshots and live revocation
+            </td>
+            <td>
+              Administrative account tooling, provider-specific grants, broader
+              audit controls
+            </td>
+          </tr>
+          <tr>
+            <td>Authentication</td>
+            <td>
+              Password bootstrap, verified email/SMS code flows, Feishu/WeChat/OIDC adapters, explicit linking, PKCE, rotating refresh and browser BFF cookies
+            </td>
+            <td>
+              Actual provider configuration and end-to-end login, recovery and native login surfaces
+            </td>
+          </tr>
+          <tr>
+            <td>Agents</td>
+            <td>
+              Create, send, read, interrupt and owner-approved local-session import. Installed Pi tool execution and browser reconnection tested
+            </td>
+            <td>
+              Live model inference, Codex/Claude execution, complete rich transcript parity and durable reconciliation for uncertain creation
+            </td>
+          </tr>
+          <tr>
+            <td>Transport</td>
+            <td>
+              Bounded credit-controlled HTTP streams, binary/multipart, ranges, ETags, media playlists, SSE, epochs and no automatic mutation replay
+            </td>
+            <td>
+              Deployment-scale mixed load, broader reconnect/resume and media compatibility coverage
+            </td>
+          </tr>
+          <tr>
+            <td>Web</td>
+            <td>
+              Account portal, owner-verified hub sign-in rules, independent hubs, owner enrollment, admission/transfer, permissions and scoped drafts; rich transcript, files, Git, editor, search, authorized durable queue and full-workspace session creation exercised in Chromium
+            </td>
+            <td>
+              Multiple workspace roots and delegated Git/upload capabilities, terminal-local queue integration, complete lifecycle/voice/settings parity and native push integration and broader accessibility testing
+            </td>
+          </tr>
+          <tr>
+            <td>HarmonyOS, iOS, Android</td>
+            <td>
+              Shared versioned contracts, TypeScript transport and PKCE login coordinator; actual HarmonyOS API client and Workspace support relay transport, cancellation, scoped recovery files and notification targets
+            </td>
+            <td>
+              HarmonyOS login/refresh storage, native UI integration and device acceptance; iOS/Android and platform push follow their explicit later-stage gates
+            </td>
+          </tr>
+          <tr>
+            <td>Direct mode / OAR</td>
+            <td>
+              Existing v1 direct workflow remains available in its original
+              project
+            </td>
+            <td>
+              v2 direct-mode option and a separately selectable OAR adapter
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h2>Verification and reproduction</h2>
+    <p>
+      Run from this directory with Docker available. The container installs
+      dependencies, builds, runs the behavioral tests, starts an isolated
+      fixture hub, and drives Chromium through the interface. It publishes no
+      host port.
+    </p>
+    <pre>npm run verify:docker</pre>
+    <p>Build-only checks can run locally:</p>
+    <pre>
+npm ci
+npm run build</pre>
+    <p>
+      The current environment’s system Docker socket was unavailable.
+      Verification used a separate user-owned Docker daemon in private PID,
+      mount, user and network namespaces. The hub and browser ran in separate
+      containers sharing that isolated network; Computer children ran in the
+      browser container. A separate front/private-network experiment also proves client isolation and verified TLS. These checks do not prove public-Internet deployment or production load tolerance. A Chromium 130 executable already
+      available in the environment was used. The supplied standard Dockerfile is
+      a reproduction recipe; that exact image build has not been run here.
+    </p>
+    <p>
+      <a href="artifacts/verification.html"
+        >Open the generated browser evidence and test results</a
+      >. The evidence directory is intentionally excluded from version control.
+      The default recipe runs baseline, account-portal and independent-hub browser suites. <code>scripts/real-runtime.ts</code> additionally requires the installed Pi CLI and native TypeScript runtime; <code>scripts/network-fixture.ts</code> requires separate Docker networks.
+      behavioral tests are in <code>tests/</code>.
+    </p>
+    <h2>Computer commands</h2>
+    <p>
+      Download the private configuration from “Add computer”, copy it to that
+      computer, then use:
+    </p>
+    <pre>
+npm run computer -- attach /private/path/codoxear-computer.json
+npm run computer -- start
+npm run computer -- status
+npm run computer -- doctor</pre>
+    <p>
+      <code>start</code> runs in the foreground for an OS supervisor. Stop that
+      exact service before <code>detach</code>; detaching removes the local
+      attachment, so also revoke the old credential at its hub before
+      reassignment. The configuration contains credentials and must stay
+      private. The default home is
+      <code>~/.local/share/codoxear-v2/computer</code>; set
+      <code>CODOXEAR_COMPUTER_HOME</code> to choose another.
+    </p>
+    <p>
+      The legacy runtime requires an explicit loopback URL, password and
+      absolute workspace path. It launches once, then resolves the broker PID
+      through session discovery. Discovery timeouts remain unknown outcomes and
+      must be reconciled before trying another launch. Use <strong>Check launch result</strong> in the hub to read the Computer’s durable receipt. This never starts another process; absent receipts still require explicit local inspection/import. The synthetic runtime is
+      for isolated verification only.
+    </p>
+    <h2>Independent hub and client setup</h2>
+    <p>Each hub owns its authentication, signing key, permissions and database. Start from <a href="config/hub.example.json">the independent hub configuration</a>, choose an exact HTTPS origin, replace the OTP secret, and register each allowed static client origin and exact callback. Keep this file private. Paths are relative to the process working directory.</p>
+    <pre>CODOXEAR_HUB_CONFIG=/private/hub.json npm run hub</pre>
+    <p>On first start only, also supply CODOXEAR_BOOTSTRAP_EMAIL and CODOXEAR_BOOTSTRAP_PASSWORD (at least 12 characters) through the process environment. Put an HTTPS reverse proxy in front of the loopback listener with WebSocket upgrades and streaming enabled. Operators with different trust boundaries must use different hostnames, not only different ports.</p>
+    <pre>npm run client</pre>
+    <p>The optional client process serves static files on loopback port 19520. It has no account database or API proxy. Open its HTTPS origin and use Hubs &amp; computers → Connect hub. Passwords and configured providers authenticate at each hub; the client saves hub-scoped credentials locally. Add a Computer and use its pairing code with the Computer CLI. Computers initiate outbound WSS and never require a client connection to their private address.</p>
+    <p>Harmony push may be enabled using a private harmonyServiceAccount configuration. Native login, OS credential storage and physical-device parity still require acceptance; see <a href="docs/independent-hubs.html">the current design and No-Go register</a>. Shared-authority deployment is retained only as an explicitly selected legacy mode (independent: false); it is not required by this architecture.</p>
+
+    <h2>Agent creation</h2>
+    <p>The v2 creation form separates Runtime, Provider, and Model for Pi, Codex, and Claude Code. Model choices come from the selected Computer; custom model IDs, reasoning, supported Fast mode, and a working directory are available. See <a href="docs/agent-creation.html">the design and verification notes</a>.</p>
+    <h2>Invitations and agent sharing</h2>
+    <p>Invite hub and Computer members by email, verified phone, or an exact Feishu/WeChat/provider identity. Computer owners can share one agent with a hub member as Viewer or Operator independently of Computer membership. See <a href="docs/access-sharing.html">the workflow and local verification evidence</a>.</p>
+    <h2>Migration boundary</h2>
+    <p>
+      Keep v1 running while each runtime capability moves behind a typed
+      Computer adapter. Preserve terminal-owned session behavior. Add native
+      authentication, notifications and file transfers only after their server
+      contracts and revocation rules are implemented. The first release gate for
+      replacing v1 is a real-CLI browser run covering creation, resume, send,
+      interrupt, files, queues and reconnects on each supported backend.
+    </p>
+    <p>
+      <a href="../docs/multi-server-relay/final-design.html"
+        >Full target design and acceptance gates</a
+      >
+      ·
+      <a href="../docs/multi-server-relay/access-policy.html"
+        >Ownership and policy design</a
+      >
+    </p>
+  <section><h2>IPv6 demo deployment</h2>
+<p>The public demo uses the existing DNS name <code>codoxear.gzeek.com</code>: guide on HTTPS port 8444, static client on 8445, and independent hubs on 8446 and 8447. Computers establish outbound TLS connections to their hub. Browser and Computer traffic passes through a separate Caddy service, with secure cookies and private demo credentials. The guide's credential endpoint is disabled in public mode.</p>
+<p>Build and run the committed snapshot in the isolated Docker environment. Set <code>CODOXEAR_DEMO_PUBLIC_HOST=codoxear.gzeek.com</code>, use a fresh private data directory, map that name to 127.0.0.1 inside Docker, and run <code>scripts/start-public-demo.mjs</code>. The paired <code>demo-tls-bridge.mjs host</code> forwards encrypted traffic from the isolated network to the host gateway; <code>demo-forward.mjs</code> carries gateway requests to the private container sockets. Both use the private shared bridge directory. The generated, ignored <code>.data/demo-environment.json</code> records the exact container, snapshot, paths and owned process IDs; <code>node scripts/demo-control.mjs start|stop|status</code> manages them.</p>
+<p><strong>Public access No-Go:</strong> the existing Cloudflare DNS credential is root-readable, and HTTP/TLS-ALPN certificate validation could not reach ports 80 or 443. A host administrator must run <code>sh deploy/install-demo-https.sh</code> from the committed snapshot. This installs only <code>codoxear-v2-demo-https.service</code> and its configuration, reusing the existing protected credential without copying it into the repository. It does not restart the current gateway or backend. Certificate issuance and external access to ports 8444–8447 must succeed before the public URL is declared ready. Rollback: stop and disable only <code>codoxear-v2-demo-https.service</code>.</p>
+<p>Verification: the Docker HTTPS browser suite passed ten workflows, including real Pi shell execution, file editing/download, independent hubs and restricted membership. It used an explicitly trusted fixture certificate, so it does not prove public certificate issuance or Internet reachability. See <code>artifacts/public-demo-results.json</code>. Model replies remain scripted; the complete feature exclusions are in <a href="docs/demo.html">the demo's 28-entry No-Go register</a>.</p></section>
+<section><h2>Agent-first interface</h2><p>The original Codoxear sidebar, New session dialog and flat Settings dialog are retained. Hub and Computer placement appears in agent metadata and the creation dialog. Hubs &amp; computers is a secondary footer control for connections, Computers, sign-in methods, invitations and retention policy. An operator creates a hub by deploying its private configuration, then connects it from the client.</p><p>The page remains on one origin. A browser service worker routes authenticated requests directly to the selected hub. There is no account web gateway. Multiple proven methods for the same hub-local person share the agent namespace; different people are never automatically merged.</p><p>Acceptance: scripts/browser-independent.mjs covers two hub logins, a cross-hub OAuth mix-up attempt, original UI creation, real Pi shell/file use, downloads, access revocation, hub outage, persistence and logout. scripts/browser-independent-live.mjs verifies the committed public deployment with existing agents. Detailed limitations remain in the design and milestone registers.</p></section>
+<section><h2>Bounded browser caching</h2><p>Memory-only previews retain 3 agents and up to 200 transcript events per agent, within a 5 MiB combined directory/preview budget. Drafts and preferences use at most 100 KiB of localStorage. <a href="docs/cache-design.html">Routing diagram, cache limits, access lifecycle and remaining boundaries</a>. The public demo serves this document at <a href="https://codoxear.gzeek.com:8445/cache-design">/cache-design</a>.</p></section>
+</main>
+</html>

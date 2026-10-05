@@ -1,0 +1,9 @@
+services:
+  verification:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    init: true
+    shm_size: 1gb
+    volumes:
+      - ./artifacts:/work/artifacts

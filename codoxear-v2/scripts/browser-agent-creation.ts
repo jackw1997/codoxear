@@ -1,0 +1,778 @@
+// @ts-nocheck -- Behavioral browser fixtures retain their dynamic Playwright contracts.
+import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import { writeFile, mkdir } from "node:fs/promises";
+import { build } from "esbuild";
+import Fastify from "fastify";
+import { workspaceAsset } from "../src/hub/workspace.ts";
+assert.ok(existsSync("/.dockerenv"), "Docker only");
+const { chromium } = await import(
+  process.env.PLAYWRIGHT_MODULE ?? "playwright"
+);
+const catalogs = {
+  laptop: {
+    new_session_defaults: {
+      backends: {
+        pi: {
+          provider_choice: "local",
+          model: "pi-default",
+          provider_choices: ["local", "anthropic"],
+          models: ["pi-default", "pi-reasoner"],
+          provider_models: {
+            local: ["pi-default"],
+            anthropic: ["pi-reasoner"],
+          },
+          reasoning_efforts: ["off", "low", "high"],
+          reasoning_efforts_by_model: {
+            "anthropic/pi-reasoner": ["low", "high"],
+            "local/pi-default": ["off"],
+          },
+        },
+        codex: {
+          provider_choice: "chatgpt",
+          model: "codex-model",
+          provider_choices: ["chatgpt", "openai-api"],
+          models: ["codex-model", "codex-small"],
+          reasoning_efforts: ["low", "medium", "high"],
+          reasoning_efforts_by_model: {
+            "codex-model": ["low", "medium", "high", "ultra"],
+            "codex-small": ["low", "medium"],
+          },
+          supports_fast: true,
+        },
+        cc: {
+          model: "sonnet",
+          models: ["sonnet", "opus", "haiku"],
+          reasoning_efforts: ["low", "medium", "high"],
+          supports_fast: false,
+        },
+      },
+    },
+  },
+  workstation: {
+    new_session_defaults: {
+      backends: {
+        pi: {
+          provider_choices: ["work-provider"],
+          provider_models: { "work-provider": ["work-model"] },
+          reasoning_efforts: ["off"],
+        },
+      },
+    },
+  },
+};
+let origin,
+  delayLaptop = false,
+  delayLaunch = false;
+const received = [],
+  errors = [],
+  checks = [];
+let passed = false;
+const placements = () =>
+  ["laptop", "workstation"].map((computerId) => ({
+    computerId,
+    computerName: computerId === "laptop" ? "Home laptop" : "Work computer",
+    hubName: "Test hub",
+    hubId: "hub",
+    origin,
+  }));
+const app = Fastify();
+app.get("/api/agent-directory", async () => ({
+  agents: [],
+  placements: placements(),
+}));
+app.get("/workspace/api/sessions", async () => ({
+  sessions: [],
+  recent_cwds: [],
+  new_session_defaults: {},
+  tmux_available: false,
+}));
+app.get("/api/computers/:id/resume-candidates", async (r) => ({
+  sessions: [
+    {
+      session_id: `saved-${r.params.id}-${r.query.backend}`,
+      alias: "Saved work",
+    },
+  ],
+}));
+app.get("/api/computers/:id/launch-defaults", async (r) => {
+  if (r.params.id === "laptop" && delayLaptop)
+    await new Promise((resolve) => setTimeout(resolve, 700));
+  return catalogs[r.params.id];
+});
+for (const path of [
+  "/api/v1/computers/:id/api/sessions",
+  "/api/computers/:id/agents",
+])
+  app.post(path, async (r, reply) => {
+    received.push({ computer: r.params.id, body: r.body });
+    if (delayLaunch) await new Promise((resolve) => setTimeout(resolve, 500));
+    return reply
+      .code(422)
+      .send({ error: "Selection recorded by isolated verification." });
+  });
+app.get("/legacy-worker.js", async (_r, reply) =>
+  reply
+    .type("text/javascript")
+    .send(
+      `self.addEventListener('install', e => e.waitUntil(self.skipWaiting())); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('message', e => { if(e.data?.type === 'codoxear-transport-check') e.ports[0]?.postMessage({type:'codoxear-transport-ready',version:3}); }); self.addEventListener('fetch', e => { if (new URL(e.request.url).pathname.startsWith('/api/')) e.respondWith(new Response(JSON.stringify({error:'This is a static client. Authentication and APIs belong to your connected hubs.'}), {status:404,headers:{'Content-Type':'application/json'}})); });`,
+    ),
+);
+app.get("/api/hubs", async () => [
+  { id: "hub", name: "Test hub", ownerId: "test", policy: null },
+]);
+app.get("/api/v1/computers", async () =>
+  placements().map((p) => ({
+    id: p.computerId,
+    name: p.computerName,
+    ownerId: "test",
+    online: true,
+    policy: null,
+    effectivePolicy: "remove",
+  })),
+);
+app.get("/setup", async (_r, reply) =>
+  reply.type("text/html").send("<!doctype html><title>Isolated setup</title>"),
+);
+const harness = await build({
+  stdin: {
+    contents:
+      'import {placementDialog} from "./web/shared/ui.js"; window.openCreation = () => placementDialog(window.placements, async (p, values) => { const r = await fetch(`/api/computers/${p.computerId}/agents`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values)}); if(!r.ok) throw new Error((await r.json()).error); }); document.querySelector("button").onclick = window.openCreation;',
+    resolveDir: process.cwd(),
+  },
+  bundle: true,
+  write: false,
+  format: "esm",
+});
+app.get("/shared.js", async (_r, reply) =>
+  reply.type("text/javascript").send(harness.outputFiles[0].text),
+);
+app.get("/shared", async (_r, reply) =>
+  reply
+    .type("text/html")
+    .send(
+      `<!doctype html><html data-theme="clay"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/themes/clay.css"><link rel="stylesheet" href="/agent-creation.css"></head><body><button>New agent</button><script>window.placements=${JSON.stringify(placements())}</script><script type="module" src="/shared.js"></script></body></html>`,
+    ),
+);
+app.get("/*", async (r, reply) => {
+  try {
+    const asset = await workspaceAsset("dist/client", r.params["*"], {
+      issuer: "local-client",
+      accountId: "test",
+      hubId: "hub",
+      computerId: "all",
+    });
+    return reply.type(asset.type).send(asset.body);
+  } catch {
+    return reply.code(404).send({ error: "Fixture route unavailable" });
+  }
+});
+origin = await app.listen({ host: "127.0.0.1", port: 0 });
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.CHROMIUM_PATH
+    ? { executablePath: process.env.CHROMIUM_PATH }
+    : {}),
+  args: ["--no-sandbox", "--disable-dev-shm-usage"],
+});
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 1000 },
+});
+let page = await context.newPage();
+page.setDefaultTimeout(10000);
+page.on("pageerror", (e) => errors.push(e.message));
+const pass = (text) => {
+  checks.push(text);
+  console.log("PASS", text);
+};
+const dialog = () =>
+  page.getByRole("dialog", { name: "New agent", exact: true });
+async function ready() {
+  await dialog().waitFor();
+  await page.waitForFunction(
+    () => document.querySelector("dialog [type=submit]")?.disabled === false,
+  );
+}
+async function submit() {
+  const count = received.length;
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  await dialog()
+    .getByRole("alert")
+    .getByText("Selection recorded by isolated verification.")
+    .waitFor();
+  assert.equal(received.length, count + 1);
+  return received.at(-1);
+}
+try {
+  await mkdir("artifacts", { recursive: true });
+  await page.goto(origin + "/setup");
+  await page.evaluate(async (origin) => {
+    const db = await new Promise((resolve, reject) => {
+      const r = indexedDB.open("codoxear-client-identities", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("credentials");
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("credentials", "readwrite");
+      tx.objectStore("credentials").put(
+        {
+          id: "test-login",
+          accountKey: "account",
+          hubId: "hub",
+          origin,
+          name: "Test hub",
+          accountId: "test",
+          accessToken: "fixture-token",
+          refreshToken: "fixture-refresh",
+          expiresAt: Date.now() + 3600000,
+          identity: { name: "Test", method: "password", key: "test" },
+        },
+        "test-login",
+      );
+      tx.oncomplete = resolve;
+      tx.onerror = reject;
+    });
+  }, origin);
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.register("/legacy-worker.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller)
+      await new Promise((resolve) =>
+        navigator.serviceWorker.addEventListener("controllerchange", resolve, {
+          once: true,
+        }),
+      );
+  });
+  const legacyFailure = await page.evaluate(async () => ({
+    status: (await fetch("/api/client/hubs/test-login/api/hubs")).status,
+  }));
+  assert.equal(legacyFailure.status, 404);
+  await page.goto(origin);
+  await page
+    .getByRole("button", { name: "Hubs & computers", exact: true })
+    .click();
+  const connections = page.getByRole("dialog", {
+    name: "Hubs & computers",
+    exact: true,
+  });
+  await connections.locator("summary").filter({ hasText: "Test hub" }).click();
+  await connections
+    .getByRole("button", { name: "Home laptop", exact: false })
+    .waitFor();
+  assert.equal(
+    await connections
+      .getByText("This is a static client.", { exact: false })
+      .count(),
+    0,
+  );
+  await connections.getByRole("button", { name: "Back", exact: true }).click();
+  pass(
+    "An already-controlled tab upgrades the old worker before rendering; Hubs & computers loads working controls instead of the static-client error",
+  );
+  await page.locator("#newBtn").click();
+  await ready();
+  assert.deepEqual(
+    await dialog()
+      .getByLabel("Runtime", { exact: true })
+      .locator("option")
+      .allTextContents(),
+    ["Pi", "Codex", "Claude Code"],
+  );
+  await dialog().getByLabel("Agent name").fill("Phone agent");
+  await dialog()
+    .getByLabel("Provider", { exact: true })
+    .selectOption("anthropic");
+  assert.deepEqual(
+    await dialog()
+      .getByLabel("Model", { exact: true })
+      .locator("option")
+      .allTextContents(),
+    ["Choose a model", "pi-reasoner", "Custom…"],
+  );
+  await dialog()
+    .getByLabel("Model", { exact: true })
+    .selectOption("pi-reasoner");
+  await dialog().getByText("More", { exact: true }).click();
+  assert.deepEqual(
+    await dialog()
+      .getByLabel("Reasoning", { exact: true })
+      .locator("option")
+      .allTextContents(),
+    ["Runtime default", "Low", "High"],
+  );
+  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("high");
+  assert.equal(await dialog().getByLabel("Fast mode").isVisible(), false);
+  await page.screenshot({ path: "artifacts/creation-pi-desktop.png" });
+  assert.deepEqual((await submit()).body, {
+    name: "Phone agent",
+    agent_backend: "pi",
+    model_provider: "anthropic",
+    model: "pi-reasoner",
+    reasoning_effort: "high",
+    create_in_tmux: false,
+  });
+  pass(
+    "Independent client opens Pi/Codex/Claude creation; provider-specific Pi models and reasoning reach the service worker launch request",
+  );
+  await dialog().getByLabel("Runtime", { exact: true }).selectOption("codex");
+  await dialog()
+    .getByLabel("Provider", { exact: true })
+    .selectOption("chatgpt");
+  await dialog()
+    .getByLabel("Model", { exact: true })
+    .selectOption("codex-model");
+  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("ultra");
+  await dialog()
+    .getByLabel("Model", { exact: true })
+    .selectOption("codex-small");
+  assert.equal(
+    await dialog().getByLabel("Reasoning", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await dialog()
+      .getByLabel("Reasoning", { exact: true })
+      .locator("option[value=ultra]")
+      .count(),
+    0,
+  );
+  await dialog().getByText("Fast mode", { exact: true }).click();
+  assert.equal(await dialog().getByLabel("Fast mode").isChecked(), true);
+  assert.deepEqual((await submit()).body, {
+    name: "Phone agent",
+    agent_backend: "codex",
+    model_provider: "openai",
+    preferred_auth_method: "chatgpt",
+    model: "codex-small",
+    service_tier: "fast",
+    create_in_tmux: false,
+  });
+  pass(
+    "Codex maps ChatGPT authentication and Fast correctly; changing models removes unsupported reasoning",
+  );
+  await dialog().getByLabel("Runtime", { exact: true }).selectOption("cc");
+  assert.equal(
+    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(await dialog().getByLabel("Fast mode").isVisible(), true);
+  await dialog()
+    .getByLabel("Model", { exact: true })
+    .selectOption("__custom__");
+  await dialog().getByLabel("Custom model", { exact: true }).fill("   ");
+  const beforeInvalid = received.length;
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  await dialog()
+    .getByRole("alert")
+    .getByText("Enter a custom model ID.")
+    .waitFor();
+  assert.equal(received.length, beforeInvalid);
+  assert.equal(
+    await dialog()
+      .getByLabel("Custom model", { exact: true })
+      .getAttribute("aria-invalid"),
+    "true",
+  );
+  assert.equal(
+    await dialog()
+      .getByLabel("Custom model", { exact: true })
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await dialog()
+    .getByLabel("Custom model", { exact: true })
+    .fill("claude-custom");
+  await dialog()
+    .getByLabel("Reasoning", { exact: true })
+    .selectOption("medium");
+  assert.deepEqual((await submit()).body, {
+    name: "Phone agent",
+    agent_backend: "cc",
+    model: "claude-custom",
+    reasoning_effort: "medium",
+    create_in_tmux: false,
+  });
+  pass(
+    "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
+  );
+  for (const runtime of ["pi", "codex", "cc"]) {
+    await dialog().getByLabel("Runtime", { exact: true }).selectOption(runtime);
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .selectOption("__custom_api__");
+    assert.equal(
+      await dialog().getByLabel("Custom model", { exact: true }).isVisible(),
+      true,
+    );
+    await dialog()
+      .getByLabel("API URL", { exact: true })
+      .fill("https://private.test/v1");
+    await dialog()
+      .getByLabel("API key", { exact: true })
+      .fill("fixture-private-key");
+    await dialog()
+      .getByLabel("Custom model", { exact: true })
+      .fill("PrivateModel");
+    assert.equal(
+      await dialog()
+        .getByLabel("API key", { exact: true })
+        .getAttribute("type"),
+      "password",
+    );
+    if (runtime === "pi") {
+      await dialog()
+        .getByLabel("API compatibility")
+        .selectOption("anthropic-messages");
+      await dialog().getByText("Image support", { exact: true }).click();
+      assert.equal(
+        await dialog().getByLabel("Image support").isChecked(),
+        true,
+      );
+    }
+    await dialog().getByText("Advanced", { exact: true }).click();
+    await dialog()
+      .getByRole("button", { name: "Add variable", exact: true })
+      .click();
+    await dialog().getByLabel("Variable name").fill("EXTRA_SETTING");
+    await dialog().getByLabel("Variable value").fill("fixture-env-value");
+    if (runtime === "cc") {
+      await dialog()
+        .getByLabel("Claude command override")
+        .fill("private-claude");
+      await dialog().getByText("Fast mode", { exact: true }).click();
+      assert.equal(await dialog().getByLabel("Fast mode").isChecked(), true);
+    }
+    const request = (await submit()).body;
+    assert.deepEqual(request.provider_config, {
+      base_url: "https://private.test/v1",
+      api_key: "fixture-private-key",
+      ...(runtime === "pi"
+        ? { api: "anthropic-messages", image_support: true }
+        : {}),
+    });
+    assert.deepEqual(request.env_vars, { EXTRA_SETTING: "fixture-env-value" });
+    assert.equal(
+      request.command,
+      runtime === "cc" ? "private-claude" : undefined,
+    );
+    assert.equal(request.service_tier, runtime === "cc" ? "fast" : undefined);
+    assert.equal(request.model_provider, undefined);
+    await dialog().getByText("Advanced", { exact: true }).click();
+    await dialog().getByLabel("Provider", { exact: true }).selectOption("");
+    assert.equal(
+      await dialog().getByLabel("API key", { exact: true }).inputValue(),
+      "",
+    );
+    assert.equal(
+      await dialog().getByLabel("API URL", { exact: true }).inputValue(),
+      "",
+    );
+    pass(
+      `${runtime}: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials`,
+    );
+  }
+  await dialog()
+    .getByLabel("Provider", { exact: true })
+    .selectOption("__custom_api__");
+  await dialog()
+    .getByLabel("API URL", { exact: true })
+    .fill("https://private.test");
+  await dialog().getByLabel("API key", { exact: true }).fill("fixture-key");
+  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  assert.equal(
+    await dialog().getByLabel("API key", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await dialog().getByLabel("Claude command override").inputValue(),
+    "",
+  );
+  assert.equal(await dialog().getByLabel("Variable name").count(), 0);
+  assert.equal(await dialog().getByLabel("Fast mode").isChecked(), false);
+  await dialog()
+    .getByLabel("Provider", { exact: true })
+    .selectOption("__custom_api__");
+  await dialog()
+    .getByLabel("API URL", { exact: true })
+    .fill("https://private.test");
+  await dialog().getByLabel("API key", { exact: true }).fill("fixture-key");
+  await dialog()
+    .getByLabel("Working directory", { exact: true })
+    .fill("/old-computer");
+  await dialog()
+    .getByLabel("Computer & hub", { exact: true })
+    .selectOption("1");
+  await ready();
+  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  assert.equal(
+    await dialog().getByLabel("API key", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await dialog().getByLabel("API URL", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await dialog()
+      .getByLabel("Working directory", { exact: true })
+      .inputValue(),
+    "",
+  );
+  assert.deepEqual(
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .locator("option")
+      .allTextContents(),
+    ["Configured on computer", "work-provider", "DeepSeek", "Custom API"],
+  );
+  delayLaptop = true;
+  await dialog()
+    .getByLabel("Computer & hub", { exact: true })
+    .selectOption("0");
+  await dialog()
+    .getByRole("button", { name: "Loading choices…", exact: true })
+    .waitFor();
+  assert.equal(
+    await dialog()
+      .getByRole("button", { name: "Loading choices…", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await dialog()
+    .getByRole("status")
+    .getByText("Loading choices from this computer…")
+    .waitFor();
+  await dialog()
+    .getByLabel("Computer & hub", { exact: true })
+    .selectOption("1");
+  await ready();
+  await page.waitForTimeout(800);
+  assert.equal(
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .locator("option[value=anthropic]")
+      .count(),
+    0,
+  );
+  pass(
+    "Switching computers clears previous selections and paths; late catalog responses cannot replace current choices",
+  );
+  await dialog().getByRole("button", { name: "Cancel", exact: true }).click();
+  await context.close();
+  const sharedContext = await browser.newContext({
+    serviceWorkers: "block",
+    viewport: { width: 1440, height: 1000 },
+  });
+  page = await sharedContext.newPage();
+  page.setDefaultTimeout(10000);
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(origin + "/shared");
+  await page.getByRole("button", { name: "New agent", exact: true }).click();
+  await ready();
+  assert.equal(
+    await dialog()
+      .getByLabel("Agent name")
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Escape");
+  assert.equal(await dialog().isVisible(), true);
+  const closeButton = dialog().getByRole("button", {
+    name: "Close",
+    exact: true,
+  });
+  await closeButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(
+    await dialog()
+      .getByRole("button", { name: "Create agent", exact: true })
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await closeButton.evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await dialog().getByLabel("Agent name").fill("   ");
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  await dialog().getByRole("alert").getByText("Enter an agent name.").waitFor();
+  assert.equal(
+    await dialog().getByLabel("Agent name").getAttribute("aria-invalid"),
+    "true",
+  );
+  assert.equal(
+    await dialog()
+      .getByLabel("Agent name")
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await dialog().getByLabel("Agent name").fill("Default config");
+  assert.equal(
+    await dialog().getByLabel("Agent name").getAttribute("aria-invalid"),
+    null,
+  );
+  delayLaunch = true;
+  const pendingSubmit = submit();
+  await dialog()
+    .getByRole("button", { name: "Creating agent…", exact: true })
+    .waitFor();
+  assert.equal(
+    await dialog().getByLabel("Runtime", { exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await dialog().locator("form").getAttribute("aria-busy"),
+    "true",
+  );
+  await page.keyboard.press("Escape");
+  assert.equal(await dialog().isVisible(), true);
+  assert.deepEqual((await pendingSubmit).body, {
+    name: "Default config",
+    backend: "pi",
+  });
+  delayLaunch = false;
+  pass(
+    "Keyboard focus wraps within creation; Escape preserves dialog; invalid names focus their associated alert; pending launch announces status and locks choices",
+  );
+  assert.deepEqual((await submit()).body, {
+    name: "Default config",
+    backend: "pi",
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const runtime of ["pi", "codex", "cc"]) {
+    await dialog().getByLabel("Runtime", { exact: true }).selectOption(runtime);
+    if (runtime === "pi")
+      await dialog().getByText("More", { exact: true }).click();
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .selectOption("__custom_api__");
+    await dialog()
+      .getByLabel("API URL", { exact: true })
+      .fill("https://private.test/v1");
+    await dialog().getByLabel("API key", { exact: true }).fill("fixture-key");
+    await dialog()
+      .getByLabel("Custom model", { exact: true })
+      .fill("PrivateModel");
+    assert.ok(
+      await dialog()
+        .locator(".agent-creation-body")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    );
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    const box = await dialog().boundingBox();
+    assert.ok(
+      box.width <= 390 && box.height <= 844 && box.x >= 0 && box.y >= 0,
+    );
+    await page.screenshot({ path: `artifacts/creation-${runtime}-mobile.png` });
+  }
+  await dialog().getByRole("button", { name: "Cancel", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "New agent", exact: true })
+      .evaluate((el) => el === document.activeElement),
+    true,
+  );
+  pass(
+    "Account/workspace form submits configured defaults without overrides; all three runtime forms fit 390px and cancel restores focus",
+  );
+  await page.getByRole("button", { name: "New agent", exact: true }).click();
+  const resume = page.locator("dialog.agent-creation");
+  await resume.getByLabel("Agent name").fill("Continue saved work");
+  await resume.getByLabel("Runtime", { exact: true }).selectOption("codex");
+  await resume.getByLabel("Start", { exact: true }).selectOption("resume");
+  await resume
+    .getByLabel("Session working directory", { exact: true })
+    .fill("/saved/workspace");
+  await resume
+    .getByRole("button", { name: "Find saved sessions", exact: true })
+    .click();
+  await resume
+    .getByLabel("Saved sessions", { exact: true })
+    .selectOption({ label: "Saved work" });
+  assert.equal(
+    await resume.getByLabel("Session ID", { exact: true }).inputValue(),
+    "saved-laptop-codex",
+  );
+  await resume
+    .getByRole("button", { name: "Resume agent", exact: true })
+    .click();
+  await page.waitForTimeout(150);
+  assert.equal(
+    received.at(-1).body.launch.resume_session_id,
+    "saved-laptop-codex",
+  );
+  assert.equal(received.at(-1).body.launch.cwd, "/saved/workspace");
+  assert.equal(received.at(-1).body.launch.provider_config, undefined);
+  await resume.getByLabel("Runtime", { exact: true }).selectOption("pi");
+  assert.equal(
+    await resume.getByLabel("Session ID", { exact: true }).inputValue(),
+    "",
+  );
+  await resume.getByLabel("Session ID", { exact: true }).fill("explicit-pi-id");
+  await resume
+    .getByRole("button", { name: "Resume agent", exact: true })
+    .click();
+  await page.waitForTimeout(150);
+  assert.equal(received.at(-1).body.launch.resume_session_id, "explicit-pi-id");
+  await page.screenshot({ path: "artifacts/resume-mobile.png" });
+  await resume.getByRole("button", { name: "Cancel", exact: true }).click();
+  pass(
+    "Resume selects a scoped saved session or explicit ID, clears IDs on runtime changes, and sends no saved credentials",
+  );
+  assert.deepEqual(errors, []);
+  passed = true;
+} catch (error) {
+  errors.push(error instanceof Error ? error.stack : String(error));
+  throw error;
+} finally {
+  await writeFile(
+    "artifacts/agent-creation-results.json",
+    JSON.stringify(
+      {
+        passed,
+        checks,
+        errors,
+        launches: received.map(({ computer, body }) => ({
+          computer,
+          body: {
+            ...body,
+            ...(body.provider_config
+              ? {
+                  provider_config: {
+                    ...body.provider_config,
+                    api_key: "[redacted]",
+                  },
+                }
+              : {}),
+            ...(body.env_vars
+              ? {
+                  env_vars: Object.fromEntries(
+                    Object.keys(body.env_vars).map((key) => [
+                      key,
+                      "[redacted]",
+                    ]),
+                  ),
+                }
+              : {}),
+          },
+        })),
+      },
+      null,
+      2,
+    ),
+  );
+  await browser.close();
+  await app.close();
+}

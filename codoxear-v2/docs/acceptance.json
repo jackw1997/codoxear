@@ -1,0 +1,200 @@
+{
+  "design": "../docs/multi-server-relay/final-design.html revision 8, superseded for hub authority by docs/independent-hubs.html; agent creation and access amendments",
+  "baseline": "fa8c54ad",
+  "rule": "A gate is complete only when its implementation and required behavioral evidence exist. Contract fixtures never count as live provider, real inference or physical-device acceptance.",
+  "gates": [
+    {
+      "id": "baseline",
+      "requirement": "Integrate HarmonyOS handoff without losing saved login or composer fixes",
+      "status": "implemented",
+      "evidence": "Fast-forward to fa8c54ad; native acceptance pending"
+    },
+    {
+      "id": "computer",
+      "requirement": "Typed Computer API, one hub attachment, lifecycle and reconnect independence",
+      "status": "verified-local",
+      "evidence": "tests/domain.test.ts and tests/transport.test.ts"
+    },
+    {
+      "id": "ownership",
+      "requirement": "Single owners, separate invitations, dual membership creation, hub-first retention",
+      "status": "verified-local",
+      "evidence": "32 policy combinations plus browser live changes"
+    },
+    {
+      "id": "identity",
+      "requirement": "Separate identity service, linked verified identities, provider requirements, PKCE and rotation",
+      "status": "verified-contracts",
+      "evidence": "Identity behavior tests plus browser account creation, explicit linking, email/phone login and provider PKCE continuation fixtures. Shared native coordinator tests PKCE, directory discovery, refresh rotation and lost refresh recovery. Live providers remain separate."
+    },
+    {
+      "id": "providers",
+      "requirement": "Feishu, WeChat, email and phone sign-in on actual integrations",
+      "status": "needs-configuration"
+    },
+    {
+      "id": "multi-hub",
+      "requirement": "Independent hubs, exact token audience, scoped discovery, fail-closed policy decisions",
+      "status": "verified-local",
+      "evidence": "Independent identity and hub processes; 5 distributed browser checkpoints; exact audience isolation and fail-closed authority outage tests"
+    },
+    {
+      "id": "pairing",
+      "requirement": "Owner-bound single-use enrollment and fenced hub transfer",
+      "status": "verified-local",
+      "evidence": "Owner-bound single-use enrollment and transfer fencing tested; two browser users issue target-owner admission and move a computer. Reused/stale admissions and old computer credentials are rejected. Short enrollment codes are now 8 characters and expire after 15 minutes; tests cover exact expiry, single-use, renewal invalidation, typing normalization, legacy-token compatibility and redemption attempt limits. The live browser/CLI attachment and source download passed."
+    },
+    {
+      "id": "relay",
+      "requirement": "Bounded streaming uploads, binary downloads, ranges, SSE, cancellation and media paths",
+      "status": "verified-local",
+      "evidence": "tests/http-mux.test.ts and tests/http-relay.test.ts: credit bounds; 16 blocked streams remain within per-computer memory limits while heartbeats continue; a 17th stream is rejected before dispatch; byte-identical binary/range/ETag/multipart/HLS, gzip decoding, cancellation, feed filtering and revocation. Production deployment load tests remain pending."
+    },
+    {
+      "id": "runtime",
+      "requirement": "Real isolated CLI continues across hub and client loss; terminal sessions import",
+      "status": "in-progress",
+      "evidence": "Existing isolated Pi shell and hub-loss recovery checks remain valid. On 2026-10-04, a Computer was created through the deployed browser, attached using the CLI and an 8-character code, and became Online. Both authenticated Codex and Pi (gpt-6.1-sol, ChatGPT OAuth) were created from New session and executed real shell write/read operations. Their streamed replies and generated files were verified through the browser. Claude live authentication, native app acceptance and comprehensive real-provider outage recovery remain pending."
+    },
+    {
+      "id": "web-parity",
+      "requirement": "Files, git, uploads, queues, settings, search, voice and scoped recovery",
+      "status": "in-progress",
+      "evidence": "Actual browser: imported Pi transcript, Git diff, file read/download/edit, search, queue/edit/authorized dispatch, second real Pi process via New session, normal file-picker upload, separate personal drafts for two users, a live read-only downgrade, and owner-only deletion through the normal confirmation. Deletion denies operators before dispatch and retains catalog entries after unconfirmed local replies. Owner-issued workspace read/write grants now pass two-account actual-Pi browser checks, including inspection, editing, traversal/symlink rejection and immediate revocation. Selective per-agent sharing is separately verified by the agent-sharing gate. Multiple roots, delegated Git/uploads/transcoding, complete voice/settings/notification parity, remaining lifecycle actions and broader accessibility remain pending."
+    },
+    {
+      "id": "direct",
+      "requirement": "Explicit direct profile with no automatic fallback and regression coverage",
+      "status": "verified-contracts",
+      "evidence": "Explicit direct and relay profiles with isolated credential keys; actual Harmony ApiClient direct login, no fallback and stale-response rejection exercised with mocked OS networking. Complete native/direct regression still pending"
+    },
+    {
+      "id": "queue",
+      "requirement": "Computer-owned durable queued prompts reauthorize the actor before dispatch and never replay uncertain sends",
+      "status": "verified-local",
+      "evidence": "Queue restart, attachment fencing, revoked actor, edits during authorization and uncertain-send tests; actual Pi browser queues, edits and sends after the current turn. Visible pause reasons update while the dialog is open. Pending prompts pause without the policy service; a narrow 24-hour permit never authenticates as a user. Terminal-local queue integration remains pending."
+    },
+    {
+      "id": "personal-drafts",
+      "requirement": "Unsent remote drafts remain private to their account and Computer attachment",
+      "status": "verified-local",
+      "evidence": "Computer-owned private SQLite storage, actor-specific catalog timestamps and tombstones; tests cover restart, account/session/attachment isolation and size bounds. Two actual browser accounts sharing one real Pi session cannot read or overwrite each other’s drafts."
+    },
+    {
+      "id": "launch-recovery",
+      "requirement": "Recover a completed launch after a lost reply without starting a duplicate process",
+      "status": "verified-local",
+      "evidence": "Computer commits an uncertainty barrier before launch and saves the result by agent and attachment. Read-only receipt lookup survives restart and rejects duplicate launches. Actual browser recovers an existing Pi agent after a simulated lost central result; local process count stays at two. Late failures cannot erase the recovered result. If the Computer never saved a result, explicit owner inspection/import remains necessary."
+    },
+    {
+      "id": "push",
+      "requirement": "Durable completion outbox, deduplication, access checks and provider delivery",
+      "status": "verified-contracts",
+      "evidence": "Binding-scoped durable Computer outbox and hub inbox/ACK, stable IDs, 24-hour TTL, access/session/binding rechecks immediately before dispatch, bounded delivery ledger and scoped unsubscribe. Five notification tests verify restart/replay/revocation/token changes/provider PS256 payload; shared client tests use the actual hub API. Actual Pi completion arrives after a hub outage. Foreground feed excludes unpublished sessions. Physical Harmony delivery, native multi-hub presenter integration and Web Push remain pending."
+    },
+    {
+      "id": "harmony",
+      "requirement": "Native relay login, context, media, secure credentials, device lifecycle and push",
+      "status": "needs-device",
+      "evidence": "Actual ApiClient and Workspace execute in behavioral tests with mocked OS boundaries: relay JSON/SSE/binary/media, cancellation, account/hub/computer recovery scopes, bounded SHA-256 draft filenames, notification scope isolation, and unchanged direct filenames. Native login presenter, secure refresh vault, multi-hub push subscriptions, SDK build and physical-device acceptance remain pending."
+    },
+    {
+      "id": "network",
+      "requirement": "Client cannot reach computers; outbound-only relay works under faults and load",
+      "status": "verified-local",
+      "evidence": "Separate Docker front/back networks with verified TLS: client cannot reach computer private IP; hub can; computer-initiated WSS carries conversation. Fault/load matrix remains pending"
+    },
+    {
+      "id": "protocol",
+      "requirement": "Versioned OpenAPI, tunnel schemas and shared native conformance fixtures",
+      "status": "in-progress",
+      "evidence": "Generated v1 OpenAPI and tunnel JSON schemas, shared TypeScript transport/login lifecycle, three executed Harmony behavioral tests. Complete public route schemas and native platform conformance still pending."
+    },
+    {
+      "id": "runtime-incarnation",
+      "requirement": "Runtime identities must never attach old permissions or recovery state to a new instance",
+      "status": "verified-local",
+      "evidence": "Native brokers retain UUID identities through restart, log binding and resume; legacy PID-only relay targets are rejected. Detached PTY sessions survive Computer restart and two sessions in the same cwd bind only their own producer logs."
+    },
+    {
+      "id": "future",
+      "requirement": "iOS/Android and OAR interfaces and adoption gates specified",
+      "status": "designed-later-stage",
+      "evidence": "Design sections 05 and 07 explicitly stage implementation later"
+    },
+    {
+      "id": "workspace-grants",
+      "requirement": "Owner grants delegated read/write access to the Computer-configured workspace; membership loss removes files independently of transcript retention",
+      "status": "verified-local",
+      "evidence": "Native TypeScript secure pinned file-descriptor access, CAS, symlink/hardlink and root boundaries verified in Docker; owner-issued workspace read/write grants and immediate revocation checked through the browser. Linux accepted; macOS secure adapter pending."
+    },
+    {
+      "id": "invitation-targets",
+      "requirement": "Owner invitations addressed to email, verified phone or exact provider identity without requiring linked email",
+      "status": "verified-local",
+      "evidence": "tests/invitations.test.ts; independent-hub public API checks; mobile Manage access and Accept invitation browser flows with phone and tenant-specific Feishu identities; copied invitation details. Live provider delivery is a separate gate."
+    },
+    {
+      "id": "agent-sharing",
+      "requirement": "Selective viewer/operator access to concrete agents independently of computer membership, with explicit revocation and no new-agent creation",
+      "status": "verified-local",
+      "evidence": "tests/agent-sharing.test.ts; independent-hub API verifies private/future agent exclusion, owner-only sharing, workspace/creation boundaries, queued dispatch and notification authorization, stream downgrade and closure. Two-account mobile browser shares, sends, downgrades/revokes via actual Agent access screen."
+    },
+    {
+      "id": "standalone-typescript",
+      "requirement": "Self-contained v2 with TypeScript native PTY/runtime and tests, no Python or original package dependency, explicit component boundaries",
+      "status": "verified-local",
+      "evidence": "Fresh v2-only production build and 157/157 Docker TypeScript tests passed with no skips. Installed Pi across three private API protocols, Codex and Claude endpoint/key/model checks 5/5; Codex and Claude browser create/send/transcript/reload and trusted Codex resume 7/7; native HTTP/Git/media 19/19 and PTY/session 12/12. Actual Pi browser verifies tools during hub outage, files/Git/CAS/search/queue, producer-confirmed model/effort controls, real provider stream interruption, creation receipt recovery, attachment metadata and private drafts. All 23 native workspace acceptance checks pass, including delegated edit/revocation, membership loss, owner deletion authorization and hub-first read-only retention. The Docker wrapper exits 0 and cleans up its own resources. Independent process/state tests and boundary guard pass; macOS secure file adapter pending."
+    }
+  ],
+  "lastEvidence": "Fresh v2-only production build and 157/157 Docker TypeScript tests passed with no skips. Installed Pi across three private API protocols, Codex and Claude endpoint/key/model checks 5/5; Codex and Claude browser create/send/transcript/reload and trusted Codex resume 7/7; native HTTP/Git/media 19/19 and PTY/session 12/12. Actual Pi browser verifies tools during hub outage, files/Git/CAS/search/queue, producer-confirmed model/effort controls, real provider stream interruption, creation receipt recovery, attachment metadata and private drafts. All 23 native workspace acceptance checks pass, including delegated edit/revocation, membership loss, owner deletion authorization and hub-first read-only retention. The Docker wrapper exits 0 and cleans up its own resources.",
+  "remainingWork": {
+    "engineering": [
+      "Multiple delegated workspace roots, and separate Git/upload/transcoding capabilities",
+      "Terminal-local/remote queue integration and remaining lifecycle, voice and settings parity",
+      "HarmonyOS system-browser login presenter, secure refresh vault and multi-hub push lifecycle",
+      "Web Push provider and complete public protocol/conformance coverage",
+      "Broader production load/fault and accessibility acceptance"
+    ],
+    "externalSetup": [
+      "Feishu/WeChat test app registrations and callback credentials",
+      "Email/SMS delivery test accounts",
+      "HarmonyOS SDK, signing/provisioning, Push Kit app credentials and a connected test device",
+      "Isolated real-provider credentials for the remaining tool/outage and native Codex/Claude import/interrupt acceptance"
+    ],
+    "laterStage": [
+      "iOS and Android native implementations",
+      "Optional OAR runtime adapter"
+    ]
+  },
+  "milestone": {
+    "name": "M1 — Interactive web relay demo",
+    "contract": "docs/milestone.json",
+    "guide": "docs/demo.html",
+    "decision": "Demo acceptance only; full release remains No-Go",
+    "demoEvidence": "artifacts/demo-results.json"
+  },
+  "noGoRegister": "docs/milestone.json: each excluded function has state, specific reason, exit condition and responsible party",
+  "prReview": {
+    "scope": "Linux v2 native TypeScript migration; separate Computer, Hub and Client",
+    "tests": {
+      "passed": 160,
+      "failed": 0,
+      "skipped": 0
+    },
+    "regressionsFixed": [
+      "Persistent session name, priority, snooze and dependency edits without conversation dispatch",
+      "Unattended final-assistant idle cooldown, attachment protection and injection exhaustion"
+    ],
+    "cleanInstall": "npm ci and production build with npm configured to an unavailable Python path; packaged PTY import passed",
+    "dependencyAudit": "Zero npm audit vulnerabilities",
+    "ci": ".github/workflows/codoxear-v2.yml",
+    "description": "docs/pr-readiness.md",
+    "genericBrowserChecks": 46,
+    "verifierExitCode": 0,
+    "branch": "v2/typescript-architecture-pr",
+    "validationLimits": [
+      "Updated Dockerfile image and hosted GitHub workflow not executed here; equivalent isolated verifier ran with an available media encoder"
+    ]
+  }
+}

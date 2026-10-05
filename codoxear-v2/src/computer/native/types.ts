@@ -1,0 +1,60 @@
+import type { z } from "zod";
+import type { Launch } from "../../contracts/tunnel.js";
+export type Backend = "codex" | "pi" | "cc";
+export type LaunchOptions = z.infer<typeof Launch>;
+export type Metadata = {
+  version: 1;
+  session_id: string;
+  thread_id: string | null;
+  agent_backend: Backend;
+  broker_pid: number;
+  pid: number;
+  cwd: string;
+  start_ts: number;
+  updated_ts: number;
+  log_path: string | null;
+  alias: string;
+  model: string | null;
+  model_provider: string | null;
+  reasoning_effort: string | null;
+  service_tier: string | null;
+  launch_requires_reentry: boolean;
+  busy: boolean;
+  readiness: "starting" | "ready" | "setup_required" | "exited";
+  setup_message: string | null;
+  queue_len: number;
+  exit_code: number | null;
+};
+export type Attachment = {
+  id: string;
+  path: string;
+  name: string;
+  filename: string;
+  display_name: string;
+  size: number;
+  content_type: string;
+  created_ts: number;
+  kind: "file" | "image";
+};
+export type BrokerLaunch = {
+  home: string;
+  storageHome?: string;
+  sessionId: string;
+  backend: Backend;
+  cwd: string;
+  name: string;
+  launch: LaunchOptions;
+  resumePath?: string;
+};
+export type BrokerRequest = {
+  operation: string;
+  body?: Record<string, unknown>;
+};
+export type ChatEvent = {
+  role: "user" | "assistant" | "system";
+  text: string;
+  ts: number;
+  message_id: string;
+  message_class?: string;
+  history_cursor?: string;
+};

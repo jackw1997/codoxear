@@ -1,0 +1,23 @@
+[Unit]
+Description=Codoxear v2 isolated demo HTTPS gateway
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+DynamicUser=yes
+StateDirectory=codoxear-v2-demo-https
+Environment=XDG_DATA_HOME=/var/lib/codoxear-v2-demo-https/data
+Environment=XDG_CONFIG_HOME=/var/lib/codoxear-v2-demo-https/config
+EnvironmentFile=/etc/codoxear-https/cloudflare.env
+ExecStart=/usr/local/bin/caddy run --config /etc/codoxear-v2-demo/Caddyfile --adapter caddyfile
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
