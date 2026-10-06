@@ -17,6 +17,8 @@ const certificate = join(directory, "certificate.pem"),
   key = join(directory, "key.pem");
 await promisify(execFile)("openssl", [
   "req",
+  "-config",
+  "/dev/null",
   "-x509",
   "-newkey",
   "rsa:2048",
@@ -201,7 +203,7 @@ try {
   await rm(directory, { recursive: true, force: true });
   await mkdir("artifacts", { recursive: true });
   await writeFile(
-    "artifacts/client-startup-results.json",
+    "artifacts/browser-client-startup-results.json",
     JSON.stringify(
       {
         passed,
