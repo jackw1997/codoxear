@@ -20,9 +20,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Build and verify the self-contained v2 application
         working-directory: codoxear-v2
-        run: docker compose --project-name codoxear-v2-ci -f compose.test.yml up --build --abort-on-container-exit --exit-code-from verification
+        run: node --experimental-strip-types scripts/verify-docker.ts codoxear-v2-ci
       - name: Preserve verification evidence
         if: always()
         uses: actions/upload-artifact@v4

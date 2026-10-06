@@ -5,11 +5,19 @@ import {
   normalizePairingCode,
 } from "../contracts/pairing.js";
 import { classifyRoute } from "../protocol/routes.js";
-import { WorkspaceOptions, type WorkspaceContext } from "../contracts/workspaces.js";
+import {
+  WorkspaceOptions,
+  type WorkspaceContext,
+} from "../contracts/workspaces.js";
 import { type Store } from "../persistence/store.js";
 import { type Accounts } from "./accounts.js";
 import { type Tokens } from "./tokens.js";
 import { AuthRequirement, type IdentitySession } from "./model.js";
+import type {
+  DelegationAuthorization,
+  DelegationContext,
+  DelegationParentContext,
+} from "../contracts/delegation.js";
 import {
   DomainError,
   forbid,
@@ -122,7 +130,11 @@ export class Authority {
         )
         .map((a) => ({
           ...a,
-          workspaceGrants: this.actorWorkspaceGrants(state, session.userId, a.computerId),
+          workspaceGrants: this.actorWorkspaceGrants(
+            state,
+            session.userId,
+            a.computerId,
+          ),
           computerName:
             state.computers.find((c) => c.id === a.computerId)?.name ??
             "Computer",
@@ -255,10 +267,33 @@ export class Authority {
           : (route.action as "read" | "send" | "interrupt"),
     );
     let workspace: WorkspaceContext | undefined;
-    const workspaceId = new URL(path, "http://workspace.invalid").searchParams.get("workspace_id") ?? "default";
-    const currentGrant = s.identity.workspaceGrants.find((g) => g.computerId === computerId && g.userId === session.userId && g.workspaceId === workspaceId && g.binding === computer.binding && g.ownerRevision === computer.revision);
-    const activeGrant = !!computerRole(s, session.userId, computer) && currentGrant;
-    const grantContext = (g: NonNullable<typeof currentGrant>): WorkspaceContext => ({ id: g.workspaceId, access: g.access, paths: g.paths, git: g.git, uploads: g.uploads, transcode: g.transcode, binding: g.binding, ownerRevision: g.ownerRevision, grantRevision: g.grantRevision });
+    const workspaceId =
+      new URL(path, "http://workspace.invalid").searchParams.get(
+        "workspace_id",
+      ) ?? "default";
+    const currentGrant = s.identity.workspaceGrants.find(
+      (g) =>
+        g.computerId === computerId &&
+        g.userId === session.userId &&
+        g.workspaceId === workspaceId &&
+        g.binding === computer.binding &&
+        g.ownerRevision === computer.revision,
+    );
+    const activeGrant =
+      !!computerRole(s, session.userId, computer) && currentGrant;
+    const grantContext = (
+      g: NonNullable<typeof currentGrant>,
+    ): WorkspaceContext => ({
+      id: g.workspaceId,
+      access: g.access,
+      paths: g.paths,
+      git: g.git,
+      uploads: g.uploads,
+      transcode: g.transcode,
+      binding: g.binding,
+      ownerRevision: g.ownerRevision,
+      grantRevision: g.grantRevision,
+    });
     if (isFile && computer.ownerId !== session.userId) {
       const grant = activeGrant;
       forbid(
@@ -273,15 +308,36 @@ export class Authority {
         "Workspace access is read-only",
       );
       forbid(
-        /^\/api\/sessions\/[^/]+\/file\/(read|write|blob|download|list|search|image-dimensions|inspect|inspect-batch|video_preview)(?:\?|$)/.test(path) || (git && grant.git) || (upload && grant.uploads),
+        /^\/api\/sessions\/[^/]+\/file\/(read|write|blob|download|list|search|image-dimensions|inspect|inspect-batch|video_preview)(?:\?|$)/.test(
+          path,
+        ) ||
+          (git && grant.git) ||
+          (upload && grant.uploads),
         "This action requires a separate computer capability",
       );
-      forbid(!git || grant.git, "Repository history requires an explicit full-repository grant");
-      forbid(!upload || grant.uploads, "Attachment uploads require a separate owner grant");
-      forbid(!transcode || grant.transcode, "Video processing requires a separate owner grant");
+      forbid(
+        !git || grant.git,
+        "Repository history requires an explicit full-repository grant",
+      );
+      forbid(
+        !upload || grant.uploads,
+        "Attachment uploads require a separate owner grant",
+      );
+      forbid(
+        !transcode || grant.transcode,
+        "Video processing requires a separate owner grant",
+      );
       workspace = grantContext(grant);
     }
-    if (!isFile && computer.ownerId !== session.userId && activeGrant && /\/(send|attachments(?:\/[^?]+)?|pending_attachment\/clear)(?:\?|$)/.test(path)) workspace = grantContext(activeGrant);
+    if (
+      !isFile &&
+      computer.ownerId !== session.userId &&
+      activeGrant &&
+      /\/(send|attachments(?:\/[^?]+)?|pending_attachment\/clear)(?:\?|$)/.test(
+        path,
+      )
+    )
+      workspace = grantContext(activeGrant);
     if (isDelete)
       forbid(
         computer.ownerId === session.userId,
@@ -321,7 +377,12 @@ export class Authority {
         );
       }
       s.identity.workspaceGrants = s.identity.workspaceGrants.filter(
-        (g) => !(g.computerId === computerId && g.userId === userId && g.workspaceId === grantOptions.workspaceId),
+        (g) =>
+          !(
+            g.computerId === computerId &&
+            g.userId === userId &&
+            g.workspaceId === grantOptions.workspaceId
+          ),
       );
       if (access !== null)
         s.identity.workspaceGrants.push({
@@ -514,13 +575,41 @@ export class Authority {
       );
     return s.agents
       .filter((a) => a.computerId === computer.id && a.hubId === hubId)
-      .map((a) => ({ ...a, access: agentAccess(s, session.userId, a), workspaceGrants: this.actorWorkspaceGrants(s, session.userId, computerId) }))
+      .map((a) => ({
+        ...a,
+        access: agentAccess(s, session.userId, a),
+        workspaceGrants: this.actorWorkspaceGrants(
+          s,
+          session.userId,
+          computerId,
+        ),
+      }))
       .filter((a) => a.access.actions.length);
   }
-  private actorWorkspaceGrants(state: ReturnType<Store["read"]>, userId: string, computerId: string) {
-    const computer = state.computers.find(c => c.id === computerId);
+  private actorWorkspaceGrants(
+    state: ReturnType<Store["read"]>,
+    userId: string,
+    computerId: string,
+  ) {
+    const computer = state.computers.find((c) => c.id === computerId);
     if (!computer || !computerRole(state, userId, computer)) return [];
-    return state.identity.workspaceGrants.filter(g => g.userId === userId && g.computerId === computerId && g.binding === computer.binding && g.ownerRevision === computer.revision).map(g => ({workspaceId: g.workspaceId, access: g.access, paths: g.paths, git: g.git, uploads: g.uploads, transcode: g.transcode, grantRevision: g.grantRevision}));
+    return state.identity.workspaceGrants
+      .filter(
+        (g) =>
+          g.userId === userId &&
+          g.computerId === computerId &&
+          g.binding === computer.binding &&
+          g.ownerRevision === computer.revision,
+      )
+      .map((g) => ({
+        workspaceId: g.workspaceId,
+        access: g.access,
+        paths: g.paths,
+        git: g.git,
+        uploads: g.uploads,
+        transcode: g.transcode,
+        grantRevision: g.grantRevision,
+      }));
   }
   authorize(
     session: IdentitySession,
@@ -556,6 +645,167 @@ export class Authority {
         s.computers.find((x) => x.id === computerId && x.hubId === hubId),
       );
       return reserveAgent(s, session.userId, computerId, name, backend);
+    });
+  }
+  /** All delegated operations retain the initiating sign-in, not just userId.
+   * A machine credential authenticates transport; it grants no creation rights.
+   */
+  delegationParent(
+    session: IdentitySession,
+    hubId: string,
+    parentId: string,
+  ): DelegationParentContext {
+    const { agent: parent } = this.authorize(session, hubId, parentId, "send");
+    const source = requireValue(
+      this.store
+        .read()
+        .computers.find((c) => c.id === parent.computerId && c.hubId === hubId),
+    );
+    return {
+      actorId: session.userId,
+      identitySessionId: session.id,
+      parent,
+      sourceBinding: source.binding,
+    };
+  }
+  delegationContext(
+    session: IdentitySession,
+    hubId: string,
+    parentId: string,
+    targetComputerId: string,
+    action: "create" | "read" | "send" | "interrupt" = "create",
+    childId?: string,
+    richLaunch = false,
+  ): DelegationContext {
+    const { agent: parent } = this.authorize(session, hubId, parentId, "send");
+    const state = this.store.read();
+    const source = requireValue(
+      state.computers.find(
+        (c) => c.id === parent.computerId && c.hubId === hubId,
+      ),
+    );
+    const target = requireValue(
+      state.computers.find(
+        (c) => c.id === targetComputerId && c.hubId === hubId,
+      ),
+    );
+    forbid(
+      parent.state === "ready" && !!parent.localId,
+      "Delegation requires a confirmed parent session",
+    );
+    forbid(
+      canCreate(state, session.userId, target),
+      "Delegated target creation requires active Hub and Computer operator access",
+    );
+    if (richLaunch) this.computerOwner(session, hubId, targetComputerId);
+    if (childId) {
+      const child = this.authorize(
+        session,
+        hubId,
+        childId,
+        action === "create" ? "read" : action,
+      ).agent;
+      forbid(
+        child.computerId === targetComputerId &&
+          child.creatorId === session.userId,
+        "Delegated child does not belong to this principal and target",
+      );
+    }
+    return {
+      actorId: session.userId,
+      identitySessionId: session.id,
+      parent,
+      target: { id: target.id, hubId: target.hubId, name: target.name },
+      sourceBinding: source.binding,
+    };
+  }
+  authorizeDelegation(
+    input: DelegationAuthorization & { hubId: string },
+  ): DelegationContext {
+    const session = this.accounts.sessionById(input.identitySessionId);
+    forbid(
+      session.userId === input.actorId,
+      "Delegation sign-in principal changed",
+    );
+    const context = this.delegationContext(
+      session,
+      input.hubId,
+      input.parentId,
+      input.targetComputerId,
+      input.action,
+      input.childId,
+      !!input.launch && Object.keys(input.launch).length > 0,
+    );
+    forbid(
+      context.parent.computerId === input.sourceComputerId &&
+        context.sourceBinding === input.sourceBinding,
+      "Delegation source Computer binding changed",
+    );
+    return context;
+  }
+  childDelegationContext(input: {
+    hubId: string;
+    identitySessionId: string;
+    actorId: string;
+    parentId: string;
+    sourceComputerId: string;
+    sourceBinding: number;
+    childId: string;
+    targetComputerId: string;
+  }): DelegationContext {
+    const child = requireValue(
+      this.store
+        .read()
+        .agents.find(
+          (agent) => agent.id === input.childId && agent.hubId === input.hubId,
+        ),
+    );
+    this.authorizeDelegation({
+      ...input,
+      targetComputerId: child.computerId,
+      action: "read",
+    });
+    const session = this.accounts.sessionById(input.identitySessionId);
+    return this.delegationContext(
+      session,
+      input.hubId,
+      child.id,
+      input.targetComputerId,
+    );
+  }
+  reserveDelegatedAgent(
+    input: Parameters<Authority["authorizeDelegation"]>[0] & {
+      agentId: string;
+      name: string;
+      backend: "codex" | "pi" | "cc";
+    },
+  ) {
+    forbid(
+      input.action === "create" && !input.childId,
+      "Delegated reservation requires creation authorization",
+    );
+    const context = this.authorizeDelegation(input);
+    return this.store.change((state) => {
+      const existing = state.agents.find((agent) => agent.id === input.agentId);
+      if (existing) {
+        forbid(
+          existing.hubId === input.hubId &&
+            existing.computerId === input.targetComputerId &&
+            existing.creatorId === context.actorId &&
+            existing.name === input.name &&
+            existing.backend === input.backend,
+          "Reserved delegated child conflicts with an existing Agent",
+        );
+        return existing;
+      }
+      return reserveAgent(
+        state,
+        context.actorId,
+        input.targetComputerId,
+        input.name,
+        input.backend,
+        input.agentId,
+      );
     });
   }
   computerOwner(session: IdentitySession, hubId: string, computerId: string) {
@@ -678,65 +928,209 @@ export class Authority {
     });
   }
   inspectTransferPairing(code: string) {
-    const s = this.store.read(), { c, h, p } = this.transferPairing(s, code);
-    return { hubUrl: h.origin, hubId: c.hubId, computerId: c.id, binding: c.binding, expiresAt: p.expiresAt };
+    const s = this.store.read(),
+      { c, h, p } = this.transferPairing(s, code);
+    return {
+      hubUrl: h.origin,
+      hubId: c.hubId,
+      computerId: c.id,
+      binding: c.binding,
+      expiresAt: p.expiresAt,
+    };
   }
   private transferPairing(s: ReturnType<Store["read"]>, code: string) {
-    const p = requireValue(s.identity.pairings.find((entry) => entry.codeHash === digest(normalizePairingCode(code))));
-    forbid(!p.used && p.expiresAt > this.now(), "Pairing code expired or already used");
-    const c = requireValue(s.computers.find((entry) => entry.id === p.computerId && entry.hubId === p.hubId && entry.binding === p.binding && entry.ownerId === p.ownerId));
-    forbid(hubAccess(s, p.ownerId, requireValue(s.hubs.find((entry) => entry.id === p.hubId))), "Computer owner lost hub access");
-    const h = requireValue(s.identity.hubs.find((entry) => entry.hubId === c.hubId && entry.enabled));
+    const p = requireValue(
+      s.identity.pairings.find(
+        (entry) => entry.codeHash === digest(normalizePairingCode(code)),
+      ),
+    );
+    forbid(
+      !p.used && p.expiresAt > this.now(),
+      "Pairing code expired or already used",
+    );
+    const c = requireValue(
+      s.computers.find(
+        (entry) =>
+          entry.id === p.computerId &&
+          entry.hubId === p.hubId &&
+          entry.binding === p.binding &&
+          entry.ownerId === p.ownerId,
+      ),
+    );
+    forbid(
+      hubAccess(
+        s,
+        p.ownerId,
+        requireValue(s.hubs.find((entry) => entry.id === p.hubId)),
+      ),
+      "Computer owner lost hub access",
+    );
+    const h = requireValue(
+      s.identity.hubs.find((entry) => entry.hubId === c.hubId && entry.enabled),
+    );
     return { p, c, h };
   }
   redeemTransfer(code: string, transferId: string, credential: string) {
     return this.store.change((s) => {
-      const codeHash = digest(normalizePairingCode(code)), credentialHash = digest(credential);
-      const receipt = s.identity.transferEnrollments.find((entry) => entry.codeHash === codeHash && entry.transferId === transferId && entry.credentialHash === credentialHash);
+      const codeHash = digest(normalizePairingCode(code)),
+        credentialHash = digest(credential);
+      const receipt = s.identity.transferEnrollments.find(
+        (entry) =>
+          entry.codeHash === codeHash &&
+          entry.transferId === transferId &&
+          entry.credentialHash === credentialHash,
+      );
       let c, h;
       if (receipt) {
-        c = requireValue(s.computers.find((entry) => entry.id === receipt.computerId && entry.hubId === receipt.hubId && entry.binding === receipt.binding && entry.credentialHash === credentialHash));
-        forbid(hubAccess(s, c.ownerId, requireValue(s.hubs.find((entry) => entry.id === c!.hubId))), "Computer owner lost hub access");
-        h = requireValue(s.identity.hubs.find((entry) => entry.hubId === c!.hubId && entry.enabled));
+        c = requireValue(
+          s.computers.find(
+            (entry) =>
+              entry.id === receipt.computerId &&
+              entry.hubId === receipt.hubId &&
+              entry.binding === receipt.binding &&
+              entry.credentialHash === credentialHash,
+          ),
+        );
+        forbid(
+          hubAccess(
+            s,
+            c.ownerId,
+            requireValue(s.hubs.find((entry) => entry.id === c!.hubId)),
+          ),
+          "Computer owner lost hub access",
+        );
+        h = requireValue(
+          s.identity.hubs.find(
+            (entry) => entry.hubId === c!.hubId && entry.enabled,
+          ),
+        );
       } else {
-        const validated = this.transferPairing(s, code); c = validated.c; h = validated.h;
+        const validated = this.transferPairing(s, code);
+        c = validated.c;
+        h = validated.h;
         validated.p.used = true;
         // Admission replaces a destination Computer slot. Its former path
         // grants and queue permits must not authorize the moved local roots.
-        c.binding++; c.revision++;
+        c.binding++;
+        c.revision++;
         c.credentialHash = credentialHash;
-        s.identity.workspaceGrants = s.identity.workspaceGrants.filter((entry) => entry.computerId !== c!.id);
-        s.identity.queuePermits = s.identity.queuePermits.filter((entry) => entry.computerId !== c!.id);
-        s.identity.pairings = s.identity.pairings.filter((entry) => entry.computerId !== c!.id);
-        s.identity.transferEnrollments = s.identity.transferEnrollments.filter((entry) => entry.computerId !== c!.id);
-        s.identity.transferEnrollments.push({ codeHash, transferId, credentialHash, computerId: c.id, hubId: c.hubId, binding: c.binding });
+        s.identity.workspaceGrants = s.identity.workspaceGrants.filter(
+          (entry) => entry.computerId !== c!.id,
+        );
+        s.identity.queuePermits = s.identity.queuePermits.filter(
+          (entry) => entry.computerId !== c!.id,
+        );
+        s.identity.pairings = s.identity.pairings.filter(
+          (entry) => entry.computerId !== c!.id,
+        );
+        s.identity.transferEnrollments = s.identity.transferEnrollments.filter(
+          (entry) => entry.computerId !== c!.id,
+        );
+        s.identity.transferEnrollments.push({
+          codeHash,
+          transferId,
+          credentialHash,
+          computerId: c.id,
+          hubId: c.hubId,
+          binding: c.binding,
+        });
         audit(s, c.ownerId, "computer.transfer.admit", c.id);
       }
       // The caller already holds this generated credential. Never return a
       // secret in an admission receipt, including an idempotent retry.
-      return { version: 1 as const, hubUrl: h.origin, hubId: c.hubId, computerId: c.id, binding: c.binding, transferId };
+      return {
+        version: 1 as const,
+        hubUrl: h.origin,
+        hubId: c.hubId,
+        computerId: c.id,
+        binding: c.binding,
+        transferId,
+      };
     });
   }
-  detachDevice(hubId: string, computerId: string, credential: string, transferId: string) {
+  detachDevice(
+    hubId: string,
+    computerId: string,
+    credential: string,
+    transferId: string,
+  ) {
     return this.store.change((s) => {
-      const c = requireValue(s.computers.find((entry) => entry.id === computerId && entry.hubId === hubId));
+      const c = requireValue(
+        s.computers.find(
+          (entry) => entry.id === computerId && entry.hubId === hubId,
+        ),
+      );
       const credentialHash = digest(credential);
-      const receipt = s.identity.computerDetachReceipts.find((entry) => entry.computerId === computerId && entry.hubId === hubId && entry.transferId === transferId && entry.credentialHash === credentialHash);
+      const receipt = s.identity.computerDetachReceipts.find(
+        (entry) =>
+          entry.computerId === computerId &&
+          entry.hubId === hubId &&
+          entry.transferId === transferId &&
+          entry.credentialHash === credentialHash,
+      );
       if (receipt) {
-        forbid(c.binding === receipt.binding && c.credentialHash === receipt.fenceHash, "Computer was rebound after this detachment");
-        return { detached: true as const, transferId, computerId, hubId, priorBinding: receipt.priorBinding, binding: receipt.binding };
+        forbid(
+          c.binding === receipt.binding &&
+            c.credentialHash === receipt.fenceHash,
+          "Computer was rebound after this detachment",
+        );
+        return {
+          detached: true as const,
+          transferId,
+          computerId,
+          hubId,
+          priorBinding: receipt.priorBinding,
+          binding: receipt.binding,
+        };
       }
-      if (c.credentialHash !== credentialHash) throw new DomainError(401, "invalid_computer", "Computer binding rejected");
+      if (c.credentialHash !== credentialHash)
+        throw new DomainError(
+          401,
+          "invalid_computer",
+          "Computer binding rejected",
+        );
       const priorBinding = c.binding;
-      c.binding++; c.revision++; c.credentialHash = digest(secret());
-      s.identity.pairings = s.identity.pairings.filter((entry) => entry.computerId !== computerId);
-      s.identity.queuePermits = s.identity.queuePermits.filter((entry) => entry.computerId !== computerId);
-      s.identity.workspaceGrants = s.identity.workspaceGrants.filter((entry) => entry.computerId !== computerId);
-      s.agentGrants = s.agentGrants.filter((entry) => !s.agents.some((agent) => agent.id === entry.agentId && agent.computerId === computerId));
-      s.identity.computerDetachReceipts = s.identity.computerDetachReceipts.filter((entry) => entry.computerId !== computerId);
-      s.identity.computerDetachReceipts.push({ computerId, hubId, transferId, credentialHash, fenceHash: c.credentialHash, priorBinding, binding: c.binding });
+      c.binding++;
+      c.revision++;
+      c.credentialHash = digest(secret());
+      s.identity.pairings = s.identity.pairings.filter(
+        (entry) => entry.computerId !== computerId,
+      );
+      s.identity.queuePermits = s.identity.queuePermits.filter(
+        (entry) => entry.computerId !== computerId,
+      );
+      s.identity.workspaceGrants = s.identity.workspaceGrants.filter(
+        (entry) => entry.computerId !== computerId,
+      );
+      s.agentGrants = s.agentGrants.filter(
+        (entry) =>
+          !s.agents.some(
+            (agent) =>
+              agent.id === entry.agentId && agent.computerId === computerId,
+          ),
+      );
+      s.identity.computerDetachReceipts =
+        s.identity.computerDetachReceipts.filter(
+          (entry) => entry.computerId !== computerId,
+        );
+      s.identity.computerDetachReceipts.push({
+        computerId,
+        hubId,
+        transferId,
+        credentialHash,
+        fenceHash: c.credentialHash,
+        priorBinding,
+        binding: c.binding,
+      });
       audit(s, c.ownerId, "computer.transfer.detach", computerId);
-      return { detached: true as const, transferId, computerId, hubId, priorBinding, binding: c.binding };
+      return {
+        detached: true as const,
+        transferId,
+        computerId,
+        hubId,
+        priorBinding,
+        binding: c.binding,
+      };
     });
   }
   device(hubId: string, computerId: string, credential: string) {

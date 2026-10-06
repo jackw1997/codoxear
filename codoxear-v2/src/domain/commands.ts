@@ -344,6 +344,7 @@ export function reserveAgent(
   computerId: string,
   name: string,
   backend: Agent["backend"],
+  reservedId?: string,
 ): Agent {
   const computer = requireValue(s.computers.find((c) => c.id === computerId));
   forbid(
@@ -351,7 +352,7 @@ export function reserveAgent(
     "Creating an agent requires active hub AND computer operator access",
   );
   const agent: Agent = {
-    id: id(),
+    id: reservedId ?? id(),
     computerId,
     hubId: computer.hubId,
     creatorId: actorId,

@@ -34,6 +34,14 @@ export class ConnectionPages {
   private app = document.querySelector<HTMLElement>("#root");
   private previousInert = this.app?.inert ?? false;
   version = 0;
+  private cleanups = new Set<() => void>();
+  own(cleanup: () => void) {
+    this.cleanups.add(cleanup);
+  }
+  private disposeView() {
+    for (const cleanup of this.cleanups) cleanup();
+    this.cleanups.clear();
+  }
   constructor() {
     this.element.className = "connectionPage";
     this.element.role = "dialog";
@@ -72,6 +80,7 @@ export class ConnectionPages {
     });
   }
   render(title: string, body: string, back: () => void, action = "") {
+    this.disposeView();
     this.version++;
     this.element.setAttribute("aria-label", title);
     this.element.innerHTML = `<div class="connectionPanel"><header class="connectionHeader"><div class="connectionHeaderInner"><button class="connectionIconButton" data-back aria-label="Back">${icon("back")}</button><h1 tabindex="-1">${esc(title)}</h1>${action}</div></header><div class="connectionBody"><div class="connectionStack">${body}<p role="alert" class="connectionError"></p></div></div></div>`;
@@ -81,10 +90,13 @@ export class ConnectionPages {
     return this.element;
   }
   error = (error: unknown) => {
-    const el = this.element.querySelector<HTMLElement>("[role=alert]");
+    const el = this.element.querySelector<HTMLElement>(
+      ".connectionBody > .connectionStack > [role=alert]",
+    );
     if (el) el.textContent = message(error);
   };
   close = () => {
+    this.disposeView();
     this.version++;
     this.element.close();
     this.element.remove();
@@ -104,9 +116,14 @@ export function submit(
     )!;
     if (button.disabled) return;
     button.disabled = true;
-    const alert = form
-      .closest(".connectionPage, .connectionLogin")
-      ?.querySelector("[role=alert]");
+    const container = form.closest(".connectionPage, .connectionLogin");
+    const alert =
+      form.querySelector("[role=alert]") ??
+      container?.querySelector(
+        container.classList.contains("connectionPage")
+          ? ".connectionBody > .connectionStack > [role=alert]"
+          : "[role=alert]",
+      );
     if (alert) alert.textContent = "";
     form.setAttribute("aria-busy", "true");
     void action(new FormData(form))

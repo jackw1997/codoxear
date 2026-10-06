@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
-import type { NativeRuntime } from "../runtime.js";
+import type { WorkspaceRuntime } from "../../runtime.js";
 import { readSettings, updateSettings } from "./settings.js";
 import { DomainError } from "../../../contracts/model.js";
 const DEFAULTS = {
@@ -25,7 +25,7 @@ export class NativeVoice {
   private error: string | null = null;
   private abort = new AbortController();
   private listenerAbort = new AbortController();
-  constructor(private runtime: NativeRuntime) {
+  constructor(private runtime: WorkspaceRuntime) {
     this.timer = setInterval(() => void this.poll().catch(() => {}), 1000);
     this.timer.unref();
   }
@@ -69,7 +69,11 @@ export class NativeVoice {
       const previous = { ...DEFAULTS, ...(state.voice as object) };
       const next = {
         ...previous,
-        ...Object.fromEntries(Object.keys(DEFAULTS).filter((key) => key in body).map((key) => [key, body[key]])),
+        ...Object.fromEntries(
+          Object.keys(DEFAULTS)
+            .filter((key) => key in body)
+            .map((key) => [key, body[key]]),
+        ),
         tts_api_key:
           body.tts_api_key_clear === true
             ? ""
@@ -93,14 +97,26 @@ export class NativeVoice {
             "invalid_voice_setting",
             key + " must be a string",
           );
-      for (const key of ["tts_enabled_for_narration", "tts_enabled_for_final_response"])
+      for (const key of [
+        "tts_enabled_for_narration",
+        "tts_enabled_for_final_response",
+      ])
         if (typeof (next as Record<string, unknown>)[key] !== "boolean")
-          throw new DomainError(400, "invalid_voice_setting", key + " must be a boolean");
+          throw new DomainError(
+            400,
+            "invalid_voice_setting",
+            key + " must be a boolean",
+          );
       delete (next as Record<string, unknown>).tts_api_key_clear;
       state.voice = next;
     });
     const current = { ...DEFAULTS, ...((await this.saved()).voice as object) };
-    if (!current.tts_api_key || (!current.tts_enabled_for_final_response && !current.tts_enabled_for_narration)) this.cancelListenerWork();
+    if (
+      !current.tts_api_key ||
+      (!current.tts_enabled_for_final_response &&
+        !current.tts_enabled_for_narration)
+    )
+      this.cancelListenerWork();
     return this.snapshot();
   }
   listener(body: Record<string, unknown>) {
@@ -297,7 +313,11 @@ export class NativeVoice {
         voice: "alloy",
         response_format: "wav",
       }),
-      signal: AbortSignal.any([this.abort.signal, signal, AbortSignal.timeout(60000)]),
+      signal: AbortSignal.any([
+        this.abort.signal,
+        signal,
+        AbortSignal.timeout(60000),
+      ]),
       redirect: "error",
     });
     if (!response.ok) throw new Error("TTS failed");
@@ -364,7 +384,8 @@ export class NativeVoice {
       await unlink(playlist).catch(() => {});
       if (!published)
         for (const name of await readdir(this.directory).catch(() => []))
-          if (name.startsWith(id + "-")) await unlink(join(this.directory, name)).catch(() => {});
+          if (name.startsWith(id + "-"))
+            await unlink(join(this.directory, name)).catch(() => {});
     }
   }
 }

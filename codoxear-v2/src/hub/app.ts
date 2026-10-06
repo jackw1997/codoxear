@@ -8,7 +8,11 @@ import {
   emptyBody,
 } from "../protocol/http-frames.js";
 import { filterHeaders } from "../protocol/routes.js";
-import Fastify, { type FastifyRequest, type FastifyInstance, type RouteOptions } from "fastify";
+import Fastify, {
+  type FastifyRequest,
+  type FastifyInstance,
+  type RouteOptions,
+} from "fastify";
 import cookie from "@fastify/cookie";
 import websocket from "@fastify/websocket";
 import staticFiles from "@fastify/static";
@@ -21,6 +25,11 @@ import { WebSocket } from "ws";
 import { AuthorityClient } from "./authority-client.js";
 import { HubSessions } from "./sessions.js";
 import { NotificationInbox } from "./notifications.js";
+import { DelegationStore, registerDelegationRoutes } from "./delegation.js";
+import type {
+  DelegationAuthorization,
+  DelegationContext,
+} from "../contracts/delegation.js";
 import { registerPushRoutes } from "./web-push-routes.js";
 import { registerDownloads } from "./downloads.js";
 import { Tunnels } from "../protocol/tunnels.js";
@@ -52,6 +61,7 @@ export interface HubOptions {
   development?: boolean;
   webRoot?: string;
   notifications?: NotificationInbox;
+  delegations?: DelegationStore;
 }
 export async function createHubApp(o: HubOptions) {
   const { authority: a, sessions, tunnels } = o,
@@ -124,6 +134,260 @@ export async function createHubApp(o: HubOptions) {
     op: string,
     args: Record<string, unknown> = {},
   ) => a.call<T>(await token(r), op, args);
+  function registerHubDelegation() {
+    if (!o.delegations) return;
+    const scope = (
+      context: DelegationContext,
+      action: DelegationAuthorization["action"],
+      childId?: string,
+    ): DelegationAuthorization => ({
+      actorId: context.actorId,
+      identitySessionId: context.identitySessionId,
+      parentId: context.parent.id,
+      sourceComputerId: context.parent.computerId,
+      sourceBinding: context.sourceBinding,
+      targetComputerId: context.target.id,
+      action,
+      ...(childId ? { childId } : {}),
+    });
+    registerDelegationRoutes(app, {
+      hubId: a.hubId,
+      store: o.delegations,
+      authorizeUser: async (r, parentId, targetId) =>
+        a.delegationContext(await token(r), parentId, targetId),
+      authorizeParent: async (r, parentId) =>
+        a.delegationParent(await token(r), parentId),
+      childContext: (grant, childId, targetId) =>
+        a.childDelegationContext(grant, childId, targetId),
+      async installGrant(context, input) {
+        if (!tunnels.supports(context.parent.computerId, "delegation-tools"))
+          throw new DomainError(
+            409,
+            "capability_required",
+            "The parent Computer requires delegation-tools support; existing Pi sessions may need explicit extension setup and /reload",
+          );
+        await a.authorizeDelegation(scope(context, "create"));
+        const result = z
+          .object({
+            installed: z.literal(true),
+            parentId: Id,
+            localId: z.string().min(1).max(200),
+            expiresAt: z.number().int().positive(),
+            grantDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .parse(
+            await tunnels.request(context.parent.computerId, {
+              op: "delegation-install",
+              ...input,
+            }),
+          );
+        if (
+          result.parentId !== input.parentId ||
+          result.localId !== input.localId ||
+          result.expiresAt !== input.expiresAt ||
+          result.grantDigest !==
+            createHash("sha256").update(input.grant).digest("hex")
+        )
+          throw new DomainError(
+            409,
+            "delegation_install_mismatch",
+            "Computer confirmed another delegation installation",
+          );
+        await a.authorizeDelegation(scope(context, "create"));
+      },
+      async checkInstallation(context) {
+        if (
+          !context.parent.localId ||
+          !tunnels.supports(context.parent.computerId, "delegation-tools")
+        )
+          return { installed: false };
+        return z
+          .object({
+            installed: z.boolean(),
+            expiresAt: z.number().int().positive().optional(),
+            grantDigest: z
+              .string()
+              .regex(/^[a-f0-9]{64}$/)
+              .optional(),
+          })
+          .parse(
+            await tunnels.request(context.parent.computerId, {
+              op: "delegation-status",
+              parentId: context.parent.id,
+              localId: context.parent.localId,
+            }),
+          );
+      },
+      async revokeInstallation(context) {
+        if (
+          context.parent.localId &&
+          tunnels.supports(context.parent.computerId, "delegation-tools")
+        )
+          await tunnels.request(context.parent.computerId, {
+            op: "delegation-revoke",
+            parentId: context.parent.id,
+            localId: context.parent.localId,
+          });
+      },
+      authenticateComputer: async (r, computerId) =>
+        a.device(
+          computerId,
+          r.headers.authorization?.replace(/^Bearer /, "") ?? "",
+        ),
+      authorizeGrant: async (grant, targetComputerId, action, childId) =>
+        a.authorizeDelegation({
+          actorId: grant.actorId,
+          identitySessionId: grant.identitySessionId,
+          parentId: grant.parentId,
+          sourceComputerId: grant.sourceComputerId,
+          sourceBinding: grant.sourceBinding,
+          targetComputerId,
+          action,
+          ...(childId ? { childId } : {}),
+        }),
+      async launch(context, args) {
+        // Every pre-dispatch rejection is explicit. No default launch fallback.
+        if (!tunnels.online(context.target.id))
+          return {
+            state: "failed",
+            error: "Target Computer is offline; launch was not dispatched",
+          };
+        if (!tunnels.supports(context.target.id, "managed-runtime"))
+          return {
+            state: "failed",
+            error:
+              "Delegation requires the target Computer managed-runtime capability and bounded admission; native delegation is unavailable",
+          };
+        if (!tunnels.supports(context.target.id, "launch-receipts"))
+          return {
+            state: "failed",
+            error:
+              "Target Computer requires durable launch-receipts capability",
+          };
+        if (
+          args.delegationRequired &&
+          !tunnels.supports(context.target.id, "delegation-tools")
+        )
+          return {
+            state: "failed",
+            error:
+              "Target Computer requires delegation-tools support for inherited child delegation; launch was not dispatched",
+          };
+        if (
+          args.launch &&
+          Object.keys(args.launch).length &&
+          !tunnels.supports(context.target.id, "launch-options")
+        )
+          return {
+            state: "failed",
+            error: "Target Computer requires launch-options capability",
+          };
+        if (
+          (args.launch?.provider_config ||
+            args.launch?.env_vars ||
+            args.launch?.command) &&
+          !tunnels.supports(context.target.id, "provider-launch")
+        )
+          return {
+            state: "failed",
+            error: "Target Computer requires provider-launch capability",
+          };
+        let agent: AgentType;
+        try {
+          // Recheck sign-in, source binding, parent control, target creation and
+          // owner-only local paths/config in the durable reservation command.
+          agent = await a.reserveDelegation(scope(context, "create"), args);
+        } catch (error) {
+          return {
+            state: "failed",
+            error:
+              error instanceof DomainError
+                ? error.message
+                : "Target creation authorization unavailable; launch was not dispatched",
+          };
+        }
+        try {
+          await a.authorizeDelegation({
+            ...scope(context, "create"),
+            ...(args.launch ? { launch: args.launch } : {}),
+          });
+        } catch (error) {
+          await a.agentResult(agent.id, "failed", null).catch(() => {});
+          return {
+            state: "failed",
+            error:
+              error instanceof DomainError
+                ? error.message
+                : "Delegation authorization unavailable; launch was not dispatched",
+          };
+        }
+        try {
+          const result = LaunchResult.parse(
+            await tunnels.request(agent.computerId, {
+              op: "create",
+              agentId: agent.id,
+              backend: agent.backend,
+              name: agent.name,
+              ...(args.launch ? { launch: args.launch } : {}),
+            }),
+          );
+          await a.agentResult(agent.id, "ready", result.localId);
+          return { state: "ready", localId: result.localId };
+        } catch (error) {
+          const failed =
+            error instanceof DomainError && error.code === "not_dispatched";
+          await a
+            .agentResult(agent.id, failed ? "failed" : "unknown", null)
+            .catch(() => {});
+          return failed
+            ? { state: "failed", error: error.message }
+            : { state: "unknown" };
+        }
+      },
+      async reconcile(context, receipt) {
+        if (!tunnels.supports(receipt.targetComputerId, "launch-receipts"))
+          return { state: "unknown" };
+        const native = LaunchReceipt.parse(
+          await tunnels.request(receipt.targetComputerId, {
+            op: "launch-status",
+            agentId: receipt.childId,
+          }),
+        );
+        // Receipt reads cannot create or recover unfinished execution.
+        await a.authorizeDelegation(scope(context, "read", receipt.childId));
+        if (native.state !== "ready") return { state: "unknown" };
+        await a.agentResult(receipt.childId, "ready", native.result.localId);
+        return { state: "ready", localId: native.result.localId };
+      },
+      async control(context, receipt, input) {
+        await a.authorizeDelegation(
+          scope(context, input.action, receipt.childId),
+        );
+        const localId = receipt.localId!;
+        return tunnels.request(
+          receipt.targetComputerId,
+          input.action === "send"
+            ? {
+                op: "send",
+                agentId: receipt.childId,
+                localId,
+                text: input.text!,
+              }
+            : { op: "interrupt", agentId: receipt.childId, localId },
+        );
+      },
+      async readMessages(context, receipt) {
+        await a.authorizeDelegation(scope(context, "read", receipt.childId));
+        const result = await tunnels.request(receipt.targetComputerId, {
+          op: "messages",
+          agentId: receipt.childId,
+          localId: receipt.localId!,
+        });
+        await a.authorizeDelegation(scope(context, "read", receipt.childId));
+        return result;
+      },
+    });
+  }
   async function access(
     r: FastifyRequest,
     action: "read" | "send" | "interrupt",
@@ -151,7 +415,10 @@ export async function createHubApp(o: HubOptions) {
       origin === o.origin || !!o.clientOrigins?.includes(origin ?? "");
     // A no-referrer client produces an opaque Origin on a cross-origin form.
     // This route authenticates only a one-use body capability, never cookies.
-    const downloadForm = r.method === "POST" && r.url === "/api/v1/downloads/consume" && origin === "null";
+    const downloadForm =
+      r.method === "POST" &&
+      r.url === "/api/v1/downloads/consume" &&
+      origin === "null";
     if (origin && allowed && o.localIdentity) {
       reply
         .header("Access-Control-Allow-Origin", origin)
@@ -209,6 +476,7 @@ export async function createHubApp(o: HubOptions) {
       .header("X-Content-Type-Options", "nosniff");
     return p;
   });
+  registerHubDelegation();
   app.get("/health", async () => ({
     ok: true,
     service: "hub",
@@ -1208,10 +1476,15 @@ export async function createHubApp(o: HubOptions) {
     const computerId = Id.parse((r.params as { id: string }).id);
     const { transferId } = z.object({ transferId: Id }).parse(r.body);
     const receipt = await a.request("/internal/computer-detach", {
-      hubId: a.hubId, computerId, transferId,
+      hubId: a.hubId,
+      computerId,
+      transferId,
       credential: r.headers.authorization?.replace(/^Bearer /, "") ?? "",
     });
-    tunnels.disconnect(computerId, "Computer detached for independent-Hub transfer");
+    tunnels.disconnect(
+      computerId,
+      "Computer detached for independent-Hub transfer",
+    );
     return receipt;
   });
   app.post("/connect/v1/computers/:id/authorize-queue", async (r) => {
@@ -1396,7 +1669,9 @@ export async function createHubApp(o: HubOptions) {
               path,
               headers: filterHeaders(r.headers, "request"),
               actorId: decision.actorId,
-              ...(decision.actorIsOwner === undefined ? {} : { actorIsOwner: decision.actorIsOwner }),
+              ...(decision.actorIsOwner === undefined
+                ? {}
+                : { actorIsOwner: decision.actorIsOwner }),
               ...(decision.workspace ? { workspace: decision.workspace } : {}),
               ...queueContext,
             },
@@ -1522,7 +1797,10 @@ export async function createHubApp(o: HubOptions) {
             // live transport must stop accepting work before the new owner
             // connects the retained Computer, without terminating local CLIs.
             const admitted = z.object({ computerId: Id }).parse(res.json());
-            tunnels.disconnect(admitted.computerId, "Computer transfer admitted");
+            tunnels.disconnect(
+              admitted.computerId,
+              "Computer transfer admitted",
+            );
           }
           reply.code(res.statusCode);
           for (const [k, v] of Object.entries(res.headers))

@@ -32,6 +32,7 @@ await run(
     "--import",
     "tsx",
     "--test",
+    "--test-concurrency=1",
     ...(await readdir("tests"))
       .filter((x) => x.endsWith(".test.ts"))
       .map((x) => "tests/" + x),

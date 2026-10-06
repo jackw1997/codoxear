@@ -62,6 +62,14 @@
   ],
   "noGo": [
     {
+      "function": "Original session visibility after endpoint reuse",
+      "state": "Regression; recovery prepared but not deployed",
+      "reason": "The trusted endpoint defaults to fresh Hub catalogs, hiding original agents although original catalog records and CLI processes were preserved.19 original records and2 new native baseline records were found. Router changes and browser refresh routing are prepared; current environment denies Docker access.",
+      "exit": "Build and deploy the reviewed routing/client changes, sign in to the original Hubs, verify original and native catalogs together, rotate both sets of credentials, open an original conversation, and verify process identities survive.",
+      "owner": "Implementation agent with Docker/deployment access",
+      "evidence": "docs/work-progress.json sessionCatalogRecovery; scripts/browser-catalog-recovery.ts"
+    },
+    {
       "function": "Codex backend end-to-end acceptance",
       "state": "Installed CLI lifecycle and three launch hard-death boundaries verified; broader production/platform acceptance remains",
       "reason": "Installed Codex 0.160 in real Docker PTYs passes independent-client terminal import, genuine provider-request interruption and another turn, Computer service restart and tunnel reconnect without replacing CLI PIDs. Actual untrusted resume blocks the first browser send with actionable local setup, preserves the composer and sends no inference. Initial creation/resume frames and late trust frames have broker regression coverage. Controlled Responses gateway; no live-provider quality claim. Final exact Computer SIGKILL checks cover before dispatch, before receipt persistence and after receipt persistence for Pi, Codex and Claude (9/9), preserving actual CLI incarnation and durable no-replay fencing. Recovered unattended broker ambiguity is also checked in the real browser, with explicit review and no automatic re-enable.",
@@ -183,10 +191,10 @@
     },
     {
       "function": "OAR-managed runtime",
-      "state": "Not implemented; current iteration scope unresolved",
-      "reason": "The current adapter retains real CLI/PTY sessions. There is no OAR worker adapter with validated history, approval, cancellation and shutdown parity. The latest request to finish pending work may expand earlier staging; no response to the scope clarification has arrived. These implementations remain explicitly unfinished.",
-      "exit": "Implement an opt-in OAR adapter and pass the runtime parity gates before offering it as a supported choice.",
-      "owner": "Later-stage implementation"
+      "state": "First implementation; acceptance incomplete",
+      "reason": "Managed controller, provider workers, private tool/grant delivery, inherited same-Hub delegation and browser controls are implemented. LegacyPi hot-install, Codex/Claude parent tool registration and full feature parity remain incomplete. Docker/native/browser/OOM acceptance is blocked; OAR lockfile and deployment remain pending.",
+      "exit": "Implement OAR behind the Computer runtime interface, preserve current provider/terminal/session behavior, and pass native/browser/two-Computer authorization, launch-deduplication, reconnect, cancellation, recovery and measured-memory acceptance.",
+      "owner": "Current engineering implementation and acceptance"
     },
     {
       "function": "Public production deployment",

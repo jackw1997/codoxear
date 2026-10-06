@@ -26,7 +26,7 @@ async function fresh(login: HubLogin): Promise<HubLogin> {
           method: "POST",
           credentials: "omit",
           redirect: "error",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + latest.accessToken },
           body: JSON.stringify({
             grant_type: "refresh_token",
             refresh_token: latest.refreshToken,
@@ -317,7 +317,7 @@ async function handle(request: Request) {
           method: "POST",
           credentials: "omit",
           signal: AbortSignal.timeout(5000),
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + login.accessToken },
           body: JSON.stringify({ token: login.refreshToken }),
         }).catch(() => {});
       }),
@@ -329,7 +329,7 @@ async function handle(request: Request) {
     const login = await vault.get(decodeURIComponent(disconnect[1]!));
     if (!login) return json({ ok: true });
     await disconnectPush(login, hub, self);
-    await fetch(login.origin + "/oauth/revoke", { method: "POST", credentials: "omit", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: login.refreshToken }) }).catch(() => {});
+    await fetch(login.origin + "/oauth/revoke", { method: "POST", credentials: "omit", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", Authorization: "Bearer " + login.accessToken }, body: JSON.stringify({ token: login.refreshToken }) }).catch(() => {});
     return json({ ok: true });
   }
   const management = /^\/api\/client\/hubs\/([^/]+)(\/.*)$/.exec(path);

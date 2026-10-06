@@ -1,6 +1,8 @@
 import { HttpMux } from "../protocol/http-mux.js";
 import { NativeHttpTarget } from "./native/http.js";
 import { NativeRuntime } from "./native/runtime.js";
+import { ManagedRuntime } from "./managed/runtime.js";
+import { DelegationBridge } from "./delegation/bridge.js";
 import type { HttpRequest, HttpResponse } from "../protocol/http-frames.js";
 import { ComputerDrafts } from "./drafts.js";
 import { ComputerLaunches } from "./launches.js";
@@ -24,7 +26,12 @@ import {
   readAttachment,
   type Attachment,
 } from "./config.js";
-import { FixtureRuntime, type Runtime } from "./runtime.js";
+import {
+  FixtureRuntime,
+  type Runtime,
+  type WorkspaceRuntime,
+} from "./runtime.js";
+import { RuntimeConfig } from "./config.js";
 
 export type ComputerDependencies = {
   runtime?: (config: Attachment, home: string) => Runtime;
@@ -59,6 +66,7 @@ export class ComputerService {
   private inFlight = new Set<string>();
   private unlock: (() => Promise<void>) | undefined;
   private runtime: Runtime | undefined;
+  private delegation: DelegationBridge | undefined;
   private queue: ComputerQueue | undefined;
   private drafts: ComputerDrafts | undefined;
   private launches: ComputerLaunches | undefined;
@@ -77,21 +85,54 @@ export class ComputerService {
     this.unlock = await acquireLock(this.home);
     try {
       if (await (await import("./transfer.js")).transferStatus(this.home))
-        throw new DomainError(409, "transfer_pending", "Finish the saved Computer transfer before connecting to a Hub");
+        throw new DomainError(
+          409,
+          "transfer_pending",
+          "Finish the saved Computer transfer before connecting to a Hub",
+        );
       const config = await readAttachment(this.home);
       if (!config)
         throw new Error("Computer is not attached; use attach first");
+      RuntimeConfig.parse(config);
       if (config.runtime === "native" && !config.workspacePath)
         throw new Error("Native runtime requires an explicit workspace path");
+      if (config.runtime === "oar") {
+        this.delegation = new DelegationBridge(
+          config.nativeStateHome ?? this.home,
+          config,
+        );
+        await this.delegation.start();
+      }
       this.runtime =
         this.dependencies.runtime?.(config, this.home) ??
         (config.runtime === "fixture"
           ? new FixtureRuntime(join(this.home, "fixture.sqlite"))
-          : new NativeRuntime(
-              config.nativeHome ?? homedir(),
-              config.workspacePath!,
-              config.nativeStateHome ?? this.home,
-            ));
+          : config.runtime === "oar"
+            ? new ManagedRuntime({
+                databasePath: join(
+                  config.nativeStateHome ?? this.home,
+                  "managed.sqlite",
+                ),
+                home: config.nativeHome ?? homedir(),
+                workspace: config.workspacePath!,
+                stateHome: config.nativeStateHome ?? this.home,
+                ...(config.oarPermissionPolicy
+                  ? { permissionPolicy: config.oarPermissionPolicy }
+                  : {}),
+                maxResident: config.oarMaxResident ?? 2,
+                idleMs: config.oarIdleMs ?? 60000,
+                ...(this.delegation ? { delegation: this.delegation } : {}),
+                legacy: new NativeRuntime(
+                  config.nativeHome ?? homedir(),
+                  config.workspacePath!,
+                  config.nativeStateHome ?? this.home,
+                ),
+              })
+            : new NativeRuntime(
+                config.nativeHome ?? homedir(),
+                config.workspacePath!,
+                config.nativeStateHome ?? this.home,
+              ));
       this.providerLaunch =
         (await this.runtime!.supportsProviderLaunch?.().catch(() => false)) ??
         false;
@@ -99,7 +140,7 @@ export class ComputerService {
         join(this.home, "launches.sqlite"),
         JSON.stringify([config.hubId, config.computerId, config.binding ?? 0]),
       );
-      if (config.runtime === "native") {
+      if (config.runtime !== "fixture") {
         this.drafts = new ComputerDrafts(
           join(this.home, "drafts.sqlite"),
           JSON.stringify([
@@ -144,7 +185,13 @@ export class ComputerService {
               this.collecting = false;
             });
         }, 2000);
-        this.runtime!.setQueueScope?.(JSON.stringify([config.hubId, config.computerId, config.binding ?? 0]));
+        this.runtime!.setQueueScope?.(
+          JSON.stringify([
+            config.hubId,
+            config.computerId,
+            config.binding ?? 0,
+          ]),
+        );
         this.queue = new ComputerQueue(
           join(this.home, "queues.sqlite"),
           JSON.stringify([
@@ -153,10 +200,18 @@ export class ComputerService {
             config.binding ?? 0,
           ]),
           {
-            ...(this.runtime!.queueControl ? { unified: {
-              sessions: () => this.runtime!.queueControl!("", "sessions"),
-              control: (localId: string, operation: string, body?: Record<string, unknown>) => this.runtime!.queueControl!(localId, operation, body),
-            } } : {}),
+            ...(config.runtime === "native" && this.runtime!.queueControl
+              ? {
+                  unified: {
+                    sessions: () => this.runtime!.queueControl!("", "sessions"),
+                    control: (
+                      localId: string,
+                      operation: string,
+                      body?: Record<string, unknown>,
+                    ) => this.runtime!.queueControl!(localId, operation, body),
+                  },
+                }
+              : {}),
             idle: async (localId) => {
               const catalog = (await this.runtime!.execute({
                 op: "discover",
@@ -234,10 +289,15 @@ export class ComputerService {
       this.launches = undefined;
       this.queue?.close();
       this.queue = undefined;
-      this.runtime?.close();
-      this.runtime = undefined;
-      await this.unlock();
-      this.unlock = undefined;
+      try {
+        await this.delegation?.close();
+        this.delegation = undefined;
+        await this.runtime?.close();
+      } finally {
+        this.runtime = undefined;
+        await this.unlock();
+        this.unlock = undefined;
+      }
       throw e;
     }
   }
@@ -305,10 +365,10 @@ export class ComputerService {
         this.http?.close();
         this.httpTarget?.close?.();
         const target =
-          c.runtime === "native"
+          c.runtime !== "fixture"
             ? (this.dependencies.httpTarget?.(this.runtime!, c) ??
               new NativeHttpTarget(
-                this.runtime! as NativeRuntime,
+                this.runtime! as WorkspaceRuntime,
                 c.workspacePath!,
               ))
             : undefined;
@@ -335,6 +395,12 @@ export class ComputerService {
             capabilities: [
               "agents",
               "launch-receipts",
+              ...(c.runtime === "oar"
+                ? [
+                    "managed-runtime",
+                    ...(this.delegation ? ["delegation-tools"] : []),
+                  ]
+                : []),
               ...(target
                 ? [
                     "http-streams",
@@ -395,17 +461,21 @@ export class ComputerService {
       this.inFlight.add(key);
       try {
         const op = request.operation;
+        const execute = () =>
+          this.runtime!.executeWithReceipt
+            ? this.runtime!.executeWithReceipt(op, request.id)
+            : this.runtime!.execute(op);
         const operation =
           op.op === "launch-status"
             ? Promise.resolve(this.launches!.status(op.agentId))
             : op.op === "create"
-              ? this.launches!.create(op, () => this.runtime!.execute(op))
-              : this.runtime!.execute(op);
+              ? this.launches!.create(op, execute)
+              : execute();
         this.running.add(operation);
         let value: unknown;
         try {
           value = await operation;
-          if (c.runtime === "native" && op.op === "launch-status") {
+          if (c.runtime !== "fixture" && op.op === "launch-status") {
             const receipt = value as {
               state: string;
               result?: { localId: string };
@@ -423,11 +493,17 @@ export class ComputerService {
             for (const session of catalog.sessions) {
               session.draft_updated_ts =
                 timestamps?.get(String(session.session_id)) ?? 0;
-              const queued = await this.queue.listAsync(String(session.session_id)).catch(() => this.queue!.list(String(session.session_id)));
-              session.remote_queue_len = queued.filter((item: any) => item.origin !== "local").length;
+              const queued = await this.queue
+                .listAsync(String(session.session_id))
+                .catch(() => this.queue!.list(String(session.session_id)));
+              session.remote_queue_len = queued.filter(
+                (item: any) => item.origin !== "local",
+              ).length;
               session.queue_len =
-                session.unified_queue === true ? queued.length :
-                Number(session.queue_len ?? 0) + Number(session.remote_queue_len);
+                session.unified_queue === true
+                  ? queued.length
+                  : Number(session.queue_len ?? 0) +
+                    Number(session.remote_queue_len);
             }
           }
         } finally {
@@ -493,14 +569,21 @@ export class ComputerService {
     this.drafts?.close();
     this.launches?.close();
     this.outbox?.close();
-    this.runtime?.close();
-    const c = await readAttachment(this.home);
-    if (c)
-      await this.status(
-        c,
-        "stopped",
-        "Service stopped; externally managed agents were not terminated",
-      );
-    await this.unlock?.();
+    try {
+      await this.delegation?.close();
+      this.delegation = undefined;
+      await this.runtime?.close();
+      const c = await readAttachment(this.home);
+      if (c)
+        await this.status(
+          c,
+          "stopped",
+          c.runtime === "oar"
+            ? "Service stopped; owned OAR workers disposed and conversation history retained"
+            : "Service stopped; externally managed agents were not terminated",
+        );
+    } finally {
+      await this.unlock?.();
+    }
   }
 }

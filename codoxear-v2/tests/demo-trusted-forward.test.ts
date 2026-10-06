@@ -10,10 +10,11 @@ import { WebSocket, WebSocketServer } from "ws";
 import {
   createTrustedForwarder,
   forwardPorts,
+  type TrustedForwardConfig,
 } from "../scripts/demo-trusted-forward.js";
 assert.ok(existsSync("/.dockerenv"), "Gateway acceptance runs only in Docker");
 
-async function fixture() {
+async function fixture(options: Partial<TrustedForwardConfig> = {}) {
   const root = await mkdtemp(join(tmpdir(), "cdfwd-")),
     fresh = join(root, "new"),
     legacy = join(root, "old");
@@ -97,6 +98,7 @@ async function fixture() {
     ],
     ports: { 19500: 0, 19520: 0, 19530: 0, 19531: 0 },
     legacyJwtKids: [{ kid: "old-public-key", hubPort: 19530 }],
+    ...options,
   });
   const addresses = await gateway.listen();
   return {
@@ -184,6 +186,73 @@ test("new frontend/default Hub and exact legacy Computer paths route transparent
   } finally {
     await f.close();
   }
+});
+test("legacy default preserves new explicit Computer and key routes with backend authorization", async () => {
+  const f = await fixture({
+    defaultHubTarget: "legacy",
+    newComputers: [{ id: "new-home", hubPort: 19530 }],
+    newJwtKids: [{ kid: "new-public-key", hubPort: 19530 }],
+  });
+  const bearer = (kid: string) =>
+    "Bearer " +
+    Buffer.from(JSON.stringify({ kid })).toString("base64url") +
+    ".fake.fake";
+  try {
+    for (const port of forwardPorts)
+      assert.equal(
+        await (await fetch(f.url(port) + "/")).text(),
+        (port === 19530 || port === 19531 ? "old-" : "new-") + port,
+      );
+    for (const [path, kid, expected] of [
+      ["/api/computers/new-home/settings", "old-public-key", "new-19530"],
+      ["/api/computers/old-home/settings", "new-public-key", "old-19530"],
+      ["/api/computers/unknown/settings", "new-public-key", "new-19530"],
+      ["/api/agents", "old-public-key", "old-19530"],
+      ["/api/agents", "unknown", "old-19530"],
+      ["/api/computers/new-home-suffix/settings", "unknown", "old-19530"],
+    ]) {
+      assert.equal(
+        await (
+          await fetch(f.url(19530) + path, {
+            headers: { Authorization: bearer(kid!) },
+          })
+        ).text(),
+        expected,
+      );
+    }
+    const denied = await fetch(f.url(19531) + "/unauthorized", {
+      headers: { Authorization: bearer("new-public-key") },
+    });
+    assert.equal(denied.status, 403);
+    assert.equal(await denied.text(), "backend-denied");
+    assert.equal(f.events.at(-1)!.label, "old-19531");
+    assert.equal(
+      await (
+        await fetch(f.url(19531) + "/api/computers/new-home/settings")
+      ).text(),
+      "old-19531",
+    );
+  } finally {
+    await f.close();
+  }
+  const base = {
+    newDir: "/new",
+    legacyDir: "/old",
+    legacyComputers: [{ id: "same", hubPort: 19530 as const }],
+  };
+  assert.throws(() =>
+    createTrustedForwarder({
+      ...base,
+      newComputers: [{ id: "same", hubPort: 19531 }],
+    }),
+  );
+  assert.throws(() =>
+    createTrustedForwarder({
+      ...base,
+      legacyJwtKids: [{ kid: "same", hubPort: 19530 }],
+      newJwtKids: [{ kid: "same", hubPort: 19531 }],
+    }),
+  );
 });
 test("explicit public signing-key hint routes old bearer APIs while backend denial remains authoritative", async () => {
   const f = await fixture();

@@ -27,7 +27,9 @@ export class NativeRuntime implements Runtime {
   readonly kind = "native" as const;
   readonly directory: string;
   private queueScope: string | undefined;
-  setQueueScope(scope: string) { this.queueScope = scope; }
+  setQueueScope(scope: string) {
+    this.queueScope = scope;
+  }
   constructor(
     public readonly home: string,
     public readonly workspace: string,
@@ -73,7 +75,10 @@ export class NativeRuntime implements Runtime {
     body: Record<string, unknown> = {},
   ) {
     this.metadata(id);
-    if ((operation === "state" || operation === "queue") && this.queueScope !== undefined)
+    if (
+      (operation === "state" || operation === "queue") &&
+      this.queueScope !== undefined
+    )
       body = { ...body, scope: this.queueScope };
     return new Promise<any>((resolveResult, reject) => {
       let answer = "",
@@ -343,8 +348,15 @@ export class NativeRuntime implements Runtime {
   async createTerminal(backend: Backend, name: string, launch: unknown = {}) {
     return this.launch(backend, name, launch, true);
   }
-  async queueControl(localId: string, operation: string, body: Record<string, unknown> = {}) {
-    if (operation === "sessions") return this.listMetadata().filter((meta) => meta.readiness !== "exited").map((meta) => meta.session_id);
+  async queueControl(
+    localId: string,
+    operation: string,
+    body: Record<string, unknown> = {},
+  ) {
+    if (operation === "sessions")
+      return this.listMetadata()
+        .filter((meta) => meta.readiness !== "exited")
+        .map((meta) => meta.session_id);
     return this.control(localId, operation, body);
   }
   async sendQueued(localId: string, text: string) {
@@ -358,7 +370,11 @@ export class NativeRuntime implements Runtime {
       metadata.map(async (meta) => {
         let state: any = {};
         try {
-          state = await this.control(meta.session_id, "state", actorId ? { actorId } : {});
+          state = await this.control(
+            meta.session_id,
+            "state",
+            actorId ? { actorId } : {},
+          );
           delete state.tail;
         } catch {}
         const transcript = readTranscript(meta.log_path, meta.agent_backend);
@@ -544,8 +560,18 @@ export class NativeRuntime implements Runtime {
     };
   }
   async execute(operation: Operation): Promise<unknown> {
+    if (operation.op === "delegation-install")
+      throw new DomainError(
+        409,
+        "setup_required",
+        "Running native sessions require explicit delegation extension setup/reload; no session was restarted",
+      );
+    if (operation.op === "delegation-status") return { installed: false };
+    if (operation.op === "delegation-revoke") return { revoked: true };
     if (operation.op === "workspace")
-      return new WorkspaceRegistry(this.stateHome, this.workspace).execute(operation);
+      return new WorkspaceRegistry(this.stateHome, this.workspace).execute(
+        operation,
+      );
     if (operation.op === "discover") return this.catalogue(operation.actorId);
     if (operation.op === "resume-candidates")
       return this.request(

@@ -13,6 +13,7 @@ import { z } from "zod";
 import { Id } from "../contracts/model.js";
 import { AuthorityClient } from "./authority-client.js";
 import { HubSessions } from "./sessions.js";
+import { DelegationStore } from "./delegation.js";
 import { Tunnels } from "../protocol/tunnels.js";
 import { createHubApp } from "./app.js";
 import { NotificationInbox } from "./notifications.js";
@@ -144,6 +145,9 @@ const notifications = new NotificationInbox(
   },
   pushProvider,
 );
+const delegations = new DelegationStore(
+  resolve(config.database) + ".delegations",
+);
 const sessions = new HubSessions(resolve(config.database)),
   app = await createHubApp({
     origin: config.origin,
@@ -152,6 +156,7 @@ const sessions = new HubSessions(resolve(config.database)),
     clientOrigins: config.clientOrigins,
     sessions,
     notifications,
+    delegations,
     tunnels: new Tunnels(),
     secureCookies: config.secureCookies,
     development: config.development,
@@ -178,6 +183,7 @@ const stop = () => {
     await delivery;
     notifications.close();
     sessions.close();
+    delegations.close();
     await local?.identity.close();
     catalog?.close();
   })();

@@ -4,14 +4,29 @@ import { type Notification } from "../protocol/notifications.js";
 import { type Operation } from "../contracts/tunnel.js";
 
 export interface Runtime {
-  readonly kind: "native" | "fixture";
+  readonly kind: "native" | "fixture" | "oar";
   execute(operation: Operation): Promise<unknown>;
+  executeWithReceipt?(
+    operation: Operation,
+    requestId: string,
+  ): Promise<unknown>;
   sendQueued?(localId: string, text: string): Promise<unknown>;
   setQueueScope?(scope: string): void;
-  queueControl?(localId: string, operation: string, body?: Record<string, unknown>): Promise<any>;
-  close(): void;
+  queueControl?(
+    localId: string,
+    operation: string,
+    body?: Record<string, unknown>,
+  ): Promise<any>;
+  close(): void | Promise<void>;
   supportsProviderLaunch?(): Promise<boolean>;
   completions?(since: number): Promise<Notification[]>;
+}
+/** Files, voice and HTTP presentation depend on this surface, not a PTY driver. */
+export interface WorkspaceRuntime extends Runtime {
+  readonly home: string;
+  readonly stateHome: string;
+  request(path: string, method?: string, body?: unknown): Promise<any>;
+  completions(since: number): Promise<Notification[]>;
 }
 // Explicit synthetic runtime for isolated UI/transport tests. It never claims
 // to run a model or a native CLI. Production setup must select a real adapter.
@@ -25,6 +40,11 @@ export class FixtureRuntime implements Runtime {
     );
   }
   async execute(op: Operation): Promise<unknown> {
+    if(op.op.startsWith("delegation-")) {
+      if(op.op === "delegation-status") return {installed:false};
+      if(op.op === "delegation-revoke") return {revoked:true};
+      if(op.op === "delegation-install") throw new Error("Fixture runtime does not install delegation tools");
+    }
     if (op.op === "resume-candidates") return { sessions: [] };
     if (op.op === "workspace") return { id: "default", path: null };
     if (op.op === "launch-status")

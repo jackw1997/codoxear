@@ -19,13 +19,24 @@ export type TrustedForwardConfig = {
   legacyComputers: Array<{ id: string; hubPort: HubPort }>;
   ports?: Partial<Record<ForwardPort, number>>;
   legacyJwtKids?: Array<{ kid: string; hubPort: HubPort }>;
+  defaultHubTarget?: "new" | "legacy";
+  newComputers?: Array<{ id: string; hubPort: HubPort }>;
+  newJwtKids?: Array<{ kid: string; hubPort: HubPort }>;
 };
 
 function configuration(input: TrustedForwardConfig): TrustedForwardConfig {
   if (!isAbsolute(input.newDir) || !isAbsolute(input.legacyDir))
     throw new Error("Bridge directories must be absolute");
   const seen = new Set<string>();
-  for (const computer of input.legacyComputers) {
+  if (
+    input.defaultHubTarget !== undefined &&
+    !["new", "legacy"].includes(input.defaultHubTarget)
+  )
+    throw new Error("Invalid default Hub target");
+  for (const computer of [
+    ...input.legacyComputers,
+    ...(input.newComputers ?? []),
+  ]) {
     if (
       !/^[A-Za-z0-9_-]{1,200}$/.test(computer.id) ||
       ![19530, 19531].includes(computer.hubPort) ||
@@ -43,13 +54,19 @@ function configuration(input: TrustedForwardConfig): TrustedForwardConfig {
     )
       throw new Error("Invalid loopback port override");
   }
-  for (const entry of input.legacyJwtKids ?? []) {
+  const seenKids = new Set<string>();
+  for (const entry of [
+    ...(input.legacyJwtKids ?? []),
+    ...(input.newJwtKids ?? []),
+  ]) {
     if (
       !entry.kid ||
       entry.kid.length > 200 ||
-      ![19530, 19531].includes(entry.hubPort)
+      ![19530, 19531].includes(entry.hubPort) ||
+      seenKids.has(entry.kid)
     )
       throw new Error("Invalid explicit legacy signing-key route");
+    seenKids.add(entry.kid);
   }
   return structuredClone(input);
 }
@@ -75,23 +92,44 @@ export function createTrustedForwarder(input: TrustedForwardConfig) {
       } catch {
         /* Backend checks malformed paths. */
       }
-      legacy = config.legacyComputers.some(
+      legacy = config.defaultHubTarget === "legacy";
+      const oldComputer = config.legacyComputers.some(
         (computer) =>
           computer.hubPort === port && segments.includes(computer.id),
       );
+      const newComputer =
+        config.newComputers?.some(
+          (computer) =>
+            computer.hubPort === port && segments.includes(computer.id),
+        ) ?? false;
+      if (oldComputer) legacy = true;
+      if (newComputer) legacy = false;
       // A caller-supplied public kid is only a routing hint. Never infer or grant identity here.
       const bearer = request.headers.authorization;
-      if (!legacy && bearer?.startsWith("Bearer ") && bearer.length < 16384) {
+      if (
+        !oldComputer &&
+        !newComputer &&
+        bearer?.startsWith("Bearer ") &&
+        bearer.length < 16384
+      ) {
         try {
           const header = bearer.slice(7).split(".")[0]!;
           if (header.length < 2048) {
             const value = JSON.parse(
               Buffer.from(header, "base64url").toString("utf8"),
             );
-            legacy =
+            if (
               config.legacyJwtKids?.some(
                 (entry) => entry.hubPort === port && entry.kid === value.kid,
-              ) ?? false;
+              )
+            )
+              legacy = true;
+            else if (
+              config.newJwtKids?.some(
+                (entry) => entry.hubPort === port && entry.kid === value.kid,
+              )
+            )
+              legacy = false;
           }
         } catch {
           /* Invalid credentials remain backend checked. */

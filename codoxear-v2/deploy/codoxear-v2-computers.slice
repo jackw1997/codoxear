@@ -1,0 +1,12 @@
+[Unit]
+Description=Aggregate Codoxear Computer memory budget
+
+[Slice]
+# All Computer units on one 8 GiB host share this budget. The development
+# assistant, Hub and Client are outside this slice. Verify cgroup delegation
+# and effective limits before launch; this file alone applies no limit.
+MemoryAccounting=yes
+MemoryHigh=1536M
+MemoryMax=2G
+MemorySwapMax=0
+TasksMax=512

@@ -4,10 +4,17 @@ import {
   invitationBody,
 } from "../shared/invitation-form.js";
 import { attachCommand, computerSetup } from "./computer-setup.js";
+import { delegationSection, bindDelegation } from "./delegation.js";
 import { vault, type HubLogin } from "./vault.js";
 import { connectHub, identitySettingsUrl } from "./login.js";
 import { ConnectionPages, esc, icon, field, submit, message } from "./views.js";
-import { workspaceAccessFields, workspaceRootFields, bindWorkspaceGrant, workspaceGrantBody, type WorkspaceReview } from "../shared/workspace-access.js";
+import {
+  workspaceAccessFields,
+  workspaceRootFields,
+  bindWorkspaceGrant,
+  workspaceGrantBody,
+  type WorkspaceReview,
+} from "../shared/workspace-access.js";
 type Computer = {
   id: string;
   name: string;
@@ -30,10 +37,11 @@ async function api(
   path: string,
   body?: unknown,
   method = body === undefined ? "GET" : "POST",
+  timeoutMs = 12000,
 ) {
   const r = await fetch("/api/client/hubs/" + login.id + path, {
     method,
-    signal: AbortSignal.timeout(12000),
+    signal: AbortSignal.timeout(timeoutMs),
     ...(body === undefined
       ? {}
       : {
@@ -255,7 +263,12 @@ export function openConnections(
       `<div class="connectionForm"><dl class="connectionFact"><dt>Hub</dt><dd>${esc(login.name)}</dd><dt>Status</dt><dd>${c.online ? "Online" : "Offline"}</dd><dt>Owner</dt><dd>${esc(c.ownerName ?? "You")}</dd></dl>${owner ? `<div class="connectionActions"><button data-pair>Pair computer</button><button data-access>Manage access</button><button data-import ${c.online ? "" : "disabled"}>Import local session</button></div>` : '<p class="connectionHint">Contact the computer owner to change access.</p>'}</div>`,
       home,
     );
-    root.querySelector<HTMLButtonElement>("[data-import]")?.addEventListener("click", () => void importSession(login, c).catch(page.error));
+    root
+      .querySelector<HTMLButtonElement>("[data-import]")
+      ?.addEventListener(
+        "click",
+        () => void importSession(login, c).catch(page.error),
+      );
     root
       .querySelector<HTMLButtonElement>("[data-pair]")
       ?.addEventListener("click", () => pairing(login, c));
@@ -270,21 +283,44 @@ export function openConnections(
       );
   }
   async function importSession(login: HubLogin, computer: Computer) {
-    page.render("Import a local session", '<p class="connectionHint" role="status">Finding local sessions…</p>', () => computerPage(login, computer));
+    page.render(
+      "Import a local session",
+      '<p class="connectionHint" role="status">Finding local sessions…</p>',
+      () => computerPage(login, computer),
+    );
     const version = page.version;
-    const sessions = await api(login, "/api/computers/" + computer.id + "/discovered") as Array<{session_id: string; agent_backend: string; alias?: string}>;
+    const sessions = (await api(
+      login,
+      "/api/computers/" + computer.id + "/discovered",
+    )) as Array<{ session_id: string; agent_backend: string; alias?: string }>;
     if (!page.element.isConnected || version !== page.version) return;
     if (!sessions.length) {
-      page.render("Import a local session", '<p class="connectionHint" role="status">No unpublished local sessions were found.</p>', () => computerPage(login, computer));
+      page.render(
+        "Import a local session",
+        '<p class="connectionHint" role="status">No unpublished local sessions were found.</p>',
+        () => computerPage(login, computer),
+      );
       return;
     }
-    const root = page.render("Import a local session", `<form class="connectionForm"><p class="connectionHint">Publish this session and its existing history to people with access to this computer.</p>${field("Local session", `<select name="localId">${sessions.map(s => `<option value="${esc(s.session_id)}">${esc(s.alias || s.session_id)} · ${esc(s.agent_backend)}</option>`).join("")}</select>`)}${field("Agent name", '<input name="name" required maxlength="120" autocomplete="off">')}<div class="connectionActions"><button type="button" data-cancel>Cancel</button><button type="submit" class="primary">Import session</button></div><p class="connectionStatus" role="status"></p></form>`, () => computerPage(login, computer));
-    root.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = () => computerPage(login, computer);
-    submit(root.querySelector("form")!, async data => {
-      await api(login, "/api/computers/" + computer.id + "/import", {localId: data.get("localId"), name: data.get("name")});
-      await changed();
-      page.close();
-    }, page.error);
+    const root = page.render(
+      "Import a local session",
+      `<form class="connectionForm"><p class="connectionHint">Publish this session and its existing history to people with access to this computer.</p>${field("Local session", `<select name="localId">${sessions.map((s) => `<option value="${esc(s.session_id)}">${esc(s.alias || s.session_id)} · ${esc(s.agent_backend)}</option>`).join("")}</select>`)}${field("Agent name", '<input name="name" required maxlength="120" autocomplete="off">')}<div class="connectionActions"><button type="button" data-cancel>Cancel</button><button type="submit" class="primary">Import session</button></div><p class="connectionStatus" role="status"></p></form>`,
+      () => computerPage(login, computer),
+    );
+    root.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = () =>
+      computerPage(login, computer);
+    submit(
+      root.querySelector("form")!,
+      async (data) => {
+        await api(login, "/api/computers/" + computer.id + "/import", {
+          localId: data.get("localId"),
+          name: data.get("name"),
+        });
+        await changed();
+        page.close();
+      },
+      page.error,
+    );
   }
   function settings(group: Group, hub?: HubInfo) {
     const first = group.logins[0]!,
@@ -328,7 +364,10 @@ export function openConnections(
         view.querySelector<HTMLButtonElement>("[data-confirm]")!.onclick =
           () => {
             void (async () => {
-              const removed = await fetch("/api/client/push/disconnect/" + encodeURIComponent(login.id), { method: "POST" });
+              const removed = await fetch(
+                "/api/client/push/disconnect/" + encodeURIComponent(login.id),
+                { method: "POST" },
+              );
               if (!removed.ok) throw new Error("Hub disconnect failed");
               forgotten();
               await changed();
@@ -382,7 +421,10 @@ async function accessPage(
     ]);
     policy =
       resources.find((resource: any) => resource.id === id)?.policy ?? null;
-    const workspace: WorkspaceReview | null = kind === "computer" ? await api(login, `/api/computers/${id}/workspace`).catch(() => null) : null;
+    const workspace: WorkspaceReview | null =
+      kind === "computer"
+        ? await api(login, `/api/computers/${id}/workspace`).catch(() => null)
+        : null;
     if (page.version !== version || !root.isConnected) return;
     page.render(
       "Manage access",
@@ -392,25 +434,65 @@ async function accessPage(
     if (workspace) {
       const section = document.createElement("section");
       section.className = "connectionStack";
-      section.innerHTML = workspaceRootFields(workspace) + members.map((m: any) => workspaceAccessFields(m, workspace)).join("");
+      section.innerHTML =
+        workspaceRootFields(workspace) +
+        members.map((m: any) => workspaceAccessFields(m, workspace)).join("");
       root.querySelector(".connectionStack")!.append(section);
-      for (const form of section.querySelectorAll<HTMLFormElement>(".workspace-form")) {
-        const member = members.find((m: any) => m.userId === form.dataset.member);
+      for (const form of section.querySelectorAll<HTMLFormElement>(
+        ".workspace-form",
+      )) {
+        const member = members.find(
+          (m: any) => m.userId === form.dataset.member,
+        );
         bindWorkspaceGrant(form, member);
-        submit(form, async data => {
-          const body = workspaceGrantBody(data);
-          await api(login, `/api/computers/${id}/workspace-access/${form.dataset.member}`, body, "PUT");
-          member.workspaceGrants = [...(member.workspaceGrants ?? []).filter((g: any) => g.workspaceId !== body.workspaceId), ...(body.access ? [body] : [])];
-          form.querySelector("[role=status]")!.textContent = "Workspace access saved";
-        }, page.error);
+        submit(
+          form,
+          async (data) => {
+            const body = workspaceGrantBody(data);
+            await api(
+              login,
+              `/api/computers/${id}/workspace-access/${form.dataset.member}`,
+              body,
+              "PUT",
+            );
+            member.workspaceGrants = [
+              ...(member.workspaceGrants ?? []).filter(
+                (g: any) => g.workspaceId !== body.workspaceId,
+              ),
+              ...(body.access ? [body] : []),
+            ];
+            form.querySelector("[role=status]")!.textContent =
+              "Workspace access saved";
+          },
+          page.error,
+        );
       }
-      submit(section.querySelector<HTMLFormElement>(".workspace-root-form")!, async data => {
-        await api(login, `/api/computers/${id}/workspace`, {name: data.get("name"), path: data.get("path")}, "PUT");
-        await accessPage(page, login, kind, id, policy, back);
-      }, page.error);
-      for (const button of section.querySelectorAll<HTMLButtonElement>("[data-remove-workspace]")) button.onclick = () => {
-        void api(login, `/api/computers/${id}/workspace`, {id: button.dataset.removeWorkspace, remove: true}, "PUT").then(() => accessPage(page, login, kind, id, policy, back)).catch(page.error);
-      };
+      submit(
+        section.querySelector<HTMLFormElement>(".workspace-root-form")!,
+        async (data) => {
+          await api(
+            login,
+            `/api/computers/${id}/workspace`,
+            { name: data.get("name"), path: data.get("path") },
+            "PUT",
+          );
+          await accessPage(page, login, kind, id, policy, back);
+        },
+        page.error,
+      );
+      for (const button of section.querySelectorAll<HTMLButtonElement>(
+        "[data-remove-workspace]",
+      ))
+        button.onclick = () => {
+          void api(
+            login,
+            `/api/computers/${id}/workspace`,
+            { id: button.dataset.removeWorkspace, remove: true },
+            "PUT",
+          )
+            .then(() => accessPage(page, login, kind, id, policy, back))
+            .catch(page.error);
+        };
     }
     for (const b of root.querySelectorAll<HTMLButtonElement>("[data-remove]"))
       b.onclick = () => {
@@ -484,8 +566,13 @@ export async function openAgentAccess(agent: any) {
       : "";
     const root = page.render(
       "Agent access",
-      `<dl class="connectionFact"><dt>Agent</dt><dd>${esc(agent.name)}</dd><dt>Computer</dt><dd>${esc(agent.computerName)}</dd><dt>Hub</dt><dd>${esc(agent.hubName)}</dd></dl>${computer?.ownerId === login.accountId ? '<div class="connectionActions"><button data-access>Manage computer access</button></div>' : '<p class="connectionHint">Contact the computer owner to change access.</p>'}${shareSection}`,
+      `<dl class="connectionFact"><dt>Agent</dt><dd>${esc(agent.name)}</dd><dt>Computer</dt><dd>${esc(agent.computerName)}</dd><dt>Hub</dt><dd>${esc(agent.hubName)}</dd></dl>${computer?.ownerId === login.accountId ? '<div class="connectionActions"><button data-access>Manage computer access</button></div>' : '<p class="connectionHint">Contact the computer owner to change access.</p>'}${delegationSection(computers)}${shareSection}`,
       page.close,
+    );
+    page.own(
+      bindDelegation(root, agentId, (path, body, method) =>
+        api(login, path, body, method, 45000),
+      ),
     );
     for (const form of root.querySelectorAll<HTMLFormElement>(
       "[data-agent-share]",

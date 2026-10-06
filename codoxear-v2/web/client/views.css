@@ -154,6 +154,24 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+.connectionDelegationTargets {
+  border: 1px solid var(--hairline);
+  padding: var(--space-4);
+  min-width: 0;
+}
+.connectionDelegationTarget {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.connectionPage .connectionDelegationTarget input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  padding: 0;
+}
 .connectionError {
   color: var(--text-error);
   background: var(--surface-error);
@@ -453,5 +471,9 @@
   padding: 12px;
   overflow-wrap: anywhere;
 }
-.sessionDiscoveryStatus p { margin: 0 0 10px; }
-.sessionDiscoveryStatus button { margin: 0 8px 8px 0; }
+.sessionDiscoveryStatus p {
+  margin: 0 0 10px;
+}
+.sessionDiscoveryStatus button {
+  margin: 0 8px 8px 0;
+}

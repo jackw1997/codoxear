@@ -50,6 +50,23 @@ export const Launch = z.object({
   create_in_tmux: z.literal(false).optional(),
 });
 export const Operation = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("delegation-install"),
+    parentId: Id,
+    localId: z.string().min(1).max(200),
+    grant: z.string().min(32).max(200),
+    expiresAt: z.number().int().positive(),
+  }),
+  z.object({
+    op: z.literal("delegation-status"),
+    parentId: Id,
+    localId: z.string().min(1).max(200),
+  }),
+  z.object({
+    op: z.literal("delegation-revoke"),
+    parentId: Id,
+    localId: z.string().min(1).max(200),
+  }),
   z.object({ op: z.literal("discover"), actorId: Id.optional() }),
   z.object({ op: z.literal("workspace"), ...WorkspaceEdit.shape }),
   z.object({

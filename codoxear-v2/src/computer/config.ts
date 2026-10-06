@@ -4,15 +4,48 @@ import { z } from "zod";
 import { Id } from "../contracts/model.js";
 import { atomicJson } from "../persistence/files.js";
 export { atomicJson } from "../persistence/files.js";
-export const RuntimeConfig = z.object({
-  runtime: z.enum(["native", "fixture"]),
-  workspacePath: z.string().min(1).refine(isAbsolute, "Workspace must be an absolute path").optional(),
-  nativeHome: z.string().min(1).refine(isAbsolute, "Native home must be an absolute path").optional(),
-  nativeStateHome: z.string().min(1).refine(isAbsolute, "Native state home must be an absolute path").optional(),
-}).superRefine((config, ctx) => {
-  if (config.runtime === "native" && !config.workspacePath)
-    ctx.addIssue({code:"custom",message:"Native runtime requires workspacePath"});
+const OarConfig = z.object({
+  // No default trust acceptance: OAR disables native interactive approvals.
+  oarPermissionPolicy: z.literal("locally-trusted").optional(),
+  oarMaxResident: z.number().int().min(1).max(16).optional(),
+  oarIdleMs: z.number().int().min(1000).max(3600000).optional(),
 });
+export const RuntimeConfig = z
+  .object({
+    runtime: z.enum(["native", "fixture", "oar"]),
+    ...OarConfig.shape,
+    workspacePath: z
+      .string()
+      .min(1)
+      .refine(isAbsolute, "Workspace must be an absolute path")
+      .optional(),
+    nativeHome: z
+      .string()
+      .min(1)
+      .refine(isAbsolute, "Native home must be an absolute path")
+      .optional(),
+    nativeStateHome: z
+      .string()
+      .min(1)
+      .refine(isAbsolute, "Native state home must be an absolute path")
+      .optional(),
+  })
+  .superRefine((config, ctx) => {
+    if (config.runtime !== "fixture" && !config.workspacePath)
+      ctx.addIssue({
+        code: "custom",
+        message: "Native/OAR runtime requires workspacePath",
+      });
+    if (
+      config.runtime === "oar" &&
+      config.oarPermissionPolicy !== "locally-trusted"
+    )
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "OAR requires explicit locally-trusted permission acceptance; remote approvals are unsupported",
+      });
+  });
 export const Attachment = z.object({
   version: z.literal(1),
   hubUrl: z.url(),
@@ -20,10 +53,23 @@ export const Attachment = z.object({
   computerId: Id,
   credential: z.string().min(32),
   binding: z.number().int().positive().optional(),
-  runtime: z.enum(["native", "fixture"]),
-  workspacePath: z.string().min(1).refine(isAbsolute, "Workspace must be an absolute path").optional(),
-  nativeHome: z.string().min(1).refine(isAbsolute, "Native home must be an absolute path").optional(),
-  nativeStateHome: z.string().min(1).refine(isAbsolute, "Native state home must be an absolute path").optional(),
+  runtime: z.enum(["native", "fixture", "oar"]),
+  ...OarConfig.shape,
+  workspacePath: z
+    .string()
+    .min(1)
+    .refine(isAbsolute, "Workspace must be an absolute path")
+    .optional(),
+  nativeHome: z
+    .string()
+    .min(1)
+    .refine(isAbsolute, "Native home must be an absolute path")
+    .optional(),
+  nativeStateHome: z
+    .string()
+    .min(1)
+    .refine(isAbsolute, "Native state home must be an absolute path")
+    .optional(),
 });
 export type Attachment = z.infer<typeof Attachment>;
 export async function readAttachment(home: string): Promise<Attachment | null> {

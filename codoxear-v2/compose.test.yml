@@ -4,6 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile.test
     init: true
-    shm_size: 1gb
+    # Runtime ceiling for verification on the 8 GiB development computer.
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 2
+    pids_limit: 512
+    shm_size: 256mb
     volumes:
       - ./artifacts:/work/artifacts

@@ -120,7 +120,7 @@
       "id": "future",
       "requirement": "iOS/Android and OAR interfaces and adoption gates specified",
       "status": "scope-unresolved",
-      "evidence": "iOS/Android and optional OAR scope awaits the user decision; current Node 22 and explicit local-trust behavior govern the accepted Linux scope."
+      "evidence": "iOS/Android scope remains separate. R45/R46 accept OAR as current refactor work; its first implementation is unverified and requires a separate Node24 Computer runtime and explicit local-trust policy."
     },
     {
       "id": "workspace-grants",
@@ -161,7 +161,7 @@
       "macOS secure workspace adapter and acceptance"
     ],
     "laterStage": [
-      "iOS/Android and optional OAR scope awaits user decision; current Linux target is Node.js 22 with explicit local-trust behavior."
+      "iOS/Android platform scope remains separate. OAR moved into current engineering under R45/R46; see oar-cutover.html."
     ],
     "platformImplementation": [
       "macOS secure workspace adapter requires a macOS execution environment; current migration scope is Linux"
@@ -231,5 +231,14 @@
       "mobileLimits": "Huawei device not retested; final report has38 decisions while the browser run covered the prior37-decision version."
     }
   },
-  "updatedAt": "2026-10-06T02:07:53.719Z"
+  "updatedAt": "2026-10-06T02:07:53.719Z",
+  "currentRegression": {
+    "scope": "Existing session visibility after trusted endpoint reuse",
+    "state": "Open; fix prepared, not deployed",
+    "existingCatalogAgentCount": 19,
+    "newNativeBaselineAgentCount": 2,
+    "staticTypecheck": "passed",
+    "finalBrowserRecovery": "blocked by current Docker socket permission denial",
+    "note": "Earlier6/6 native preview checks did not establish continuity of the original Hub catalog."
+  }
 }

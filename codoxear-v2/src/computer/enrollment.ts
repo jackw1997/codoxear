@@ -12,6 +12,8 @@ export async function enrollmentInput(args: string[]) {
       hub: { type: "string" },
       code: { type: "string" },
       workspace: { type: "string" },
+      runtime: { type: "string", default: "native" },
+      "oar-permission-policy": { type: "string" },
     },
   });
   let muted = false;
@@ -37,9 +39,21 @@ export async function enrollmentInput(args: string[]) {
     const origin = new URL(hub).origin;
     if (hub.replace(/\/$/, "") !== origin)
       throw new Error("Use the hub origin without a path");
+    if (!["native", "oar"].includes(values.runtime!))
+      throw Error("Choose native or oar as the Computer runtime");
+    if (
+      values.runtime === "oar" &&
+      values["oar-permission-policy"] !== "locally-trusted"
+    )
+      throw Error(
+        "OAR bypasses interactive native permissions. After explicit local trust review, pass --oar-permission-policy locally-trusted; otherwise use native.",
+      );
     return {
       enrollment: { identityUrl: origin, code: normalizePairingCode(code) },
-      runtime: "native" as const,
+      runtime: values.runtime as "native" | "oar",
+      ...(values.runtime === "oar"
+        ? { oarPermissionPolicy: "locally-trusted" as const }
+        : {}),
       workspacePath,
     };
   } finally {

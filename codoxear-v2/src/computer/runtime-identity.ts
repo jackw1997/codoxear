@@ -1,7 +1,7 @@
 import { DomainError } from "../contracts/model.js";
 /** Updated brokers allocate a fresh 128-bit session identity, independent of PID. */
 export function relaySessionId(value: unknown): value is string {
-  return typeof value === "string" && /^broker-[a-f0-9]{32}$/.test(value);
+  return typeof value === "string" && /^(?:broker|managed)-[a-f0-9]{32}$/.test(value);
 }
 export function requireRelaySessionId(value: string): void {
   if (!relaySessionId(value)) throw new DomainError(409, "runtime_upgrade_required",

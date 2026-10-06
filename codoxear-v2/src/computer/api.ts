@@ -1,5 +1,6 @@
 import { readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { oarSetupIssues } from "./oar-setup.js";
 import {
   attach,
   RuntimeConfig,
@@ -7,7 +8,11 @@ import {
   acquireLock,
   type Attachment,
 } from "./config.js";
-import { ComputerService, type ComputerStatus, type ComputerDependencies } from "./service.js";
+import {
+  ComputerService,
+  type ComputerStatus,
+  type ComputerDependencies,
+} from "./service.js";
 
 /** Local, typed boundary shared by CLI and future desktop presenters. Secrets never appear in status. */
 export function createComputerApi(home: string) {
@@ -26,6 +31,9 @@ export function createComputerApi(home: string) {
       nativeHome?: string;
       nativeStateHome?: string;
       workspacePath?: string;
+      oarPermissionPolicy?: "locally-trusted";
+      oarMaxResident?: number;
+      oarIdleMs?: number;
     }) {
       RuntimeConfig.parse(input);
       const unlock = await acquireLock(home);
@@ -59,8 +67,17 @@ export function createComputerApi(home: string) {
         await attach(home, {
           ...binding,
           runtime: input.runtime,
-          ...(input.nativeHome ? {nativeHome: input.nativeHome} : {}),
-          ...(input.nativeStateHome ? {nativeStateHome: input.nativeStateHome} : {}),
+          ...(input.nativeHome ? { nativeHome: input.nativeHome } : {}),
+          ...(input.nativeStateHome
+            ? { nativeStateHome: input.nativeStateHome }
+            : {}),
+          ...(input.oarPermissionPolicy
+            ? { oarPermissionPolicy: input.oarPermissionPolicy }
+            : {}),
+          ...(input.oarMaxResident
+            ? { oarMaxResident: input.oarMaxResident }
+            : {}),
+          ...(input.oarIdleMs ? { oarIdleMs: input.oarIdleMs } : {}),
           ...(input.workspacePath
             ? { workspacePath: input.workspacePath }
             : {}),
@@ -92,14 +109,20 @@ export function createComputerApi(home: string) {
         binding: config?.binding,
         running,
         lastObserved: last,
-        pendingTransfer: await import("./transfer.js").then((module) => module.transferStatus(home)),
+        pendingTransfer: await import("./transfer.js").then((module) =>
+          module.transferStatus(home),
+        ),
       };
     },
     async doctor() {
       const state = await this.status();
+      const config = await readAttachment(home);
       return {
         ...state,
         issues: [
+          ...(config?.runtime === "oar"
+            ? await oarSetupIssues(config.oarPermissionPolicy)
+            : []),
           ...(!state.attached ? ["Computer is not attached"] : []),
           ...(!state.running ? ["Computer service is not running"] : []),
           ...(state.lastObserved?.state === "blocked"
@@ -110,10 +133,18 @@ export function createComputerApi(home: string) {
         ],
       };
     },
-    async transfer(input: { hub: string; code: string }, transport: typeof fetch = fetch) {
+    async transfer(
+      input: { hub: string; code: string },
+      transport: typeof fetch = fetch,
+    ) {
       const unlock = await acquireLock(home);
-      try { return await import("./transfer.js").then((module) => module.transferComputer(home, input, transport)); }
-      finally { await unlock(); }
+      try {
+        return await import("./transfer.js").then((module) =>
+          module.transferComputer(home, input, transport),
+        );
+      } finally {
+        await unlock();
+      }
     },
     async detach() {
       const unlock = await acquireLock(home);
@@ -125,7 +156,10 @@ export function createComputerApi(home: string) {
         await unlock();
       }
     },
-    service(onStatus?: (status: ComputerStatus) => void, dependencies?: ComputerDependencies) {
+    service(
+      onStatus?: (status: ComputerStatus) => void,
+      dependencies?: ComputerDependencies,
+    ) {
       return new ComputerService(home, onStatus, dependencies);
     },
   };
