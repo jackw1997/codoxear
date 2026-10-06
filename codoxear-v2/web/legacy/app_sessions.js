@@ -183,6 +183,12 @@
           const session = entry.session;
           const sessionId = session.session_id;
           const card = el("div", { class: "session", "data-session-id": sessionId, role: "link", tabindex: "0" });
+          card.onkeydown = (event) => {
+            if (event.key !== "Enter" || event.target !== card || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+            event.preventDefault();
+            event.stopPropagation();
+            card.click();
+          };
           applyActiveClass(card);
           const title = sessionDisplayName(session);
           const badges = [];

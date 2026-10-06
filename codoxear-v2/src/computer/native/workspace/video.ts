@@ -9,23 +9,24 @@ export async function videoPreview(
   path: string,
   home: string,
   signal: AbortSignal,
+  scope?: string,
 ) {
   const input = await openFile(path);
   try {
     const info = await input.stat();
     if (!info.isFile())
       throw new DomainError(400, "not_video", "path is not a video");
-    const cache = join(home, "video-previews");
+    const cache = join(home, "video-previews", scope ? createHash("sha256").update(scope).digest("hex") : "owner");
     await mkdir(cache, { recursive: true, mode: 0o700 });
     const key = createHash("sha256")
-      .update(`${path}:${info.size}:${info.mtimeMs}`)
+      .update(`${path}:${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}:${info.ctimeMs}`)
       .digest("hex");
     const output = join(cache, key + ".mp4");
     try {
       if ((await stat(output)).size > 0) return output;
     } catch {}
     const prior = pending.get(output);
-    if (prior) return await prior;
+    if (prior && !scope) return await prior;
     const operation = (async () => {
       const temp = join(cache, key + "." + randomUUID() + ".mp4");
       try {
@@ -74,11 +75,11 @@ export async function videoPreview(
         await unlink(temp).catch(() => {});
       }
     })();
-    pending.set(output, operation);
+    if (!scope) pending.set(output, operation);
     try {
       return await operation;
     } finally {
-      pending.delete(output);
+      if (!scope) pending.delete(output);
     }
   } finally {
     await input.close();

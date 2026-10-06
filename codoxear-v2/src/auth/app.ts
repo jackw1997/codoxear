@@ -1,10 +1,11 @@
 import { agentShares, setAgentShare } from "../domain/agent-sharing.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "../presentation/browser-workspace.js";
+import { WorkspaceOptions } from "../contracts/workspaces.js";
 import { registerBrowserGateway } from "./browser-gateway.js";
 import { readFile } from "node:fs/promises";
 import { portal } from "./portal.js";
-import Fastify, { type FastifyRequest, type FastifyReply } from "fastify";
+import Fastify, { type FastifyRequest, type FastifyReply, type RouteOptions } from "fastify";
 import cookie from "@fastify/cookie";
 import { z } from "zod";
 import * as oauth from "oauth4webapi";
@@ -37,6 +38,7 @@ import {
   resource,
 } from "../domain/commands.js";
 export interface IdentityOptions {
+  routeObserver?: (route: RouteOptions) => void;
   authority: Authority;
   cookieName?: string;
   loginPath?: string;
@@ -55,6 +57,7 @@ export async function createIdentityApp(options: IdentityOptions) {
     store = a.store,
     providers = options.providers ?? [],
     app = Fastify({ bodyLimit: 65536 });
+  if (options.routeObserver) app.addHook("onRoute", options.routeObserver);
   await app.register(cookie);
   app.setErrorHandler((e, _r, reply) =>
     e instanceof DomainError
@@ -354,6 +357,16 @@ export async function createIdentityApp(options: IdentityOptions) {
       z.object({ code: z.string().trim().min(8).max(100) }).parse(r.body).code,
     );
   });
+  app.post("/api/v1/pairing/inspect-transfer", async (r) => {
+    accounts.rateLimit("pair-transfer:" + r.ip, 30, 60000);
+    return a.inspectTransferPairing(z.object({ code: z.string().trim().min(8).max(100) }).parse(r.body).code);
+  });
+  app.post("/api/v1/pairing/redeem-transfer", async (r) => {
+    accounts.rateLimit("pair-transfer:" + r.ip, 30, 60000);
+    const b = z.object({ code: z.string().trim().min(8).max(100), transferId: Id,
+      credential: z.string().min(32).max(200).regex(/^[A-Za-z0-9_-]+$/) }).parse(r.body);
+    return a.redeemTransfer(b.code, b.transferId, b.credential);
+  });
   app.post("/api/v1/hubs/:id/admissions", async (r) => {
     const s = await session(r),
       hubId = Id.parse((r.params as { id: string }).id),
@@ -621,6 +634,11 @@ export async function createIdentityApp(options: IdentityOptions) {
     a.hubService(b.hubId, (r.headers["x-hub-credential"] as string) ?? "");
     return a.device(b.hubId, b.computerId, b.credential);
   });
+  app.post("/internal/computer-detach", async (r) => {
+    const b = z.object({ hubId: Id, computerId: Id, credential: z.string(), transferId: Id }).parse(r.body);
+    a.hubService(b.hubId, (r.headers["x-hub-credential"] as string) ?? "");
+    return a.detachDevice(b.hubId, b.computerId, b.credential, b.transferId);
+  });
   app.post("/internal/notification-target", async (r) => {
     const b = z
       .object({
@@ -651,6 +669,21 @@ export async function createIdentityApp(options: IdentityOptions) {
       b.computerId,
       b.binding,
     );
+  });
+  app.post("/internal/download-authorize", async (r) => {
+    const b = z.object({
+      hubId: Id, sessionId: Id, computerId: Id, agentId: Id,
+      binding: z.number().int().positive(), path: z.string().min(1).max(8000),
+    }).strict().parse(r.body);
+    a.hubService(b.hubId, (r.headers["x-hub-credential"] as string) ?? "");
+    const session = a.accounts.sessionById(b.sessionId);
+    const current = a.authorize(session, b.hubId, b.agentId, "read");
+    const computer = a.computers(session, b.hubId).find(c => c.id === b.computerId);
+    forbid(current.agent.computerId === b.computerId &&
+      current.agent.localId !== null &&
+      b.path.startsWith(`/api/sessions/${current.agent.localId}/file/download?`) &&
+      computer?.binding === b.binding, "Download identity or Computer binding changed");
+    return a.relay(session, b.hubId, b.computerId, "GET", b.path);
   });
   app.post("/internal/queue-authorize", async (r) => {
     const b = z
@@ -683,13 +716,16 @@ export async function createIdentityApp(options: IdentityOptions) {
         .parse(r.body),
       args = b.args;
     switch (b.op) {
+      case "notification-session":
+        return { id: s.userId, sessionId: s.id };
       case "notification-subject": {
         const computerId = Id.parse(args.computerId);
+        const computer = a.computers(s, hubId).find((c) => c.id === computerId);
         forbid(
-          a.computers(s, hubId).some((c) => c.id === computerId),
+          !!computer,
           "Computer access required",
         );
-        return { userId: s.userId, sessionId: s.id };
+        return { userId: s.userId, sessionId: s.id, binding: computer!.binding };
       }
       case "queue-permit": {
         const input = z
@@ -815,6 +851,7 @@ export async function createIdentityApp(options: IdentityOptions) {
                       g.binding === res.binding,
                   )?.access ?? null)
                 : null,
+            workspaceGrants: p.kind === "computer" ? state.identity.workspaceGrants.filter((g) => g.computerId === p.id && g.userId === m.userId && g.ownerRevision === res.revision && "binding" in res && g.binding === res.binding) : [],
           }));
       }
       case "agent-shares": {
@@ -852,6 +889,7 @@ export async function createIdentityApp(options: IdentityOptions) {
             computerId: Id,
             userId: Id,
             access: z.enum(["read", "write"]).nullable(),
+            ...WorkspaceOptions.shape,
           })
           .parse(args);
         return a.setWorkspaceAccess(
@@ -860,6 +898,7 @@ export async function createIdentityApp(options: IdentityOptions) {
           input.computerId,
           input.userId,
           input.access,
+          input,
         );
       }
       case "invite": {

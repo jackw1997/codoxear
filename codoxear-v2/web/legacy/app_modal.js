@@ -6,6 +6,9 @@
   }
 
   function syncModalIsolation(app, targets) {
+    for (const target of targets || []) {
+      if (!isModalTargetOpen(target)) unbindModalFocusBoundary(target);
+    }
     const active = Array.isArray(targets) && targets.some(isModalTargetOpen);
     app.toggleAttribute("inert", active);
     if (active) app.setAttribute("aria-hidden", "true");
@@ -30,9 +33,43 @@
   // every dialog opened with a phantom accent outline on touch. The surface
   // carries tabindex=-1, Tab still reaches the controls, and the focus-ring
   // CSS targets button/input/textarea/select only — a surface cannot ring.
+  const keyboardBoundSurfaces = new WeakMap();
+  function unbindModalFocusBoundary(viewer) {
+    const handler = keyboardBoundSurfaces.get(viewer);
+    if (!handler) return;
+    viewer.removeEventListener("keydown", handler);
+    keyboardBoundSurfaces.delete(viewer);
+  }
+  function bindModalFocusBoundary(viewer) {
+    const nativeDialog = typeof HTMLDialogElement !== "undefined" && viewer instanceof HTMLDialogElement;
+    if (keyboardBoundSurfaces.has(viewer)) return;
+    const handler = (event) => {
+      if (nativeDialog && event.key === "Escape" && isModalTargetOpen(viewer)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.key !== "Tab" || event.defaultPrevented || !isModalTargetOpen(viewer)) return;
+      const controls = [...viewer.querySelectorAll("button,input,textarea,select,a[href],summary,[contenteditable=true],[tabindex]")]
+        .filter((node) => node.tabIndex >= 0 && !node.matches(":disabled") && !node.hidden && !node.closest("[inert]") && node.getClientRects().length && getComputedStyle(node).visibility !== "hidden");
+      const active = viewer.ownerDocument.activeElement;
+      const first = controls[0], last = controls.at(-1);
+      if (!first || active === viewer || !viewer.contains(active) || event.shiftKey && active === first || !event.shiftKey && active === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus({ preventScroll: true });
+        if (!first) viewer.focus({ preventScroll: true });
+      }
+    };
+    keyboardBoundSurfaces.set(viewer, handler);
+    viewer.addEventListener("keydown", handler);
+  }
   function focusModalSurface(viewer, requestFrame = requestAnimationFrame) {
+    bindModalFocusBoundary(viewer);
+    const openingFocus = viewer.ownerDocument.activeElement;
     requestFrame(() => {
       if (!isModalTargetOpen(viewer)) return;
+      const currentFocus = viewer.ownerDocument.activeElement;
+      if (currentFocus !== openingFocus && viewer.contains(currentFocus)) return;
       try {
         viewer.focus({ preventScroll: true });
       } catch {}

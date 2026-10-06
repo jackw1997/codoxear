@@ -308,7 +308,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       queueDraftTexts.delete(key);
       renderQueueList();
       try {
-        const response = await api(`/api/sessions/${sid}/queue/delete`, { method: "POST", body: { id: key, allow_commit_unknown: commitUnknown, allow_orphan_recovery: orphanRecovery } });
+        const response = await api(`/api/sessions/${sid}/queue/delete`, { method: "POST", body: { id: key, version: item?.version, allow_commit_unknown: commitUnknown, allow_orphan_recovery: orphanRecovery } });
         applyQueueMutationRuntime(sid, response);
         await refreshSessions();
         if (queueViewer.style.display === "flex") {
@@ -337,7 +337,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       }
       queueMutationLocks.add(key);
       try {
-        const response = await api(`/api/sessions/${sid}/queue/move`, { method: "POST", body: { id: key, to_index: toIndex } });
+        const response = await api(`/api/sessions/${sid}/queue/move`, { method: "POST", body: { id: key, version: queueViewerItems.find((item) => item.id === key)?.version, to_index: toIndex } });
         applyQueueMutationRuntime(sid, response);
         await refreshQueueViewer();
         await refreshSessions();
@@ -364,6 +364,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
         return;
       }
       const key = `${sid}:${itemKey}`;
+      const version = queueViewerItems.find((item) => item.id === itemKey)?.version;
       const existing = queueUpdateTimers.get(key);
       if (existing) clearTimeoutFn(existing);
       const t = setTimeoutFn(async () => {
@@ -371,7 +372,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
         if (isAppDisposed()) return;
         queueMutationLocks.add(itemKey);
         try {
-          const response = await api(`/api/sessions/${sid}/queue/update`, { method: "POST", body: { id: itemKey, text } });
+          const response = await api(`/api/sessions/${sid}/queue/update`, { method: "POST", body: { id: itemKey, text, version } });
           if (isAppDisposed()) return;
           applyQueueMutationRuntime(sid, response);
           queueLastEditMs = 0;
@@ -443,6 +444,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
         };
         autosizeQueueText(ta);
         editorShell.appendChild(ta);
+        if (item.origin) editorShell.appendChild(el("div", { class: "muted", text: item.origin === "local" ? "Queued from local terminal" : "Queued remotely" }));
         const actions = el("div", { class: "queueActionRail" });
         if (sending) actions.appendChild(el("div", { class: "queueSendingTag muted", text: "Sending" }));
         if (!sending && item.pauseReason) editorShell.appendChild(el("div", { class: "muted", text: item.pauseReason }));
@@ -491,7 +493,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
         q.forEach((item) => {
           const itemId = String(item.id || "");
           if (!itemId) return;
-          if (queueDraftTexts.has(itemId)) {
+          if (queueDraftTexts.has(itemId) && (queueUpdateTimers.has(`${sid}:${itemId}`) || queueMutationLocks.has(itemId))) {
             const draft = String(queueDraftTexts.get(itemId) || "");
             if (draft.trim()) {
               item.text = draft;

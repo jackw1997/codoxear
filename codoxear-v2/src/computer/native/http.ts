@@ -33,6 +33,8 @@ import {
 import { updateSettings } from "./workspace/settings.js";
 import { NativeVoice } from "./workspace/voice.js";
 import { videoPreview } from "./workspace/video.js";
+import { WorkspaceRegistry } from "./workspace/registry.js";
+import { workspaceSecurity, requireAllowedPath } from "./workspace/security.js";
 const scopedRoutes = new Set([
   "read",
   "write",
@@ -43,6 +45,7 @@ const scopedRoutes = new Set([
   "image-dimensions",
   "inspect",
   "inspect-batch",
+  "video_preview",
 ]);
 function json(value: unknown, status = 200): HttpResponse {
   const bytes = Buffer.from(JSON.stringify(value));
@@ -88,18 +91,24 @@ function flag(value: unknown) {
 }
 export class NativeHttpTarget {
   private voice: NativeVoice;
+  private registry: WorkspaceRegistry;
   constructor(
     private runtime: NativeRuntime,
     private workspacePath: string,
   ) {
     this.voice = new NativeVoice(runtime);
+    this.registry = new WorkspaceRegistry(runtime.stateHome, workspacePath);
   }
   close() {
     this.voice.close();
   }
   async execute(request: HttpRequest): Promise<HttpResponse> {
     try {
-      const result = await this.dispatch(request);
+      const approvedRoot = request.workspace ? await this.registry.selected(request.workspace.id) : undefined;
+      if (request.workspace) request = { ...request, signal: AbortSignal.any([request.signal, this.registry.authorizationSignal(request.workspace.id)]) };
+      const result = request.workspace
+        ? await workspaceSecurity.run({ root: approvedRoot!, grant: request.workspace }, () => this.dispatch(request))
+        : await this.dispatch(request);
       return request.method === "HEAD"
         ? { ...result, body: emptyBody }
         : result;
@@ -155,24 +164,24 @@ export class NativeHttpTarget {
       cwd = session.cwd;
     }
     if (request.workspace) {
-      if (!request.actorId || request.workspace.id !== "default")
+      if (!request.actorId)
         throw new DomainError(
           403,
           "workspace_unavailable",
           "Verified workspace context required",
         );
-      if (
-        !action.startsWith("file/") ||
-        !scopedRoutes.has(action.slice(5)) ||
-        flag(q.get("git_path"))
-      )
+      const upload = ["inject_file", "inject_image"].includes(action);
+      const gitAction = action.startsWith("git/");
+      const attachmentControl = ["send", "attachments", "attachments/delete", "attachments/clear", "pending_attachment/clear"].includes(action);
+      if (action === "file/video_preview" && !request.workspace.transcode) throw new DomainError(403, "video_scope", "Video processing requires a separate owner grant");
+      if (!(action.startsWith("file/") && scopedRoutes.has(action.slice(5))) && !(gitAction && request.workspace.git) && !(upload && request.workspace.uploads) && !attachmentControl)
         throw new DomainError(
           403,
           "workspace_route",
           "This action requires a separate computer capability",
         );
       if (
-        route.action === "files.write" &&
+        route.action === "files.write" && !upload &&
         request.workspace.access !== "write"
       )
         throw new DomainError(
@@ -180,13 +189,17 @@ export class NativeHttpTarget {
           "workspace_read_only",
           "Workspace access is read-only",
         );
-      root = await canonicalRoot(this.workspacePath);
+      root = workspaceSecurity.getStore()!.root.path;
       if (!inside(root, resolve(cwd)))
         throw new DomainError(
           403,
           "workspace_boundary",
           "Session is outside the granted workspace",
         );
+    }
+    if (localId && request.actorId && (request.workspace || request.actorIsOwner === false) && ["inject_file", "inject_image", "send", "attachments", "attachments/delete", "attachments/clear", "pending_attachment/clear"].includes(action)) {
+      const state = await this.runtime.request(`/api/sessions/${localId}/state`, "GET", {actorId: request.actorId}) as {actor_attachments?: boolean; attachments?: unknown[]};
+      if (!state.actor_attachments && (action !== "send" || !!state.attachments?.length)) throw new DomainError(409, "attachment_runtime_update", "This running session predates private member attachments. Resume it with the updated broker to use attachments; its current process has been preserved.");
     }
     let body: Record<string, unknown> | undefined;
     if (
@@ -205,21 +218,22 @@ export class NativeHttpTarget {
       } else body = {};
     }
     if (action.startsWith("git/")) {
-      if (request.workspace)
+      if (request.workspace && !request.workspace.git)
         throw new DomainError(
           403,
           "git_scope",
           "Repository history requires separate access",
         );
-      return json(
-        await gitPayload(
+      const payload = async () => json(await gitPayload(
           cwd,
           action.slice(4),
           q.get("path") || q.get("path_token") ? pathValue(q) : "",
           q,
           request.signal,
-        ),
-      );
+          request.workspace ? root : undefined,
+        ));
+      if (request.workspace) return workspaceSecurity.run({ ...workspaceSecurity.getStore()!, grant: { ...request.workspace, paths: ["."] } }, payload);
+      return payload();
     }
     if (
       action.startsWith("file/") ||
@@ -237,7 +251,7 @@ export class NativeHttpTarget {
           "session_mismatch",
           "File inspection session does not match its route",
         );
-      if (request.workspace && flag(body?.git_path))
+      if (request.workspace && (flag(body?.git_path) || flag(q.get("git_path"))))
         throw new DomainError(
           403,
           "git_scope",
@@ -330,6 +344,7 @@ export class NativeHttpTarget {
       }
       const raw = pathValue(body ?? q);
       const target = await guardedPath(base, raw);
+      if (root && !inside(root, target)) throw new DomainError(403, "workspace_boundary", "Path is outside the approved workspace");
       if (fileAction === "write") {
         if (body?.create && body?.path_token)
           throw new DomainError(
@@ -342,6 +357,7 @@ export class NativeHttpTarget {
           body?.text as string,
           body?.create === true,
           typeof body?.version === "string" ? body.version : undefined,
+          request.signal,
         );
         return json({ ...result, rel: raw });
       }
@@ -350,7 +366,7 @@ export class NativeHttpTarget {
       if (["blob", "download", "video_preview"].includes(fileAction)) {
         const streamPath =
           fileAction === "video_preview"
-            ? await videoPreview(target, this.runtime.stateHome, request.signal)
+            ? await videoPreview(target, this.runtime.stateHome, request.signal, request.workspace ? `${request.actorId}:${JSON.stringify(request.workspace)}` : undefined)
             : target;
         return this.streamFile(request, streamPath, fileAction === "download");
       }
@@ -406,7 +422,7 @@ export class NativeHttpTarget {
           basename(part.name)
             .replace(/[^\p{L}\p{N}_. -]/gu, "_")
             .slice(0, 150) || "file";
-        const dir = join(this.runtime.stateHome, "uploads", localId!);
+        const dir = this.uploadDirectory(request, localId!);
         await mkdir(dir, { recursive: true, mode: 0o700 });
         const path = join(dir, randomUUID() + "-" + name);
         await writeFile(path, Buffer.from(await part.arrayBuffer()), {
@@ -445,7 +461,7 @@ export class NativeHttpTarget {
             basename(upload.filename)
               .replace(/[^\p{L}\p{N}_. -]/gu, "_")
               .slice(0, 150) || "file";
-          const dir = join(this.runtime.stateHome, "uploads", localId!);
+          const dir = this.uploadDirectory(request, localId!);
           await mkdir(dir, { recursive: true, mode: 0o700 });
           const path = join(dir, randomUUID() + "-" + name);
           await writeFile(path, raw, { flag: "wx", mode: 0o600 });
@@ -459,13 +475,16 @@ export class NativeHttpTarget {
                 ? upload.content_type
                 : (kind(name, raw).content_type ?? "application/octet-stream"),
           };
-        } else if (typeof upload.path === "string")
+        } else if (typeof upload.path === "string") {
+          if (request.workspace) throw new DomainError(403, "upload_path", "Delegated attachments must use the file picker; arbitrary stored paths cannot be injected");
           await openFile(
             await guardedPath(await canonicalRoot(cwd), upload.path),
           ).then((f) => f.close());
+        } else throw new DomainError(400, "upload_required", "Attachment data required");
       }
+      request.signal.throwIfAborted();
       return json(
-        await this.runtime.request(request.path, request.method, upload),
+        await this.runtime.request(request.path, request.method, { ...upload, actorId: request.actorId, workspace: request.workspace }),
       );
     }
     if (["live", "messages/live"].includes(action)) {
@@ -593,10 +612,21 @@ export class NativeHttpTarget {
       if (!row) return json({ error: "unknown message" }, 404);
       return json({ ok: true, ...row, text: row.notification_text });
     }
-    return json(await this.runtime.request(request.path, request.method, body));
+    return json(await this.runtime.request(request.path, request.method, { ...body, actorId: request.actorId, workspace: request.workspace }));
+  }
+  private uploadDirectory(request: HttpRequest, localId: string) {
+    if (!request.actorId) return join(this.runtime.stateHome, "uploads", localId);
+    const actor = request.actorId ? createHash("sha256").update(request.actorId + ":" + JSON.stringify(request.workspace ?? "owner")).digest("hex") : "local";
+    return join(this.runtime.stateHome, "uploads", actor, localId);
   }
   private async notificationRows(since: number) {
     const notifications = await this.runtime.completions(since);
+    if (!notifications.length) return [];
+    const catalog = await this.runtime.request("/api/sessions") as {
+      sessions: Array<{ session_id: string; alias?: string }>;
+    };
+    const names = new Map(catalog.sessions.map(row =>
+      [row.session_id, row.alias?.trim() || row.session_id]));
     const transcripts = new Map<
       string,
       Promise<{
@@ -641,6 +671,7 @@ export class NativeHttpTarget {
           message_id: item.id,
           source_message_id: event?.message_id,
           session_id: item.localId,
+          session_display_name: names.get(item.localId) ?? item.localId,
           updated_ts: item.occurredAt / 1000,
           message_class: event?.message_class ?? "final_response",
           summary_status: "ready",
@@ -736,15 +767,17 @@ export class NativeHttpTarget {
         await file.close();
         return { status, headers, body: emptyBody };
       }
-      const signal = request.signal;
+      const signal = request.signal, registry = this.registry;
       return {
         status,
+        // Keep the native root fence active after handing the streaming body to the tunnel.
         headers,
         body: (async function* () {
           let position = start;
           try {
             while (position <= end) {
               signal.throwIfAborted();
+              if (request.workspace) await registry.selected(request.workspace.id);
               const buffer = Buffer.alloc(Math.min(65536, end - position + 1));
               const { bytesRead } = await file.read(
                 buffer,

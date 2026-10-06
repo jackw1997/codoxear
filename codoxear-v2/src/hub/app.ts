@@ -2,9 +2,13 @@ import { InvitationRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "./browser-workspace.js";
 import { workspaceAsset } from "./workspace.js";
 import { Readable } from "node:stream";
-import { type Bytes, emptyBody } from "../protocol/http-frames.js";
+import {
+  type Bytes,
+  type WorkspaceContext,
+  emptyBody,
+} from "../protocol/http-frames.js";
 import { filterHeaders } from "../protocol/routes.js";
-import Fastify, { type FastifyRequest, type FastifyInstance } from "fastify";
+import Fastify, { type FastifyRequest, type FastifyInstance, type RouteOptions } from "fastify";
 import cookie from "@fastify/cookie";
 import websocket from "@fastify/websocket";
 import staticFiles from "@fastify/static";
@@ -17,6 +21,8 @@ import { WebSocket } from "ws";
 import { AuthorityClient } from "./authority-client.js";
 import { HubSessions } from "./sessions.js";
 import { NotificationInbox } from "./notifications.js";
+import { registerPushRoutes } from "./web-push-routes.js";
+import { registerDownloads } from "./downloads.js";
 import { Tunnels } from "../protocol/tunnels.js";
 import { secret, digest } from "../domain/commands.js";
 import {
@@ -35,6 +41,7 @@ import {
   LaunchResult,
 } from "../contracts/tunnel.js";
 export interface HubOptions {
+  routeObserver?: (route: RouteOptions) => void;
   origin: string;
   localIdentity?: FastifyInstance | undefined;
   clientOrigins?: string[];
@@ -51,6 +58,7 @@ export async function createHubApp(o: HubOptions) {
     cookieName = "codoxear_hub_" + a.hubId,
     flowCookie = "codoxear_hub_flow_" + a.hubId,
     app = Fastify({ bodyLimit: 256 * 1024 });
+  if (o.routeObserver) app.addHook("onRoute", o.routeObserver);
   await app.register(cookie);
   await app.register(websocket, { options: { maxPayload: MAX_FRAME_BYTES } });
   const refreshing = new Map<string, Promise<string>>();
@@ -141,6 +149,9 @@ export async function createHubApp(o: HubOptions) {
     const origin = r.headers.origin;
     const allowed =
       origin === o.origin || !!o.clientOrigins?.includes(origin ?? "");
+    // A no-referrer client produces an opaque Origin on a cross-origin form.
+    // This route authenticates only a one-use body capability, never cookies.
+    const downloadForm = r.method === "POST" && r.url === "/api/v1/downloads/consume" && origin === "null";
     if (origin && allowed && o.localIdentity) {
       reply
         .header("Access-Control-Allow-Origin", origin)
@@ -171,10 +182,12 @@ export async function createHubApp(o: HubOptions) {
       ["POST", "PUT", "PATCH", "DELETE"].includes(r.method) &&
       r.headers.origin &&
       !(
-        new URL(r.headers.origin).origin === o.origin ||
+        downloadForm ||
+        r.headers.origin === o.origin ||
         (o.localIdentity &&
           allowed &&
           (!!r.headers.authorization ||
+            r.url === "/api/v1/downloads/consume" ||
             /^\/oauth\/(token|revoke)$/.test(r.url)))
       )
     )
@@ -377,60 +390,21 @@ export async function createHubApp(o: HubOptions) {
       scopeId: digest(r.cookies[cookieName]!),
     };
   });
-  app.get("/api/v1/push/subscriptions", async (r) => {
-    const me = await call<{ id: string }>(r, "me");
-    return {
-      configured: !!o.notifications?.provider,
-      subscriptions: o.notifications?.subscriptions(me.id) ?? [],
-    };
+  registerPushRoutes(app, o.notifications, call, a.origin, a.hubId);
+  await registerDownloads(app, {
+    origin: o.origin,
+    call,
+    tunnels,
+    authorize: (ticket) =>
+      a.request("/internal/download-authorize", {
+        hubId: a.hubId,
+        sessionId: ticket.sessionId,
+        computerId: ticket.computerId,
+        agentId: ticket.agentId,
+        binding: ticket.binding,
+        path: ticket.path,
+      }),
   });
-  app.post("/api/v1/push/subscriptions", async (r) => {
-    const b = z
-      .object({
-        computerId: Id,
-        installationId: Id,
-        provider: z.literal("harmony"),
-        token: z.string().min(1).max(4096),
-      })
-      .strict()
-      .parse(r.body);
-    const subject = await call<{ userId: string; sessionId: string }>(
-      r,
-      "notification-subject",
-      { computerId: b.computerId },
-    );
-    if (!o.notifications?.provider)
-      throw new DomainError(
-        503,
-        "push_unavailable",
-        "Background push is not configured on this hub",
-      );
-    o.notifications.subscribe({
-      ...subject,
-      computerId: b.computerId,
-      installationId: b.installationId,
-      token: b.token,
-      scope: JSON.stringify([
-        "relay-v1",
-        a.origin,
-        subject.userId,
-        a.hubId,
-        b.computerId,
-      ]),
-    });
-    return { ok: true, registered: true };
-  });
-  app.delete(
-    "/api/v1/push/subscriptions/:installationId/:computerId",
-    async (r) => {
-      const b = z
-          .object({ installationId: Id, computerId: Id })
-          .parse(r.params),
-        me = await call<{ id: string }>(r, "me");
-      o.notifications?.unsubscribe(me.id, b.installationId, b.computerId);
-      return { ok: true, registered: false };
-    },
-  );
   app.get("/api/hubs", async (r) => [await call(r, "hub")]);
   async function computers(r: FastifyRequest) {
     const list = await call<Array<{ id: string }>>(r, "computers");
@@ -1149,7 +1123,15 @@ export async function createHubApp(o: HubOptions) {
   app.put("/api/computers/:id/workspace-access/:userId", async (r) => {
     const p = z.object({ id: Id, userId: Id }).parse(r.params);
     const body = z
-      .object({ access: z.enum(["read", "write"]).nullable() })
+      .object({
+        access: z.enum(["read", "write"]).nullable(),
+        workspaceId: Id.optional(),
+        paths: z.array(z.string().min(1).max(2000)).min(1).max(100).optional(),
+        git: z.boolean().optional(),
+        uploads: z.boolean().optional(),
+        transcode: z.boolean().optional(),
+      })
+      .strict()
       .parse(r.body);
     if (body.access !== null && !tunnels.supports(p.id, "workspace-files"))
       throw new DomainError(
@@ -1157,6 +1139,33 @@ export async function createHubApp(o: HubOptions) {
         "capability_required",
         "Connect an updated Computer to manage workspace access",
       );
+    if (body.access !== null) {
+      const extended =
+        (body.workspaceId && body.workspaceId !== "default") ||
+        body.paths?.some((path) => path !== ".") ||
+        body.git ||
+        body.uploads ||
+        body.transcode;
+      if (extended && !tunnels.supports(p.id, "workspace-capabilities-v2"))
+        throw new DomainError(
+          409,
+          "capability_required",
+          "Update this Computer to grant workspace paths and processing capabilities",
+        );
+      await call(r, "computer-owner", { computerId: p.id });
+      const workspace = (await tunnels.request(p.id, { op: "workspace" })) as {
+        id?: string;
+        roots?: Array<{ id: string }>;
+      };
+      const roots = workspace.roots ?? [{ id: workspace.id ?? "default" }];
+      if (!roots.some((root) => root.id === (body.workspaceId ?? "default")))
+        throw new DomainError(
+          404,
+          "workspace_missing",
+          "Choose an approved workspace on this Computer",
+        );
+      await call(r, "computer-owner", { computerId: p.id });
+    }
     return call(r, "workspace-access", {
       computerId: p.id,
       userId: p.userId,
@@ -1169,6 +1178,41 @@ export async function createHubApp(o: HubOptions) {
     const result = await tunnels.request(computerId, { op: "workspace" });
     await call(r, "computer-owner", { computerId });
     return result;
+  });
+  app.put("/api/computers/:id/workspace", async (r) => {
+    const computerId = Id.parse((r.params as { id: string }).id);
+    const body = z
+      .object({
+        id: Id.optional(),
+        name: Name.optional(),
+        path: z.string().min(1).max(4000).optional(),
+        remove: z.boolean().optional(),
+      })
+      .strict()
+      .parse(r.body);
+    await call(r, "computer-owner", { computerId });
+    if (!tunnels.supports(computerId, "workspace-capabilities-v2"))
+      throw new DomainError(
+        409,
+        "capability_required",
+        "Update this Computer to manage approved workspace roots",
+      );
+    const result = await tunnels.request(computerId, {
+      op: "workspace",
+      ...body,
+    });
+    await call(r, "computer-owner", { computerId });
+    return result;
+  });
+  app.post("/connect/v1/computers/:id/detach", async (r) => {
+    const computerId = Id.parse((r.params as { id: string }).id);
+    const { transferId } = z.object({ transferId: Id }).parse(r.body);
+    const receipt = await a.request("/internal/computer-detach", {
+      hubId: a.hubId, computerId, transferId,
+      credential: r.headers.authorization?.replace(/^Bearer /, "") ?? "",
+    });
+    tunnels.disconnect(computerId, "Computer detached for independent-Hub transfer");
+    return receipt;
   });
   app.post("/connect/v1/computers/:id/authorize-queue", async (r) => {
     const computerId = Id.parse((r.params as { id: string }).id);
@@ -1279,7 +1323,22 @@ export async function createHubApp(o: HubOptions) {
           }));
         const decision = (await check()) as {
           actorId: string;
-          workspace?: { id: "default"; access: "read" | "write" };
+          actorIsOwner?: boolean;
+          workspace?: WorkspaceContext;
+        };
+        const grant = JSON.stringify(decision.workspace ?? null);
+        const recheck = async () => {
+          const current = (await check()) as typeof decision;
+          if (
+            current.actorId !== decision.actorId ||
+            current.actorIsOwner !== decision.actorIsOwner ||
+            JSON.stringify(current.workspace ?? null) !== grant
+          )
+            throw new DomainError(
+              403,
+              "workspace_access_changed",
+              "Workspace access changed during the operation",
+            );
         };
         if (
           decision.workspace &&
@@ -1318,7 +1377,7 @@ export async function createHubApp(o: HubOptions) {
               )
             : {};
         const timer = setInterval(
-          () => void check().catch((e) => controller.abort(e)),
+          () => void recheck().catch((e) => controller.abort(e)),
           1000,
         );
         const cleanup = () => {
@@ -1337,13 +1396,14 @@ export async function createHubApp(o: HubOptions) {
               path,
               headers: filterHeaders(r.headers, "request"),
               actorId: decision.actorId,
+              ...(decision.actorIsOwner === undefined ? {} : { actorIsOwner: decision.actorIsOwner }),
               ...(decision.workspace ? { workspace: decision.workspace } : {}),
               ...queueContext,
             },
             (r.body as Bytes | undefined) ?? emptyBody,
             controller.signal,
           );
-          await check();
+          await recheck();
           reply
             .code(response.status)
             .header("Content-Security-Policy", "sandbox; default-src 'none'");
@@ -1428,6 +1488,8 @@ export async function createHubApp(o: HubOptions) {
       "/api/v1/hubs",
       "/api/v1/hubs/*",
       "/api/v1/pairing/redeem",
+      "/api/v1/pairing/inspect-transfer",
+      "/api/v1/pairing/redeem-transfer",
       "/api/v1/computers/:id/transfer",
       "/oauth/*",
       "/auth/:connection/start",
@@ -1451,6 +1513,17 @@ export async function createHubApp(o: HubOptions) {
             payload: r.body as any,
             remoteAddress: r.ip,
           });
+          if (
+            r.method === "POST" &&
+            url === "/api/v1/pairing/redeem-transfer" &&
+            res.statusCode === 200
+          ) {
+            // Admission rotates the destination credential/binding. Its old
+            // live transport must stop accepting work before the new owner
+            // connects the retained Computer, without terminating local CLIs.
+            const admitted = z.object({ computerId: Id }).parse(res.json());
+            tunnels.disconnect(admitted.computerId, "Computer transfer admitted");
+          }
           reply.code(res.statusCode);
           for (const [k, v] of Object.entries(res.headers))
             if (

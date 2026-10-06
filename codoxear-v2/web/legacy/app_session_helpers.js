@@ -116,6 +116,8 @@
           id: typeof item.id === "string" ? item.id : "",
           text: typeof item.text === "string" ? item.text : "",
           sending: !!item.sending,
+          ...(Number.isInteger(item.version) ? { version: item.version } : {}),
+          ...(["local", "remote"].includes(item.origin) ? { origin: item.origin } : {}),
           commitUnknown: !!item.commit_unknown,
           orphanRecovery: !!item.orphan_recovery,
           ...(typeof item.pause_reason === "string" ? { pauseReason: item.pause_reason } : {}),

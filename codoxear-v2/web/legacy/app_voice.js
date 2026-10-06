@@ -58,6 +58,7 @@ import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
       id: "unattendedPromptInput",
       rows: "6",
       spellcheck: "true",
+      "aria-label": "Unattended mode prompt",
       "aria-describedby": "unattendedPromptHint",
     });
     const unattendedPromptResetBtn = el("button", { id: "unattendedPromptResetBtn", class: "text-btn", type: "button", text: "Reset to built-in prompt" });

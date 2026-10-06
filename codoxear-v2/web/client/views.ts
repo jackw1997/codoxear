@@ -50,10 +50,14 @@ export class ConnectionPages {
     );
     this.element.addEventListener("keydown", (e) => {
       e.stopPropagation();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        return;
+      }
       if (e.key !== "Tab") return;
       const nodes = [
         ...this.element.querySelectorAll<HTMLElement>(
-          "button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, a[href]",
+          "button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, a[href]",
         ),
       ].filter((n) => n.getClientRects().length);
       const first = nodes[0],

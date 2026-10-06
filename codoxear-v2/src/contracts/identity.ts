@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { WorkspaceOptions } from "./workspaces.js";
 const Identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 export const LoginMethod = z.enum([
   "password",
@@ -101,8 +102,9 @@ export const AuthRequirement = z.object({
 export type AuthRequirement = z.infer<typeof AuthRequirement>;
 export const IdentityState = z.object({
   workspaceGrants: z.array(z.object({
-    computerId: Identifier, userId: Identifier, workspaceId: z.literal("default"),
+    computerId: Identifier, userId: Identifier, ...WorkspaceOptions.shape,
     access: z.enum(["read", "write"]), binding: z.number().int().positive(), ownerRevision: z.number().int().nonnegative(),
+    grantRevision: Identifier.default("legacy"),
   })).default([]),
   queuePermits: z
     .array(
@@ -131,6 +133,15 @@ export const IdentityState = z.object({
       }),
     )
     .default([]),
+  computerDetachReceipts: z.array(z.object({
+    computerId: Identifier, hubId: Identifier, transferId: Identifier,
+    credentialHash: z.string(), fenceHash: z.string(), priorBinding: z.number().int().positive(),
+    binding: z.number().int().positive(),
+  })).default([]),
+  transferEnrollments: z.array(z.object({
+    codeHash: z.string(), transferId: Identifier, credentialHash: z.string(),
+    computerId: Identifier, hubId: Identifier, binding: z.number().int().positive(),
+  })).default([]),
   identities: z.array(ExternalIdentity).default([]),
   sessions: z.array(IdentitySession).default([]),
   refresh: z.array(Refresh).default([]),

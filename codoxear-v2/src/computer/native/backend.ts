@@ -381,11 +381,8 @@ export function startupState(
         !compact.includes("resumingsession"))
     )
       return { ready: true };
-  } else if (
-    /esc.*interrupt|ctrl\+c|pi.*v\d|context|tokens/.test(
-      stripTerminal(text).toLowerCase(),
-    )
-  )
-    return { ready: true };
+  }
+  // Pi renders its editor/help before managed-tool setup finishes. Only the
+  // fresh session_start bridge marker proves that submission is enabled.
   return { ready: false };
 }

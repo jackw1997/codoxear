@@ -1,4 +1,5 @@
-import { InvitationRequest } from "../src/contracts/invitations.js";
+/** Pure serialization. Docker conformance compares this inventory and schemas
+ * with the actual registered routers; ordinary builds start no authority. */
 import { mkdir, writeFile } from "node:fs/promises";
 import { z } from "zod";
 import {
@@ -13,507 +14,430 @@ import {
   ResultFrame,
   WelcomeFrame,
   Operation,
-  Launch,
+  MAX_FRAME_BYTES,
 } from "../src/contracts/tunnel.js";
 import {
   NotificationFrame,
   NotificationAck,
+  NOTIFICATION_TTL,
 } from "../src/protocol/notifications.js";
-import { AuthRequirement } from "../src/identity/model.js";
-import { Hub, Agent, Id, Name, DomainError } from "../src/contracts/model.js";
-const json = (schema: z.ZodType) =>
-  z.toJSONSchema(schema, { target: "draft-2020-12", unrepresentable: "any" });
-const error = z.object({ code: z.string(), error: z.string() });
-const schemas = {
-  Hub: json(Hub),
-  Agent: json(Agent),
-  Error: json(error),
-  Operation: json(Operation),
+import { BrowserSubscription, PushHint } from "../src/contracts/web-push.js";
+import {
+  WorkspaceContext,
+  WorkspaceOptions,
+  WorkspaceEdit,
+} from "../src/contracts/workspaces.js";
+import { PAIRING_LIFETIME_SECONDS } from "../src/contracts/pairing.js";
+import { Id, Hub, Agent } from "../src/contracts/model.js";
+import {
+  ErrorResponse,
+  HUB_PROTOCOL,
+  HUB_CAPABILITIES,
+  publicContract,
+  registeredContract,
+  registeredInventory,
+  relayContract,
+  type Endpoint,
+} from "../src/protocol/inventory.js";
+import { nativeSchemas } from "../src/protocol/native-contracts.js";
+import {
+  adminSchemas,
+  adminOperationSchemas,
+} from "../src/protocol/admin-contracts.js";
+const json = (schema: z.ZodType, io: "input" | "output" = "output") =>
+  z.toJSONSchema(schema, {
+    target: "draft-2020-12",
+    unrepresentable: "any",
+    io,
+  });
+const schemaForParameter = (name: string) =>
+  name === "file"
+    ? z.string().regex(/^[a-zA-Z0-9_-]+\.(js|css)$/)
+    : name === "localId"
+      ? z.string().min(1).max(200)
+      : name === "kind"
+        ? z.enum(["hub", "computer"])
+        : name === "filename"
+          ? z.string().regex(/^[A-Za-z0-9_.-]+$/)
+          : Id;
+const pathName = (path: string) =>
+  path.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, "{$1}");
+const security = {
+  Bearer: {
+    type: "http",
+    scheme: "bearer",
+    bearerFormat: "JWT",
+    description:
+      "Exact configured authority issuer and Hub audience; no global account service is required.",
+  },
+  BrowserCookie: {
+    type: "apiKey",
+    in: "cookie",
+    name: "codoxear_hub_{hubId}",
+    description:
+      "Optional Hub-hosted browser BFF cookie. Independent static clients keep rotating OAuth credentials in this installation's IndexedDB.",
+  },
+  IdentityCookie: {
+    type: "apiKey",
+    in: "cookie",
+    name: "codoxear_identity_{hubId}",
+    description:
+      "Independent authority cookie uses its Hub ID; explicit shared-authority compatibility uses codoxear_identity.",
+  },
+  ComputerCredential: {
+    type: "http",
+    scheme: "bearer",
+    description:
+      "Current Computer attachment credential, fenced by the Hub/Computer binding.",
+  },
+  HubCredential: {
+    type: "apiKey",
+    in: "header",
+    name: "X-Hub-Credential",
+    description:
+      "Private Hub service credential; X-Codoxear-Hub identifies the exact Hub.",
+  },
 };
-const paths: Record<string, unknown> = {};
-function route(
-  method: string,
-  path: string,
+function auth(endpoint: Endpoint, component: string) {
+  if (endpoint.auth === "public" || endpoint.auth === "download-ticket")
+    return [];
+  if (endpoint.auth === "computer") return [{ ComputerCredential: [] }];
+  if (endpoint.auth === "hub-service") return [{ HubCredential: [] }];
+  if (endpoint.auth === "hub-user") return [{ HubCredential: [], Bearer: [] }];
+  return [
+    { Bearer: [] },
+    { [component === "identity" ? "IdentityCookie" : "BrowserCookie"]: [] },
+  ];
+}
+function document(
+  title: string,
   description: string,
-  body?: z.ZodType,
-  response?: z.ZodType,
-  anonymous = false,
+  endpoints: Endpoint[],
+  component: string,
 ) {
-  const parameters = [...path.matchAll(/\{([^}]+)\}/g)].map((m) => ({
-    name: m[1],
-    in: "path",
-    required: true,
-    schema: json(
-      m[1] === "localId"
-        ? z.string().regex(/^[A-Za-z0-9_.:-]{1,200}$/)
-        : m[1] === "kind"
-          ? z.enum(["hub", "computer"])
-          : Id,
-    ),
-  }));
-  paths[path] ??= {} as any;
-  (paths[path] as Record<string, unknown>)[method] = {
-    summary: description,
-    security: anonymous ? [] : [{ Bearer: [] }, { BrowserCookie: [] }],
-    ...(parameters.length ? { parameters } : {}),
-    ...(body
-      ? {
-          requestBody: {
-            required: true,
-            content: { "application/json": { schema: json(body) } },
-          },
-        }
-      : {}),
-    responses: {
-      "200": {
-        description: "Success",
-        ...(response
-          ? { content: { "application/json": { schema: json(response) } } }
-          : {}),
-      },
-      ...Object.fromEntries(
-        [400, 401, 403, 404, 409, 429, 503].map((code) => [
-          code,
+  const paths: Record<string, Record<string, unknown>> = {};
+  for (const endpoint of endpoints) {
+    const path = pathName(endpoint.path),
+      method = endpoint.method.toLowerCase();
+    const parameters = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({
+      name: match[1],
+      in: "path",
+      required: true,
+      schema: json(schemaForParameter(match[1]!)),
+    }));
+    if (endpoint.query) {
+      const schema = json(endpoint.query, "input") as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+      };
+      for (const [name, value] of Object.entries(schema.properties ?? {}))
+        parameters.push({
+          name,
+          in: "query",
+          required: !!schema.required?.includes(name),
+          schema: value as ReturnType<typeof json>,
+        });
+    }
+    if (endpoint.responseHeaders?.ETag) {
+      for (const [name, description] of Object.entries({
+        Range:
+          "One byte range: bytes=start-end, bytes=start-, or bytes=-suffix. Invalid syntax yields JSON 416; unsatisfiable bounds yield empty 416.",
+        "If-None-Match": "Exact current ETag yields 304 with no body.",
+        "If-Range":
+          "Only a matching ETag permits Range; a mismatch returns the full 200 body.",
+      }))
+        parameters.push({
+          name,
+          in: "header",
+          required: false,
+          schema: json(z.string().describe(description)),
+        });
+    }
+    if (["hub-service", "hub-user"].includes(endpoint.auth))
+      parameters.push({
+        name: "X-Codoxear-Hub",
+        in: "header",
+        required: true,
+        schema: json(Id),
+      });
+    if (endpoint.websocket)
+      parameters.push(
+        ...[
           {
-            description:
-              code === 503
-                ? "Unavailable; respect structured not_dispatched versus outcome_unknown"
-                : "Structured error",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Error" },
-              },
-            },
+            name: "X-Codoxear-Hub",
+            in: "header",
+            required: true,
+            schema: json(Id),
           },
-        ]),
-      ),
+          {
+            name: "X-Codoxear-Protocol",
+            in: "header",
+            required: false,
+            schema: json(z.literal("1")),
+          },
+        ],
+      );
+    const responses = Object.fromEntries(
+      endpoint.statuses.map((code) => {
+        const response: Record<string, unknown> = {
+          description:
+            code >= 400
+              ? "Structured router, Hub/authority or native error; inspect code when present"
+              : code === 101
+                ? "Authenticated WebSocket upgrade"
+                : code === 302
+                  ? "Redirect"
+                  : code === 206
+                    ? "Partial streamed body"
+                    : "Success",
+        };
+        if (endpoint.responseHeaders && [200, 206, 304, 416].includes(code))
+          response.headers = endpoint.responseHeaders;
+        if (code === 416 && endpoint.responseHeaders)
+          response.description =
+            "Unsatisfiable ranges may return an empty body with Content-Range; malformed range syntax returns a JSON error";
+        if (code >= 400)
+          response.content = {
+            "application/json": { schema: json(ErrorResponse) },
+          };
+        else if (code === 302)
+          response.headers = {
+            Location: {
+              schema: { type: "string" },
+              description: "Validated redirect target",
+            },
+          };
+        else if (code !== 101 && code !== 304 && endpoint.method !== "HEAD") {
+          const contentType = endpoint.contentType ?? "application/json";
+          response.content = endpoint.responseContents
+            ? Object.fromEntries(
+                Object.entries(endpoint.responseContents).map(
+                  ([type, schema]) => [type, { schema: json(schema) }],
+                ),
+              )
+            : {
+                [contentType]: {
+                  schema: endpoint.response
+                    ? json(endpoint.response)
+                    : contentType === "application/json"
+                      ? {}
+                      : {
+                          type: "string",
+                          ...([
+                            "application/octet-stream",
+                            "*/*",
+                            "video/mp2t",
+                          ].includes(contentType)
+                            ? { format: "binary" }
+                            : {}),
+                        },
+                },
+              };
+          if (endpoint.events)
+            response["x-sse-event-schemas"] = Object.fromEntries(
+              Object.entries(endpoint.events).map(([name, schema]) => [
+                name,
+                json(schema),
+              ]),
+            );
+        }
+        if (endpoint.method === "HEAD") delete response.content;
+        return [String(code), response];
+      }),
+    );
+    paths[path] ??= {};
+    const requestContent = endpoint.requestContents
+      ? Object.fromEntries(
+          Object.entries(endpoint.requestContents).map(([type, schema]) => [
+            type,
+            { schema: json(schema, "input") },
+          ]),
+        )
+      : endpoint.body
+        ? {
+            [endpoint.requestContentType ?? "application/json"]: {
+              schema: json(endpoint.body, "input"),
+            },
+          }
+        : undefined;
+    paths[path][method] = {
+      summary: endpoint.summary,
+      security: auth(endpoint, component),
+      "x-schema-status": endpoint.websocket
+        ? "typed-websocket-upgrade"
+        : endpoint.responseContents
+          ? "typed-content-variants"
+          : endpoint.events
+            ? "typed-sse-events"
+            : endpoint.response
+              ? "typed-producer-response"
+              : endpoint.contentType &&
+                  endpoint.contentType !== "application/json"
+                ? "typed-stream-or-document"
+                : "producer-specific response; no invented field schema",
+      ...(endpoint.action
+        ? { "x-required-route-capability": endpoint.action }
+        : {}),
+      ...(endpoint.conditional ? { "x-condition": endpoint.conditional } : {}),
+      ...(endpoint.path === "/internal/call"
+        ? {
+            "x-dispatch-operation-schemas": Object.fromEntries(
+              Object.entries(adminOperationSchemas).map(([op, schema]) => [
+                op,
+                {
+                  args: json(schema.request, "input"),
+                  response: json(schema.response),
+                },
+              ]),
+            ),
+            "x-dispatch-schema-description":
+              "Each args schema describes the parsed args object. The request op selects the corresponding unwrapped successful response schema.",
+          }
+        : {}),
+      ...(endpoint.websocket
+        ? {
+            "x-websocket": true,
+            "x-websocket-frame-schemas": [
+              "rpc-frame.schema.json",
+              "http-frame.schema.json",
+            ],
+          }
+        : {}),
+      ...(parameters.length ? { parameters } : {}),
+      ...(requestContent
+        ? {
+            requestBody: {
+              required: endpoint.body ? !endpoint.body.isOptional() : true,
+              content: requestContent,
+            },
+          }
+        : {}),
+      responses,
+    };
+  }
+  return {
+    openapi: "3.1.0",
+    info: { title, version: "1.0.0", description },
+    paths,
+    components: {
+      securitySchemes: security,
+      schemas: {
+        Hub: json(Hub),
+        Agent: json(Agent),
+        Error: json(ErrorResponse),
+        Operation: json(Operation),
+        WorkspaceContext: json(WorkspaceContext),
+        WorkspaceOptions: json(WorkspaceOptions, "input"),
+        WorkspaceEdit: json(WorkspaceEdit, "input"),
+        BrowserSubscription: json(BrowserSubscription, "input"),
+        PushHint: json(PushHint),
+        ...Object.fromEntries(
+          Object.entries({ ...nativeSchemas, ...adminSchemas }).map(
+            ([name, schema]) => [name, json(schema)],
+          ),
+        ),
+      },
     },
   };
 }
-route(
-  "post",
-  "/api/resources/{kind}/{id}/invitations",
-  "Owner creates an invitation addressed to an email, verified phone or exact provider identity",
-  InvitationRequest,
-  z.object({ id: Id, token: z.string() }),
+const hub = document(
+  "Codoxear independent Hub API",
+  "A Computer connects outbound to its chosen Hub. Each independent Hub owns accounts, signing keys and policy. Static browser clients connect directly using OAuth and a scoped service worker; Hub-hosted BFF cookies and a separate shared authority remain optional compatibility. No automatic direct fallback and no automatic mutation replay. JSON Schema describes structural validation; current membership, identity, binding, canonical paths and custom refinements remain server checks.",
+  publicContract("hub"),
+  "hub",
 );
-route(
-  "post",
-  "/api/v1/invitations/accept",
-  "Accept a single-use invitation with a matching verified identity",
-  z.object({ token: z.string().min(32).max(100) }),
+const identity = document(
+  "Codoxear authority API",
+  "These routes execute inside each independent Hub. An explicitly configured shared authority can expose the same compatibility API; it is not an independent-Hub prerequisite. OAuth uses exact registered redirect URIs, issuer checking and S256 PKCE. Internal service routes are documented separately.",
+  publicContract("identity"),
+  "identity",
 );
-route(
-  "get",
-  "/api/agents/{id}/shares",
-  "Computer owner lists hub members and explicit shares for this agent",
+const internal = document(
+  "Codoxear internal Hub authority API",
+  "Private service boundary only. A valid X-Hub-Credential and exact X-Codoxear-Hub are required; /internal/call additionally requires the authenticated user's exact-Hub-audience bearer credential. Credentials are never returned by this document.",
+  registeredContract("identity").filter((endpoint) =>
+    endpoint.path.startsWith("/internal/"),
+  ),
+  "internal",
 );
-route(
-  "put",
-  "/api/agents/{id}/shares/{userId}",
-  "Computer owner grants viewer/operator access to one agent or revokes its explicit and historical rights",
-  z.object({ role: z.enum(["viewer", "operator"]).nullable() }).strict(),
-  z.object({
-    ok: z.literal(true),
-    access: z.object({
-      actions: z.array(z.enum(["read", "send", "interrupt"])),
-      mode: z.enum(["member", "shared", "retained", "read_only", "denied"]),
-      source: z.enum(["hub", "computer", "default", "membership", "agent"]),
-      reason: z.string(),
-    }),
-  }),
+const relayEndpoints = relayContract().map((endpoint) => ({
+  ...endpoint,
+  path: "/api/v1/computers/:computerId" + endpoint.path,
+}));
+const relay = document(
+  "Codoxear Computer HTTP relay allowlist",
+  "The namespace preserves Computer-local session IDs. Browser /workspace/api routes instead use published agent IDs and map them after account authorization. Only the listed method/path combinations are relayed. Files require a separate current workspace grant; optional Git, uploads and transcoding require explicit capability flags. Policy, identity, binding and grant revision are rechecked during streams.",
+  relayEndpoints,
+  "hub",
 );
-route(
-  "get",
-  "/api/computers/{id}/workspace",
-  "Computer owner reviews the configured workspace root",
-);
-route(
-  "put",
-  "/api/computers/{id}/workspace-access/{userId}",
-  "Computer owner grants or revokes workspace files for an active hub and computer member",
-  z.object({ access: z.enum(["read", "write"]).nullable() }),
-  z.object({ ok: z.literal(true) }),
-);
-for (const operation of ["inspect", "inspect-batch"])
-  route(
-    "post",
-    `/api/v1/computers/{computerId}/api/sessions/{localId}/file/${operation}`,
-    "Session-scoped file inspection; delegated workspace boundary enforced on Computer",
-    operation === "inspect"
-      ? z.object({
-          path: z.string(),
-          session_id: z.string().optional(),
-          git_path: z.boolean().optional(),
-          path_token: z.string().optional(),
-        })
-      : z.object({
-          paths: z.array(z.string()).max(50),
-          session_id: z.string().optional(),
-        }),
-  );
-route(
-  "post",
-  "/api/v1/computers/{computerId}/api/sessions/{localId}/delete",
-  "Computer-owner deletion; catalog is removed only after confirmed local deletion",
-  z.object({}),
-  z.object({ ok: z.literal(true) }),
-);
-route(
-  "post",
-  "/api/agents/{id}/reconcile",
-  "Recover an existing Computer launch receipt without dispatching work",
-  z.object({}),
-);
-route(
-  "get",
-  "/api/v1/meta",
-  "Hub identity, protocol version and advertised capabilities",
-  undefined,
-  z.object({
-    hubId: Id,
-    issuer: z.url(),
-    protocol: z.object({ major: z.literal(1), minor: z.number() }),
-    capabilities: z.array(z.string()),
-  }),
-  true,
-);
-route(
-  "get",
-  "/api/v1/computers",
-  "Authorized computers, active creation capability and tunnel availability",
-);
-route(
-  "get",
-  "/api/computers/{id}/agents",
-  "Agents authorized by current membership or prior retained grants",
-);
-route(
-  "post",
-  "/api/computers/{id}/agents",
-  "Create on an online computer; no mutation retry",
-  z
-    .object({
-      name: Name,
-      backend: Agent.shape.backend,
-      launch: Launch.strict().optional(),
-    })
-    .strict(),
-  Agent,
-);
-route(
-  "get",
-  "/api/computers/{id}/launch-defaults",
-  "Computer owner inspects runtime/provider/model choices without credentials",
-);
-route(
-  "post",
-  "/api/v1/computers/{computerId}/api/sessions",
-  "Computer owner launches a native runtime with per-agent provider settings; no mutation retry",
-  Launch.extend({
-    agent_backend: Agent.shape.backend,
-    name: Name.optional(),
-  }).strict(),
-);
-route(
-  "get",
-  "/api/computers/{id}/resume-candidates",
-  "Computer owner lists saved native sessions for the explicit backend and cwd query; requires resume-candidates capability; returns labels and IDs without log paths",
-  undefined,
-  z.object({
-    sessions: z.array(
-      z.object({
-        session_id: z.string(),
-        alias: z.string().optional(),
-        first_user_message: z.string().optional(),
-      }),
-    ),
-  }),
-);
-route(
-  "get",
-  "/api/computers/{id}/discovered",
-  "Computer owner discovers unpublished local sessions",
-);
-route(
-  "post",
-  "/api/computers/{id}/import",
-  "Computer owner explicitly publishes an existing session and history",
-  z.object({ localId: z.string(), name: Name }),
-  Agent,
-);
-route("get", "/api/agents/{id}/messages", "Simplified conversation snapshot");
-route(
-  "get",
-  "/api/agents/{id}/live",
-  "SSE: access, snapshot, online, offline, access_lost; terminate on revoked policy",
-);
-route(
-  "post",
-  "/api/agents/{id}/send",
-  "Confirmed or uncertain prompt dispatch; never replay",
-  z.object({ text: z.string().min(1).max(200000) }),
-);
-route(
-  "post",
-  "/api/agents/{id}/interrupt",
-  "Interrupt an authorized agent",
-  z.object({}),
-);
-route(
-  "post",
-  "/api/computers/{id}/pairing",
-  "Computer owner issues a five-minute, single-use enrollment code",
-);
-route(
-  "get",
-  "/api/v1/push/subscriptions",
-  "List this account’s installation/computer subscriptions without provider tokens",
-);
-route(
-  "post",
-  "/api/v1/push/subscriptions",
-  "Subscribe one installation to a computer; scope is derived from verified account and hub",
-  z
-    .object({
-      computerId: Id,
-      installationId: Id,
-      provider: z.literal("harmony"),
-      token: z.string().min(1).max(4096),
-    })
-    .strict(),
-);
-route(
-  "delete",
-  "/api/v1/push/subscriptions/{installationId}/{computerId}",
-  "Remove only this account’s selected subscription",
-);
-route(
-  "get",
-  "/api/v1/computers/{computerId}/api/notifications/harmony",
-  "Harmony compatibility: provider capability",
-);
-route(
-  "post",
-  "/api/v1/computers/{computerId}/api/notifications/harmony",
-  "Harmony compatibility: register or remove a scoped installation",
-  z.object({
-    device_id: Id,
-    token: z.string().max(4096).default(""),
-    enabled: z.boolean(),
-    server: z.string().max(2000).optional(),
-  }),
-  z.object({ ok: z.literal(true), registered: z.boolean() }),
-);
-const hub = {
-  openapi: "3.1.0",
-  info: {
-    title: "Codoxear Hub API",
-    version: "1.0.0",
-    description:
-      "Computers dial outbound WSS. Browser credentials remain in the BFF. Native clients use an exact-hub-audience bearer token. No automatic direct fallback.",
+const hello = z.object({
+  type: z.literal("hello"),
+  protocol: z.literal(1),
+  capabilities: z.array(z.string().max(80)).max(32),
+});
+const limits = {
+  version: HUB_PROTOCOL,
+  hubCapabilities: HUB_CAPABILITIES,
+  chunkBytes: CHUNK_BYTES,
+  streamQueuedBytes: STREAM_WINDOW,
+  computerQueuedBytes: COMPUTER_WINDOW,
+  maxConcurrentStreams: MAX_STREAMS,
+  maxFrameBytes: MAX_FRAME_BYTES,
+  maxUploadBytes: 256 * 1024 * 1024,
+  native: {
+    maxUploadFileBytes: 64 * 1024 * 1024,
+    maxJsonBodyBytes: 8 * 1024 * 1024,
+    maxFileViewerBytes: 2 * 1024 * 1024,
+    maxFileWriteUtf8Bytes: 2 * 1024 * 1024,
+    maxFileInspectBatchPaths: 50,
+    maxQueueOrDraftBodyBytes: 1024 * 1024,
+    maxQueueDraftAndAgentPromptCharacters: 200000,
+    audioListenerLeaseSeconds: 45,
+    usageFields: "normalized optional counters with backend-owned extensions",
+    compatibility:
+      "Producer schemas describe updated native Computers. Historical brokers remain preserved and may require a capability update for some operations.",
   },
-  paths: { ...paths },
-  components: {
-    securitySchemes: {
-      Bearer: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
-      BrowserCookie: {
-        type: "apiKey",
-        in: "cookie",
-        name: "codoxear_hub_{hubId}",
-        description:
-          "Cookie name includes the configured hub ID; HTTPOnly, Secure, SameSite=Strict.",
-      },
+  mutationRetry: false,
+  pairingLifetimeSeconds: PAIRING_LIFETIME_SECONDS,
+  downloadTicketLifetimeSeconds: 120,
+  notifications: {
+    ttlSeconds: NOTIFICATION_TTL / 1000,
+    acknowledgement: "after durable Hub acceptance",
+    maxOutboxEvents: 10000,
+    maxHubEvents: 10000,
+    maxDeliveries: 100000,
+    providerSemantics:
+      "at-least-once generic hint; provider/browser delivery is not guaranteed",
+    webPush: {
+      contentEncoding: "aes128gcm",
+      authentication: "VAPID",
+      showAndClick:
+        "fresh account/session/binding/subscription-generation authorization",
     },
-    schemas,
   },
-};
-for (const key of Object.keys(paths)) delete paths[key];
-route(
-  "get",
-  "/api/v1/auth/options",
-  "Configured login methods",
-  undefined,
-  undefined,
-  true,
-);
-route(
-  "post",
-  "/api/v1/auth/password",
-  "Operator-provisioned password login",
-  z.object({
-    email: z.email(),
-    password: z.string(),
-    installationId: Id.optional(),
-  }),
-  undefined,
-  true,
-);
-route(
-  "post",
-  "/api/v1/auth/code",
-  "Deliver a transaction-bound email or SMS code; linking requires fresh existing authentication",
-  z.object({
-    method: z.enum(["email", "phone"]),
-    target: z.string(),
-    link: z.boolean().optional(),
-  }),
-  undefined,
-  true,
-);
-route(
-  "post",
-  "/api/v1/auth/code/verify",
-  "Verify one unused code; never merge accounts merely because emails match",
-  z.object({
-    challengeId: Id,
-    transaction: z.string(),
-    code: z.string().regex(/^\d{6}$/),
-    installationId: Id.optional(),
-  }),
-  undefined,
-  true,
-);
-route("get", "/api/v1/me", "Authenticated account and linked identities");
-route(
-  "get",
-  "/api/v1/me/hubs",
-  "Authorized hubs and provider reauthentication requirements",
-);
-route(
-  "post",
-  "/api/v1/hub-token",
-  "Issue a five-minute token for exactly one hub",
-  z.object({ hubId: Id }),
-);
-route(
-  "post",
-  "/oauth/token",
-  "PKCE authorization-code exchange or rotating refresh token",
-  z.union([
-    z.object({
-      grant_type: z.literal("authorization_code"),
-      client_id: Id,
-      redirect_uri: z.url(),
-      code: z.string(),
-      code_verifier: z.string(),
-      installation_id: Id.optional(),
-    }),
-    z.object({
-      grant_type: z.literal("refresh_token"),
-      refresh_token: z.string(),
-    }),
-  ]),
-  undefined,
-  true,
-);
-route(
-  "post",
-  "/api/v1/pairing/redeem",
-  "Single-use owner-issued computer enrollment",
-  z.object({ code: z.string() }),
-  undefined,
-  true,
-);
-route(
-  "post",
-  "/api/v1/computers/{id}/transfer",
-  "Fence the old binding before explicit target-hub enrollment",
-  z.object({
-    targetHubId: Id,
-    exposeHistory: z.boolean(),
-    admissionToken: z.string().optional(),
-  }),
-);
-route(
-  "post",
-  "/api/v1/hubs/{id}/admissions",
-  "Target owner issues a scoped, five-minute, single-use computer admission",
-  z.object({ computerId: Id }),
-);
-route(
-  "post",
-  "/oauth/revoke",
-  "Revoke an installation using its refresh credential even after access expiry",
-  z.object({ token: z.string() }),
-  undefined,
-  true,
-);
-route(
-  "get",
-  "/api/v1/me/computers",
-  "Metadata for computers personally owned by this account",
-);
-route(
-  "post",
-  "/api/v1/hubs",
-  "Create a hub with the current account as its only owner",
-  z.object({ name: Name }),
-);
-route(
-  "post",
-  "/api/v1/hubs/{id}/register",
-  "Owner registers exact public origin and rotates service credential",
-  z.object({ origin: z.url() }),
-);
-route(
-  "put",
-  "/api/v1/hubs/{id}/auth-requirement",
-  "Owner changes hub login rule only after proving the proposed authentication context",
-  z.object({ rule: AuthRequirement.nullable() }),
-);
-const identity = {
-  openapi: "3.1.0",
-  info: {
-    title: "Codoxear Identity API",
-    version: "1.0.0",
-    description:
-      "Native authorization begins at /oauth/authorize with response_type=code, registered exact redirect_uri, state and S256 PKCE. Provider callbacks and internal service APIs are intentionally separate from this public client contract.",
-  },
-  paths: { ...paths },
-  components: {
-    securitySchemes: {
-      Bearer: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
-      BrowserCookie: {
-        type: "apiKey",
-        in: "cookie",
-        name: "codoxear_identity",
-      },
-    },
-    schemas,
-  },
+  maxPolicyLeaseSeconds: 30,
+  registeredMethods:
+    "HEAD is implicit for GET where Fastify installs it; OPTIONS is the independent Hub's origin-checking preflight hook, not a permission bypass",
 };
 await mkdir("protocol", { recursive: true });
 for (const [file, value] of Object.entries({
   "hub.openapi.json": hub,
   "identity.openapi.json": identity,
-  "http-frame.schema.json": json(HttpFrame),
+  "internal.openapi.json": internal,
+  "relay.openapi.json": relay,
+  "registered-routes.json": registeredInventory,
+  "http-frame.schema.json": json(HttpFrame, "input"),
   "rpc-frame.schema.json": json(
     z.union([
+      hello,
       RequestFrame,
       ResultFrame,
       WelcomeFrame,
       NotificationFrame,
       NotificationAck,
     ]),
+    "input",
   ),
-  "limits.json": {
-    version: { major: 1, minor: 0 },
-    chunkBytes: CHUNK_BYTES,
-    streamQueuedBytes: STREAM_WINDOW,
-    computerQueuedBytes: COMPUTER_WINDOW,
-    maxConcurrentStreams: MAX_STREAMS,
-    maxUploadBytes: 256 * 1024 * 1024,
-    mutationRetry: false,
-    notifications: {
-      ttlSeconds: 86400,
-      acknowledgement: "after durable hub acceptance",
-      maxOutboxEvents: 10000,
-      maxHubEvents: 10000,
-      maxDeliveries: 100000,
-      providerSemantics: "at-least-once hint; delivery is not guaranteed",
-    },
-    maxPolicyLeaseSeconds: 30,
-  },
+  "limits.json": limits,
 }))
   await writeFile("protocol/" + file, JSON.stringify(value, null, 2) + "\n");

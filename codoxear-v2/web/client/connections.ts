@@ -7,6 +7,7 @@ import { attachCommand, computerSetup } from "./computer-setup.js";
 import { vault, type HubLogin } from "./vault.js";
 import { connectHub, identitySettingsUrl } from "./login.js";
 import { ConnectionPages, esc, icon, field, submit, message } from "./views.js";
+import { workspaceAccessFields, workspaceRootFields, bindWorkspaceGrant, workspaceGrantBody, type WorkspaceReview } from "../shared/workspace-access.js";
 type Computer = {
   id: string;
   name: string;
@@ -327,15 +328,9 @@ export function openConnections(
         view.querySelector<HTMLButtonElement>("[data-confirm]")!.onclick =
           () => {
             void (async () => {
-              await vault.remove(login.id);
+              const removed = await fetch("/api/client/push/disconnect/" + encodeURIComponent(login.id), { method: "POST" });
+              if (!removed.ok) throw new Error("Hub disconnect failed");
               forgotten();
-              await fetch(login.origin + "/oauth/revoke", {
-                method: "POST",
-                credentials: "omit",
-                signal: AbortSignal.timeout(5000),
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: login.refreshToken }),
-              }).catch(() => {});
               await changed();
               home();
             })().catch(page.error);
@@ -387,12 +382,36 @@ async function accessPage(
     ]);
     policy =
       resources.find((resource: any) => resource.id === id)?.policy ?? null;
+    const workspace: WorkspaceReview | null = kind === "computer" ? await api(login, `/api/computers/${id}/workspace`).catch(() => null) : null;
     if (page.version !== version || !root.isConnected) return;
     page.render(
       "Manage access",
       `<div class="connectionStack"><section class="connectionStack"><h2>Members</h2>${members.map((m: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(m.name ?? m.email)}</strong><span class="connectionHint">${esc(m.role)}</span></span><button data-remove="${esc(m.userId)}">Remove access</button></div>`).join("") || '<p class="connectionHint">No invited members.</p>'}</section><form data-invite class="connectionForm connectionSection"><h2>Invite someone</h2>${invitationFields()}${field("Role", '<select name="role"><option value="viewer">Viewer</option><option value="operator">Operator</option></select>')}<div class="connectionActions"><button type="submit">Create invitation</button></div><output class="connectionCode" hidden></output></form><form data-policy class="connectionForm connectionSection"><h2>After access is removed</h2><p class="connectionHint">A hub policy takes precedence over the computer policy.</p>${field("Existing agents", `<select name="policy"><option value="">${kind === "hub" ? "Follow computer policy" : "Default (no access)"}</option><option value="retain">Retain access</option><option value="read_only">Read only</option><option value="none">No access</option></select>`)}<div class="connectionActions"><button class="primary" type="submit">Save policy</button></div><p role="status" class="connectionStatus"></p></form></div>`,
       back,
     );
+    if (workspace) {
+      const section = document.createElement("section");
+      section.className = "connectionStack";
+      section.innerHTML = workspaceRootFields(workspace) + members.map((m: any) => workspaceAccessFields(m, workspace)).join("");
+      root.querySelector(".connectionStack")!.append(section);
+      for (const form of section.querySelectorAll<HTMLFormElement>(".workspace-form")) {
+        const member = members.find((m: any) => m.userId === form.dataset.member);
+        bindWorkspaceGrant(form, member);
+        submit(form, async data => {
+          const body = workspaceGrantBody(data);
+          await api(login, `/api/computers/${id}/workspace-access/${form.dataset.member}`, body, "PUT");
+          member.workspaceGrants = [...(member.workspaceGrants ?? []).filter((g: any) => g.workspaceId !== body.workspaceId), ...(body.access ? [body] : [])];
+          form.querySelector("[role=status]")!.textContent = "Workspace access saved";
+        }, page.error);
+      }
+      submit(section.querySelector<HTMLFormElement>(".workspace-root-form")!, async data => {
+        await api(login, `/api/computers/${id}/workspace`, {name: data.get("name"), path: data.get("path")}, "PUT");
+        await accessPage(page, login, kind, id, policy, back);
+      }, page.error);
+      for (const button of section.querySelectorAll<HTMLButtonElement>("[data-remove-workspace]")) button.onclick = () => {
+        void api(login, `/api/computers/${id}/workspace`, {id: button.dataset.removeWorkspace, remove: true}, "PUT").then(() => accessPage(page, login, kind, id, policy, back)).catch(page.error);
+      };
+    }
     for (const b of root.querySelectorAll<HTMLButtonElement>("[data-remove]"))
       b.onclick = () => {
         void api(

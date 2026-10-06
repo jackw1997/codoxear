@@ -50,12 +50,15 @@
               "type": "string",
               "pattern": "^[a-zA-Z0-9_-]{1,80}$"
             },
+            "actorIsOwner": {
+              "type": "boolean"
+            },
             "workspace": {
               "type": "object",
               "properties": {
                 "id": {
                   "type": "string",
-                  "const": "default"
+                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
                 },
                 "access": {
                   "type": "string",
@@ -63,13 +66,45 @@
                     "read",
                     "write"
                   ]
+                },
+                "paths": {
+                  "minItems": 1,
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "git": {
+                  "type": "boolean"
+                },
+                "uploads": {
+                  "type": "boolean"
+                },
+                "transcode": {
+                  "type": "boolean"
+                },
+                "binding": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "ownerRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "grantRevision": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
                 }
               },
               "required": [
                 "id",
                 "access"
-              ],
-              "additionalProperties": false
+              ]
             },
             "queuePermit": {
               "type": "string",
@@ -80,8 +115,7 @@
             "method",
             "path",
             "headers"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
@@ -89,8 +123,7 @@
         "id",
         "epoch",
         "head"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -130,8 +163,7 @@
           "required": [
             "status",
             "headers"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
@@ -139,8 +171,7 @@
         "id",
         "epoch",
         "head"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -181,8 +212,7 @@
         "direction",
         "sequence",
         "data"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -218,8 +248,7 @@
         "epoch",
         "direction",
         "sequence"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -255,8 +284,7 @@
         "epoch",
         "direction",
         "bytes"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -283,8 +311,7 @@
         "id",
         "epoch",
         "reason"
-      ],
-      "additionalProperties": false
+      ]
     }
   ]
 }

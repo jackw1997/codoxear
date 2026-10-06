@@ -31,13 +31,17 @@ function createNotificationDom(elValue, iconSvgValue, voiceHostValue) {
   if (typeof voiceHost.insertBefore === "function") voiceHost.insertBefore(notificationBtn, voiceHost.firstChild || null);
   else voiceHost.appendChild(notificationBtn);
 
-  return Object.freeze({ notificationBtn });
+  const notificationSettingsToggleBtn = el("button", { id: "notificationSettingsToggleBtn", type: "button", text: "Enable notifications" });
+  const notificationSettingsStatus = el("p", { id: "notificationSettingsStatus", class: "fieldHint", role: "status", text: "Select an agent to configure notifications." });
+  const section = voiceHost.ownerDocument?.getElementById("voiceSettingsSection");
+  if (section) section.insertBefore(el("div", { class: "field" }, [el("span", { class: "fieldLabel", text: "Browser notifications" }), notificationSettingsStatus, notificationSettingsToggleBtn]), section.querySelector(".formActions"));
+  return Object.freeze({ notificationBtn, notificationSettingsToggleBtn, notificationSettingsStatus });
 }
 
 function createNotificationRuntime(options = {}) {
   if (!options || typeof options !== "object") throw new TypeError("notification runtime dependency missing: options");
 
-  const { notificationBtn } = createNotificationDom(options.el, options.iconSvg, options.voiceHost);
+  const { notificationBtn, notificationSettingsToggleBtn, notificationSettingsStatus } = createNotificationDom(options.el, options.iconSvg, options.voiceHost);
   const isAppDisposed = requireFunction(options.isAppDisposed, "isAppDisposed");
   const api = requireFunction(options.api, "api");
   const setToast = requireFunction(options.setToast, "setToast");
@@ -108,7 +112,6 @@ function createNotificationRuntime(options = {}) {
   function pushNotificationsEnabledForCurrentDevice() {
     return !!(
       localNotificationEnabled &&
-      deviceNotificationClass() === "mobile" &&
       notificationState.push_supported &&
       notificationState.permission === "granted" &&
       notificationState.notifications_enabled &&
@@ -118,7 +121,7 @@ function createNotificationRuntime(options = {}) {
 
   function activeNotificationTransport() {
     if (!localNotificationEnabled) return "none";
-    if (deviceNotificationClass() === "mobile") {
+    if (notificationState.vapid_public_key) {
       return pushNotificationsEnabledForCurrentDevice() ? "push" : "none";
     }
     if (
@@ -210,6 +213,12 @@ function createNotificationRuntime(options = {}) {
           : "Notifications pending"
       : "Notifications off";
     notificationBtn.setAttribute("aria-label", notificationBtn.title);
+    notificationSettingsToggleBtn.textContent = enabledLocally() ? "Disable notifications" : "Enable notifications";
+    notificationSettingsStatus.textContent = notificationState.permission === "denied"
+      ? "Notification permission is blocked in this browser. Change the site permission to enable it."
+      : notificationState.vapid_public_key
+        ? transport === "push" ? "Background notifications are enabled for the selected agent’s computer and Hub account." : "Background notifications are off for the selected agent’s computer and Hub account."
+        : "This Hub has no Web Push key configured. Background notifications are unavailable.";
   }
 
   async function pollFeed({ prime = false } = {}) {
@@ -252,9 +261,15 @@ function createNotificationRuntime(options = {}) {
     if (!navigatorTarget || !("serviceWorker" in navigatorTarget) || !("PushManager" in windowTarget) || !NotificationCtor) {
       throw new Error("push notifications are not supported in this browser");
     }
-    if (!swRegistration) {
-      swRegistration = await navigatorTarget.serviceWorker.register(resolveAppUrl(versionedShellAssetPath("/service-worker.js")), {
-        scope: resolveAppUrl("/"),
+    if (!notificationState.push_scope || !notificationState.push_worker) throw new Error("Select an agent in a Hub configured for Web Push");
+    if (!swRegistration || swRegistration.scope !== notificationState.push_scope) {
+      swRegistration = await navigatorTarget.serviceWorker.register(resolveAppUrl(notificationState.push_worker), {
+        scope: notificationState.push_scope,
+      });
+      if (!swRegistration.active) await new Promise((resolve, reject) => {
+        const worker = swRegistration.installing || swRegistration.waiting;
+        if (!worker) return reject(new Error("Push worker installation failed"));
+        worker.addEventListener("statechange", () => { if (worker.state === "activated") resolve(); if (worker.state === "redundant") reject(new Error("Push worker installation failed")); });
       });
     }
     return swRegistration;
@@ -268,7 +283,7 @@ function createNotificationRuntime(options = {}) {
     );
     notificationState.permission = NotificationCtor ? NotificationCtor.permission : "unsupported";
     notificationState.desktop_enabled = storageGetItem("codoxear.desktopNotificationsEnabled") === "1";
-    let nextSnapshot = snapshot;
+    let nextSnapshot = snapshot && snapshot.push_scope ? snapshot : null;
     if (!nextSnapshot) {
       try {
         nextSnapshot = await api("/api/notifications/subscription");
@@ -279,8 +294,11 @@ function createNotificationRuntime(options = {}) {
     if (disposed || isAppDisposed()) return;
     const snapshotObject = nextSnapshot && typeof nextSnapshot === "object" ? nextSnapshot : {};
     notificationState.vapid_public_key = String(snapshotObject.vapid_public_key || "");
+    notificationState.push_scope = String(snapshotObject.push_scope || "");
+    notificationState.push_worker = String(snapshotObject.push_worker || "");
+    notificationState.account_scope = String(snapshotObject.account_scope || "");
     let endpoint = "";
-    if (deviceNotificationClass() === "mobile" && notificationState.push_supported) {
+    if (notificationState.push_supported && notificationState.push_scope) {
       try {
         const registration = await ensureServiceWorker();
         if (disposed || isAppDisposed()) return;
@@ -296,6 +314,16 @@ function createNotificationRuntime(options = {}) {
     notificationState.endpoint = endpoint;
     notificationState.subscriptions = subscriptions;
     notificationState.notifications_enabled = !!(current && current.notifications_enabled);
+    if (notificationState.push_scope) {
+      localNotificationEnabled = notificationState.notifications_enabled;
+      if (notificationState.permission !== "granted" && localNotificationEnabled) {
+        await api("/api/notifications/subscription/toggle", { method: "POST", body: { enabled: false } });
+        const subscription = await swRegistration?.pushManager.getSubscription();
+        await subscription?.unsubscribe();
+        notificationState.notifications_enabled = false;
+        localNotificationEnabled = false;
+      }
+    }
     render();
   }
 
@@ -305,7 +333,7 @@ function createNotificationRuntime(options = {}) {
       const permission = await NotificationCtor.requestPermission();
       if (permission !== "granted") throw new Error(`notification permission ${permission}`);
     }
-    if (deviceNotificationClass() === "desktop") {
+    if (!notificationState.vapid_public_key && deviceNotificationClass() === "desktop") {
       setDesktopNotificationsEnabled(true);
       await syncState();
       return;
@@ -317,10 +345,16 @@ function createNotificationRuntime(options = {}) {
     const publicKey = notificationState.vapid_public_key;
     if (!publicKey) throw new Error("missing VAPID public key");
     let subscription = await registration.pushManager.getSubscription();
+    const expectedKey = base64UrlToUint8Array(publicKey, atob);
+    const currentKey = subscription?.options?.applicationServerKey ? new Uint8Array(subscription.options.applicationServerKey) : null;
+    if (subscription && (!currentKey || currentKey.length !== expectedKey.length || currentKey.some((value, index) => value !== expectedKey[index]))) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: base64UrlToUint8Array(publicKey, atob),
+        applicationServerKey: expectedKey,
       });
     }
     const nextSnapshot = await api("/api/notifications/subscription", {
@@ -337,7 +371,7 @@ function createNotificationRuntime(options = {}) {
 
   async function toggleCurrentDeviceNotifications(enabled) {
     if (!notificationState.desktop_supported) throw new Error("notifications require HTTPS or localhost");
-    if (deviceNotificationClass() === "desktop") {
+    if (!notificationState.vapid_public_key && deviceNotificationClass() === "desktop") {
       setDesktopNotificationsEnabled(enabled);
       await syncState();
       return;
@@ -364,7 +398,7 @@ function createNotificationRuntime(options = {}) {
   // enables (prime sound, persist, request permission/subscription) or disables
   // (server toggle-off, persist). Errors revert the local flag and surface a
   // toast.
-  eventBindings.on(notificationBtn, "click", async (event) => {
+  async function toggleNotifications(event) {
     event.preventDefault();
     event.stopPropagation();
     try {
@@ -383,9 +417,22 @@ function createNotificationRuntime(options = {}) {
       setToast(`notification error: ${error && error.message ? error.message : "unknown error"}`);
     }
     render();
-  });
+  }
+  eventBindings.on(notificationBtn, "click", toggleNotifications);
+  eventBindings.on(notificationSettingsToggleBtn, "click", toggleNotifications);
 
   render();
+
+  async function onWorkerMessage(event) {
+    if (event.data?.type !== "codoxear-push-disconnected" || !Array.isArray(event.data.scopes)) return;
+    for (const registration of await navigatorTarget.serviceWorker.getRegistrations()) {
+      if (!event.data.scopes.includes(registration.scope)) continue;
+      for (const notification of await registration.getNotifications()) notification.close();
+      await (await registration.pushManager.getSubscription())?.unsubscribe();
+      await registration.unregister();
+    }
+  }
+  if (navigatorTarget?.serviceWorker?.addEventListener) eventBindings.on(navigatorTarget.serviceWorker, "message", event => void onWorkerMessage(event).catch(() => {}));
 
   function dispose() {
     if (disposed) return;

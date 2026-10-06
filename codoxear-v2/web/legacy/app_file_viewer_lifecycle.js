@@ -247,7 +247,7 @@
         resetFileSearchState();
         setFileSearchSessionId(transition.currentViewerSessionId());
       }
-      await deps.refreshFileCandidates({ sessionId: sid, syncToken });
+      await deps.refreshFileCandidates({ force: true, sessionId: sid, syncToken });
       if (!isSessionCurrent(sid, syncToken)) return false;
       const target = transition.resolveOpenTarget({ sessionId: sid });
       if (target.kind === "path") {
@@ -287,6 +287,7 @@
       cancelPendingFileOpen();
       const explicitPath = String(path ?? "");
       const query = String(pickerQuery ?? "");
+      const interactionEpoch = typeof options.filePickerInteractionEpoch === "function" ? options.filePickerInteractionEpoch() : null;
       const queryOpen = !explicitPath && query !== "";
       ui.showModal({ wasOpen, queryOpen });
       ui.updateFileTouchToolbar();
@@ -308,8 +309,9 @@
         ui.openFilePickerSearchQuery(query, { line, suppressDraft: true });
         ui.setPreserveSearchOnFocus(true);
       }
-      await deps.refreshFileCandidates({ sessionId: sid, syncToken });
+      await deps.refreshFileCandidates({ force: true, sessionId: sid, syncToken });
       if (!isSessionCurrent(sid, syncToken)) return false;
+      if (!queryOpen && interactionEpoch !== null && options.filePickerInteractionEpoch() !== interactionEpoch) return true;
       if (queryOpen) {
         ui.focusFilePickerInput();
         return true;

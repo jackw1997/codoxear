@@ -476,6 +476,13 @@ export function agentCreationDialog(
     close;
   dialog.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = close;
   dialog.addEventListener("keydown", (event) => {
+    // CloseWatcher can emit a noncancelable cancel after repeated Escape.
+    // Consume the key before its native close action reaches this dialog.
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (event.key !== "Tab") return;
     const controls = [
       ...dialog.querySelectorAll<HTMLElement>(

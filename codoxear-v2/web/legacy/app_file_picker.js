@@ -1,5 +1,5 @@
 import * as CodoxearFileHelpers from "./app_file_helpers.js";
-
+import { fileAccessContext, observeFileAccessContext } from "./app_file_access_context.js";
 
   function requireFunction(host, name) {
     const value = host && host[name];
@@ -127,6 +127,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     let referenceLine = null;
     let preserveSearchOnFocus = false;
     let suppressDraftQuery = "";
+    let interactionEpoch = 0;
 
     function snapshot() {
       return {
@@ -189,6 +190,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     function openSearchQuery(query, { line = null, suppressDraft = false } = {}) {
       const rawQuery = String(query ?? "");
       if (rawQuery === "") return false;
+      interactionEpoch += 1;
       searchActive = true;
       referenceLineQuery = rawQuery;
       referenceLine = normalizeLineNumber(line);
@@ -220,6 +222,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     }
 
     function handleInput(query) {
+      interactionEpoch += 1;
       const rawQuery = String(query || "");
       searchActive = true;
       if (rawQuery !== referenceLineQuery) {
@@ -261,6 +264,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
       handleInput,
       isOpen,
       isSearchActive,
+      interactionEpoch: () => interactionEpoch,
       moveFocus,
       openSearchQuery,
       resetInputState,
@@ -718,6 +722,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     }
 
     async function inputChanged() {
+      if (typeof options.cancelPendingOpen === "function") options.cancelPendingOpen();
       if (!(await ensureCurrentSession())) return false;
       const rawQuery = String(input.value || "");
       handleInputState(rawQuery);
@@ -740,7 +745,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     function blur() {
       animationFrame(() => {
         if (isFocusInsideField()) return;
-        closeMenu({ restoreInput: true });
+        closeMenu({ restoreInput: !isSearchActive() });
       });
       return true;
     }
@@ -818,11 +823,18 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     let error = "";
     let truncatedQuery = "";
     let sessionId = "";
+    let accessContext = "";
     let seq = 0;
     let timer = null;
     let abort = null;
+    const stopObserving = observeFileAccessContext((id) => {
+      if (id !== currentSessionId()) return;
+      reset(); setSessionId(id);
+      if (isMenuOpen()) { schedule(inputValue()); renderMenu(); applyMenuState(); }
+    });
 
     function snapshot() {
+      if (accessContext !== fileAccessContext(sessionId)) { reset(); accessContext = fileAccessContext(sessionId); }
       return {
         results: results.slice(),
         loadedQuery,
@@ -861,6 +873,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
 
     function setSessionId(value) {
       sessionId = String(value || "");
+      accessContext = fileAccessContext(sessionId);
     }
 
     async function request(query) {
@@ -872,12 +885,13 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
         setSessionId(sid);
         return [];
       }
-      if (sessionId !== sid) {
+      if (sessionId !== sid || accessContext !== fileAccessContext(sid)) {
         reset();
         setSessionId(sid);
       }
       if (loadedQuery === trimmed) return results;
       const requestSeq = ++seq;
+      const requestAccess = accessContext;
       pendingQuery = trimmed;
       errorQuery = "";
       error = "";
@@ -889,7 +903,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
         const res = await api(`/api/sessions/${sid}/file/search?q=${encodeURIComponent(trimmed)}&limit=120`, {
           signal: controller ? controller.signal : undefined,
         });
-        if (requestSeq !== seq || sessionId !== sid) return [];
+        if (requestSeq !== seq || sessionId !== sid || requestAccess !== fileAccessContext(sid)) return [];
         const matches = [];
         const seen = new Set();
         for (const item of Array.isArray(res && res.matches) ? res.matches : []) {
@@ -915,7 +929,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
         return matches;
       } catch (err) {
         if (controller && controller.signal && controller.signal.aborted) return [];
-        if (requestSeq !== seq || sessionId !== sid) return [];
+        if (requestSeq !== seq || sessionId !== sid || requestAccess !== fileAccessContext(sid)) return [];
         results = [];
         loadedQuery = "";
         pendingQuery = "";
@@ -938,7 +952,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
         setSessionId(sid);
         return;
       }
-      if (sessionId !== sid) {
+      if (sessionId !== sid || accessContext !== fileAccessContext(sid)) {
         reset();
         setSessionId(sid);
       }
@@ -967,6 +981,7 @@ import * as CodoxearFileHelpers from "./app_file_helpers.js";
     }
 
     function dispose() {
+      stopObserving();
       reset();
     }
 

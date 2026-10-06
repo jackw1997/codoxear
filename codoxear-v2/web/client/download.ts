@@ -1,76 +1,106 @@
-/** Keep the original Download control. Browser download-manager requests may
- * bypass a service worker, so acquire the authenticated bytes before handing
- * a local blob to that manager. No credential appears in a download URL. */
+import { vault } from "./vault.js";
+
+/** The normal Download control prepares a one-use Hub handoff and posts it to
+ * the browser's download manager. Bytes never accumulate in the mounted app. */
 export function createFileDownloadRuntime(options: {
   resolveAppUrl: (path: string) => string;
   document: Document;
 }) {
+  let disposed = false;
+  const pending = new Set<AbortController>();
+  const frames = new Map<HTMLIFrameElement, ReturnType<typeof setTimeout>>();
   return {
     download(path: string) {
-      if (!path) return false;
+      if (!path || disposed) return false;
+      const controller = new AbortController();
+      pending.add(controller);
       void (async () => {
-        const response = await fetch(options.resolveAppUrl(path));
-        if (!response.ok)
-          throw new Error(
-            "Download rejected by the hub (" + response.status + ")",
-          );
-        const limit = 256 * 1024 * 1024;
-        if (Number(response.headers.get("content-length")) > limit) {
-          await response.body?.cancel();
-          throw new Error("Browser downloads are limited to 256 MiB");
-        }
-        const reader = response.body!.getReader(),
-          chunks: Uint8Array<ArrayBuffer>[] = [];
-        let size = 0;
-        try {
-          for (;;) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            size += value.byteLength;
-            if (size > limit)
-              throw new Error("Browser downloads are limited to 256 MiB");
-            chunks.push(new Uint8Array(value));
-          }
-        } catch (error) {
-          await reader.cancel();
-          throw error;
-        }
-        const disposition = response.headers.get("content-disposition") ?? "";
-        const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
-        let filename =
-          /filename="([^"]+)"/i.exec(disposition)?.[1] ??
-          new URL(path, location.href).searchParams
-            .get("path")
-            ?.split("/")
-            .pop() ??
-          "download";
-        if (encoded)
-          try {
-            filename = decodeURIComponent(encoded);
-          } catch {}
-        const url = URL.createObjectURL(
-          new Blob(chunks, {
-            type:
-              response.headers.get("content-type") ??
-              "application/octet-stream",
-          }),
+        const source = new URL(options.resolveAppUrl(path), location.href);
+        const match = /^\/api\/sessions\/([^/]+)\/file\/download$/.exec(
+          source.pathname,
         );
-        const a = options.document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.rel = "noopener";
-        a.hidden = true;
-        options.document.body.append(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        const selected = match ? decodeURIComponent(match[1]!) : "";
+        const split = selected.indexOf("~");
+        if (source.origin !== location.origin || split < 1)
+          throw new Error("Select a file in an authenticated Hub workspace");
+        const accountKey = selected.slice(0, split),
+          agentId = selected.slice(split + 1);
+        source.searchParams.delete("__agent");
+        const logins = (await vault.list()).filter(
+          (login) => login.accountKey === accountKey,
+        );
+        let prepared: { action: string; ticket: string } | undefined;
+        let failure: Error | undefined;
+        for (const login of logins) {
+          const response = await fetch(
+            `/api/client/hubs/${encodeURIComponent(login.id)}/api/v1/downloads/prepare`,
+            {
+              method: "POST",
+              signal: controller.signal,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                agentId,
+                query: source.searchParams.toString(),
+              }),
+            },
+          );
+          if (!response.ok) {
+            failure = new Error(
+              "Download rejected by the Hub (" + response.status + ")",
+            );
+            continue;
+          }
+          const value = (await response.json()) as typeof prepared;
+          if (
+            !value ||
+            value.action !== login.origin + "/api/v1/downloads/consume" ||
+            typeof value.ticket !== "string" ||
+            !/^[A-Za-z0-9_-]{32,200}$/.test(value.ticket)
+          )
+            throw new Error("Invalid download handoff");
+          prepared = value;
+          break;
+        }
+        if (!prepared)
+          throw (
+            failure ?? new Error("Sign in to this Hub to download the file")
+          );
+        if (disposed) return;
+        const document = options.document;
+        const frame = document.createElement("iframe");
+        frame.name = "codoxear-download-" + crypto.randomUUID();
+        frame.hidden = true;
+        frame.title = "File download";
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = prepared.action;
+        form.target = frame.name;
+        form.hidden = true;
+        const field = document.createElement("input");
+        field.type = "hidden";
+        field.name = "ticket";
+        field.value = prepared.ticket;
+        form.append(field);
+        document.body.append(frame, form);
+        form.submit();
+        form.remove();
+        // Keep the initiated download target alive; never navigate the app tab.
+        frames.set(frame, setTimeout(() => { frames.delete(frame); frame.remove(); }, 24 * 60 * 60 * 1000));
       })().catch((error) => {
+        if (disposed) return;
         const status =
           options.document.getElementById("fileStatus") ??
           options.document.getElementById("toast");
         if (status) status.textContent = String(error);
-      });
+      }).finally(() => pending.delete(controller));
       return true;
+    },
+    dispose() {
+      disposed = true;
+      for (const controller of pending) controller.abort();
+      pending.clear();
+      for (const [frame, timer] of frames) { clearTimeout(timer); frame.remove(); }
+      frames.clear();
     },
   };
 }

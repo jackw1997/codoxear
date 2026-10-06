@@ -22,6 +22,14 @@ export interface QueueRuntime {
   idle(localId: string): Promise<boolean>;
   authorize(permit: string, localId: string): Promise<void>;
   send(localId: string, text: string): Promise<void>;
+  unified?: {
+    sessions(): Promise<string[]>;
+    control(
+      localId: string,
+      operation: string,
+      body?: Record<string, unknown>,
+    ): Promise<any>;
+  };
 }
 /** Saved before acknowledgement. Authorization precedes a fresh idle check;
  * dispatch is saved before calling the runtime's atomic idle-only send. Only an
@@ -183,11 +191,107 @@ export class ComputerQueue {
       }
     });
   }
+  private migrations = new Map<string, Promise<void>>();
+  private async supportsUnified(localId: string) {
+    if (!this.runtime.unified) return false;
+    try { return (await this.runtime.unified.control(localId, "queue/capabilities"))?.unified === true; }
+    catch { return false; }
+  }
+  private async migrate(localId: string) {
+    if (!this.runtime.unified) return;
+    const existing = this.migrations.get(localId);
+    if (existing) return existing;
+    const operation = (async () => {
+      for (const item of this.read().filter(
+        (entry) => entry.localId === localId,
+      )) {
+        await this.runtime.unified!.control(localId, "enqueue", {
+          id: item.id,
+          text: item.text,
+          actorId: item.actorId,
+          permit: item.permit,
+          scope: this.scope,
+          created_ts: item.created_ts,
+          commit_unknown: item.state !== "pending",
+        });
+        // ACK means the same stable ID is durable in the broker. Remove the
+        // historical journal entry before allowing broker dispatch.
+        this.change((items) => {
+          const index = items.findIndex((entry) => entry.id === item.id);
+          if (index >= 0) items.splice(index, 1);
+        });
+      }
+    })();
+    this.migrations.set(localId, operation);
+    try {
+      await operation;
+    } finally {
+      this.migrations.delete(localId);
+    }
+  }
+  async listAsync(localId: string): Promise<any[]> {
+    if (!(await this.supportsUnified(localId))) return this.list(localId);
+    await this.migrate(localId);
+    return (
+      await this.runtime.unified!.control(localId, "queue", {
+        scope: this.scope,
+      })
+    ).items;
+  }
+  private async drainUnified() {
+    const native = this.runtime.unified!;
+    const supported = new Set<string>();
+    for (const localId of await native.sessions()) {
+      if (!(await this.supportsUnified(localId))) continue;
+      supported.add(localId);
+      try {
+        await this.migrate(localId);
+        const head = await native.control(localId, "queue/head", {
+          scope: this.scope,
+        });
+        if (!head) continue;
+        const pause = (reason: string) =>
+          native.control(localId, "queue/pause", {
+            scope: this.scope,
+            id: head.id,
+            version: head.version,
+            reason,
+          });
+        if (!(await this.runtime.idle(localId))) {
+          await pause("Waiting for the current turn or terminal input");
+          continue;
+        }
+        try {
+          await this.runtime.authorize(head.permit, localId);
+        } catch (error) {
+          await pause(
+            error instanceof DomainError &&
+              [401, 403, 404].includes(error.status)
+              ? "Authorization expired or access removed; edit after signing in to authorize again"
+              : "Waiting for hub authorization",
+          );
+          continue;
+        }
+        // The broker atomically checks native idle, ordering and edit version,
+        // saves dispatching before paste, and retains unknown after any crash.
+        await native.control(localId, "queue/dispatch", {
+          scope: this.scope,
+          id: head.id,
+          version: head.version,
+        });
+      } catch {
+        /* Offline/uncertain brokers retain their own durable barrier. */
+      }
+    }
+    return supported;
+  }
   async drain() {
     if (this.draining) return;
     this.draining = true;
     try {
+      const unified = this.runtime.unified ? await this.drainUnified() : new Set<string>();
       for (const localId of new Set(this.read().map((i) => i.localId))) {
+        if (unified.has(localId)) continue;
         const candidate = this.read().find((i) => i.localId === localId);
         if (!candidate || candidate.state !== "pending") continue;
         const pause = (reason: string) => {
@@ -278,6 +382,8 @@ export class ComputerQueue {
     if (!match) return;
     const localId = match[1]!;
     try {
+      const unified = await this.supportsUnified(localId);
+      if (unified) await this.migrate(localId);
       if (request.method === "POST") {
         let bytes = 0;
         const parts: Buffer[] = [];
@@ -292,7 +398,25 @@ export class ComputerQueue {
           parts.push(Buffer.from(chunk));
         }
         const body = JSON.parse(Buffer.concat(parts).toString());
-        if (match[2] === "enqueue")
+        if (unified) {
+          if (match[2] !== "enqueue" && !match[3])
+            throw new DomainError(
+              405,
+              "invalid_method",
+              "Unsupported queue operation",
+            );
+          await this.runtime.unified!.control(localId, match[2]!, {
+            ...(match[2] === "enqueue"
+              ? z.object({ text: z.string() }).parse(body)
+              : z.object({ id: z.string().min(1).max(200), text: z.string().optional(),
+                  to_index: z.number().int().nonnegative().optional(),
+                  allow_commit_unknown: z.boolean().optional(), version: z.number().int().nonnegative().optional(),
+                }).parse(body)),
+            scope: this.scope,
+            actorId: request.actorId ?? "",
+            permit: request.queuePermit ?? "",
+          });
+        } else if (match[2] === "enqueue")
           this.enqueue(
             localId,
             z.object({ text: z.string() }).parse(body).text,
@@ -323,7 +447,7 @@ export class ComputerQueue {
           "Unsupported queue operation",
         );
       }
-      const items = this.list(localId);
+      const items = await this.listAsync(localId);
       return json(200, {
         ok: true,
         queued: true,
@@ -334,6 +458,7 @@ export class ComputerQueue {
     } catch (e) {
       return json(e instanceof DomainError ? e.status : 400, {
         error: e instanceof Error ? e.message : "Invalid queue request",
+        code: e instanceof DomainError ? e.code : "invalid_queue_request",
       });
     }
   }

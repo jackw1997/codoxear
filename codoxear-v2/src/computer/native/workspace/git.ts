@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, writeFile, rm, readlink } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readlink, lstat, readdir } from "node:fs/promises";
+import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { rawPath, pathFields, displayPath, pathBytes } from "./paths.js";
 import { resolve, relative, join, basename } from "node:path";
@@ -11,7 +12,8 @@ async function gitBytes(
   signal?: AbortSignal,
   allowDiff = false,
 ) {
-  return new Promise<Buffer>((yes, no) =>
+  const directory = await openFile(cwd, constants.O_RDONLY | constants.O_DIRECTORY);
+  try { return await new Promise<Buffer>((yes, no) =>
     execFile(
       "git",
       [
@@ -21,7 +23,7 @@ async function gitBytes(
         "-c",
         "core.fsmonitor=false",
         "-C",
-        cwd,
+        `/proc/${process.pid}/fd/${directory.fd}`,
         ...(args[0] === "diff"
           ? [args[0], "--no-ext-diff", "--no-textconv", ...args.slice(1)]
           : args),
@@ -51,7 +53,7 @@ async function gitBytes(
             )
           : yes(stdout),
     ),
-  );
+  ); } finally { await directory.close(); }
 }
 export async function git(cwd: string, args: string[], signal?: AbortSignal) {
   return rawPath(await gitBytes(cwd, args, signal));
@@ -99,12 +101,33 @@ export async function gitPayload(
   path: string,
   query: URLSearchParams,
   signal?: AbortSignal,
+  approvedRoot?: string,
 ) {
   const root = await gitRoot(cwd, signal);
+  if (approvedRoot) {
+    if (resolve(root) !== resolve(approvedRoot)) throw new DomainError(403, "git_repository_scope", "Approve the complete repository root to share its history");
+    const metadata = await openFile(join(root, ".git"), constants.O_RDONLY | constants.O_DIRECTORY);
+    await metadata.close();
+    for (const name of ["objects/info/alternates", "objects/info/http-alternates", "commondir", "gitdir"]) {
+      try { await lstat(join(root, ".git", name)); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+      throw new DomainError(403, "git_external_objects", "Delegated repositories cannot use external Git object stores or linked worktrees");
+    }
+    // Git reads its own metadata; audit it before granting object/history reads.
+    let scanned = 0;
+    const audit = async (path: string): Promise<void> => {
+      if (++scanned > 100000) throw new DomainError(413, "git_metadata_limit", "Repository metadata exceeds the delegated inspection limit");
+      const stat = await lstat(path);
+      if (stat.isSymbolicLink() || (stat.isFile() && stat.nlink !== 1)) throw new DomainError(403, "git_metadata_boundary", "Delegated Git metadata must stay inside the repository");
+      if (stat.isDirectory()) for (const name of await readdir(path)) await audit(join(path, name));
+    };
+    await audit(join(root, ".git"));
+  }
   const target = resolve(root, path);
   if (path && !inside(root, target))
     throw new DomainError(403, "git_boundary", "Path is outside repository");
   const rel = relative(root, target);
+  if (approvedRoot && rel.split("/").includes(".git")) throw new DomainError(403, "git_boundary", "Git paths must refer to repository files");
   if (action === "changed_files") {
     const [unstaged, staged, untracked, numA, numB] = await Promise.all([
       git(root, ["diff", "--name-only", "-z"], signal),
@@ -158,7 +181,7 @@ export async function gitPayload(
   }
   if (!path) throw new DomainError(400, "path_required", "path required");
   if (action === "diff") {
-    if (/[\udc80-\udcff]/u.test(rel)) {
+    if (approvedRoot || /[\udc80-\udcff]/u.test(rel)) {
       const staged = query.get("staged") === "1";
       const base = await blob(
         root,

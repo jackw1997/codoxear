@@ -17,6 +17,11 @@ import { Tunnels } from "../protocol/tunnels.js";
 import { createHubApp } from "./app.js";
 import { NotificationInbox } from "./notifications.js";
 import { HarmonyAccount, HarmonyPushProvider } from "./harmony-push.js";
+import {
+  CompositePushProvider,
+  VapidConfig,
+  WebPushProvider,
+} from "./web-push.js";
 const file = process.env.CODOXEAR_HUB_CONFIG;
 if (!file)
   throw new Error(
@@ -51,6 +56,7 @@ const config = z
     secureCookies: z.boolean().default(true),
     development: z.boolean().default(false),
     harmonyServiceAccount: z.string().optional(),
+    vapid: z.string().optional(),
     harmonyTestMessage: z.boolean().default(false),
   })
   .parse(JSON.parse(await readFile(resolve(file), "utf8")));
@@ -102,7 +108,7 @@ if (!local && (!config.identityUrl || !config.credential))
 const authority =
   local?.client ??
   new AuthorityClient(config.identityUrl!, config.hubId, config.credential!);
-const pushProvider = config.harmonyServiceAccount
+const harmonyProvider = config.harmonyServiceAccount
   ? new HarmonyPushProvider(
       HarmonyAccount.parse(
         JSON.parse(
@@ -112,7 +118,18 @@ const pushProvider = config.harmonyServiceAccount
       config.harmonyTestMessage,
     )
   : undefined;
-await pushProvider?.ready();
+await harmonyProvider?.ready();
+const browserProvider = config.vapid
+  ? new WebPushProvider(
+      VapidConfig.parse(
+        JSON.parse(await readFile(resolve(config.vapid), "utf8")),
+      ),
+    )
+  : undefined;
+const pushProvider =
+  browserProvider || harmonyProvider
+    ? new CompositePushProvider(browserProvider, harmonyProvider)
+    : undefined;
 const notifications = new NotificationInbox(
   resolve(config.database) + ".notifications",
   config.hubId,

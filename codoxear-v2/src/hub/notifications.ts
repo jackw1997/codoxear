@@ -2,6 +2,9 @@ import { z } from "zod";
 import { SqliteDocument } from "../persistence/document.js";
 import { Notification, NOTIFICATION_TTL } from "../protocol/notifications.js";
 import { DomainError, Id } from "../contracts/model.js";
+import { BrowserSubscription } from "../contracts/web-push.js";
+import { createHash } from "node:crypto";
+export const subscriptionTag = (token: string) => createHash("sha256").update(token).digest("hex");
 export const Subscription = z.object({
   userId: Id,
   sessionId: Id,
@@ -9,6 +12,10 @@ export const Subscription = z.object({
   computerId: Id,
   token: z.string().min(1).max(4096),
   scope: z.string().max(2000),
+  provider: z.enum(["harmony", "web-push"]).optional(),
+  browser: BrowserSubscription.optional(),
+  clientId: Id.optional(),
+  binding: z.number().int().positive().optional(),
 });
 export type Subscription = z.infer<typeof Subscription>;
 type Event = Notification & {
@@ -31,9 +38,11 @@ type State = {
 };
 export interface PushProvider {
   readonly testMessage: boolean;
+  readonly webPushPublicKey?: string;
+  supports?(provider: "harmony" | "web-push"): boolean;
   send(
     subscription: Subscription,
-    event: Notification & { computerId: string; hubId: string },
+    event: Notification & { computerId: string; hubId: string; agentId?: string; binding?: number },
   ): Promise<"sent" | "invalid-token">;
 }
 const subKey = (s: Subscription) =>
@@ -62,6 +71,8 @@ export class NotificationInbox {
   }
   subscribe(input: Subscription) {
     const subscription = Subscription.parse(input);
+    if (subscription.provider === "web-push" && (!subscription.browser || !subscription.clientId || !subscription.binding))
+      throw new DomainError(400, "invalid_subscription", "Browser subscription scope is required");
     this.state.change((s) => {
       const key = subKey(subscription),
         old = s.subscriptions.find((i) => subKey(i) === key);
@@ -90,15 +101,28 @@ export class NotificationInbox {
       );
     });
   }
+  unsubscribeSession(userId: string, sessionId: string) {
+    this.state.change(s => { s.subscriptions = s.subscriptions.filter(i => i.userId !== userId || i.sessionId !== sessionId); });
+  }
+  async authorizeHint(userId: string, sessionId: string, installationId: string, computerId: string, agentId: string, binding: number, clientId: string, tag: string) {
+    const current = () => this.state.read().subscriptions.find(s => s.userId === userId && s.sessionId === sessionId && s.installationId === installationId && s.computerId === computerId && s.provider === "web-push" && s.binding === binding && s.clientId === clientId);
+    const subscription = current();
+    if (!subscription || subscriptionTag(subscription.token) !== tag) throw new DomainError(403, "push_scope_lost", "Notification subscription is no longer active");
+    await this.authorize(sessionId, agentId, computerId, binding);
+    if (current()?.token !== subscription.token) throw new DomainError(403, "push_scope_lost", "Notification subscription changed");
+    return { ok: true };
+  }
   subscriptions(userId: string) {
     return this.state
       .read()
       .subscriptions.filter((s) => s.userId === userId)
-      .map(({ installationId, computerId, createdAt }) => ({
+      .map(({ installationId, computerId, createdAt, provider, clientId, binding }) => ({
         installationId,
         computerId,
         createdAt,
-        provider: "harmony" as const,
+        provider: provider ?? "harmony",
+        ...(clientId ? { clientId } : {}),
+        ...(binding ? { binding } : {}),
       }));
   }
   receive(
@@ -133,7 +157,7 @@ export class NotificationInbox {
         throw new Error("Notification delivery journal full");
       s.events.push(item);
       for (const subscription of s.subscriptions.filter(
-        (i) => i.computerId === computerId && i.createdAt <= event.occurredAt,
+        (i) => i.computerId === computerId && (!i.binding || i.binding === binding) && i.createdAt <= event.occurredAt,
       ))
         s.deliveries.push({
           eventKey: eventKey(item),
@@ -164,6 +188,7 @@ export class NotificationInbox {
         if (
           !event ||
           !subscription ||
+          (subscription.binding !== undefined && subscription.binding !== event.binding) ||
           event.occurredAt <= this.now() - NOTIFICATION_TTL
         )
           state = "dropped";
@@ -193,6 +218,8 @@ export class NotificationInbox {
               occurredAt: event.occurredAt,
               computerId: event.computerId,
               hubId: this.hubId,
+              agentId: event.agentId,
+              binding: event.binding,
             });
             state = outcome === "sent" ? "sent" : "dropped";
             dropSubscription = outcome === "invalid-token";

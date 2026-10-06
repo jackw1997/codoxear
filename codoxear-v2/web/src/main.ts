@@ -4,6 +4,7 @@ import {
   invitationBody,
 } from "../shared/invitation-form.js";
 import { appearance } from "../shared/ui.js";
+import { workspaceAccessFields, workspaceRootFields, bindWorkspaceGrant, workspaceGrantBody, type WorkspaceReview } from "../shared/workspace-access.js";
 void appearance();
 import "./style.css";
 import { api, ApiError } from "./api.js";
@@ -284,6 +285,8 @@ function inviteModal(token = "") {
 }
 async function renderManage() {
   if (!hub || !user) return;
+  const workspaceMembers = new Map<string, Parameters<typeof bindWorkspaceGrant>[1]>();
+  const workspaceReviews = new Map<string, WorkspaceReview>();
   const epoch = generation;
   $("#content").innerHTML = "<p class=muted>Loading access settings…</p>";
   const resources = [
@@ -301,29 +304,21 @@ async function renderManage() {
           email: string;
           role: string;
           workspaceAccess?: "read" | "write" | null;
+          workspaceGrants?: Array<{workspaceId: string; access: string; paths?: string[]; git?: boolean; uploads?: boolean; transcode?: boolean}>;
         }>
       >(`/api/resources/${kind}/${value.id}/members`);
       const workspace =
         kind === "computer" && centralLogin
-          ? await api<{ path: string | null }>(
+          ? await api<WorkspaceReview>(
               `/api/computers/${value.id}/workspace`,
             ).catch(() => ({ path: null }))
           : null;
       const workspaceForm = (member: (typeof members)[number]) =>
-        kind === "computer" && centralLogin
-          ? `<form class="workspace-form" data-member="${member.userId}"><label>Workspace access for ${esc(member.name)}<select name="access">${[
-              ["", "No file access"],
-              ["read", "Read files"],
-              ["write", "Read and edit files"],
-            ]
-              .map(
-                ([key, label]) =>
-                  `<option value="${key}" ${(member.workspaceAccess ?? "") === key ? "selected" : ""}>${label}</option>`,
-              )
-              .join(
-                "",
-              )}</select></label><button type="submit">Save file access</button></form>`
+        kind === "computer" && centralLogin && workspace
+          ? workspaceAccessFields(member, workspace)
           : "";
+      for (const member of members) workspaceMembers.set(member.userId, member);
+      if (workspace) workspaceReviews.set(value.id, workspace);
       return `<div class="card" data-resource="${kind}" data-resource-id="${value.id}"><div class="eyebrow">${kind} · you are the owner</div><h3>${esc(value.name)}</h3><form class="policy-form"><label>Existing agent access after computer removal<select name="policy">${[
         [
           "",
@@ -348,6 +343,22 @@ async function renderManage() {
   document
     .querySelectorAll<HTMLFormElement>(".invite-form")
     .forEach(wireInvitationFields);
+  for (const form of document.querySelectorAll<HTMLFormElement>(".workspace-form")) bindWorkspaceGrant(form, workspaceMembers.get(form.dataset.member!)!);
+  for (const [id, review] of workspaceReviews) {
+    const card = document.querySelector<HTMLElement>(`[data-resource-id="${id}"]`);
+    if (!card) continue;
+    const roots = document.createElement("section");
+    roots.innerHTML = workspaceRootFields(review);
+    card.append(roots);
+    roots.querySelector("form")!.addEventListener("submit", event => {
+      event.preventDefault();
+      const data = new FormData(event.target as HTMLFormElement);
+      void api(`/api/computers/${id}/workspace`, "PUT", {name: data.get("name"), path: data.get("path")}).then(renderManage).catch(error => toast(String(error)));
+    });
+    for (const button of roots.querySelectorAll<HTMLButtonElement>("[data-remove-workspace]")) button.onclick = () => {
+      void api(`/api/computers/${id}/workspace`, "PUT", {id: button.dataset.removeWorkspace, remove: true}).then(renderManage).catch(error => toast(String(error)));
+    };
+  }
   document
     .querySelectorAll<HTMLFormElement>(
       ".policy-form,.invite-form,.owner-form,.workspace-form",
@@ -360,12 +371,15 @@ async function renderManage() {
           data = new FormData(form);
         void (async () => {
           if (form.classList.contains("workspace-form")) {
+            const grant = workspaceGrantBody(data);
             await api(
               `/api/computers/${card.dataset.resourceId}/workspace-access/${form.dataset.member}`,
               "PUT",
-              { access: data.get("access") || null },
+              grant,
             );
             toast("Workspace access saved.");
+            const member = workspaceMembers.get(form.dataset.member!)!;
+            member.workspaceGrants = [...(member.workspaceGrants ?? []).filter(g => g.workspaceId !== grant.workspaceId), ...(grant.access ? [grant as unknown as NonNullable<typeof member.workspaceGrants>[number]] : [])];
           } else if (form.classList.contains("policy-form")) {
             await api(base + "/policy", "PUT", {
               policy: data.get("policy") || null,

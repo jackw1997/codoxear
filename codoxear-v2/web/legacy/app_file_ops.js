@@ -1019,6 +1019,7 @@ const fileViewerLifecycleRuntime = codoxearFileViewer.createFileViewerLifecycleR
   sessionState,
   maybeHandleUnsavedFileChanges: () => fileUnsavedController.maybeHandleUnsavedFileChanges(),
   filePickerSearchSessionId: () => filePickerSearchSnapshot().sessionId,
+  filePickerInteractionEpoch: () => filePickerMenuState.interactionEpoch(),
   refreshFileCandidates: (options) => refreshFileCandidates(options),
   setFilePath: (path, options) => setFilePath(path, options),
   openFilePathWithResolvedMode: (path, options) => openFilePathWithResolvedMode(path, options),
@@ -1257,6 +1258,8 @@ syncFileButtonState();
       handleFileViewerSessionUnavailable,
       refreshFileCandidates,
       dispose() {
+        fileDownloadRuntime.dispose?.();
+        filePickerSearchState.dispose();
         unsubscribeFileButtonSelected();
         unsubscribeFileButtonCatalog();
       },

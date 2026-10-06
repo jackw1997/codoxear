@@ -1,13 +1,13 @@
 {
   "design": "../docs/multi-server-relay/final-design.html revision 8, superseded for hub authority by docs/independent-hubs.html; agent creation and access amendments",
   "baseline": "fa8c54ad",
-  "rule": "A gate is complete only when its implementation and required behavioral evidence exist. Contract fixtures never count as live provider, real inference or physical-device acceptance.",
+  "rule": "A gate is complete only when its implementation and required behavioral evidence exist. Contract fixtures do not count as live provider, real inference or physical-device acceptance. Statuses distinguish verified scope from remaining external or platform acceptance.",
   "gates": [
     {
       "id": "baseline",
       "requirement": "Integrate HarmonyOS handoff without losing saved login or composer fixes",
-      "status": "implemented",
-      "evidence": "Fast-forward to fa8c54ad; native acceptance pending"
+      "status": "historical-only",
+      "evidence": "Historical Harmony handoff baseline; it does not establish current Harmony SDK or device acceptance. Current scoped Harmony contract evidence is recorded by harmony-account-lifecycle in work-progress.json."
     },
     {
       "id": "computer",
@@ -42,37 +42,37 @@
       "id": "pairing",
       "requirement": "Owner-bound single-use enrollment and transfer fencing within the configured authority",
       "status": "verified-local",
-      "evidence": "Owner-bound single-use enrollment and transfer fencing verified for the existing shared-authority compatibility mode; two browser users issue target-owner admission and move a Computer. Reused/stale admissions and old Computer credentials are rejected. Short enrollment codes are 8 characters and expire after 15 minutes; tests cover exact expiry, single-use, renewal invalidation, typing normalization, legacy-token compatibility and redemption attempt limits. Live browser/CLI attachment and source download passed. This does not establish transfer across independent Hub databases; source detach and destination admission across independent authorities remain pending."
+      "evidence": "Independent-Hub transfer passes17 durable fencing tests and5 actual installed-Pi public-API checks. Source revocation precedes destination admission; journal checkpoints and retry nonces fence lost replies."
     },
     {
       "id": "relay",
       "requirement": "Bounded streaming uploads, binary downloads, ranges, SSE, cancellation and media paths",
       "status": "verified-local",
-      "evidence": "tests/http-mux.test.ts and tests/http-relay.test.ts: credit bounds; 16 blocked streams remain within per-computer memory limits while heartbeats continue; a 17th stream is rejected before dispatch; byte-identical binary/range/ETag/multipart/HLS, gzip decoding, cancellation, feed filtering and revocation. Production deployment load tests remain pending. A 257 MiB+37 byte native file crosses real WebSocket HttpMux with matching SHA-256, ranges, cancellation and bounded credit queues. Concurrent tail request uses a runtime stub. Browser downloads retain the 256 MiB cap; authenticated larger-file/browser acceptance remains open."
+      "evidence": "Four one-use authenticated download tests and2 real browser checks pass for257MiB+37 bytes with matching SHA-256, mounted application and successful next turn. Physical Safari/device acceptance remains separate."
     },
     {
       "id": "runtime",
       "requirement": "Real isolated CLI continues across hub and client loss; terminal sessions import",
-      "status": "in-progress",
-      "evidence": "Existing isolated Pi shell and hub-loss recovery checks remain valid. On 2026-10-04, a Computer was created through the deployed browser, attached using the CLI and an 8-character code, and became Online. Both authenticated Codex and Pi (gpt-6.1-sol, ChatGPT OAuth) were created from New session and executed real shell write/read operations. Their streamed replies and generated files were verified through the browser. Claude live authentication, native app acceptance and comprehensive real-provider outage recovery remain pending. Latest separate native browser acceptance passes all nine Pi/Claude saved resume, Codex/Claude import/interrupt, service/tunnel reconnect and untrusted Codex setup checks with installed CLIs and controlled gateways. Full live-provider/commit-boundary faults remain open."
+      "status": "verified-local",
+      "evidence": "Nine installed-CLI browser checks cover Pi/Claude saved resume, Codex/Claude terminal import and interruption, service/tunnel reconnect and untrusted Codex setup. Separate nine exact Computer SIGKILL launch-boundary checks pass across installed Pi, Codex and Claude. Live Kimi/LiteLLM Pi tools, interruption, outage, reconnect and transfer pass; an actual Claude Messages tool call succeeded. Codex Responses streaming succeeds, but native Codex shell-tool execution remains unproven. Broker/queue/Hub mutation fault coverage remains open."
     },
     {
       "id": "web-parity",
       "requirement": "Files, git, uploads, queues, settings, search, voice and scoped recovery",
-      "status": "in-progress",
-      "evidence": "Actual browser: imported Pi transcript, Git diff, file read/download/edit, search, queue/edit/authorized dispatch, second real Pi process via New session, normal file-picker upload, separate personal drafts for two users, a live read-only downgrade, and owner-only deletion through the normal confirmation. Deletion denies operators before dispatch and retains catalog entries after unconfirmed local replies. Owner-issued workspace read/write grants now pass two-account actual-Pi browser checks, including inspection, editing, traversal/symlink rejection and immediate revocation. Selective per-agent sharing is separately verified by the agent-sharing gate. Multiple roots, delegated Git/uploads/transcoding, notification implementation, broader lifecycle faults and broader accessibility remain pending. Eight independent-client Chrome voice/settings checks prove Save/Cancel/Escape, key masking/preservation/clear, genuine TTS/ffmpeg HLS playback, opt-out cancellation and browser access-loss cleanup. Controlled tone WAV proves playback, not speech quality; server listener expiry is 45 seconds."
+      "status": "verified-local",
+      "evidence": "Delegated multiple-root/path/Git/upload/transcode acceptance passes5 independent-client Chrome checks. Unified terminal/browser durable queue passes5 installed-Pi browser checks; existing brokers need explicit upgraded resume. One-use browser download evidence is recorded under relay. Accessibility checks cover8 grouped workflows, nine family/mode appearances,18 touch targets/groups and13 font invariants; contrast minima are4.514 light and5.196 dark. Remaining external/browser limits are listed separately. Physical assistive-technology/device and production operational acceptance remain open."
     },
     {
       "id": "direct",
       "requirement": "Explicit direct profile with no automatic fallback and regression coverage",
       "status": "verified-contracts",
-      "evidence": "Explicit direct and relay profiles with isolated credential keys; actual Harmony ApiClient direct login, no fallback and stale-response rejection exercised with mocked OS networking. Complete native/direct regression still pending"
+      "evidence": "Harmony ApiClient direct login, no fallback and stale-response behavior pass with mocked OS networking. Native/device acceptance remains tracked separately."
     },
     {
       "id": "queue",
       "requirement": "Computer-owned durable queued prompts reauthorize the actor before dispatch and never replay uncertain sends",
       "status": "verified-local",
-      "evidence": "Queue restart, attachment fencing, revoked actor, edits during authorization and uncertain-send tests; actual Pi browser queues, edits and sends after the current turn. Visible pause reasons update while the dialog is open. Pending prompts pause without the policy service; a narrow 24-hour permit never authenticates as a user. Terminal-local queue integration remains pending. Latest native broker tests prove post-authorization idle recheck, definite rejection before paste, Enter-before-ACK, serialized sends and uncertainty on native death/input/interrupt during submission. Unified terminal-local ordering and complete hard-kill matrix remain pending."
+      "evidence": "One durable ordered queue serves terminal and browser; five installed-Pi browser checks and39 native tests cover edits, dispatch and persistence. On ambiguous broker death after paste, the durable uncertainty barrier prevents replay. Existing brokers retain their previous safe queue until explicit upgraded resume."
     },
     {
       "id": "personal-drafts",
@@ -89,26 +89,26 @@
     {
       "id": "push",
       "requirement": "Durable completion outbox, deduplication, access checks and provider delivery",
-      "status": "verified-contracts",
-      "evidence": "Binding-scoped durable Computer outbox and hub inbox/ACK, stable IDs, 24-hour TTL, access/session/binding rechecks immediately before dispatch, bounded delivery ledger and scoped unsubscribe. Five notification tests verify restart/replay/revocation/token changes/provider PS256 payload; shared client tests use the actual hub API. Actual Pi completion arrives after a hub outage. Foreground feed excludes unpublished sessions. Physical Harmony delivery, native multi-hub presenter integration and Web Push remain pending."
+      "status": "verified-local",
+      "evidence": "Nine Web Push protocol checks and nine actual Chrome worker checks cover controlled-endpoint encryption, show/click and scope/revocation. Actual vendor delivery, physical OS click, Safari/mobile acceptance remain open."
     },
     {
       "id": "harmony",
       "requirement": "Native relay login, context, media, secure credentials, device lifecycle and push",
-      "status": "needs-device",
-      "evidence": "Actual ApiClient and Workspace execute in behavioral tests with mocked OS boundaries: relay JSON/SSE/binary/media, cancellation, account/hub/computer recovery scopes, bounded SHA-256 draft filenames, notification scope isolation, and unchanged direct filenames. Native login presenter, secure refresh vault, multi-hub push subscriptions, SDK build and physical-device acceptance remain pending."
+      "status": "verified-local",
+      "evidence": "Self-contained ArkTS SDK scaffold and mocked OS contracts cover login, vault, refresh loss fences, account switching and multi-Hub subscriptions against two real independent Hub APIs. Workspace/native/identity/Harmony suite passes52 tests. No SDK compile, signing, physical build or Push Kit delivery is claimed."
     },
     {
       "id": "network",
       "requirement": "Client cannot reach computers; outbound-only relay works under faults and load",
       "status": "verified-local",
-      "evidence": "Separate Docker front/back networks with verified TLS: client cannot reach computer private IP; hub can; computer-initiated WSS carries conversation. Fault/load matrix remains pending Latest bounded native load/fault measurements and post-ACK lost-reply/restart nonreplay are recorded in artifacts/native-load-fault-results.json; this does not establish the full fault matrix."
+      "evidence": "Separate Docker front/back networks verify client isolation and Computer-initiated WSS. Bounded native load/fault evidence and post-ACK lost-reply/restart nonreplay are recorded in artifacts/native-load-fault-results.json; production SLO soak and the full fault matrix remain open."
     },
     {
       "id": "protocol",
       "requirement": "Versioned OpenAPI, tunnel schemas and shared native conformance fixtures",
-      "status": "in-progress",
-      "evidence": "Generated v1 OpenAPI and tunnel JSON schemas, shared TypeScript transport/login lifecycle, three executed Harmony behavioral tests. Complete public route schemas and native platform conformance still pending."
+      "status": "verified-local",
+      "evidence": "Actual registration matches143 Hub and66 authority methods. All published operations carry explicit success/document/stream/upgrade metadata:99 Hub,48 authority,8 internal and110 relay entries (intentional overlap). Native Pi validated97 responses/74 operations/3 SSE. Administrative conformance checked73 observations/37 HTTP leaves/all24 dispatcher operations with161 standalone published-schema validations. All8 generated artifacts match the Docker output. Physical-platform and vendor extension coverage remain separately scoped."
     },
     {
       "id": "runtime-incarnation",
@@ -119,8 +119,8 @@
     {
       "id": "future",
       "requirement": "iOS/Android and OAR interfaces and adoption gates specified",
-      "status": "designed-later-stage",
-      "evidence": "Design sections 05 and 07 explicitly stage implementation later"
+      "status": "scope-unresolved",
+      "evidence": "iOS/Android and optional OAR scope awaits the user decision; current Node 22 and explicit local-trust behavior govern the accepted Linux scope."
     },
     {
       "id": "workspace-grants",
@@ -144,27 +144,27 @@
       "id": "standalone-typescript",
       "requirement": "Self-contained v2 with TypeScript native PTY/runtime and tests, no Python or original package dependency, explicit component boundaries",
       "status": "verified-local",
-      "evidence": "Latest combined Docker production build and 177/177 TypeScript tests, no failures/skips; 46 generic browser checks without errors. Separate installed-CLI lifecycle browser suite passes nine checks and real Chrome voice/settings suite passes eight, with six native media tests. Bounded native load/fault and 257 MiB streaming transport suites pass with scope/remaining limits in work-progress.json. Earlier dated migration/provider/workspace evidence remains historical evidence, not a claim of live inference or complete production readiness. The boundary build guard passes. Linux accepted; macOS secure adapter remains pending."
+      "evidence": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped. Boundary guard passes with no Python or legacy application dependency. Linux accepted; secure macOS support remains unsupported."
     }
   ],
-  "lastEvidence": "Latest combined Docker production build and 177/177 TypeScript tests, no failures/skips; 46 generic browser checks without errors. Separate installed-CLI lifecycle browser suite passes nine checks and real Chrome voice/settings suite passes eight, with six native media tests. Bounded native load/fault and 257 MiB streaming transport suites pass with scope/remaining limits in work-progress.json. Earlier dated migration/provider/workspace evidence remains historical evidence, not a claim of live inference or complete production readiness.",
+  "lastEvidence": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped.",
   "remainingWork": {
     "engineering": [
-      "Multiple delegated workspace roots, and separate Git/upload/transcoding capabilities",
-      "Unified terminal-local/remote queue ordering and broader unattended/hard-fault lifecycle acceptance",
-      "HarmonyOS system-browser login presenter, secure refresh vault and multi-hub push lifecycle",
-      "Web Push provider and complete public protocol/conformance coverage",
-      "Broader production load/fault and accessibility acceptance"
+      "Production-scale soak and broader network/mutation fault acceptance beyond the measured Linux slice"
     ],
     "externalSetup": [
-      "Feishu/WeChat test app registrations and callback credentials",
-      "Email/SMS delivery test accounts",
-      "HarmonyOS SDK, signing/provisioning, Push Kit app credentials and a connected test device",
-      "Authorized isolated live-provider credentials for the remaining native tool/outage and inference-quality acceptance; controlled native Codex/Claude import/interrupt checks are complete"
+      "Live Feishu/WeChat/OIDC app registrations, approved callbacks and credentials",
+      "Real email/SMS delivery accounts",
+      "HarmonyOS SDK compilation, signing, Push Kit registration and connected device",
+      "Actual vendor push plus physical Safari/mobile OS and assistive-technology acceptance",
+      "Codex native shell-tool proof; authenticated Responses streaming alone does not establish it",
+      "macOS secure workspace adapter and acceptance"
     ],
     "laterStage": [
-      "iOS and Android native implementations",
-      "Optional OAR runtime adapter"
+      "iOS/Android and optional OAR scope awaits user decision; current Linux target is Node.js 22 with explicit local-trust behavior."
+    ],
+    "platformImplementation": [
+      "macOS secure workspace adapter requires a macOS execution environment; current migration scope is Linux"
     ]
   },
   "milestone": {
@@ -178,7 +178,7 @@
   "prReview": {
     "scope": "Linux v2 native TypeScript migration; separate Computer, Hub and Client",
     "tests": {
-      "passed": 177,
+      "passed": 235,
       "failed": 0,
       "skipped": 0
     },
@@ -198,7 +198,9 @@
     "verifierExitCode": 0,
     "branch": "v2/typescript-architecture-pr",
     "validationLimits": [
-      "Updated Dockerfile image and hosted GitHub workflow not executed here; equivalent isolated verifier ran with an available media encoder"
+      "Historical test count predates final schema/fault additions; final integrated count pending root update.",
+      "Updated Dockerfile image and hosted GitHub workflow not executed here; equivalent isolated verifier ran with an available media encoder.",
+      "Codex native shell-tool execution, live identity vendors, physical-device/platform behavior and production SLO acceptance remain open."
     ],
     "nativeLifecycleBrowserChecks": 9,
     "voiceSettingsBrowserChecks": 8

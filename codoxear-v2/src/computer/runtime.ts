@@ -7,6 +7,8 @@ export interface Runtime {
   readonly kind: "native" | "fixture";
   execute(operation: Operation): Promise<unknown>;
   sendQueued?(localId: string, text: string): Promise<unknown>;
+  setQueueScope?(scope: string): void;
+  queueControl?(localId: string, operation: string, body?: Record<string, unknown>): Promise<any>;
   close(): void;
   supportsProviderLaunch?(): Promise<boolean>;
   completions?(since: number): Promise<Notification[]>;

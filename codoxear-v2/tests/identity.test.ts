@@ -849,6 +849,9 @@ test("workspace grants are separate from agent roles and end on revocation, owne
     assert.deepEqual((read() as { workspace: unknown }).workspace, {
       id: "default",
       access: "read",
+      paths: ["."], git: false, uploads: false, transcode: false,
+      binding: c.binding, ownerRevision: c.revision,
+      grantRevision: f.store.read().identity.workspaceGrants[0]!.grantRevision,
     });
     assert.throws(() =>
       a.relay(member, h.id, c.id, "POST", base + "/file/write"),
@@ -866,7 +869,7 @@ test("workspace grants are separate from agent roles and end on revocation, owne
           workspace: unknown;
         }
       ).workspace,
-      { id: "default", access: "write" },
+      { id: "default", access: "write", paths: ["."], git: false, uploads: false, transcode: false, binding: c.binding, ownerRevision: c.revision, grantRevision: f.store.read().identity.workspaceGrants[0]!.grantRevision },
     );
     f.store.change((s) => {
       setPolicy(s, "alice", "hub", h.id, "retain");

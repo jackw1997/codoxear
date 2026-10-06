@@ -12,12 +12,18 @@ import { vault } from "./vault.js";
 import { esc, loginHeading } from "./views.js";
 import { openConnections, openAgentAccess } from "./connections.js";
 import { stylesheet } from "../shared/ui.js";
+import { selectedWorkspace, updateWorkspaceSelection, workspaceAccessContext } from "../shared/workspace-selection.js";
+import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
+configureFileAccessContext(workspaceAccessContext);
 stylesheet("/agent-creation.css");
 await ensureClientTransport();
 let directory: any = { agents: [], placements: [] };
 let placement = "";
 configureAppUrlResolver((path: string, base: URL) => {
   const url = new URL(path.replace(/^\//, ""), base);
+  const session = /^\/api\/sessions\/([^/]+)\//.exec(url.pathname)?.[1] ?? new URLSearchParams(location.hash.slice(1)).get("session");
+  const workspace = selectedWorkspace(session ? decodeURIComponent(session) : null);
+  if (workspace && /\/api\/sessions\/[^/]+\/(?:file\/|git\/|inject_|send|attachments|pending_attachment)/.test(url.pathname)) url.searchParams.set("workspace_id", workspace);
   if (url.pathname === "/api/sessions") {
     const source = url.searchParams.get("__source");
     const selected =
@@ -98,6 +104,7 @@ installSessionDiscovery(() =>
 controller.renderApp();
 async function refresh() {
   directory = await (await fetch("/api/client/directory")).json();
+  updateWorkspaceSelection(directory.agents);
   conversationCache.setDirectory(directory.agents);
   const chosen =
     directory.placements.find(

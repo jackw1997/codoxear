@@ -1,10 +1,11 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   PAIRING_ALPHABET,
   PAIRING_LIFETIME_SECONDS,
   normalizePairingCode,
 } from "../contracts/pairing.js";
 import { classifyRoute } from "../protocol/routes.js";
+import { WorkspaceOptions, type WorkspaceContext } from "../contracts/workspaces.js";
 import { type Store } from "../persistence/store.js";
 import { type Accounts } from "./accounts.js";
 import { type Tokens } from "./tokens.js";
@@ -121,6 +122,7 @@ export class Authority {
         )
         .map((a) => ({
           ...a,
+          workspaceGrants: this.actorWorkspaceGrants(state, session.userId, a.computerId),
           computerName:
             state.computers.find((c) => c.id === a.computerId)?.name ??
             "Computer",
@@ -226,6 +228,7 @@ export class Authority {
       );
       return {
         actorId: session.userId,
+        actorIsOwner: true,
         action: route.action,
         revision: s.revision,
         leaseExpiresAt: Date.now(),
@@ -251,31 +254,34 @@ export class Authority {
           ? "send"
           : (route.action as "read" | "send" | "interrupt"),
     );
-    let workspace: { id: "default"; access: "read" | "write" } | undefined;
+    let workspace: WorkspaceContext | undefined;
+    const workspaceId = new URL(path, "http://workspace.invalid").searchParams.get("workspace_id") ?? "default";
+    const currentGrant = s.identity.workspaceGrants.find((g) => g.computerId === computerId && g.userId === session.userId && g.workspaceId === workspaceId && g.binding === computer.binding && g.ownerRevision === computer.revision);
+    const activeGrant = !!computerRole(s, session.userId, computer) && currentGrant;
+    const grantContext = (g: NonNullable<typeof currentGrant>): WorkspaceContext => ({ id: g.workspaceId, access: g.access, paths: g.paths, git: g.git, uploads: g.uploads, transcode: g.transcode, binding: g.binding, ownerRevision: g.ownerRevision, grantRevision: g.grantRevision });
     if (isFile && computer.ownerId !== session.userId) {
-      const grant = s.identity.workspaceGrants.find(
-        (g) =>
-          g.computerId === computerId &&
-          g.userId === session.userId &&
-          g.binding === computer.binding &&
-          g.ownerRevision === computer.revision,
-      );
+      const grant = activeGrant;
       forbid(
         !!computerRole(s, session.userId, computer) && !!grant,
         "Workspace access requires an active computer membership and an explicit owner grant",
       );
+      const upload = /\/(inject_file|inject_image)(?:\?|$)/.test(path);
+      const git = /\/git\//.test(path);
+      const transcode = /\/file\/video_preview(?:\?|$)/.test(path);
       forbid(
-        route.action !== "files.write" || grant.access === "write",
+        route.action !== "files.write" || upload || grant.access === "write",
         "Workspace access is read-only",
       );
       forbid(
-        /^\/api\/sessions\/[^/]+\/file\/(read|write|blob|download|list|search|image-dimensions|inspect|inspect-batch)(?:\?|$)/.test(
-          path,
-        ),
+        /^\/api\/sessions\/[^/]+\/file\/(read|write|blob|download|list|search|image-dimensions|inspect|inspect-batch|video_preview)(?:\?|$)/.test(path) || (git && grant.git) || (upload && grant.uploads),
         "This action requires a separate computer capability",
       );
-      workspace = { id: "default", access: grant.access };
+      forbid(!git || grant.git, "Repository history requires an explicit full-repository grant");
+      forbid(!upload || grant.uploads, "Attachment uploads require a separate owner grant");
+      forbid(!transcode || grant.transcode, "Video processing requires a separate owner grant");
+      workspace = grantContext(grant);
     }
+    if (!isFile && computer.ownerId !== session.userId && activeGrant && /\/(send|attachments(?:\/[^?]+)?|pending_attachment\/clear)(?:\?|$)/.test(path)) workspace = grantContext(activeGrant);
     if (isDelete)
       forbid(
         computer.ownerId === session.userId,
@@ -284,6 +290,7 @@ export class Authority {
     return {
       ...decision,
       action: route.action,
+      actorIsOwner: computer.ownerId === session.userId,
       ...(workspace ? { workspace } : {}),
     };
   }
@@ -293,7 +300,9 @@ export class Authority {
     computerId: string,
     userId: string,
     access: "read" | "write" | null,
+    options: unknown = {},
   ) {
+    const grantOptions = WorkspaceOptions.parse(options);
     this.computerOwner(session, hubId, computerId);
     this.store.change((s) => {
       const computer = requireValue(
@@ -312,13 +321,14 @@ export class Authority {
         );
       }
       s.identity.workspaceGrants = s.identity.workspaceGrants.filter(
-        (g) => !(g.computerId === computerId && g.userId === userId),
+        (g) => !(g.computerId === computerId && g.userId === userId && g.workspaceId === grantOptions.workspaceId),
       );
       if (access !== null)
         s.identity.workspaceGrants.push({
           computerId,
           userId,
-          workspaceId: "default",
+          ...grantOptions,
+          grantRevision: randomUUID().replaceAll("-", ""),
           access,
           binding: computer.binding,
           ownerRevision: computer.revision,
@@ -504,8 +514,13 @@ export class Authority {
       );
     return s.agents
       .filter((a) => a.computerId === computer.id && a.hubId === hubId)
-      .map((a) => ({ ...a, access: agentAccess(s, session.userId, a) }))
+      .map((a) => ({ ...a, access: agentAccess(s, session.userId, a), workspaceGrants: this.actorWorkspaceGrants(s, session.userId, computerId) }))
       .filter((a) => a.access.actions.length);
+  }
+  private actorWorkspaceGrants(state: ReturnType<Store["read"]>, userId: string, computerId: string) {
+    const computer = state.computers.find(c => c.id === computerId);
+    if (!computer || !computerRole(state, userId, computer)) return [];
+    return state.identity.workspaceGrants.filter(g => g.userId === userId && g.computerId === computerId && g.binding === computer.binding && g.ownerRevision === computer.revision).map(g => ({workspaceId: g.workspaceId, access: g.access, paths: g.paths, git: g.git, uploads: g.uploads, transcode: g.transcode, grantRevision: g.grantRevision}));
   }
   authorize(
     session: IdentitySession,
@@ -660,6 +675,68 @@ export class Authority {
         credential,
         binding: c.binding,
       };
+    });
+  }
+  inspectTransferPairing(code: string) {
+    const s = this.store.read(), { c, h, p } = this.transferPairing(s, code);
+    return { hubUrl: h.origin, hubId: c.hubId, computerId: c.id, binding: c.binding, expiresAt: p.expiresAt };
+  }
+  private transferPairing(s: ReturnType<Store["read"]>, code: string) {
+    const p = requireValue(s.identity.pairings.find((entry) => entry.codeHash === digest(normalizePairingCode(code))));
+    forbid(!p.used && p.expiresAt > this.now(), "Pairing code expired or already used");
+    const c = requireValue(s.computers.find((entry) => entry.id === p.computerId && entry.hubId === p.hubId && entry.binding === p.binding && entry.ownerId === p.ownerId));
+    forbid(hubAccess(s, p.ownerId, requireValue(s.hubs.find((entry) => entry.id === p.hubId))), "Computer owner lost hub access");
+    const h = requireValue(s.identity.hubs.find((entry) => entry.hubId === c.hubId && entry.enabled));
+    return { p, c, h };
+  }
+  redeemTransfer(code: string, transferId: string, credential: string) {
+    return this.store.change((s) => {
+      const codeHash = digest(normalizePairingCode(code)), credentialHash = digest(credential);
+      const receipt = s.identity.transferEnrollments.find((entry) => entry.codeHash === codeHash && entry.transferId === transferId && entry.credentialHash === credentialHash);
+      let c, h;
+      if (receipt) {
+        c = requireValue(s.computers.find((entry) => entry.id === receipt.computerId && entry.hubId === receipt.hubId && entry.binding === receipt.binding && entry.credentialHash === credentialHash));
+        forbid(hubAccess(s, c.ownerId, requireValue(s.hubs.find((entry) => entry.id === c!.hubId))), "Computer owner lost hub access");
+        h = requireValue(s.identity.hubs.find((entry) => entry.hubId === c!.hubId && entry.enabled));
+      } else {
+        const validated = this.transferPairing(s, code); c = validated.c; h = validated.h;
+        validated.p.used = true;
+        // Admission replaces a destination Computer slot. Its former path
+        // grants and queue permits must not authorize the moved local roots.
+        c.binding++; c.revision++;
+        c.credentialHash = credentialHash;
+        s.identity.workspaceGrants = s.identity.workspaceGrants.filter((entry) => entry.computerId !== c!.id);
+        s.identity.queuePermits = s.identity.queuePermits.filter((entry) => entry.computerId !== c!.id);
+        s.identity.pairings = s.identity.pairings.filter((entry) => entry.computerId !== c!.id);
+        s.identity.transferEnrollments = s.identity.transferEnrollments.filter((entry) => entry.computerId !== c!.id);
+        s.identity.transferEnrollments.push({ codeHash, transferId, credentialHash, computerId: c.id, hubId: c.hubId, binding: c.binding });
+        audit(s, c.ownerId, "computer.transfer.admit", c.id);
+      }
+      // The caller already holds this generated credential. Never return a
+      // secret in an admission receipt, including an idempotent retry.
+      return { version: 1 as const, hubUrl: h.origin, hubId: c.hubId, computerId: c.id, binding: c.binding, transferId };
+    });
+  }
+  detachDevice(hubId: string, computerId: string, credential: string, transferId: string) {
+    return this.store.change((s) => {
+      const c = requireValue(s.computers.find((entry) => entry.id === computerId && entry.hubId === hubId));
+      const credentialHash = digest(credential);
+      const receipt = s.identity.computerDetachReceipts.find((entry) => entry.computerId === computerId && entry.hubId === hubId && entry.transferId === transferId && entry.credentialHash === credentialHash);
+      if (receipt) {
+        forbid(c.binding === receipt.binding && c.credentialHash === receipt.fenceHash, "Computer was rebound after this detachment");
+        return { detached: true as const, transferId, computerId, hubId, priorBinding: receipt.priorBinding, binding: receipt.binding };
+      }
+      if (c.credentialHash !== credentialHash) throw new DomainError(401, "invalid_computer", "Computer binding rejected");
+      const priorBinding = c.binding;
+      c.binding++; c.revision++; c.credentialHash = digest(secret());
+      s.identity.pairings = s.identity.pairings.filter((entry) => entry.computerId !== computerId);
+      s.identity.queuePermits = s.identity.queuePermits.filter((entry) => entry.computerId !== computerId);
+      s.identity.workspaceGrants = s.identity.workspaceGrants.filter((entry) => entry.computerId !== computerId);
+      s.agentGrants = s.agentGrants.filter((entry) => !s.agents.some((agent) => agent.id === entry.agentId && agent.computerId === computerId));
+      s.identity.computerDetachReceipts = s.identity.computerDetachReceipts.filter((entry) => entry.computerId !== computerId);
+      s.identity.computerDetachReceipts.push({ computerId, hubId, transferId, credentialHash, fenceHash: c.credentialHash, priorBinding, binding: c.binding });
+      audit(s, c.ownerId, "computer.transfer.detach", computerId);
+      return { detached: true as const, transferId, computerId, hubId, priorBinding, binding: c.binding };
     });
   }
   device(hubId: string, computerId: string, credential: string) {

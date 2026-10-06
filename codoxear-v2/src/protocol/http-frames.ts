@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { Id } from "../contracts/model.js";
+import { WorkspaceContext } from "../contracts/workspaces.js";
+export { WorkspaceContext } from "../contracts/workspaces.js";
 export const CHUNK_BYTES = 64 * 1024,
   STREAM_WINDOW = 1024 * 1024,
   COMPUTER_WINDOW = 16 * 1024 * 1024,
@@ -12,7 +14,8 @@ export const RequestHead = z.object({
   path: z.string().min(1).max(8192),
   headers: Headers,
   actorId: Id.optional(),
-  workspace: z.object({ id: z.literal("default"), access: z.enum(["read", "write"]) }).optional(),
+  actorIsOwner: z.boolean().optional(),
+  workspace: WorkspaceContext.optional(),
   queuePermit: z.string().max(200).optional(),
 });
 export const ResponseHead = z.object({

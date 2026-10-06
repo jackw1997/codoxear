@@ -6,6 +6,32 @@
       "properties": {
         "type": {
           "type": "string",
+          "const": "hello"
+        },
+        "protocol": {
+          "type": "number",
+          "const": 1
+        },
+        "capabilities": {
+          "maxItems": 32,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        }
+      },
+      "required": [
+        "type",
+        "protocol",
+        "capabilities"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
           "const": "request"
         },
         "id": {
@@ -32,8 +58,7 @@
               },
               "required": [
                 "op"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -41,12 +66,28 @@
                 "op": {
                   "type": "string",
                   "const": "workspace"
+                },
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4096
+                },
+                "remove": {
+                  "type": "boolean"
                 }
               },
               "required": [
                 "op"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -73,8 +114,7 @@
                 "op",
                 "backend",
                 "cwd"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -91,8 +131,7 @@
               "required": [
                 "op",
                 "agentId"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -220,8 +259,7 @@
                       "type": "boolean",
                       "const": false
                     }
-                  },
-                  "additionalProperties": false
+                  }
                 }
               },
               "required": [
@@ -229,8 +267,7 @@
                 "agentId",
                 "backend",
                 "name"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -252,8 +289,7 @@
                 "op",
                 "agentId",
                 "localId"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -281,8 +317,7 @@
                 "agentId",
                 "localId",
                 "text"
-              ],
-              "additionalProperties": false
+              ]
             },
             {
               "type": "object",
@@ -304,8 +339,7 @@
                 "op",
                 "agentId",
                 "localId"
-              ],
-              "additionalProperties": false
+              ]
             }
           ]
         }
@@ -315,8 +349,7 @@
         "id",
         "epoch",
         "operation"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -354,8 +387,7 @@
         "id",
         "epoch",
         "ok"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -384,8 +416,7 @@
         "type",
         "epoch",
         "protocol"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -435,8 +466,7 @@
         "type",
         "epoch",
         "event"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
@@ -458,8 +488,7 @@
         "type",
         "epoch",
         "id"
-      ],
-      "additionalProperties": false
+      ]
     }
   ]
 }

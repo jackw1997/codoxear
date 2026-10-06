@@ -1,5 +1,5 @@
 {
-  "request": "Finish pending items step by step; current conversation takes precedence over outdated documentation",
+  "request": "Finish pending requirements with subagents; current conversation wins over historical implementation prescriptions",
   "baselineCommit": "3c2e2fc455d59f3c90ab171d3e8967c097d1064d",
   "requirements": "requirements-reconciliation.md",
   "steps": [
@@ -7,7 +7,7 @@
       "id": "requirements",
       "status": "completed",
       "model": "GPT-6.1-Sol",
-      "outcome": "31 documented decisions; v2 scoped AGENTS preserves current Docker/testing/design requirements"
+      "outcome": "37 documented precedence decisions; current conversation governs v2 implementation, including contrast/touch fixes that preserve appearance families and locked card branches."
     },
     {
       "id": "registers",
@@ -54,7 +54,7 @@
       "outcome": "Fresh post-authorization idle check; atomic broker rejection before paste; terminal draft and new-turn producer fences; ACK after Enter; serialized sends and in-flight receipt deduplication; input, interruption or process exit during paste yields uncertainty",
       "limitations": [
         "Definite queue_not_dispatched alone returns work to pending; ambiguous results remain blocked across restart",
-        "This does not provide unified terminal-local/remote queue ordering",
+        "Historical pre-unification slice; the unified-queue record supersedes its separate terminal/remote ordering limitation.",
         "Accepted submission is Enter written to PTY, not a claim that the model executed it; full broker hard-kill matrix remains open"
       ]
     },
@@ -63,7 +63,7 @@
       "status": "verified-local",
       "evidence": "/tmp/codoxear-queue-download-review.log",
       "scope": "257 MiB native file streams through real WebSocket HttpMux with byte hash, bounded queues, concurrent request, range, cancellation and HEAD",
-      "remaining": "Primary browser Download still buffers and limits files to 256 MiB; authenticated streaming handoff and cross-browser acceptance remain open"
+      "remaining": "Authenticated browser streaming handoff now passed257MiB+37 bytes with a matching hash and mounted application. Safari/physical-device acceptance remains external."
     },
     {
       "id": "native-load-faults",
@@ -83,31 +83,171 @@
         "Shared Hub/Computer fixture process; no production SLO or full commit-boundary matrix",
         "Broker crash during submission remains a separate correctness boundary"
       ]
+    },
+    {
+      "id": "unified-queue",
+      "scope": "One durable terminal and browser queue",
+      "checks": 5,
+      "nativeTests": 39,
+      "outcome": "Broker owns one persistent order and versioned local/remote edits. Actual PTY controls and independent browser manage mixed items; service restart preserves identity. Hard death after paste leaves a durable uncertainty barrier.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Existing running brokers retain their older safe queue until explicit resume with the updated runtime."
+      ]
+    },
+    {
+      "id": "web-push",
+      "scope": "Encrypted browser push and scoped Settings controls",
+      "checks": 9,
+      "nativeTests": 9,
+      "outcome": "Independent aes128gcm decryptor and VAPID JWT verification pass. Real Chrome worker push shows notifications; session, binding, endpoint rotation, permission and disconnect checks fence delivery/click.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Controlled push endpoint and genuine worker event/click. Vendor reception, OS click and physical devices remain unverified. Actual PushManager subscription failed in network-isolated Chrome."
+      ]
+    },
+    {
+      "id": "independent-transfer",
+      "scope": "Move a Computer between independent Hubs",
+      "checks": 5,
+      "nativeTests": 17,
+      "outcome": "Source credential revocation precedes destination owner admission. Fsynced checkpoints recover lost replies. Native Pi broker, CLI, thread and log identities survive; stale source permits and old destination grants are fenced.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Destination import is explicit; actual live Kimi transfer and one destination shell tool passed in the separate live-provider suite."
+      ]
+    },
+    {
+      "id": "protocol-inventory",
+      "scope": "Public protocol inventory and conformance",
+      "checks": 13,
+      "nativeTests": 0,
+      "outcome": "Actual registration matches143 Hub and66 authority methods. All published operations carry explicit success/document/stream/upgrade metadata:99 Hub,48 authority,8 internal and110 relay entries (intentional overlap). Native Pi validated97 responses/74 operations/3 SSE. Administrative conformance checked73 observations/37 HTTP leaves/all24 dispatcher operations with161 standalone published-schema validations. All8 generated artifacts match the Docker output.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Optional vendor usage/subagent telemetry extensions are explicitly open. Representative installed Pi producer acceptance does not certify every CLI version or private provider. Physical-platform acceptance remains separate."
+      ],
+      "evidence": "artifacts/protocol-native-conformance-results.json; artifacts/protocol-admin-conformance-results.json"
+    },
+    {
+      "id": "browser-downloads",
+      "scope": "Large browser downloads preserve the conversation",
+      "checks": 2,
+      "nativeTests": 4,
+      "outcome": "The normal Download streams 257 MiB intact through a one-use POST-body handoff. Hash and size match; the app stays mounted and another conversation turn succeeds. Origin, replay, expiry, identity and active-stream revocation checks pass.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Desktop Chromium accepted; physical Safari/mobile remains separate. No-referrer cross-origin form Origin may be opaque; authentication uses only the one-use ticket."
+      ]
+    },
+    {
+      "id": "unattended-hard-fault",
+      "scope": "Unattended uncertainty requires transcript review",
+      "checks": 1,
+      "nativeTests": 25,
+      "outcome": "Budget and cooldown are persisted before automatic paste. Killed brokers cannot replay ambiguous attempts; recovery disables automatic work until a matching transcript review. Stale review and budget recovery tests pass.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Actual independent-client recovery UI also passed: explicit matching review keeps automation disabled and spent budget unchanged. Physical-device acceptance remains separate."
+      ]
+    },
+    {
+      "id": "launch-hard-fault",
+      "scope": "Computer process death at launch commit boundaries",
+      "checks": 0,
+      "nativeTests": 9,
+      "outcome": "Actual installed Pi, Codex and Claude each survive exact Computer SIGKILL before dispatch, before saving receipt and after saving receipt. Reopened durable journals reject replay; native PID, start ticks, executable and argv prove the same CLI incarnation remains. Committed receipts retain identity.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "All three actual installed CLIs use isolated local onboarding/trust and fixture-only provider configuration. Launch proof does not claim inference or every network/broker mutation boundary."
+      ]
+    },
+    {
+      "id": "delegated-workspaces",
+      "status": "verified-local",
+      "scope": "Independent root, path, Git, upload and video grants",
+      "model": "GPT-6.1-Sol",
+      "checks": 5,
+      "evidence": "artifacts/delegated-workspaces-browser-results.json",
+      "outcome": "Owner-managed independent workspace IDs and per-path grants are enforced using directory identity and request-scoped capabilities. Five actual independent-client member checks cover delayed typing, file read/edit, separate Git history/revoke, private picker upload/Pi send with revoke/regrant, ffmpeg preview/range/revoke and second-root approval/removal.",
+      "limitations": [
+        "Linux secure filesystem and Chrome154 fixture acceptance; physical mobile and macOS remain separate.",
+        "A grant revision fences revoked/regranted uploads. Existing old brokers reject unsupported member attachment operations without being restarted."
+      ]
+    },
+    {
+      "id": "live-kimi-native",
+      "status": "verified-live",
+      "model": "GPT-6.1-Sol",
+      "scope": "Real Kimi/LiteLLM tools, interrupt, outage, reconnect and transfer",
+      "checks": 5,
+      "evidence": "artifacts/live-native-provider-results.json",
+      "outcome": "Native Pi completed real bash, interrupt/next turn, Hub outage with old queued identity revoked and fresh queue reauthorized, Computer restart with unchanged native identities, and independent-Hub transfer followed by exactly one live destination tool.",
+      "limitations": [
+        "Final live Pi run used installed rg/fd and no PI_OFFLINE; readiness requires a fresh producer bridge signal matching the actual CLI PID.",
+        "Configured provider only. Actual Claude Messages tool compatibility also passed; Codex Responses tool execution remains unproven after its deadline.",
+        "Basic authenticated Responses streaming also completes in3s; this is distinct from actual Codex native shell-tool proof."
+      ]
+    },
+    {
+      "id": "harmony-account-lifecycle",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Self-contained Harmony client accounts, vault and multi-Hub subscriptions",
+      "nativeTests": 13,
+      "outcome": "V2-owned ArkTS SDK scaffold and OS adapter contracts exercise callbacks/cancellation, locked secure vault, serialized refresh and loss fences, account switching, native tap authorization and multiple subscriptions against two independent Hubs. Expanded workspace/native/identity/Harmony suite passed52 tests; nine three-backend hard-death launch checks also passed.",
+      "limitations": [
+        "OS APIs are mocked for Docker behavior; no SDK compile, signing, physical build or Push Kit delivery claim."
+      ]
+    },
+    {
+      "id": "application-accessibility",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Full application keyboard, labels, themes and touch targets",
+      "checks": 8,
+      "evidence": "artifacts/browser-accessibility-results.json",
+      "outcome": "Actual native import, Hubs/Computer/access, File viewer/Monaco, Help/Details/edit, real busy queue, creation/model dialogs and recovered unattended review pass. Nine appearance combinations preserve13 font samples. All18 touch-target groups pass44px; minimum light contrast4.514:1 and dark5.196:1.",
+      "limitations": [
+        "Chrome154 and actual independent Hub/native Pi; physical assistive technology, Safari and native devices remain external acceptance. Console diagnostics remain recorded; no zero-console-error claim."
+      ]
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
   "platformScope": "Linux native acceptance; macOS/device/live-provider gates remain individually tracked",
   "integration": {
-    "tests": 177,
+    "tests": 235,
     "failed": 0,
     "skipped": 0,
     "genericBrowserChecks": 46,
     "verifierExitCode": 0,
-    "log": "/tmp/codoxear-v2-final-integration.log",
-    "scope": "Fresh combined production source; independent CLI lifecycle and voice browser suites recorded separately"
+    "log": "/tmp/codoxear-v2-final-complete.log",
+    "scope": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped."
   },
   "registerCounts": {
-    "active": 26,
-    "completed": 4,
-    "historicalBaseline": 30,
-    "note": "Broader rows overlap narrower ones; active entries also include external setup, later stages, compatibility limits and the aggregate production decision"
+    "active": 20,
+    "completed": 6,
+    "resolvedConstraints": 1,
+    "note": "Rows overlap. Intentional safe compatibility exclusions are resolved constraints rather than unfinished features."
   },
-  "preview": "https://codoxear.gzeek.com:8461/",
+  "preview": "https://codoxear.gzeek.com:8471/",
   "previewVerification": {
-    "checks": 4,
-    "evidence": "artifacts/progress-preview-results.json",
-    "outcome": "Actual phone browser connects two independent Hubs through OAuth, imports a real terminal Pi PTY, executes a shell file write and recovers its transcript after reload; no page errors or overflow",
-    "provider": "Scripted demo responses with actual installed CLI and shell tools; custom provider URL/key/model creation remains available",
-    "browserHarness": "Loopback online simulation inside network-isolated Docker; certificate exception scoped to fixture certificate SPKI"
+    "status": "not-yet-deployed",
+    "note": "New8471 preview will be created from the final verified commit. Existing8461 preview remains available."
+  },
+  "updatedAt": "2026-10-06T01:25:37.581Z",
+  "integrationStatus": "Final source verification passed:235 TypeScript tests and46 generic browser checks. All implementation agents are frozen. New committed preview deployment is prepared; physical/external/future requirements remain explicit.",
+  "github": {
+    "status": "blocked",
+    "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",
+    "localBranch": "v2/typescript-architecture-pr",
+    "published": false
   }
 }

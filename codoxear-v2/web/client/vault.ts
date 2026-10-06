@@ -10,6 +10,7 @@ export interface HubLogin {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
+  pushSession?: string;
   identity: {
     name: string;
     method: string;

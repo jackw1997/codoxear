@@ -21,6 +21,10 @@ declare module "*legacy/app_session_lifecycle.js" {
     check: (id: string) => Promise<void>,
   ): void;
 }
+declare module "*legacy/app_file_access_context.js" {
+  export function configureFileAccessContext(key: (id: string | null) => string): void;
+  export function notifyFileAccessContext(id: string): void;
+}
 declare module "*legacy/app_theme.js" {
   export function createThemeController(options: {
     documentTarget: Document;

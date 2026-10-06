@@ -1,3 +1,4 @@
+import * as CodoxearModal from "./app_modal.js";
 const global = window;
 
 
@@ -45,6 +46,8 @@ const global = window;
     let editSessionId = null;
     let dependencyMenuOpen = false;
     let snoozeMode = "none";
+    let returnFocusElement = null;
+    editViewer.tabIndex = -1;
 
     function applyMenus() {
       editDependencyMenu.classList.toggle("open", dependencyMenuOpen);
@@ -59,6 +62,8 @@ const global = window;
     }
 
     function hideEditSession() {
+      const focusTarget = returnFocusElement;
+      returnFocusElement = null;
       editSessionId = null;
       editStatus.textContent = "";
       editSaveBtn.disabled = false;
@@ -66,6 +71,7 @@ const global = window;
       if (editViewer.open && typeof editViewer.close === "function") editViewer.close();
       else editViewer.style.display = "none";
       afterModalVisibilityChanged();
+      CodoxearModal.restoreModalFocus(focusTarget, () => CodoxearModal.isModalTargetOpen(editViewer));
     }
 
     function syncEditPriorityLabel() {
@@ -137,6 +143,7 @@ const global = window;
       if (!sid) return;
       const session = getSessionInfo(sid);
       if (!session) return;
+      returnFocusElement = documentTarget.activeElement instanceof ElementCtor ? documentTarget.activeElement : null;
       editSessionId = sid;
       editStatus.textContent = "";
       editSaveBtn.disabled = false;
@@ -157,6 +164,7 @@ const global = window;
       if (!editViewer.open && typeof editViewer.showModal === "function") editViewer.showModal();
       else editViewer.style.display = "flex";
       afterModalVisibilityChanged();
+      CodoxearModal.focusModalSurface(editViewer);
     }
 
     async function saveEditSession() {

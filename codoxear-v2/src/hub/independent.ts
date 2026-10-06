@@ -21,6 +21,7 @@ export async function independentAuthority(options: {
   clients?: IdentityOptions["clients"];
   codeDelivery?: IdentityOptions["codeDelivery"];
   secureCookies?: boolean;
+  routeObserver?: IdentityOptions["routeObserver"];
 }): Promise<{
   client: AuthorityClient;
   identity: FastifyInstance;
@@ -61,6 +62,7 @@ export async function independentAuthority(options: {
     clients: options.clients ?? [],
     codeDelivery: options.codeDelivery ?? [],
     secureCookies: options.secureCookies ?? true,
+    ...(options.routeObserver ? { routeObserver: options.routeObserver } : {}),
   });
   const transport: typeof fetch = async (input, init) => {
     const url = new URL(String(input));

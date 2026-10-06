@@ -2231,6 +2231,12 @@ select {
         flex-wrap: wrap;
         justify-content: flex-end;
       }
+      .fileViewerHeader .icon-btn::after,
+      .queueHeader .icon-btn::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+      }
       .fileVimMode {
         display: inline-block;
         border: 1px solid var(--border);
@@ -3679,6 +3685,21 @@ select {
          type attribute is a text input and is listed explicitly because
          attribute selectors never match a missing attribute. */
       @media (max-width: 880px), (pointer: coarse) {
+        #settingsModeChips {
+          gap: 12px;
+          padding: 6px;
+        }
+        #settingsModeChips .choiceChip::after {
+          inset: -6px;
+        }
+        #filePickerInput {
+          min-height: var(--ctl);
+          height: var(--ctl);
+        }
+        #unattendedReviewBtn,
+        .unattendedMenu input[type="number"] {
+          min-height: var(--ctl);
+        }
         input:not([type]),
         input[type="text"],
         input[type="password"],

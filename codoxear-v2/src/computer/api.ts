@@ -92,6 +92,7 @@ export function createComputerApi(home: string) {
         binding: config?.binding,
         running,
         lastObserved: last,
+        pendingTransfer: await import("./transfer.js").then((module) => module.transferStatus(home)),
       };
     },
     async doctor() {
@@ -108,6 +109,11 @@ export function createComputerApi(home: string) {
             : []),
         ],
       };
+    },
+    async transfer(input: { hub: string; code: string }, transport: typeof fetch = fetch) {
+      const unlock = await acquireLock(home);
+      try { return await import("./transfer.js").then((module) => module.transferComputer(home, input, transport)); }
+      finally { await unlock(); }
     },
     async detach() {
       const unlock = await acquireLock(home);

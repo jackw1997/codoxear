@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, unlink } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connect } from "node:net";
@@ -33,6 +34,7 @@ async function until<T>(
 async function fixture(
   options: {
     reportInput?: boolean;
+    reportUnattendedPaste?: boolean;
     exitOnPaste?: boolean;
     responseDelay?: number;
     delayedUser?: boolean;
@@ -54,12 +56,66 @@ const dir=path.join(home,'.codex','sessions');fs.mkdirSync(dir,{recursive:true})
 const fd=fs.openSync(log,'a');function row(type,payload){fs.writeSync(fd,JSON.stringify({type,payload,timestamp:new Date().toISOString()})+'\\n');}
 if(fs.statSync(log).size===0)row('session_meta',{id,cwd});
 if(${options.delayedTrust === true}){process.stdout.write('OpenAI Codex permissions: YOLO mode Ask Codex to do anything '+(${options.newSessionTrust === true}?'':'Resuming session…')+'\\n');setTimeout(()=>process.stdout.write('\\x1b[1;1H\\x1b[JFolder access\\nTrust this folder?\\n1. Trust and continue\\n2. Quit\\n'),250);}else process.stdout.write('100% context left ? for shortcuts\\n');if(process.stdin.isTTY)process.stdin.setRawMode(true);
-let buffer='';process.stdin.on('data',data=>{buffer+=data.toString().replace(/\\x1b\\[(?:200|201)~/g,'');if(${options.exitOnPaste === true}&&buffer.includes('FAIL_BEFORE_SUBMIT'))process.exit(0);if(${options.reportInput === true})process.stdout.write('INPUT_OBSERVED\\n');if(buffer.includes('\\x03')){buffer='';return;}if(!buffer.includes('\\r'))return;const text=buffer.split('\\r')[0];buffer='';process.stdout.write('Native reply echo: '+text+'\\n');setTimeout(()=>{row('event_msg',{type:'user_message',message:text});setTimeout(()=>{row('response_item',{type:'message',role:'assistant',phase:'final_answer',content:[{type:'output_text',text:'Native reply: '+text}]});row('event_msg',{type:'task_complete'});process.stdout.write('100% context left ? for shortcuts\\n');},${options.responseDelay ?? 80});},${options.delayedUser === true}&&text==='Delayed producer row'?900:0);});
+let buffer='';process.stdin.on('data',data=>{if(${options.reportUnattendedPaste === true}&&data.toString().includes('Unattended-mode operating constitution'))process.stdout.write('UNATTENDED_PASTE_BOUNDARY\\n');buffer+=data.toString().replace(/\\x1b\\[(?:200|201)~/g,'');if(${options.exitOnPaste === true}&&buffer.includes('FAIL_BEFORE_SUBMIT'))process.exit(0);if(${options.reportInput === true})process.stdout.write('INPUT_OBSERVED\\n');if(buffer.includes('\\x03')){buffer='';return;}if(!buffer.includes('\\r'))return;const text=buffer.split('\\r')[0];buffer='';process.stdout.write('Native reply echo: '+text+'\\n');setTimeout(()=>{row('event_msg',{type:'user_message',message:text});setTimeout(()=>{row('response_item',{type:'message',role:'assistant',phase:'final_answer',content:[{type:'output_text',text:'Native reply: '+text}]});row('event_msg',{type:'task_complete'});process.stdout.write('100% context left ? for shortcuts\\n');},${options.responseDelay ?? 80});},${options.delayedUser === true}&&text==='Delayed producer row'?900:0);});
 `,
     { mode: 0o755 },
   );
   return { home, workspace, command };
 }
+test("unattended hard death spends its durable budget, blocks replay and requires transcript review", {timeout:30000}, async () => {
+  const f = await fixture({reportUnattendedPaste:true}), prior = process.env.CODEX_BIN;
+  process.env.CODEX_BIN = f.command;
+  const runtime = new NativeRuntime(f.home, f.workspace);
+  let id: string | undefined, restarted: ReturnType<typeof spawn> | undefined;
+  let attachment: ReturnType<typeof connect> | undefined;
+  try {
+    id = (await runtime.createTerminal("codex", "Unattended fault")).localId;
+    await until(async () => (await runtime.request(`/api/sessions/${id}/state`)).readiness === "ready" || false);
+    await runtime.request(`/api/sessions/${id}/send`, "POST", {text:"Completed objective"});
+    await until(async () => (await runtime.request(`/api/sessions/${id}/messages/tail`)).events.some((e:any)=>e.role==="assistant") || false);
+    const state = await runtime.request(`/api/sessions/${id}/state`);
+    await runtime.request(`/api/sessions/${id}/unattended`, "POST", {enabled:true,cooldown_minutes:1,remaining_injections:2});
+    attachment = connect(socketPath(runtime.stateHome,id));
+    let killed = false;
+    attachment.setEncoding("utf8");
+    attachment.on("data", chunk => {
+      if (!killed && String(chunk).includes("UNATTENDED_PASTE_BOUNDARY")) { killed=true; process.kill(state.broker_pid,"SIGKILL"); }
+    });
+    attachment.write(JSON.stringify({operation:"attach"})+"\n");
+    const rows=readFileSync(state.log_path,"utf8").trim().split("\n").map(line=>({...JSON.parse(line),timestamp:new Date(Date.now()-120000).toISOString()}));
+    await writeFile(state.log_path,rows.map(row=>JSON.stringify(row)).join("\n")+"\n");
+    await until(async () => killed || false);
+    const saved=JSON.parse(readFileSync(join(runtime.directory,id+".state.json"),"utf8"));
+    assert.equal(saved.unattended.remaining_injections,1);
+    assert.equal(typeof saved.unattended_attempt,"string");
+    assert.ok(saved.last_unattended>Date.now()-5000);
+    attachment.destroy();
+    try { process.kill(state.pid,"SIGTERM"); } catch {}
+    await unlink(socketPath(runtime.stateHome,id));
+    restarted=spawn(process.execPath,["--import","tsx","src/computer/native/broker.ts","--terminal"],{cwd:process.cwd(),stdio:["pipe","ignore","ignore"]});
+    const input: BrokerLaunch={home:f.home,storageHome:runtime.stateHome,sessionId:id,backend:"codex",cwd:f.workspace,name:"Recovered unattended",resumePath:state.log_path,launch:{resume_session_id:state.thread_id}};
+    restarted.stdin!.end(JSON.stringify(input));
+    await until(async () => {
+      try { return (await runtime.request(`/api/sessions/${id}/state`)).readiness==="ready" || false; } catch { return false; }
+    });
+    const config=await runtime.request(`/api/sessions/${id}/unattended`);
+    assert.equal(config.enabled,false);assert.equal(config.remaining_injections,1);assert.equal(config.commit_unknown,saved.unattended_attempt);
+    await assert.rejects(runtime.request(`/api/sessions/${id}/unattended`,"POST",{enabled:true}), /review|previous/i);
+    await assert.rejects(runtime.request(`/api/sessions/${id}/unattended`,"POST",{review_attempt:"stale"}), /reload|review/i);
+    await runtime.request(`/api/sessions/${id}/unattended`,"POST",{review_attempt:config.commit_unknown,enabled:false});
+    await runtime.request(`/api/sessions/${id}/unattended`,"POST",{enabled:true});
+    await new Promise(resolve=>setTimeout(resolve,800));
+    assert.equal((await runtime.request(`/api/sessions/${id}/unattended`)).remaining_injections,1);
+    const users=(await runtime.request(`/api/sessions/${id}/messages/tail`)).events.filter((e:any)=>e.role==="user");
+    assert.deepEqual(users.map((e:any)=>e.text),["Completed objective"]);
+  } finally {
+    attachment?.destroy();
+    if(id) await runtime.request(`/api/sessions/${id}`,"DELETE").catch(()=>{});
+    restarted?.kill("SIGTERM");runtime.close();
+    if(prior===undefined) delete process.env.CODEX_BIN; else process.env.CODEX_BIN=prior;
+  }
+});
+
 test("native unattended waits for final-turn idle cooldown and injects an optional-request prompt once", async () => {
   const f = await fixture(),
     prior = process.env.CODEX_BIN;

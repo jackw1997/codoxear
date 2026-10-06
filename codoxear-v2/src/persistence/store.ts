@@ -68,7 +68,7 @@ function validateRelations(s: State): void {
     )
       throw new Error("Agent grant needs an existing agent and user");
   unique(
-    s.identity.workspaceGrants.map((g) => `${g.computerId}:${g.userId}`),
+    s.identity.workspaceGrants.map((g) => `${g.computerId}:${g.userId}:${g.workspaceId}`),
     "workspace grant",
   );
   for (const g of s.identity.workspaceGrants)

@@ -543,7 +543,7 @@ await hub.listen({ host: "127.0.0.1", port: 19744 });
   assert.equal(await queuedText.inputValue(), "Queued after the slow turn.");
   await workspacePage
     .getByRole("dialog", { name: "Queued messages", exact: true })
-    .getByText("Waiting for the current turn or local queue", { exact: true })
+    .getByText("Waiting for the current turn or terminal input", { exact: true })
     .waitFor();
   const updated = workspacePage.waitForResponse(
     (r: any) =>

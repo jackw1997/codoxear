@@ -76,6 +76,8 @@ export class ComputerService {
   async start(): Promise<void> {
     this.unlock = await acquireLock(this.home);
     try {
+      if (await (await import("./transfer.js")).transferStatus(this.home))
+        throw new DomainError(409, "transfer_pending", "Finish the saved Computer transfer before connecting to a Hub");
       const config = await readAttachment(this.home);
       if (!config)
         throw new Error("Computer is not attached; use attach first");
@@ -142,6 +144,7 @@ export class ComputerService {
               this.collecting = false;
             });
         }, 2000);
+        this.runtime!.setQueueScope?.(JSON.stringify([config.hubId, config.computerId, config.binding ?? 0]));
         this.queue = new ComputerQueue(
           join(this.home, "queues.sqlite"),
           JSON.stringify([
@@ -150,6 +153,10 @@ export class ComputerService {
             config.binding ?? 0,
           ]),
           {
+            ...(this.runtime!.queueControl ? { unified: {
+              sessions: () => this.runtime!.queueControl!("", "sessions"),
+              control: (localId: string, operation: string, body?: Record<string, unknown>) => this.runtime!.queueControl!(localId, operation, body),
+            } } : {}),
             idle: async (localId) => {
               const catalog = (await this.runtime!.execute({
                 op: "discover",
@@ -162,9 +169,7 @@ export class ComputerService {
                 row.busy === false &&
                 !row.commit_unknown_send &&
                 !row.pending_attachment &&
-                !row.orphan_recovery &&
-                Number(row.queue_len ?? 0) === 0 &&
-                Number(row.broker_queue_len ?? 0) === 0
+                !row.orphan_recovery
               );
             },
             authorize: async (permit, localId) => {
@@ -343,6 +348,7 @@ export class ComputerService {
                     "personal-drafts",
                     "session-incarnations",
                     "workspace-files",
+                    "workspace-capabilities-v2",
                   ]
                 : []),
             ],
@@ -417,12 +423,11 @@ export class ComputerService {
             for (const session of catalog.sessions) {
               session.draft_updated_ts =
                 timestamps?.get(String(session.session_id)) ?? 0;
-              session.remote_queue_len = this.queue.list(
-                String(session.session_id),
-              ).length;
+              const queued = await this.queue.listAsync(String(session.session_id)).catch(() => this.queue!.list(String(session.session_id)));
+              session.remote_queue_len = queued.filter((item: any) => item.origin !== "local").length;
               session.queue_len =
-                Number(session.queue_len ?? 0) +
-                Number(session.remote_queue_len);
+                session.unified_queue === true ? queued.length :
+                Number(session.queue_len ?? 0) + Number(session.remote_queue_len);
             }
           }
         } finally {

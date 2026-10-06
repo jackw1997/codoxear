@@ -21,10 +21,13 @@ import { backendCommand } from "./backend.js";
 import { readTranscript, scanLogs } from "./logs.js";
 import type { Backend, BrokerLaunch, Metadata } from "./types.js";
 import { NativeSidebar } from "./workspace/sidebar.js";
+import { WorkspaceRegistry } from "./workspace/registry.js";
 const validId = (id: string) => /^broker-[a-f0-9]{32}$/.test(id);
 export class NativeRuntime implements Runtime {
   readonly kind = "native" as const;
   readonly directory: string;
+  private queueScope: string | undefined;
+  setQueueScope(scope: string) { this.queueScope = scope; }
   constructor(
     public readonly home: string,
     public readonly workspace: string,
@@ -70,6 +73,8 @@ export class NativeRuntime implements Runtime {
     body: Record<string, unknown> = {},
   ) {
     this.metadata(id);
+    if ((operation === "state" || operation === "queue") && this.queueScope !== undefined)
+      body = { ...body, scope: this.queueScope };
     return new Promise<any>((resolveResult, reject) => {
       let answer = "",
         finished = false;
@@ -338,10 +343,14 @@ export class NativeRuntime implements Runtime {
   async createTerminal(backend: Backend, name: string, launch: unknown = {}) {
     return this.launch(backend, name, launch, true);
   }
+  async queueControl(localId: string, operation: string, body: Record<string, unknown> = {}) {
+    if (operation === "sessions") return this.listMetadata().filter((meta) => meta.readiness !== "exited").map((meta) => meta.session_id);
+    return this.control(localId, operation, body);
+  }
   async sendQueued(localId: string, text: string) {
     return this.control(localId, "send", { text, require_idle: true });
   }
-  private async catalogue() {
+  private async catalogue(actorId?: string) {
     const metadata = this.listMetadata();
     const activeIds = new Set(metadata.map((meta) => meta.session_id));
     const sidebar = new NativeSidebar(this.directory);
@@ -349,7 +358,7 @@ export class NativeRuntime implements Runtime {
       metadata.map(async (meta) => {
         let state: any = {};
         try {
-          state = await this.control(meta.session_id, "state");
+          state = await this.control(meta.session_id, "state", actorId ? { actorId } : {});
           delete state.tail;
         } catch {}
         const transcript = readTranscript(meta.log_path, meta.agent_backend);
@@ -536,8 +545,8 @@ export class NativeRuntime implements Runtime {
   }
   async execute(operation: Operation): Promise<unknown> {
     if (operation.op === "workspace")
-      return { id: "default", path: this.workspace };
-    if (operation.op === "discover") return this.catalogue();
+      return new WorkspaceRegistry(this.stateHome, this.workspace).execute(operation);
+    if (operation.op === "discover") return this.catalogue(operation.actorId);
     if (operation.op === "resume-candidates")
       return this.request(
         `/api/session_resume_candidates?agent_backend=${operation.backend}&cwd=${encodeURIComponent(operation.cwd)}`,

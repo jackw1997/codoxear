@@ -52,6 +52,34 @@ const fileReads = new Set([
   "git/diff",
   "git/file_versions",
 ]);
+const ownerRead = new Set([
+  "/api/settings/voice", "/api/settings/unattended-prompt", "/api/file/blob", "/api/file/download",
+  "/api/files/blob", "/api/files/download", "/api/files/image-dimensions", "/api/files/video_preview",
+  "/api/file/image-dimensions", "/api/file/video_preview", "/api/cwd-suggest", "/api/session_resume_candidates",
+  "/api/audio/live.m3u8", "/api/notifications/feed", "/api/notifications/text", "/api/notifications/state",
+]);
+const ownerWrite = new Set([
+  "/api/files/read", "/api/files/inspect", "/api/files/inspect-batch", "/api/settings/voice", "/api/settings/unattended-prompt", "/api/audio/listener",
+]);
+export type RelayEndpoint = { method: "GET" | "HEAD" | "POST"; path: string; action: RouteAccess };
+/** Exact allowlist used by the classifier, including method-specific capabilities. */
+export function relayEndpointInventory(): RelayEndpoint[] {
+  const result: RelayEndpoint[] = [];
+  const add = (method: RelayEndpoint["method"], path: string, action: RouteAccess) => result.push({method,path,action});
+  for (const method of ["GET", "HEAD"] as const) {
+    for (const path of ownerRead) add(method,path,"computer.admin");
+    add(method,"/api/audio/segments/{filename}","computer.admin");
+    for (const route of reads) add(method,"/api/sessions/{localId}/"+route,"read");
+    for (const route of fileReads) add(method,"/api/sessions/{localId}/"+route,"files.read");
+  }
+  for (const path of ownerWrite) add("POST",path,"computer.admin");
+  for (const route of ["file/inspect","file/inspect-batch"]) add("POST","/api/sessions/{localId}/"+route,"files.read");
+  add("POST","/api/sessions/{localId}/delete","session.delete");
+  add("POST","/api/sessions/{localId}/interrupt","interrupt");
+  for (const route of controls) add("POST","/api/sessions/{localId}/"+route,route === "draft" ? "read" : "send");
+  for (const route of ["file/write","inject_file","inject_image"]) add("POST","/api/sessions/{localId}/"+route,"files.write");
+  return result;
+}
 export function classifyRoute(
   method: string,
   path: string,
@@ -73,32 +101,6 @@ export function classifyRoute(
     throw new DomainError(400, "invalid_route", "Non-canonical route");
   // These established global APIs expose computer-wide files/settings. Only the
   // computer owner may call them; session retention never confers this capability.
-  const ownerRead = new Set([
-    "/api/settings/voice",
-    "/api/settings/unattended-prompt",
-    "/api/file/blob",
-    "/api/file/download",
-    "/api/files/blob",
-    "/api/files/download",
-    "/api/files/image-dimensions",
-    "/api/files/video_preview",
-    "/api/file/image-dimensions",
-    "/api/file/video_preview",
-    "/api/cwd-suggest",
-    "/api/session_resume_candidates",
-    "/api/audio/live.m3u8",
-    "/api/notifications/feed",
-    "/api/notifications/text",
-    "/api/notifications/state",
-  ]);
-  const ownerWrite = new Set([
-    "/api/files/read",
-    "/api/files/inspect",
-    "/api/files/inspect-batch",
-    "/api/settings/voice",
-    "/api/settings/unattended-prompt",
-    "/api/audio/listener",
-  ]);
   if (
     (["GET", "HEAD"].includes(method) &&
       (ownerRead.has(decoded) ||

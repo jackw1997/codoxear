@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 // Export only committed sources; never archive local credentials or runtime data.
 const repository = resolve(".."),
@@ -32,6 +33,7 @@ await writeFile(
     commit,
     format: "source",
     node: ">=22.13",
+    sha256: createHash("sha256").update(await readFile(resolve(directory, "codoxear-computer-source.tar.gz"))).digest("hex"),
   }) + "\n",
 );
 console.log("Packaged Computer source", commit);

@@ -1,5 +1,6 @@
 import { constants } from "node:fs";
-import { open, realpath, readdir, rename, unlink } from "node:fs/promises";
+import { open, realpath, readdir, rename, unlink, lstat } from "node:fs/promises";
+import { requireAllowedPath, requireSingleLink, validateRootHandle, allowedPath, workspaceSecurity } from "./security.js";
 import {
   dirname,
   basename,
@@ -46,6 +47,7 @@ export async function pinnedParent(path: string) {
     "/",
     constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
   );
+  let currentPath = "/";
   try {
     for (const part of parts) {
       const next = await open(
@@ -54,6 +56,8 @@ export async function pinnedParent(path: string) {
       );
       await handle.close();
       handle = next;
+      currentPath = join(currentPath, part);
+      await validateRootHandle(currentPath, handle);
     }
     return handle;
   } catch (e) {
@@ -66,6 +70,7 @@ export async function guardedPath(root: string | undefined, raw: string) {
     throw new DomainError(400, "invalid_path", "path required");
   const path = resolve(root ?? "/", raw);
   if (root && !inside(root, path)) throw denied();
+  requireAllowedPath(path);
   return path;
 }
 export async function openFile(path: string, flags = constants.O_RDONLY) {
@@ -75,6 +80,8 @@ export async function openFile(path: string, flags = constants.O_RDONLY) {
       pathBytes(`/proc/self/fd/${parent.fd}/${basename(path)}`),
       flags | constants.O_NOFOLLOW,
     );
+    try { await validateRootHandle(path, file); await requireSingleLink(file); }
+    catch (error) { await file.close(); throw error; }
     return file;
   } finally {
     await parent.close();
@@ -221,7 +228,15 @@ export async function listFiles(root: string) {
         const rel = prefix + name;
         if (entry.isDirectory() && !ignored.has(name))
           await walk(join(path, name), rel + "/", depth + 1);
-        else if (entry.isFile()) result.push(pathFields(rel));
+        else if (entry.isFile() && allowedPath(join(path, name))) {
+          try {
+            const checked = await openFile(join(path, name));
+            await checked.close();
+            result.push(pathFields(rel));
+          } catch (error) {
+            if (!workspaceSecurity.getStore()) throw error;
+          }
+        }
         if (result.length >= 10000 || Date.now() > deadline) break;
       }
     } finally {
@@ -237,7 +252,9 @@ export async function writeFileVersioned(
   text: string,
   create: boolean,
   expected?: string,
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   if (typeof text !== "string" || Buffer.byteLength(text) > VIEW_LIMIT)
     throw new DomainError(400, "invalid_text", "Text exceeds file limit");
   const prior = locks.get(path) ?? Promise.resolve();
@@ -246,10 +263,13 @@ export async function writeFileVersioned(
   locks.set(path, current);
   await prior;
   try {
+    signal?.throwIfAborted();
+    requireAllowedPath(path);
     const parent = await pinnedParent(path);
     const pinned = `/proc/self/fd/${parent.fd}/${basename(path)}`;
     let temporary: string | undefined;
     let mode = 0o600;
+    let original: { dev: number; ino: number; version: string } | undefined;
     try {
       if (!create) {
         if (!expected)
@@ -260,6 +280,7 @@ export async function writeFileVersioned(
         );
         try {
           const stat = await existing.stat();
+          await requireSingleLink(existing);
           if (!stat.isFile())
             throw new DomainError(400, "not_file", "path is not a file");
           if (stat.size > VIEW_LIMIT)
@@ -285,11 +306,13 @@ export async function writeFileVersioned(
               "file_changed",
               "file changed; reload before saving",
             );
+          original = { dev: stat.dev, ino: stat.ino, version: version(bytes) };
         } finally {
           await existing.close();
         }
       }
       const bytes = Buffer.from(text);
+      signal?.throwIfAborted();
       if (create) {
         const file = await open(
           pathBytes(pinned),
@@ -315,6 +338,15 @@ export async function writeFileVersioned(
         } finally {
           await file.close();
         }
+        // Compare the pinned entry again immediately before the atomic replacement.
+        const current = await open(pathBytes(pinned), constants.O_RDONLY | constants.O_NOFOLLOW);
+        try {
+          const stat = await current.stat();
+          await requireSingleLink(current);
+          if (stat.dev !== original!.dev || stat.ino !== original!.ino || version(await current.readFile()) !== original!.version)
+            throw new DomainError(409, "file_changed", "file changed; reload before saving");
+        } finally { await current.close(); }
+        signal?.throwIfAborted();
         await rename(temporary, pathBytes(pinned));
         temporary = undefined;
       }

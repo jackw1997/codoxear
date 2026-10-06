@@ -1,5 +1,6 @@
 import { build } from "esbuild";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { cp, mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 const source = resolve("web/legacy"),
@@ -75,6 +76,7 @@ for (const root of ["dist/web/appearance", "dist/identity/appearance"]) {
 
 // The independent client is just the original UI plus a local multi-hub transport.
 await cp(destination, resolve("dist/client"), { recursive: true });
+if (existsSync("docs/progress.html")) await cp("docs/progress.html", "dist/client/progress.html");
 await build({
   entryPoints: [resolve("web/client/main.ts")],
   bundle: true,
@@ -140,7 +142,7 @@ await writeFile(
     .replace("font-src 'self'", "font-src 'self' data:")
     .replace(
       "connect-src 'self'",
-      "connect-src 'self' https: http://127.0.0.1:* http://localhost:*",
+      "connect-src 'self' https: http://127.0.0.1:* http://localhost:*; frame-src 'self' https: http://127.0.0.1:* http://localhost:*",
     ),
 );
 

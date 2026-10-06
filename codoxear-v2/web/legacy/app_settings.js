@@ -148,12 +148,14 @@ function createSettingsDialogController(options = {}) {
       const active = family === theme.family;
       button.classList.toggle("active", active);
       button.setAttribute("aria-checked", active ? "true" : "false");
+      button.tabIndex = active ? 0 : -1;
     }
     swatches.setAttribute("data-swatch-mode", theme.resolvedMode);
     for (const [mode, button] of modeButtons) {
       const active = mode === theme.mode;
       button.classList.toggle("active", active);
       button.setAttribute("aria-checked", active ? "true" : "false");
+      button.tabIndex = active ? 0 : -1;
     }
     modeHint.textContent = theme.mode === "system"
       ? `Follows the system setting (currently ${theme.resolvedMode}).`
@@ -232,6 +234,23 @@ function createSettingsDialogController(options = {}) {
   for (const [mode, button] of modeButtons) {
     addEvent(button, "click", () => themeController.applyTheme({ mode }));
   }
+  function bindRadioKeys(group, buttons, property) {
+    addEvent(group, "keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+      const entries = [...buttons];
+      const current = entries.findIndex(([, button]) => button === event.target);
+      if (current < 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? entries.length - 1
+        : (current + (["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1) + entries.length) % entries.length;
+      const [value, button] = entries[next];
+      themeController.applyTheme({ [property]: value });
+      button.focus({ preventScroll: true });
+    });
+  }
+  bindRadioKeys(swatches, familyButtons, "family");
+  bindRadioKeys(modeChips, modeButtons, "mode");
   addEvent(customCssInput, "input", scheduleCustomCss);
   addEvent(customCssInput, "change", flushCustomCss);
 

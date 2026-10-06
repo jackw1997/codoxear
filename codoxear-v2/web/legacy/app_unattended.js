@@ -82,6 +82,8 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       ]),
       el("div", { class: "label", text: "Additional request to append (optional; per session)" }),
       requestEl,
+      el("div", { id: "unattendedReviewStatus", role: "status", hidden: true, text: "The last automatic send may have reached the agent. Check the transcript before enabling unattended mode again." }),
+      el("button", { id: "unattendedReviewBtn", type: "button", hidden: true, text: "I checked the previous attempt" }),
     ]);
     return Object.freeze({ unattendedBtn, unattendedMenu, enabledEl, cooldownEl, remainingEl, requestEl });
   }
@@ -103,6 +105,15 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     const unattendedBtn = requireNode(options.unattendedBtn, "unattendedBtn");
     const unattendedMenu = requireNode(options.unattendedMenu, "unattendedMenu");
     const enabledEl = options.enabledEl == null ? null : options.enabledEl;
+    const reviewStatus = unattendedMenu.querySelector("#unattendedReviewStatus");
+    const reviewButton = unattendedMenu.querySelector("#unattendedReviewBtn");
+    let reviewAttempt = null;
+    function projectReview(value) {
+      reviewAttempt = typeof value === "string" ? value : null;
+      if (reviewStatus) reviewStatus.hidden = !reviewAttempt;
+      if (reviewButton) reviewButton.hidden = !reviewAttempt;
+      if (enabledEl) enabledEl.disabled = !!reviewAttempt;
+    }
     const cooldownEl = options.cooldownEl == null ? null : options.cooldownEl;
     const remainingEl = options.remainingEl == null ? null : options.remainingEl;
     const requestEl = options.requestEl == null ? null : options.requestEl;
@@ -184,7 +195,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     function setUnattendedControlsDisabled(disabled) {
       const value = Boolean(disabled);
       [enabledEl, cooldownEl, remainingEl, requestEl].forEach((node) => {
-        if (node) node.disabled = value;
+        if (node) node.disabled = value || (node === enabledEl && !!reviewAttempt);
       });
     }
 
@@ -216,6 +227,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       if (sessionState.get("selected") !== sid) return;
       if (openToken !== null && (unattendedMenuToken !== openToken || unattendedMenuSessionId !== sid || !unattendedMenuOpen)) return;
       validateUnattendedPayload(d);
+      projectReview(d.commit_unknown);
       const reconciled = reconcileUnattendedServerPayload(d, sid);
       unattendedCfg = {
         enabled: reconciled.enabled,
@@ -413,6 +425,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     function applySavedUnattendedCfg(saved, sid) {
       if (sessionState.get("selected") !== sid) return;
       if (unattendedMenuOpen && unattendedMenuSessionId !== sid) return;
+      projectReview(saved.commit_unknown);
       unattendedCfg = {
         enabled: saved.enabled,
         request: saved.request,
@@ -663,7 +676,6 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       if (e.key !== "Escape" || !unattendedMenuOpen) return;
       e.preventDefault();
       e.stopPropagation();
-      hideUnattendedMenu({ restoreFocus: true });
     };
     const onDocClick = () => {
       if (unattendedMenuOpen) hideUnattendedMenu();
@@ -675,6 +687,16 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     addAppEvent(documentTarget, "click", onDocClick);
     addAppEvent(windowTarget, "resize", onResize);
 
+    if (reviewButton) reviewButton.onclick = async () => {
+      const sid = sessionState.get("selected"), attempt = reviewAttempt;
+      if (!sid || !attempt || isAppDisposed()) return;
+      reviewButton.disabled = true;
+      try {
+        const saved = await api(`/api/sessions/${sid}/unattended`, { method: "POST", body: { review_attempt: attempt, enabled: false } });
+        if (!isAppDisposed() && sessionState.get("selected") === sid && reviewAttempt === attempt) applySavedUnattendedCfg(saved, sid);
+      } catch (error) { if (!isAppDisposed()) setToast(`Review failed: ${error.message || "reload settings"}`); }
+      finally { reviewButton.disabled = false; }
+    };
     if (enabledEl) {
       enabledEl.onchange = (e) => {
         const selected = sessionState.get("selected");

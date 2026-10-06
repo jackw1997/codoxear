@@ -1,4 +1,6 @@
 import { createServer } from "node:net";
+import { DomainError } from "../../contracts/model.js";
+import { BrokerQueue } from "./queue.js";
 import {
   mkdirSync,
   writeFileSync,
@@ -7,6 +9,9 @@ import {
   unlinkSync,
   chmodSync,
   statSync,
+  openSync,
+  closeSync,
+  fsyncSync,
 } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -116,7 +121,6 @@ let deleteKillTimer: ReturnType<typeof setTimeout> | undefined;
 let readEventId: string | null = null;
 let draft = "",
   attachments: Attachment[] = [],
-  queue: Array<{ id: string; text: string; at: number }> = [],
   unattended: {
     enabled: boolean;
     request: string;
@@ -129,6 +133,21 @@ let draft = "",
     remaining_injections: 10,
   },
   lastUnattended = 0;
+let restoredState: any = {};
+try {
+  restoredState = JSON.parse(readFileSync(statePath, "utf8"));
+} catch {}
+draft = typeof restoredState.draft === "string" ? restoredState.draft : draft;
+attachments = Array.isArray(restoredState.attachments)
+  ? restoredState.attachments
+  : attachments;
+if (restoredState.unattended) unattended = restoredState.unattended;
+lastUnattended = Number.isFinite(restoredState.last_unattended) ? restoredState.last_unattended : 0;
+let unattendedAttempt: string | null = typeof restoredState.unattended_attempt === "string" ? restoredState.unattended_attempt : null;
+if (unattendedAttempt) unattended.enabled = false;
+readEventId = restoredState.read_event_id ?? readEventId;
+const unifiedQueue = new BrokerQueue(restoredState.queue, persist);
+const queue = unifiedQueue.items;
 const receipts = new Map<string, unknown>();
 const pendingReceipts = new Map<string, Promise<unknown>>();
 let sending: Promise<unknown> = Promise.resolve();
@@ -167,23 +186,40 @@ function producerProvesIdle(activity: ProducerActivity): boolean {
   );
 }
 const attached = new Set<import("node:net").Socket>();
+const queueEditors = new Set<import("node:net").Socket>();
 function persist() {
   meta.updated_ts = Date.now() / 1000;
   meta.queue_len = queue.length;
   const temp = metadataPath + ".tmp";
   writeFileSync(temp, JSON.stringify(meta), { mode: 0o600 });
   renameSync(temp, metadataPath);
+  const stateTemp = statePath + ".tmp";
   writeFileSync(
-    statePath,
+    stateTemp,
     JSON.stringify({
       draft,
       attachments,
       queue,
       unattended,
+      last_unattended: lastUnattended,
+      unattended_attempt: unattendedAttempt,
       read_event_id: readEventId,
     }),
     { mode: 0o600 },
   );
+  const stateFd = openSync(stateTemp, "r");
+  try {
+    fsyncSync(stateFd);
+  } finally {
+    closeSync(stateFd);
+  }
+  renameSync(stateTemp, statePath);
+  const directoryFd = openSync(directory, "r");
+  try {
+    fsyncSync(directoryFd);
+  } finally {
+    closeSync(directoryFd);
+  }
 }
 function readinessError() {
   return (
@@ -191,28 +227,31 @@ function readinessError() {
     `${input.backend === "cc" ? "Claude Code" : input.backend === "codex" ? "Codex" : "Pi"} is starting: wait for the native prompt, or complete runtime setup in a local terminal. Your prompt was not sent.`
   );
 }
-function requireQueuedIdle() {
+function requireQueuedIdle(dispatchingId?: string) {
   if (
     meta.busy ||
-    queue.length ||
+    (queue.length > 0 && queue[0]?.id !== dispatchingId) ||
     attachments.length ||
     submissionPending ||
+    queueEditors.size > 0 ||
     terminalActivity ||
     meta.readiness !== "ready"
   )
-    throw Object.assign(
-      Error(
-        "The native session is no longer idle; the queued prompt was not sent. Local terminal input holds the queue until a new backend turn finishes.",
-      ),
-      {
-        status: 409,
-        code: "queue_not_dispatched",
-      },
+    throw new DomainError(
+      409,
+      "queue_not_dispatched",
+      "The native session is no longer idle; the queued prompt was not sent. Local terminal input holds the queue until a new backend turn finishes.",
     );
 }
-function send(text: string, requireIdle = false): Promise<unknown> {
+function send(
+  text: string,
+  requireIdle = false,
+  dispatchingId?: string,
+  actorId?: string,
+  workspace?: unknown,
+): Promise<unknown> {
   const operation = sending.then(async () => {
-    if (requireIdle) requireQueuedIdle();
+    if (requireIdle) requireQueuedIdle(dispatchingId);
     if (meta.readiness !== "ready")
       throw Object.assign(Error(readinessError()), {
         status: 409,
@@ -223,10 +262,27 @@ function send(text: string, requireIdle = false): Promise<unknown> {
         status: 400,
         code: "invalid_message",
       });
-    const files = attachments
+    const ownedAttachments = attachments.filter(
+      (attachment) => attachment.actorId === actorId,
+    );
+    if (
+      actorId &&
+      ownedAttachments.some(
+        (attachment) =>
+          JSON.stringify(attachment.workspace) !== JSON.stringify(workspace),
+      )
+    )
+      throw new DomainError(
+        403,
+        "attachment_grant_changed",
+        "Attachment access changed; remove it and upload again",
+      );
+    const files = ownedAttachments
       .map((a) => `\n${a.kind === "image" ? "Image" : "File"}: ${a.path}`)
       .join("");
-    attachments = [];
+    attachments = attachments.filter(
+      (attachment) => attachment.actorId !== actorId,
+    );
     claudeInterruptedIdle = undefined;
     meta.busy = true;
     sendActivity = producerActivity();
@@ -249,7 +305,7 @@ function send(text: string, requireIdle = false): Promise<unknown> {
         meta.readiness !== "ready" ||
         stopping ||
         initialInterruptEpoch !== interruptEpoch ||
-        (requireIdle && terminalActivity)
+        (requireIdle && (terminalActivity || queueEditors.size > 0))
       )
         throw Error("The native process stopped before submission");
       sendActivity = producerActivity();
@@ -360,6 +416,7 @@ const server = createServer((socket) => {
         });
         socket.on("close", () => {
           attached.delete(socket);
+          queueEditors.delete(socket);
           subscription.dispose();
         });
         socket.on("data", (chunk) => {
@@ -380,6 +437,10 @@ const server = createServer((socket) => {
                 clearRestoredRemotePrompt = undefined;
                 if (claudeInterrupt) claudeInterrupt.prompt = undefined;
                 terminal.write(message.data);
+              }
+              if (message.type === "queue_mode") {
+                if (message.active === true) queueEditors.add(socket);
+                else queueEditors.delete(socket);
               }
               if (message.type === "resize") {
                 const cols = Math.max(
@@ -417,16 +478,23 @@ const server = createServer((socket) => {
 });
 async function control(request: BrokerRequest): Promise<unknown> {
   const body = request.body ?? {};
+  const actorId = typeof body.actorId === "string" ? body.actorId : undefined;
+  const visibleAttachments = () =>
+    attachments.filter((attachment) => attachment.actorId === actorId);
   switch (request.operation) {
     case "state":
       return {
         ...meta,
         interrupted_idle: !!claudeInterruptedIdle,
         codex_live_settings: !!codexControl,
+        unified_queue: true,
+        actor_attachments: true,
         tail: output,
         token: piToken ?? readTranscript(meta.log_path, input.backend).token,
-        attachments,
-        queue,
+        attachments: visibleAttachments(),
+        queue: unifiedQueue.list(
+          typeof body.scope === "string" ? body.scope : undefined,
+        ),
         draft,
         read_event_id: readEventId,
         unattended,
@@ -434,7 +502,14 @@ async function control(request: BrokerRequest): Promise<unknown> {
     case "tail":
       return { tail: output };
     case "send": {
-      const key = typeof body.request_id === "string" ? body.request_id : "";
+      const key =
+        typeof body.request_id === "string"
+          ? JSON.stringify([
+              actorId ?? "local",
+              body.workspace ?? null,
+              body.request_id,
+            ])
+          : "";
       if (key && receipts.has(key)) return receipts.get(key);
       if (key && pendingReceipts.has(key)) return pendingReceipts.get(key);
       if (body.require_idle === true) requireQueuedIdle();
@@ -448,7 +523,13 @@ async function control(request: BrokerRequest): Promise<unknown> {
                 [slash[1] === "model" ? "model" : "reasoning_effort"]: slash[2],
               },
             })
-          : send(text, body.require_idle === true);
+          : send(
+              text,
+              body.require_idle === true,
+              undefined,
+              actorId,
+              body.workspace,
+            );
       if (key) pendingReceipts.set(key, operation);
       let result: unknown;
       try {
@@ -483,9 +564,9 @@ async function control(request: BrokerRequest): Promise<unknown> {
       return { text: draft, updated_ts: meta.updated_ts };
     case "attachments":
       return {
-        attachments,
-        staged_attachments: attachments,
-        pending_attachment: attachments.length > 0,
+        attachments: visibleAttachments(),
+        staged_attachments: visibleAttachments(),
+        pending_attachment: visibleAttachments().length > 0,
       };
     case "inject_file":
     case "inject_image": {
@@ -498,6 +579,12 @@ async function control(request: BrokerRequest): Promise<unknown> {
       );
       const attachment: Attachment = {
         id: randomUUID(),
+        ...(actorId ? { actorId } : {}),
+        ...(actorId && body.workspace
+          ? {
+              workspace: body.workspace as NonNullable<Attachment["workspace"]>,
+            }
+          : {}),
         path,
         name: filename,
         filename,
@@ -512,71 +599,103 @@ async function control(request: BrokerRequest): Promise<unknown> {
       return {
         ok: true,
         attachment,
-        attachments,
-        staged_attachments: attachments,
+        attachments: visibleAttachments(),
+        staged_attachments: visibleAttachments(),
         pending_attachment: true,
       };
     }
     case "attachments/delete":
-      attachments = attachments.filter((a) => a.id !== body.id);
+      attachments = attachments.filter(
+        (a) => a.id !== body.id || a.actorId !== actorId,
+      );
       persist();
       return {
         ok: true,
-        attachments,
-        staged_attachments: attachments,
-        pending_attachment: attachments.length > 0,
+        attachments: visibleAttachments(),
+        staged_attachments: visibleAttachments(),
+        pending_attachment: visibleAttachments().length > 0,
       };
     case "attachments/clear":
     case "pending_attachment/clear":
-      attachments = [];
+      attachments = attachments.filter(
+        (attachment) => attachment.actorId !== actorId,
+      );
       persist();
       return {
         ok: true,
-        attachments,
-        staged_attachments: attachments,
+        attachments: visibleAttachments(),
+        staged_attachments: visibleAttachments(),
         pending_attachment: false,
       };
+    case "queue/capabilities":
+      return { unified: true, actor_attachments: true };
     case "queue":
-      return { items: queue, queue, queue_len: queue.length };
-    case "enqueue": {
-      const item = {
-        id: randomUUID(),
-        text: String(body.text ?? ""),
-        at: Date.now(),
+      return {
+        items: unifiedQueue.list(
+          typeof body.scope === "string" ? body.scope : undefined,
+        ),
+        queue_len: queue.length,
       };
-      if (!item.text.trim()) throw Error("Enter a queued message");
-      queue.push(item);
-      persist();
-      return { ok: true, item, queue_len: queue.length };
+    case "enqueue": {
+      const id = unifiedQueue.enqueue(
+        body,
+        typeof body.scope === "string" ? body.scope : undefined,
+      );
+      return { ok: true, id, queue_len: queue.length };
     }
     case "queue/delete":
-      queue = queue.filter((q) => q.id !== body.id);
-      persist();
-      return { ok: true };
-    case "queue/update": {
-      const q = queue.find((q) => q.id === body.id);
-      if (!q) throw Error("Unknown queued message");
-      q.text = String(body.text ?? q.text);
-      persist();
-      return { ok: true };
-    }
-    case "queue/move": {
-      const index = queue.findIndex((q) => q.id === body.id);
-      if (index < 0) throw Error("Unknown queued message");
-      const [item] = queue.splice(index, 1);
-      queue.splice(
-        Math.max(
-          0,
-          Math.min(queue.length, Number(body.index ?? body.to_index ?? 0)),
-        ),
-        0,
-        item!,
+    case "queue/update":
+    case "queue/move":
+      unifiedQueue.mutate(
+        request.operation.slice(6),
+        body,
+        typeof body.scope === "string" ? body.scope : undefined,
       );
-      persist();
+      return {
+        ok: true,
+        items: unifiedQueue.list(
+          typeof body.scope === "string" ? body.scope : undefined,
+        ),
+        queue_len: queue.length,
+      };
+    case "queue/head":
+      return unifiedQueue.head(String(body.scope ?? "")) ?? null;
+    case "queue/pause":
+      unifiedQueue.pause(
+        body.id,
+        body.version,
+        body.reason,
+        String(body.scope ?? ""),
+      );
       return { ok: true };
+    case "queue/dispatch": {
+      // Fresh Hub authorization was checked by the Computer. This synchronous
+      // claim revalidates the head/version and native idle before any paste.
+      requireQueuedIdle(String(body.id));
+      const item = unifiedQueue.claim(
+        body.id,
+        body.version,
+        String(body.scope ?? ""),
+      );
+      try {
+        const result = await send(item.text, true, item.id);
+        unifiedQueue.finish(item.id);
+        return result;
+      } catch (error) {
+        unifiedQueue.finish(item.id, error);
+        throw error;
+      }
     }
     case "unattended":
       if (Object.keys(body).length) {
+        if (body.review_attempt !== undefined) {
+          if (!unattendedAttempt || body.review_attempt !== unattendedAttempt)
+            throw new DomainError(409, "unattended_review_changed", "Reload unattended settings before reviewing this attempt");
+          unattendedAttempt = null;
+          persist();
+        }
+        if (unattendedAttempt && body.enabled === true)
+          throw new DomainError(409, "unattended_commit_unknown", "Check the transcript and review the previous unattended attempt before enabling again");
         const next = {
           enabled:
             body.enabled === undefined
@@ -607,7 +726,7 @@ async function control(request: BrokerRequest): Promise<unknown> {
         if (!unattended.remaining_injections) unattended.enabled = false;
         persist();
       }
-      return unattended;
+      return { ...unattended, commit_unknown: unattendedAttempt };
     case "settings": {
       if (meta.readiness !== "ready") throw Error(readinessError());
       if (meta.busy)
@@ -686,7 +805,7 @@ async function control(request: BrokerRequest): Promise<unknown> {
     }
     case "delete":
       stopping = true;
-      queue = [];
+      queue.splice(0);
       unattended.enabled = false;
       terminal.kill("SIGTERM");
       deleteKillTimer = setTimeout(() => {
@@ -768,6 +887,8 @@ const poll = setInterval(async () => {
           readFileSync(join(directory, input.sessionId + ".pi"), "utf8"),
         );
         if (
+          marker.pid === terminal.pid &&
+          Date.parse(marker.updatedAt) >= meta.start_ts * 1000 &&
           marker.cwd === input.cwd &&
           typeof marker.sessionFile === "string"
         ) {
@@ -809,21 +930,23 @@ const poll = setInterval(async () => {
         terminalActivity = undefined;
     }
     if (
-      meta.readiness === "starting" &&
-      input.backend === "pi" &&
-      Date.now() - meta.start_ts * 1000 > 1500 &&
-      output.length > 0
-    ) {
-      meta.readiness = "ready";
-    }
-    if (
       !meta.busy &&
       !terminalActivity &&
+      queueEditors.size === 0 &&
       meta.readiness === "ready" &&
       queue.length
     ) {
-      const item = queue.shift()!;
-      await send(item.text);
+      const candidate = unifiedQueue.head();
+      if (candidate) {
+        requireQueuedIdle(candidate.id);
+        const item = unifiedQueue.claim(candidate.id, candidate.version);
+        try {
+          await send(item.text, true, item.id);
+          unifiedQueue.finish(item.id);
+        } catch (error) {
+          unifiedQueue.finish(item.id, error);
+        }
+      }
     }
     if (
       !meta.busy &&
@@ -858,12 +981,21 @@ const poll = setInterval(async () => {
           lastUnattended,
         )
       ) {
-        await send(
-          prompt + (unattended.request ? "\n\n" + unattended.request : ""),
-        );
+        // Spend the budget and record uncertainty durably before touching the PTY.
+        // A killed broker or partial paste must never automatically replay this turn.
+        unattendedAttempt = randomUUID();
         lastUnattended = Date.now();
         unattended.remaining_injections--;
         if (!unattended.remaining_injections) unattended.enabled = false;
+        persist();
+        try {
+          await send(prompt + (unattended.request ? "\n\n" + unattended.request : ""), true);
+          unattendedAttempt = null;
+        } catch (error) {
+          unattended.enabled = false;
+          persist();
+          throw error;
+        }
       }
     }
     persist();

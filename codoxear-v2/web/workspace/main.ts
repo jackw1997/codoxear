@@ -6,6 +6,9 @@ import { configureTailCacheFactory } from "../legacy/app_transcript.js";
 import { configureSessionAccessCheck } from "../legacy/app_session_lifecycle.js";
 import { conversationCache } from "./cache.js";
 import { clearAccountStorage } from "./storage.js";
+import { selectedWorkspace, updateWorkspaceSelection, workspaceAccessContext } from "../shared/workspace-selection.js";
+import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
+configureFileAccessContext(workspaceAccessContext);
 if (!location.pathname.startsWith("/workspace/")) {
   const context = JSON.parse(
     document.getElementById("codoxear-connection-context")!.textContent!,
@@ -47,6 +50,9 @@ configureSessionAccessCheck(async (id: string) => {
 if (location.pathname.startsWith("/workspace/"))
   configureAppUrlResolver((path: string, base: URL) => {
     const url = new URL(path.replace(/^\//, ""), base);
+    const session = /^\/workspace\/api\/sessions\/([^/]+)\//.exec(url.pathname)?.[1] ?? new URLSearchParams(location.hash.slice(1)).get("session");
+    const workspace = selectedWorkspace(session ? decodeURIComponent(session) : null);
+    if (workspace && /\/api\/sessions\/[^/]+\/(?:file\/|git\/|inject_|send|attachments|pending_attachment)/.test(url.pathname)) url.searchParams.set("workspace_id", workspace);
     if (
       url.pathname.startsWith("/workspace/api/") &&
       !/^\/workspace\/api\/(sessions|me)$/.test(url.pathname) &&
@@ -86,6 +92,9 @@ try {
   // @ts-expect-error Shared navigation is JavaScript; runtime services stay TypeScript.
   const { attachAgentNavigation } = await import("../shared/workspace.js");
   await attachAgentNavigation({ conversationCache, clearAccountStorage });
+  const workspaceDirectory = await (await fetch("/api/agent-directory")).json();
+  updateWorkspaceSelection(workspaceDirectory.agents ?? []);
+  setInterval(() => { void fetch("/api/agent-directory").then(r => r.json()).then(d => updateWorkspaceSelection(d.agents ?? [])).catch(() => {}); }, 5000);
 } catch (error) {
   if (
     error &&

@@ -27,7 +27,7 @@ async function fixture() {
     stateHome: home,
     async request(path: string) {
       if (path === "/api/sessions")
-        return { sessions: [{ session_id: id, cwd: workspace }] };
+        return { sessions: [{ session_id: id, cwd: workspace, alias: "Native notification" }] };
       return { ok: true };
     },
     async completions() {
@@ -425,6 +425,7 @@ test("Notification feed, text and state resolve the matching native completion",
         : request(path, method, body);
     const feed = await f.call("/api/notifications/feed?since=0");
     assert.equal(feed.json().items[0].notification_text, "Correct completion");
+    assert.equal(feed.json().items[0].session_display_name, "Native notification");
     for (const route of ["text", "state"]) {
       const response = await f.call(
         `/api/notifications/${route}?message_id=${notification}`,
@@ -570,7 +571,7 @@ test("Native PTY file and image uploads retain browser staging metadata across a
   process.env.CODOXEAR_NATIVE_CODEX_LIVE_CONTROL = "0";
   const runtime = new NativeRuntime(home, workspace),
     target = new NativeHttpTarget(runtime, workspace);
-  let localId: string | undefined;
+  let localId: string | undefined, brokerPid: number | undefined;
   const call = async (path: string, method = "GET", value?: unknown) => {
     const response = await target.execute({
       path,
@@ -607,6 +608,7 @@ test("Native PTY file and image uploads retain browser staging metadata across a
       },
     })) as any;
     localId = launch.localId;
+    brokerPid = launch.brokerPid;
     const bytes = Buffer.from("browser upload bytes"),
       png = Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVfQAAAAASUVORK5CYII=",
@@ -655,6 +657,15 @@ test("Native PTY file and image uploads retain browser staging metadata across a
         .catch(() => {});
     target.close();
     runtime.close();
+    if (brokerPid) {
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        try { process.kill(brokerPid, 0); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") break; throw error; }
+        assert.ok(Date.now() < deadline, "Owned upload broker did not exit after explicit deletion");
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+    }
     if (prior === undefined) delete process.env.CODEX_BIN;
     else process.env.CODEX_BIN = prior;
     if (control === undefined)

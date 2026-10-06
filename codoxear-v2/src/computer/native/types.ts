@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { Launch } from "../../contracts/tunnel.js";
+import type { WorkspaceContext } from "../../contracts/workspaces.js";
 export type Backend = "codex" | "pi" | "cc";
 export type LaunchOptions = z.infer<typeof Launch>;
 export type Metadata = {
@@ -26,6 +27,8 @@ export type Metadata = {
   exit_code: number | null;
 };
 export type Attachment = {
+  actorId?: string;
+  workspace?: WorkspaceContext;
   id: string;
   path: string;
   name: string;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Id } from "./model.js";
+import { WorkspaceEdit } from "./workspaces.js";
 export const Message = z.object({
   id: z.string(),
   role: z.enum(["user", "assistant", "system"]),
@@ -50,7 +51,7 @@ export const Launch = z.object({
 });
 export const Operation = z.discriminatedUnion("op", [
   z.object({ op: z.literal("discover"), actorId: Id.optional() }),
-  z.object({ op: z.literal("workspace") }),
+  z.object({ op: z.literal("workspace"), ...WorkspaceEdit.shape }),
   z.object({
     op: z.literal("resume-candidates"),
     backend: z.enum(["codex", "pi", "cc"]),

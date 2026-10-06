@@ -180,3 +180,28 @@ test("editing or deleting a queue item during authorization prevents stale dispa
     q.close();
   }
 });
+test("retained old brokers never receive remote migration or enqueue without the unified capability", async () => {
+  let allowed = false;
+  const sent: string[] = [], unsafeControlCalls: string[] = [];
+  const queue = new ComputerQueue(":memory:", "binding", {
+    idle: async () => true,
+    authorize: async () => { if (!allowed) throw new DomainError(403, "revoked", "Access removed"); },
+    send: async (_, text) => { sent.push(text); },
+    unified: {
+      sessions: async () => ["local"],
+      control: async (_, operation) => {
+        if (operation === "queue/capabilities") throw new DomainError(404, "unsupported_route", "Old broker");
+        unsafeControlCalls.push(operation);
+        return { ok: true };
+      },
+    },
+  });
+  try {
+    queue.enqueue("local", "retained remote work", "alice", "permit");
+    assert.equal((await queue.listAsync("local"))[0]!.text, "retained remote work");
+    await queue.drain();
+    assert.deepEqual(unsafeControlCalls, []); assert.deepEqual(sent, []);
+    allowed = true; await queue.drain();
+    assert.deepEqual(sent, ["retained remote work"]); assert.deepEqual(unsafeControlCalls, []);
+  } finally { queue.close(); }
+});

@@ -22,21 +22,63 @@ try {
     else await api.attach(input);
     console.log("Attached. Run computer start to connect.");
   } else if (command === "run") {
-    const { values } = parseArgs({ args: process.argv.slice(3), options: {
-      backend: { type: "string", default: "pi" },
-      workspace: { type: "string" },
-      name: { type: "string", default: "Terminal session" },
-      launch: { type: "string" },
-    } });
+    const { values } = parseArgs({
+      args: process.argv.slice(3),
+      options: {
+        backend: { type: "string", default: "pi" },
+        workspace: { type: "string" },
+        name: { type: "string", default: "Terminal session" },
+        launch: { type: "string" },
+      },
+    });
     if (!["pi", "codex", "cc"].includes(values.backend!))
       throw new Error("Choose pi, codex or cc as the backend");
-    const attachment = await import("./config.js").then(module => module.readAttachment(home));
-    const workspace = resolve(values.workspace ?? attachment?.workspacePath ?? process.cwd());
-    const runtime = new NativeRuntime(attachment?.nativeHome ?? homedir(), workspace, attachment?.nativeStateHome ?? home);
-    const launch = values.launch ? JSON.parse(await readFile(resolve(values.launch), "utf8")) : {};
-    const session = await runtime.createTerminal(values.backend as "pi" | "codex" | "cc", values.name!, launch);
-    console.log("Session " + session.localId + ". Press Ctrl+] to detach; the agent keeps running.");
-    try { await presentTerminal(runtime, session.localId); } finally { runtime.close(); }
+    const attachment = await import("./config.js").then((module) =>
+      module.readAttachment(home),
+    );
+    const workspace = resolve(
+      values.workspace ?? attachment?.workspacePath ?? process.cwd(),
+    );
+    const runtime = new NativeRuntime(
+      attachment?.nativeHome ?? homedir(),
+      workspace,
+      attachment?.nativeStateHome ?? home,
+    );
+    const launch = values.launch
+      ? JSON.parse(await readFile(resolve(values.launch), "utf8"))
+      : {};
+    const session = await runtime.createTerminal(
+      values.backend as "pi" | "codex" | "cc",
+      values.name!,
+      launch,
+    );
+    console.log(
+      "Session " +
+        session.localId +
+        ". Press Ctrl+] for queue controls; use detach to leave the agent running.",
+    );
+    try {
+      await presentTerminal(runtime, session.localId);
+    } finally {
+      runtime.close();
+    }
+  } else if (command === "terminal") {
+    if (!argument || !/^broker-[a-f0-9]{32}$/.test(argument))
+      throw new Error("Use terminal <native session ID> to reconnect");
+    const attachment = await import("./config.js").then((module) =>
+      module.readAttachment(home),
+    );
+    const runtime = new NativeRuntime(
+      attachment?.nativeHome ?? homedir(),
+      resolve(attachment?.workspacePath ?? process.cwd()),
+      attachment?.nativeStateHome ?? home,
+    );
+    await runtime.request(`/api/sessions/${argument}/state`);
+    try {
+      await presentTerminal(runtime, argument);
+    } finally {
+      runtime.close();
+    }
   } else if (command === "start") {
     const service = api.service((status) =>
       console.log(JSON.stringify(status)),
@@ -50,6 +92,10 @@ try {
     };
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
+  } else if (command === "transfer") {
+    const { values } = parseArgs({ args: process.argv.slice(3), options: { hub: { type: "string" }, code: { type: "string" } } });
+    if (!values.hub || !values.code) throw new Error("Stop the Computer service, then use transfer --hub <destination Hub origin> --code <owner-issued admission code>");
+    console.log(JSON.stringify(await api.transfer({ hub: values.hub, code: values.code }), null, 2));
   } else if (command === "status")
     console.log(JSON.stringify(await api.status(), null, 2));
   else if (command === "doctor")
@@ -61,7 +107,7 @@ try {
     );
   } else
     console.log(
-      "Codoxear Computer\nCommands: attach [--hub <HTTPS origin> --code <8-character code> --workspace <path>], start, status, doctor, detach\nTerminal: run [--backend pi|codex|cc --workspace <path> --name <name> --launch <private JSON file>]\nAdvanced: attach <private config.json>\nStart runs in the foreground for an OS supervisor. Closing it does not kill agent sessions managed by the detached native broker.",
+      "Codoxear Computer\nCommands: attach [--hub <HTTPS origin> --code <8-character code> --workspace <path>], start, status, doctor, detach\nTerminal: run [--backend pi|codex|cc --workspace <path> --name <name> --launch <private JSON file>]\nReconnect terminal: terminal <native session ID> (Ctrl-] opens shared queue controls)\nIndependent transfer: transfer --hub <destination Hub origin> --code <owner-issued admission code> (stop Computer service first)\nAdvanced: attach <private config.json>\nStart runs in the foreground for an OS supervisor. Closing it does not kill agent sessions managed by the detached native broker.",
     );
 } catch (error) {
   console.error(

@@ -1,4 +1,4 @@
-
+import { fileAccessContext } from "./app_file_access_context.js";
 
   function requireFunction(value, name) {
     if (typeof value !== "function") throw new TypeError(`file viewer dependency missing: ${name}`);
@@ -221,7 +221,7 @@
     function candidateCacheKey(sid) {
       const filesKey = JSON.stringify(sessionFiles(sid));
       const refsKey = JSON.stringify(collectMessageFileRefs());
-      return `${sid || ""}\u0000${filesKey}\u0000${refsKey}`;
+      return `${sid || ""}\u0000${filesKey}\u0000${refsKey}\u0000${fileAccessContext(sid)}`;
     }
 
     async function refresh({ force = false, sessionId = null, syncToken = null } = {}) {
@@ -229,7 +229,8 @@
       if (!explicitSession && blockUnavailableFileAction()) return false;
       const sid = String(sessionId || currentSessionId() || sessionState.get("selected") || "").trim();
       const requestSeq = beginRefresh();
-      const current = () => isCurrentRefresh(requestSeq) && (!explicitSession || isSessionCurrent(sid, syncToken));
+      const accessContext = fileAccessContext(sid);
+      const current = () => fileAccessContext(sid) === accessContext && isCurrentRefresh(requestSeq) && (!explicitSession || isSessionCurrent(sid, syncToken));
       if (!sid) {
         if (!current()) return false;
         clearRefreshEntries();

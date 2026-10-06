@@ -31,7 +31,7 @@ const browser = await playwright.chromium.launch({
 });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
-  ignoreHTTPSErrors: true,
+  ignoreHTTPSErrors: false,
 });
 const page = await context.newPage();
 page.setDefaultTimeout(30000);
@@ -195,11 +195,32 @@ try {
   pass(
     "Native transcript survives page reload and fits the phone viewport without page errors",
   );
+  const release = await page.evaluate(async () => {
+    const metadata = await fetch("/downloads/release.json");
+    if (!metadata.ok) throw Error("Release metadata unavailable");
+    const value = await metadata.json();
+    const archive = await fetch("/downloads/codoxear-computer-source.tar.gz");
+    if (!archive.ok) throw Error("Computer source unavailable");
+    const bytes = await archive.arrayBuffer();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const sha256 = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+    return { ...value, actualSha256: sha256, bytes: bytes.byteLength };
+  });
+  assert.match(release.commit, /^[a-f0-9]{40}$/);
+  assert.equal(release.actualSha256, release.sha256);
+  assert.ok(release.bytes > 100000);
+  pass("Committed Computer source downloads over HTTPS with the published SHA-256");
+  await page.goto(origin + "/progress.html", { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: "Codoxear v2 progress", exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.ok((await page.locator("details").count()) >= 37);
+  assert.deepEqual(errors, []);
+  pass("Readable progress report includes requirements conflicts and fits the phone viewport");
   await mkdir("artifacts", { recursive: true });
   await page.screenshot({ path: "artifacts/native-preview-mobile.png" });
   await writeFile(
     "artifacts/native-preview-results.json",
-    JSON.stringify({ origin, checks, errors }, null, 2),
+    JSON.stringify({ origin, checks, errors, release }, null, 2),
   );
 } catch (error) {
   console.error("Original preview failure:", error);

@@ -51,6 +51,7 @@
       }, el, createTextNode: (value) => document.createTextNode(value),
     }));
     const inputRuntime = codoxearFilePicker.createInputRuntime(wiring.createInputOptions({
+      cancelPendingOpen: () => fileViewerController().cancelPendingFileOpen(),
       input: filePickerInput, menuState, ensureCurrentSession: () => ensureCurrentFileViewerSession(),
       renderMenu: () => renderFilePickerMenu(), applyMenuState: () => applyFileMenuState(),
       resetInput: () => resetFilePickerInput(), closeMenu: (opts) => closeFilePickerMenu(opts),

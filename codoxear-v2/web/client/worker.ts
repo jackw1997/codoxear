@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { vault, type HubLogin } from "./vault.js";
 import { transportVersion } from "./transport-version.js";
+import { disconnectPush, installPushEvents, notificationSubscription } from "./push.js";
 declare const self: ServiceWorkerGlobalScope;
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), {
@@ -311,7 +312,7 @@ async function handle(request: Request) {
   if (path === "/api/logout") {
     await Promise.all(
       (await vault.list()).map(async (login) => {
-        await vault.remove(login.id);
+        await disconnectPush(login, hub, self);
         await fetch(login.origin + "/oauth/revoke", {
           method: "POST",
           credentials: "omit",
@@ -321,6 +322,14 @@ async function handle(request: Request) {
         }).catch(() => {});
       }),
     );
+    return json({ ok: true });
+  }
+  const disconnect = /^\/api\/client\/push\/disconnect\/([^/]+)$/.exec(path);
+  if (disconnect && request.method === "POST") {
+    const login = await vault.get(decodeURIComponent(disconnect[1]!));
+    if (!login) return json({ ok: true });
+    await disconnectPush(login, hub, self);
+    await fetch(login.origin + "/oauth/revoke", { method: "POST", credentials: "omit", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: login.refreshToken }) }).catch(() => {});
     return json({ ok: true });
   }
   const management = /^\/api\/client\/hubs\/([^/]+)(\/.*)$/.exec(path);
@@ -342,6 +351,7 @@ async function handle(request: Request) {
   const accountKey = scoped.slice(0, split),
     agentId = scoped.slice(split + 1);
   let login: HubLogin | undefined;
+  let computerId: string | undefined;
   for (const candidate of (await vault.list()).filter(
     (l) => l.accountKey === accountKey,
   )) {
@@ -349,8 +359,10 @@ async function handle(request: Request) {
       const r = await hub(candidate, "/api/agent-directory", {
         signal: AbortSignal.timeout(5000),
       });
-      if (r.ok && (await r.json()).agents.some((a: any) => a.id === agentId)) {
+      const agent = r.ok ? (await r.json()).agents.find((a: any) => a.id === agentId) : undefined;
+      if (agent) {
         login = candidate;
+        computerId = agent.computerId;
         break;
       }
     } catch {}
@@ -360,6 +372,8 @@ async function handle(request: Request) {
       { error: "No saved identity currently has access to this agent" },
       403,
     );
+  if ((path === "/api/notifications/subscription" || path === "/api/notifications/subscription/toggle") && computerId)
+    return notificationSubscription(request, login, computerId, hub, self.location.origin);
   url.searchParams.delete("__agent");
   if (!match) url.searchParams.set("__agent", agentId);
   return relay(
@@ -375,6 +389,7 @@ async function handle(request: Request) {
   );
 }
 // Transport updates keep the same API contract. Activate before the new UI starts.
+installPushEvents(self, hub);
 self.addEventListener("install", (event) =>
   event.waitUntil(self.skipWaiting()),
 );

@@ -520,3 +520,46 @@ body.account-ui #status:not(:empty) {
 .agent-creation [data-provider-config][hidden] {
   display: none;
 }
+.workspace-form,
+.workspace-root-form {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.workspace-form label:not(.checkField),
+.workspace-root-form label,
+.sidebar [data-workspace-selection] {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.workspace-form .checkField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--ctl);
+}
+.workspace-form .checkField input[type="checkbox"] {
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.workspace-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: var(--font-ui);
+  font-size: var(--font-md);
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+.sidebar [data-workspace-selection] select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--ctl);
+}

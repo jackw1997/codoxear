@@ -142,6 +142,7 @@ export async function connectHub(value: string): Promise<HubLogin> {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: Date.now() + tokens.expires_in * 1000,
+      pushSession: crypto.randomUUID(),
       identity: {
         name: me.name,
         method: me.context.method,
