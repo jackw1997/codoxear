@@ -239,11 +239,15 @@
   },
   "preview": "https://codoxear.gzeek.com:8471/",
   "previewVerification": {
-    "status": "not-yet-deployed",
-    "note": "New8471 preview will be created from the final verified commit. Existing8461 preview remains available."
+    "checks": 6,
+    "evidence": "artifacts/completion-preview-results.json",
+    "outcome": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport",
+    "provider": "Actual installed native Pi and shell tools; built-in model responses are explicitly scripted. Custom provider URL/key/model remains available.",
+    "browserHarness": "390px real Chromium in network-isolated Docker with loopback online CDP state and the exact fixture certificate SPKI exception.",
+    "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32"
   },
-  "updatedAt": "2026-10-06T01:25:37.581Z",
-  "integrationStatus": "Final source verification passed:235 TypeScript tests and46 generic browser checks. All implementation agents are frozen. New committed preview deployment is prepared; physical/external/future requirements remain explicit.",
+  "updatedAt": "2026-10-06T01:27:49.848Z",
+  "integrationStatus": "Final source passes235 TypeScript tests and46 generic browser checks. New independent preview passes6 phone-browser workflows, including actual Pi shell tools and a hash-verified committed source download. Scoped Linux implementation is reviewable; external, physical, future-platform and production-release limits remain explicit.",
   "github": {
     "status": "blocked",
     "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",

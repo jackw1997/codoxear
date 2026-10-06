@@ -266,8 +266,14 @@
       "Existing legacy deployment sessions stay running; native preview uses separate state"
     ],
     "preview": {
-      "client": "https://codoxear.gzeek.com:8461/",
-      "state": "Previous committed preview remains available. Final iteration8471 is prepared but not yet deployed."
+      "client": "https://codoxear.gzeek.com:8471/",
+      "homeHub": "https://codoxear.gzeek.com:8472",
+      "workHub": "https://codoxear.gzeek.com:8473",
+      "guide": "https://codoxear.gzeek.com:8470/",
+      "report": "https://codoxear.gzeek.com:8471/progress.html",
+      "state": "New separate committed preview; all older previews and legacy sessions retained",
+      "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32",
+      "verification": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport"
     },
     "prReview": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped. Updated Dockerfile image and hosted workflow were not executed here; equivalent isolated verifier passed."
   },

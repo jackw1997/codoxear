@@ -203,6 +203,12 @@
       "Codex native shell-tool execution, live identity vendors, physical-device/platform behavior and production SLO acceptance remain open."
     ],
     "nativeLifecycleBrowserChecks": 9,
-    "voiceSettingsBrowserChecks": 8
+    "voiceSettingsBrowserChecks": 8,
+    "previewChecks": 6,
+    "preview": "https://codoxear.gzeek.com:8471/",
+    "github": {
+      "published": false,
+      "reason": "GitHub integration rejects repository writes with403 Resource not accessible by integration"
+    }
   }
 }
