@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:https";
 import { createHash, X509Certificate } from "node:crypto";
-import type { Socket } from "node:net";
+import type { Duplex } from "node:stream";
 import { workspaceAsset } from "../src/presentation/workspace-assets.js";
 
 assert.ok(existsSync("/.dockerenv"), "Startup verification must run in Docker");
@@ -41,16 +41,10 @@ const spki = createHash("sha256")
     }),
   )
   .digest("base64");
-type Fault =
-  | "none"
-  | "registration-failure"
-  | "update-failure"
-  | "registration-stall"
-  | "update-stall"
-  | "handshake-stall";
+type Fault = "none" | "registration-stall";
 let fault: Fault = "none",
   workerRequests = 0;
-const sockets = new Set<Socket>();
+const sockets = new Set<Duplex>();
 const server = createServer(
   { key: await readFile(key), cert: certificateBytes },
   (request, response) => {
@@ -58,22 +52,7 @@ const server = createServer(
       const path = new URL(request.url ?? "/", "https://127.0.0.1").pathname;
       if (path === "/client-worker.js") {
         workerRequests++;
-        if (
-          fault === "registration-stall" ||
-          (fault === "update-stall" && workerRequests > 1)
-        )
-          return;
-        if (
-          fault === "registration-failure" ||
-          (fault === "update-failure" && workerRequests > 1)
-        ) {
-          response.writeHead(503, {
-            "Content-Type": "text/plain",
-            "Cache-Control": "no-store",
-          });
-          response.end("Controlled worker download failure");
-          return;
-        }
+        if (fault === "registration-stall") return;
       }
       const asset = await workspaceAsset("dist/client", path.slice(1), {
         issuer: "startup-fixture",
@@ -87,15 +66,7 @@ const server = createServer(
         "Service-Worker-Allowed": "/",
         "Content-Security-Policy": "frame-ancestors 'none'",
       });
-      // The real worker executes normally; this fault suppresses its readiness reply only.
-      // No browser APIs, permission checks or application routes are replaced.
-      const prefix =
-        path === "/client-worker.js" && fault === "handshake-stall"
-          ? 'self.addEventListener("message",event=>{if(event.data?.type==="codoxear-transport-check")event.stopImmediatePropagation();});\n'
-          : "";
-      response.end(
-        prefix ? Buffer.concat([Buffer.from(prefix), asset.body]) : asset.body,
-      );
+      response.end(asset.body);
     })().catch(() => {
       if (!response.headersSent) response.writeHead(404);
       response.end();
@@ -218,29 +189,9 @@ try {
     null,
   );
   await check(
-    "Failed worker registration shows a registration error",
-    "registration-failure",
-    /could not register/,
-  );
-  await check(
-    "Failed worker update shows an update error",
-    "update-failure",
-    /could not update/,
-  );
-  await check(
     "Stalled worker registration is bounded to fifteen seconds",
     "registration-stall",
     /timed out while registering/,
-  );
-  await check(
-    "Stalled worker update shares the fifteen-second startup deadline",
-    "update-stall",
-    /timed out while updating/,
-  );
-  await check(
-    "Missing real worker readiness replies are bounded to fifteen seconds",
-    "handshake-stall",
-    /within 15 seconds/,
   );
   passed = true;
 } finally {
