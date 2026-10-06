@@ -191,7 +191,7 @@
     {
       "function": "Public production deployment",
       "state": "No-Go",
-      "reason": "An isolated HTTPS native preview is available. Required engineering and external acceptance gates, production domain/configuration, secrets and operational readiness remain open.",
+      "reason": "An isolated HTTPS native preview is available. Required engineering and external acceptance gates, production domain/configuration, secrets and operational readiness remain open. The new8471 preview currently also requires the prepared trustedTLS installer to be run by a root administrator; its self-signed certificate blocks ordinary browser connection workers.",
       "exit": "Close the required engineering and external acceptance gates, configure a production domain and secrets, and deploy a reviewed committed snapshot.",
       "owner": "Implementation agent and deployment owner"
     },
@@ -272,9 +272,16 @@
       "guide": "https://codoxear.gzeek.com:8470/",
       "report": "https://codoxear.gzeek.com:8471/progress.html",
       "state": "New isolated preview currently blocked on trusted publicTLS; prior phone-viewport tests used a fixturecertificate exception. Real root-managed older8445 gateway has a trusted Let’sEncrypt certificate.",
-      "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32",
+      "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
       "verification": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport",
-      "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust."
+      "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust.",
+      "startupHotfix": {
+        "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
+        "browserChecks": 3,
+        "exactPublicDiagnostic": true,
+        "publicTrustedTLS": false,
+        "requiredRootCommand": "bash /home/codoxear/projects/codoxear/codoxear-v2/deploy/install-preview-https.sh"
+      }
     },
     "prReview": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped. Updated Dockerfile image and hosted workflow were not executed here; equivalent isolated verifier passed."
   },

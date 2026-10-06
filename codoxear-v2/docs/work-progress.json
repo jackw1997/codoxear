@@ -218,6 +218,18 @@
       "limitations": [
         "Chrome154 and actual independent Hub/native Pi; physical assistive technology, Safari and native devices remain external acceptance. Console diagnostics remain recorded; no zero-console-error claim."
       ]
+    },
+    {
+      "id": "browser-startup-https",
+      "status": "diagnostic-verified; public-TLS-action-required",
+      "model": "GPT-6.1-Sol and root",
+      "scope": "User-reported Huawei failed-to-load screen",
+      "checks": 3,
+      "evidence": "artifacts/browser-client-startup-results.json; artifacts/browser-client-startup-public-results.json",
+      "outcome": "Accepted invalidTLS reproduces the opaqueUncaught/0:0 failure. Startup now catches registration rejection with a clear trustedHTTPS message and bounds pending work to15seconds. Three real-browser cases pass; exact8471 public rejection now displays the clear message with no uncaught errors. Trusted root-managed gateway installer is prepared and preserves native processes.",
+      "limitations": [
+        "The certificate remains self-signed until a root administrator runs deploy/install-preview-https.sh. This account cannot read the root-managed certificate cache or DNS credential. Diagnostic success is not a claim that the Huawei browser can yet connect."
+      ]
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
@@ -229,7 +241,8 @@
     "genericBrowserChecks": 46,
     "verifierExitCode": 0,
     "log": "/tmp/codoxear-v2-final-complete.log",
-    "scope": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped."
+    "scope": "Last full build/tests/browser snapshot before the startup hotfix:235 TypeScript tests and46 generic browser checks. Hotfix production build/full TypeScript check and three real-browser startup cases pass separately.",
+    "sourceCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32"
   },
   "registerCounts": {
     "active": 20,
@@ -247,12 +260,19 @@
     "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32",
     "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust."
   },
-  "updatedAt": "2026-10-06T01:40:28.094Z",
-  "integrationStatus": "235 TypeScript tests and46 generic browser checks passed before the startup hotfix. The user-reported Huawei startup failure is confirmed: the new preview has a self-signed fixture certificate, so browsers reject its connection worker. Trusted root-managed HTTPS repair is prepared but requires a root shell unavailable to this account. Startup diagnostics are being corrected and verified; older gateways and CLI sessions remain running.",
+  "updatedAt": "2026-10-06T01:47:36.419Z",
+  "integrationStatus": "User-reported Huawei startup failure is reproduced. The deployed startup hotfix now explains certificate rejection; three isolated browser startup cases and the exact8471 diagnostic check pass. Public8471 still needs trustedTLS: the root-owned certificate/DNS setup is inaccessible to this account. The prepared root installer replaces only its HTTPS gateway; all existing Hubs, Computers and CLI sessions remain running.",
   "github": {
     "status": "blocked",
     "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",
     "localBranch": "v2/typescript-architecture-pr",
     "published": false
+  },
+  "startupHotfix": {
+    "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
+    "browserChecks": 3,
+    "exactPublicDiagnostic": true,
+    "publicTrustedTLS": false,
+    "requiredRootCommand": "bash /home/codoxear/projects/codoxear/codoxear-v2/deploy/install-preview-https.sh"
   }
 }
