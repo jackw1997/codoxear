@@ -221,14 +221,18 @@
     },
     {
       "id": "browser-startup-https",
-      "status": "diagnostic-verified; public-TLS-action-required",
+      "status": "verified-public-trusted-preview",
       "model": "GPT-6.1-Sol and root",
       "scope": "User-reported Huawei failed-to-load screen",
-      "checks": 3,
-      "evidence": "artifacts/browser-client-startup-results.json; artifacts/browser-client-startup-public-results.json",
-      "outcome": "Accepted invalidTLS reproduces the opaqueUncaught/0:0 failure. Startup now catches registration rejection with a clear trustedHTTPS message and bounds pending work to15seconds. Three real-browser cases pass; exact8471 public rejection now displays the clear message with no uncaught errors. Trusted root-managed gateway installer is prepared and preserves native processes.",
+      "checks": 6,
+      "evidence": "artifacts/native-preview-results.json; artifacts/native-preview-mobile.png; artifacts/trusted-endpoint-tls-results.json; artifacts/trusted-endpoint-process-results.json",
+      "outcome": "The native preview now uses the existing root-managed trusted gateway; ordinary Chrome130 mobile browser acceptance passes6/6 at390×844 with no SPKI exception and ignoreHTTPSErrors:false. Checks cover OAuth against two independent Hubs, actual native Pi terminal import and shell-tool proof.txt write, reload with transcript retained and no overflow/page errors, HTTPS source download with matching SHA-256, and the then-current readable progress report with37 decision details fitting the phone viewport. The client and both Hubs also validate the public certificate with rejectUnauthorized:true (issuer YE2, expiry 2027-01-02 08:27:03 GMT). Router checks pass5/5; Docker production build, full TypeScript check and boundaries pass across438 modules. All96/96 tracked processes in six existing containers retained PIDs and start ticks through cutover with no CLI/container restart.",
       "limitations": [
-        "The certificate remains self-signed until a root administrator runs deploy/install-preview-https.sh. This account cannot read the root-managed certificate cache or DNS credential. Diagnostic success is not a claim that the Huawei browser can yet connect."
+        "The final report was regenerated with38 documented precedence decisions after the6/6 mobile run, which verified the prior37-decision version; mobile fit of that latest generated report has not been rechecked.",
+        "The run used Chrome130 at a390×844 mobile viewport; the user-reported Huawei device itself has not yet been retested.",
+        "The previous six-check run used fixture-certificate SPKI trust against the superseded self-signed8471 endpoint; only the new evidence listed above establishes ordinary-browser trust for the current route.",
+        "Existing configured legacy Computer streams and old bearer-kid requests remain routed. Native v2 has fresh account/session catalog state and may require sign-in; no automatic legacy Python session restoration or migration is claimed.",
+        "Opaque legacy OAuth refresh-token POST bodies use the new default route; existing browser accounts may require sign-in again. Configured legacy Computer credentials stay routed by Computer ID."
       ]
     }
   ],
@@ -250,18 +254,19 @@
     "resolvedConstraints": 1,
     "note": "Rows overlap. Intentional safe compatibility exclusions are resolved constraints rather than unfinished features."
   },
-  "preview": "https://codoxear.gzeek.com:8471/",
+  "preview": "https://codoxear.gzeek.com:8445/",
   "previewVerification": {
     "checks": 6,
-    "evidence": "artifacts/completion-preview-results.json",
-    "outcome": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport",
+    "evidence": "artifacts/native-preview-results.json; artifacts/native-preview-mobile.png; artifacts/trusted-endpoint-tls-results.json; artifacts/trusted-endpoint-process-results.json",
+    "outcome": "Chrome130 mobile browser at390×844, with no SPKI exception and ignoreHTTPSErrors:false: OAuth against two independent Hubs; native Pi terminal import; shell tool writes proof.txt; reload retains transcript with no overflow/page errors; HTTPS source download matches published SHA-256; report with37 details fits phone viewport. Exit0.",
     "provider": "Actual installed native Pi and shell tools; built-in model responses are explicitly scripted. Custom provider URL/key/model remains available.",
-    "browserHarness": "390px real Chromium in network-isolated Docker with loopback online CDP state and the exact fixture certificate SPKI exception.",
-    "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32",
-    "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust."
+    "browserHarness": "Real Chrome130 mobile browser at390×844; ignoreHTTPSErrors:false and no SPKI exception.",
+    "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+    "publicTLS": "Client and both Hubs pass certificate validation with rejectUnauthorized:true and authorize successfully. Certificate issuer YE2; expiry 2027-01-02 08:27:03 GMT. Existing root-managed Caddy/certificate configuration was reused unchanged.",
+    "publicTrustedTLS": true
   },
-  "updatedAt": "2026-10-06T01:47:36.419Z",
-  "integrationStatus": "User-reported Huawei startup failure is reproduced. The deployed startup hotfix now explains certificate rejection; three isolated browser startup cases and the exact8471 diagnostic check pass. Public8471 still needs trustedTLS: the root-owned certificate/DNS setup is inaccessible to this account. The prepared root installer replaces only its HTTPS gateway; all existing Hubs, Computers and CLI sessions remain running.",
+  "updatedAt": "2026-10-06T02:08:29.023Z",
+  "integrationStatus": "Trusted native preview deployed through the existing root-managed HTTPS gateway; full public-trust mobile browser acceptance passes6/6. Router checks pass5/5; Docker full TypeScript check, production build and boundaries pass across438 modules. All96/96 tracked processes in the six existing containers retain the same PIDs and start ticks through cutover, with no CLI/container restart. Configured legacy Computer streams and old bearer-kid requests remain routed; the native preview has fresh account/session state and makes no automatic legacy-session migration claim. The six-check run used Chrome mobile viewport; the reported Huawei device has not yet been retested. The current report has38 decisions (the run checked the prior37-decision version).",
   "github": {
     "status": "blocked",
     "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",
@@ -269,10 +274,18 @@
     "published": false
   },
   "startupHotfix": {
-    "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
-    "browserChecks": 3,
-    "exactPublicDiagnostic": true,
-    "publicTrustedTLS": false,
-    "requiredRootCommand": "bash /home/codoxear/projects/codoxear/codoxear-v2/deploy/install-preview-https.sh"
+    "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+    "browserChecks": 6,
+    "browserEvidence": "artifacts/native-preview-results.json",
+    "mobileScreenshot": "artifacts/native-preview-mobile.png",
+    "tlsEvidence": "artifacts/trusted-endpoint-tls-results.json",
+    "ordinaryBrowserTLS": true,
+    "firstIndependentHubOAuth": true,
+    "publicTrustedTLS": true,
+    "certificateIssuer": "YE2",
+    "certificateExpires": "2027-01-02T08:27:03Z",
+    "routerChecks": "5/5",
+    "preservedContainerProcesses": "96/96 tracked processes in six existing containers: same PIDs and start ticks",
+    "rootInstallerRequired": false
   }
 }

@@ -191,7 +191,7 @@
     {
       "function": "Public production deployment",
       "state": "No-Go",
-      "reason": "An isolated HTTPS native preview is available. Required engineering and external acceptance gates, production domain/configuration, secrets and operational readiness remain open. The new8471 preview currently also requires the prepared trustedTLS installer to be run by a root administrator; its self-signed certificate blocks ordinary browser connection workers.",
+      "reason": "A trusted isolated native preview is available through the existing root-managed HTTPS gateway. Production domain/configuration, secrets, remaining engineering and external acceptance gates, and operational readiness remain open. The earlier self-signed8471 deployment and its fixture-certificate browser evidence are historical and superseded.",
       "exit": "Close the required engineering and external acceptance gates, configure a production domain and secrets, and deploy a reviewed committed snapshot.",
       "owner": "Implementation agent and deployment owner"
     },
@@ -266,22 +266,19 @@
       "Existing legacy deployment sessions stay running; native preview uses separate state"
     ],
     "preview": {
-      "client": "https://codoxear.gzeek.com:8471/",
-      "homeHub": "https://codoxear.gzeek.com:8472",
-      "workHub": "https://codoxear.gzeek.com:8473",
-      "guide": "https://codoxear.gzeek.com:8470/",
-      "report": "https://codoxear.gzeek.com:8471/progress.html",
-      "state": "New isolated preview currently blocked on trusted publicTLS; prior phone-viewport tests used a fixturecertificate exception. Real root-managed older8445 gateway has a trusted Let’sEncrypt certificate.",
-      "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
-      "verification": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport",
-      "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust.",
-      "startupHotfix": {
-        "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
-        "browserChecks": 3,
-        "exactPublicDiagnostic": true,
-        "publicTrustedTLS": false,
-        "requiredRootCommand": "bash /home/codoxear/projects/codoxear/codoxear-v2/deploy/install-preview-https.sh"
-      }
+      "client": "https://codoxear.gzeek.com:8445/",
+      "homeHub": "https://codoxear.gzeek.com:8446",
+      "workHub": "https://codoxear.gzeek.com:8447",
+      "guide": "https://codoxear.gzeek.com:8444/guide",
+      "report": "https://codoxear.gzeek.com:8445/progress.html",
+      "state": "Trusted native preview deployed through the existing root-managed HTTPS gateway. Caddy and certificate configuration remain unchanged; the router cutover preserves existing legacy routes.",
+      "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+      "verification": "Chrome130 mobile browser acceptance passes6/6 at390×844 with no SPKI exception and ignoreHTTPSErrors:false: OAuth against two independent Hubs, actual native Pi terminal import, shell-tool proof.txt write, reload transcript/no overflow/page errors, HTTPS source SHA-256, and then-current report with37 decision details fitting phone viewport. Client and both Hubs validate the public certificate with rejectUnauthorized:true (issuer YE2; expiry 2027-01-02 08:27:03 GMT). Router checks5/5; Docker production build, full TypeScript check and boundaries pass across438 modules. All96/96 tracked processes in the six existing containers retained PIDs and start ticks; no CLI/container restart. Evidence: artifacts/native-preview-results.json, artifacts/native-preview-mobile.png, artifacts/trusted-endpoint-tls-results.json.",
+      "publicTLS": "Trusted public TLS verified by actual Docker clients with certificate validation enabled and ordinary Chrome130 mobile browser with ignoreHTTPSErrors:false and no SPKI exception. The previous six-check preview evidence used fixture SPKI trust against the superseded self-signed8471 endpoint and is historical only.",
+      "sessionScope": "Configured legacy Computer streams and old bearer-kid requests remain routed; native v2 has fresh account/session catalog state and may require sign-in. No automatic legacy Python session restore/migration is claimed.",
+      "optionalInstaller": "deploy/install-preview-https.sh is obsolete for this route and is not required; existing root-managed Caddy/certificate configuration was not changed.",
+      "evidence": "artifacts/native-preview-results.json; artifacts/native-preview-mobile.png; artifacts/trusted-endpoint-tls-results.json; artifacts/trusted-endpoint-process-results.json",
+      "mobileLimit": "Chrome130 viewport run; the user-reported Huawei device has not been retested. The final report now has38 decisions; the mobile check covered the prior37-decision version."
     },
     "prReview": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped. Updated Dockerfile image and hosted workflow were not executed here; equivalent isolated verifier passed."
   },

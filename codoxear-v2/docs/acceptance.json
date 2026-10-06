@@ -205,18 +205,31 @@
     "nativeLifecycleBrowserChecks": 9,
     "voiceSettingsBrowserChecks": 8,
     "previewChecks": 6,
-    "preview": "https://codoxear.gzeek.com:8471/",
+    "preview": "https://codoxear.gzeek.com:8445/",
     "github": {
       "published": false,
       "reason": "GitHub integration rejects repository writes with403 Resource not accessible by integration"
     },
-    "previewPublicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust.",
-    "startupHotfix": {
-      "runtimeCommit": "7e0e6d4efe1c2eeb8ed43347a56cb679f6b87c39",
-      "browserChecks": 3,
-      "exactPublicDiagnostic": true,
-      "publicTrustedTLS": false,
-      "requiredRootCommand": "bash /home/codoxear/projects/codoxear/codoxear-v2/deploy/install-preview-https.sh"
+    "previewPublicTLS": "Trusted certificate verified by actual Docker client and both Hubs with rejectUnauthorized:true, plus Chrome130 mobile browser with ignoreHTTPSErrors:false and no SPKI exception. Issuer YE2, expiry 2027-01-02 08:27:03 GMT. Full trusted endpoint mobile flow passes6/6; evidence in artifacts/native-preview-results.json, artifacts/native-preview-mobile.png and artifacts/trusted-endpoint-tls-results.json. Earlier six checks used fixture SPKI trust against superseded self-signed8471 route.",
+    "trustedPreviewDeployment": {
+      "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+      "client": "https://codoxear.gzeek.com:8445/",
+      "homeHub": "https://codoxear.gzeek.com:8446",
+      "workHub": "https://codoxear.gzeek.com:8447",
+      "guide": "https://codoxear.gzeek.com:8444/guide",
+      "routerChecks": "5/5",
+      "build": "Docker production build, full TypeScript check and boundaries pass across438 modules",
+      "preservedContainerProcesses": "96/96 tracked processes in the six existing containers retained their PIDs and start ticks",
+      "sessionScope": "Configured legacy Computer streams and old bearer-kid requests remain routed; native v2 uses fresh account/session state and does not claim automatic legacy-session restoration.",
+      "browserChecks": 6,
+      "browserEvidence": "artifacts/native-preview-results.json",
+      "mobileScreenshot": "artifacts/native-preview-mobile.png",
+      "tlsEvidence": "artifacts/trusted-endpoint-tls-results.json",
+      "browserConditions": "Chrome130,390×844,ignoreHTTPSErrors:false,no SPKI exception",
+      "result": "PASS 6/6: two-Hub OAuth, native Pi import and shell proof.txt, reload transcript/no overflow/page errors, HTTPS source SHA-256, then-current readable report with37 decision details",
+      "processEvidence": "artifacts/trusted-endpoint-process-results.json",
+      "mobileLimits": "Huawei device not retested; final report has38 decisions while the browser run covered the prior37-decision version."
     }
-  }
+  },
+  "updatedAt": "2026-10-06T02:07:53.719Z"
 }
