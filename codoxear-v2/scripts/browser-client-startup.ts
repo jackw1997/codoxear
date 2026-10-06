@@ -15,10 +15,12 @@ assert.ok(existsSync("/.dockerenv"), "Startup verification must run in Docker");
 const directory = await mkdtemp(join(tmpdir(), "codoxear-client-startup-"));
 const certificate = join(directory, "certificate.pem"),
   key = join(directory, "key.pem");
+const opensslConfig = join(directory, "openssl.cnf");
+await writeFile(opensslConfig, "[req]\ndistinguished_name=subject\n[subject]\n");
 await promisify(execFile)("openssl", [
   "req",
   "-config",
-  "/dev/null",
+  opensslConfig,
   "-x509",
   "-newkey",
   "rsa:2048",
