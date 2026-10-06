@@ -209,6 +209,7 @@
     "github": {
       "published": false,
       "reason": "GitHub integration rejects repository writes with403 Resource not accessible by integration"
-    }
+    },
+    "previewPublicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust."
   }
 }

@@ -244,10 +244,11 @@
     "outcome": "Native preview connects two independent hubs through their real OAuth login; Unified Computer page imports an actual terminal-owned native Pi session; Browser sends to native PTY; actual Pi shell tool writes the workspace file; Native transcript survives page reload and fits the phone viewport without page errors; Committed Computer source downloads over HTTPS with the published SHA-256; Readable progress report includes requirements conflicts and fits the phone viewport",
     "provider": "Actual installed native Pi and shell tools; built-in model responses are explicitly scripted. Custom provider URL/key/model remains available.",
     "browserHarness": "390px real Chromium in network-isolated Docker with loopback online CDP state and the exact fixture certificate SPKI exception.",
-    "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32"
+    "runtimeCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32",
+    "publicTLS": "User-reported Huawei failure reproduced in Chrome130: accepted invalid certificate still rejects service-worker registration with SecurityError and opaque Uncaught/0:0. Prior6-check preview proof used fixturecert SPKItrust; it does not establish publicbrowser trust."
   },
-  "updatedAt": "2026-10-06T01:27:49.848Z",
-  "integrationStatus": "Final source passes235 TypeScript tests and46 generic browser checks. New independent preview passes6 phone-browser workflows, including actual Pi shell tools and a hash-verified committed source download. Scoped Linux implementation is reviewable; external, physical, future-platform and production-release limits remain explicit.",
+  "updatedAt": "2026-10-06T01:40:28.094Z",
+  "integrationStatus": "235 TypeScript tests and46 generic browser checks passed before the startup hotfix. The user-reported Huawei startup failure is confirmed: the new preview has a self-signed fixture certificate, so browsers reject its connection worker. Trusted root-managed HTTPS repair is prepared but requires a root shell unavailable to this account. Startup diagnostics are being corrected and verified; older gateways and CLI sessions remain running.",
   "github": {
     "status": "blocked",
     "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",
