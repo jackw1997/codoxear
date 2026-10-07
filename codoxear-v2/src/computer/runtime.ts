@@ -8,7 +8,7 @@ export interface Runtime {
     operation: Operation,
     requestId: string,
   ): Promise<unknown>;
-  sendQueued?(localId: string, text: string): Promise<unknown>;
+  sendQueued?(localId: string, text: string, actorId?: string): Promise<unknown>;
   setQueueScope?(scope: string): void;
   setUnattendedBlocker?(blocker: (localId: string) => boolean): void;
   queueControl?(

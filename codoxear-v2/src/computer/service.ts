@@ -212,9 +212,10 @@ export class ComputerService {
                   },
                 }
               : {}),
-            idle: async (localId) => {
+            idle: async (localId, actorId) => {
               const catalog = (await this.runtime!.execute({
                 op: "discover",
+                ...(actorId ? { actorId } : {}),
               })) as { sessions: Array<Record<string, unknown>> };
               const row = catalog.sessions.find(
                 (s) => s.session_id === localId,
@@ -252,10 +253,10 @@ export class ComputerService {
                 );
               await response.body?.cancel();
             },
-            send: async (localId, text) => {
+            send: async (localId, text, actorId) => {
               const result = (
                 this.runtime!.sendQueued
-                  ? await this.runtime!.sendQueued(localId, text)
+                  ? await this.runtime!.sendQueued(localId, text, actorId)
                   : await this.runtime!.execute({
                       op: "send",
                       agentId: config.computerId,

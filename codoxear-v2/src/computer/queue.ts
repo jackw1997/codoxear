@@ -19,9 +19,9 @@ type Item = {
   version: number;
 };
 export interface QueueRuntime {
-  idle(localId: string): Promise<boolean>;
+  idle(localId: string, actorId?: string): Promise<boolean>;
   authorize(permit: string, localId: string): Promise<void>;
-  send(localId: string, text: string): Promise<void>;
+  send(localId: string, text: string, actorId?: string): Promise<void>;
   unified?: {
     sessions(): Promise<string[]>;
     control(
@@ -257,7 +257,7 @@ export class ComputerQueue {
             version: head.version,
             reason,
           });
-        if (!(await this.runtime.idle(localId))) {
+        if (!(await this.runtime.idle(localId, head.actorId))) {
           await pause("Waiting for the current turn or terminal input");
           continue;
         }
@@ -303,7 +303,7 @@ export class ComputerQueue {
             this.pauses.set(candidate.id, reason);
         };
         try {
-          if (!(await this.runtime.idle(localId))) {
+          if (!(await this.runtime.idle(localId, candidate.actorId))) {
             pause("Waiting for the current turn or local queue");
             continue;
           }
@@ -324,7 +324,7 @@ export class ComputerQueue {
         } // No authorization while offline, revoked or expired: stays pending.
         // A terminal turn or local queue may have started while the hub answered.
         try {
-          if (!(await this.runtime.idle(localId))) {
+          if (!(await this.runtime.idle(localId, candidate.actorId))) {
             pause("Waiting for the current turn or local queue");
             continue;
           }
@@ -346,7 +346,7 @@ export class ComputerQueue {
         if (!committed) continue;
         this.pauses.delete(candidate.id);
         try {
-          await this.runtime.send(localId, candidate.text);
+          await this.runtime.send(localId, candidate.text, candidate.actorId);
           this.change((items) =>
             items.splice(
               items.findIndex((i) => i.id === candidate.id),

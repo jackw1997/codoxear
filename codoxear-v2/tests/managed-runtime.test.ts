@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { ManagedRuntime } from "../src/computer/managed/runtime.js";
 import { NativeHttpTarget } from "../src/computer/native/http.js";
 import { emptyBody } from "../src/protocol/http-frames.js";
+import { ComputerQueue } from "../src/computer/queue.js";
 import {
   ManagedSetupError,
   type ManagedFactory,
@@ -291,8 +292,82 @@ test("managed HTTP attachments are actor scoped and delivered once as native ima
     f.factory.sessions[0]!.completeBeforeFail = true;
     assert.equal((await call("send", "POST", { text: "Peer input", request_id: "completed-before-transport-loss" }, "bob")).status, 200);
     assert.equal((await call("attachments", "GET", undefined, "bob")).value.attachments.length, 0, "Native completed delivery consumes attachments even if its transport subsequently throws");
+    assert.equal(existsSync(file.value.attachment.path), true, "Delivered uploads remain readable by later tools");
+    const temporary = await call("inject_file", "POST", { filename: "temporary.txt", data_b64: Buffer.from("Temporary staging").toString("base64") });
+    assert.equal(temporary.status, 200);
+    await call("attachments/delete", "POST", { id: temporary.value.attachment.id });
+    assert.equal(existsSync(temporary.value.attachment.path), false, "Removing staged runtime-owned uploads frees their bytes");
+    const userFile = join(f.path, "preserved-user-file.txt");
+    writeFileSync(userFile, "User workspace contents");
+    assert.equal((await call("inject_file", "POST", { path: userFile, name: "preserved-user-file.txt" })).status, 200);
+    await call("attachments/clear", "POST", {});
+    assert.equal(readFileSync(userFile, "utf8"), "User workspace contents", "Clearing path references never deletes user files");
+    for (let index = 0; index < 20; index++) {
+      assert.equal((await call("inject_file", "POST", { filename: `limit-${index}.txt`, data_b64: Buffer.from("Staged").toString("base64") })).status, 200);
+    }
+    const stagingDirectory = dirname(file.value.attachment.path);
+    const beforeRefusal = readdirSync(stagingDirectory).sort();
+    assert.equal((await call("inject_file", "POST", { filename: "refused.txt", data_b64: Buffer.from("Refused").toString("base64") })).status, 413);
+    assert.deepEqual(readdirSync(stagingDirectory).sort(), beforeRefusal, "Refused uploads leave no orphan bytes");
+    const staged = (await call("attachments")).value.attachments;
+    await call("attachments/clear", "POST", {});
+    for (const attachment of staged) assert.equal(existsSync(attachment.path), false);
+    assert.equal((await call("delete", "POST", {})).status, 200);
+    for (const attachment of [file.value.attachment, image.value.attachment, peer.value.attachment]) assert.equal(existsSync(attachment.path), false, "Explicit conversation deletion removes its delivered owned uploads");
+    assert.equal(readFileSync(userFile, "utf8"), "User workspace contents");
   } finally {
     http.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
+test("another actor's staged files cannot block authorized queued or unattended work and own staging stays protected", async () => {
+  let clock = 1000;
+  const f = fixture({ now: () => clock });
+  const queue = new ComputerQueue(":memory:", "managed-actors", {
+    idle: async (localId, actorId) => {
+      const catalog = await f.runtime.execute({ op: "discover", ...(actorId ? { actorId } : {}) }) as { sessions: { session_id: string; busy: boolean; pending_attachment: boolean }[] };
+      const row = catalog.sessions.find((session) => session.session_id === localId);
+      return !!row && !row.busy && !row.pending_attachment;
+    },
+    authorize: async () => {},
+    send: async (localId, text, actorId) => { await f.runtime.sendQueued(localId, text, actorId); },
+  });
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    const aFile = join(f.path, "actor-a.txt"), bFile = join(f.path, "actor-b.txt");
+    writeFileSync(aFile, "Actor A staged work");
+    writeFileSync(bFile, "Actor B staged work");
+    await f.runtime.request(`/api/sessions/${localId}/inject_file`, "POST", { path: aFile, actorId: "actor-a" });
+    queue.enqueue(localId, "Actor B queued work", "actor-b", "authorized-actor-b");
+    await queue.drain();
+    assert.equal(queue.list(localId).length, 0);
+    assert.deepEqual(f.factory.sessions[0]!.prompts, ["Actor B queued work"]);
+    assert.equal((await f.runtime.request(`/api/sessions/${localId}/attachments`, "GET", { actorId: "actor-a" })).attachments.length, 1);
+    f.factory.sessions[0]!.emit([{ kind: "text_delta", text: "Completed B work" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+    await f.runtime.request(`/api/sessions/${localId}/unattended`, "POST", { enabled: true, cooldown_minutes: 1, remaining_injections: 2, actorId: "actor-b" });
+    clock += 60_000;
+    await f.runtime.runUnattended();
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2, "Another actor's stale/revoked staging does not pause this actor's unattended work");
+    f.factory.sessions[0]!.emit([{ kind: "text_delta", text: "Completed automatic work" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+    await f.runtime.request(`/api/sessions/${localId}/inject_file`, "POST", { path: bFile, actorId: "actor-b" });
+    clock += 60_000;
+    await f.runtime.runUnattended();
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2, "Own staged attachments pause unattended sends");
+    queue.enqueue(localId, "B waits for own staging", "actor-b", "authorized-actor-b");
+    await queue.drain();
+    assert.equal(queue.list(localId).length, 1);
+    await assert.rejects(f.runtime.sendQueued(localId, "Atomic queued staging fence", "actor-b"), (error: unknown) => (error as { code?: string }).code === "queue_not_dispatched");
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2);
+    await f.runtime.request(`/api/sessions/${localId}/attachments/clear`, "POST", { actorId: "actor-b" });
+    await queue.drain();
+    assert.equal(queue.list(localId).length, 0);
+    assert.equal(f.factory.sessions[0]!.prompts.length, 3);
+    assert.equal(existsSync(aFile), true);
+    assert.equal(existsSync(bFile), true);
+  } finally {
+    queue.close();
     await f.runtime.close();
     rmSync(f.path, { recursive: true, force: true });
   }

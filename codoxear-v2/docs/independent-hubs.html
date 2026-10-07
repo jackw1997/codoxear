@@ -122,7 +122,7 @@
   </p>
   <h2>Hub roles and Computer allowlists</h2><p>Owners manage administrators and members. Admins can invite or remove ordinary members, but cannot remove admins or the owner. Owners and admins see all Computers and manage their allowlists. Members see only allowlisted Computers. Everyone must be explicitly allowlisted to use a Computer or create its agents, including owners and admins.</p><h2>Choose a Hub and sign in</h2>
   <ol>
-    <li>Enter the Hub address; no preset Hub suggestions are provided. The client displays the Google and Feishu options configured on that Hub.</li>
+    <li>Enter the Hub address; no preset Hub suggestions are provided. The client displays enabled Google and Feishu options as independent, parallel choices; configured Feishu does not force a Google owner to use Feishu.</li>
     <li>The selected Hub verifies your provider sign-in. No existing Codoxear account or password is required.</li>
     <li>The Hub issues an ordinary revocable login session. There are no client device signing keys.</li>
     <li>The private one-time initialization link assigns Owner during the first successful provider callback. Ordinary sign-in alone grants no membership or Computer access.</li>
@@ -258,14 +258,13 @@
   <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private single-use initialization link; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
   <h2>Invitations and selective sharing — local implementation</h2>
   <p>
-    Owners can now address invitations to email, a verified phone number, or an
-    exact Google/Feishu connection, subject and tenant. Provider and phone
-    recipients do not need linked email. Computer owners can share one agent
-    with an active hub member as Viewer or Operator independently of computer
-    membership; direct revocation removes that agent’s explicit and historical
-    grants. Creation and workspace permissions remain separate.
-    <a href="access-sharing.html">Workflow and Docker/browser evidence</a>. The
-    running demo snapshot is unchanged; live provider gates remain open.
+    Owners and admins invite ordinary Hub members using an exact Google/Feishu
+    connection, subject and tenant, or a recipient’s verified Google email address.
+    Only Owners manage Admin roles. Agent sharing with a Hub member does not
+    bypass the mandatory Computer allowlist. Working-file paths, Git history,
+    uploads and video processing require separate approved workspace grants.
+    <a href="../README.html">Current setup and browser workflow</a>. Controlled
+    provider browser checks do not establish live Google or Feishu acceptance.
   </p>
   <h2>Release limits and No-Go reasons</h2>
   <table>
@@ -275,14 +274,12 @@
       <th>Reason</th>
     </tr>
     <tr>
-      <td>Browser downloads larger than 256 MiB</td>
-      <td>
-        A cross-browser streaming download handoff is implemented and tested
-      </td>
-      <td>
-        The original Download button currently buffers authenticated files in
-        memory, capped at 256 MiB; files are not cached persistently.
-      </td>
+      <td>Large-file and cross-browser downloads</td>
+      <td>Validate native download behavior on each supported browser and real device</td>
+      <td>The current client prepares a single-use Hub ticket and submits it to an
+        isolated download frame. File bytes are streamed by the browser download
+        manager without buffering them in the mounted application. The tested
+        browser journey does not establish every browser or file-size scenario.</td>
     </tr>
     <tr>
       <td>Live Feishu / Google login</td>

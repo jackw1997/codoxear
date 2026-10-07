@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, writeFile, unlink } from "node:fs/promises";
 import { join, basename, relative, resolve } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
@@ -482,6 +482,7 @@ export class NativeHttpTarget {
       const headers = filterHeaders(request.headers, "request");
       const bytes = await bodyBytes(request);
       let upload: Record<string, unknown>;
+      let createdUploadPath: string | undefined;
       if (headers["content-type"]?.startsWith("multipart/form-data")) {
         const form = await new Response(bytes, {
           headers: { "content-type": headers["content-type"] },
@@ -508,6 +509,7 @@ export class NativeHttpTarget {
           flag: "wx",
           mode: 0o600,
         });
+        createdUploadPath = path;
         upload = { path, name, size: part.size, content_type: part.type };
       } else {
         try {
@@ -544,6 +546,7 @@ export class NativeHttpTarget {
           await mkdir(dir, { recursive: true, mode: 0o700 });
           const path = join(dir, randomUUID() + "-" + name);
           await writeFile(path, raw, { flag: "wx", mode: 0o600 });
+          createdUploadPath = path;
 
           upload = {
             path,
@@ -571,14 +574,19 @@ export class NativeHttpTarget {
             "Attachment data required",
           );
       }
-      request.signal.throwIfAborted();
-      return json(
-        await this.runtime.request(request.path, request.method, {
+      try {
+        request.signal.throwIfAborted();
+        return json(await this.runtime.request(request.path, request.method, {
           ...upload,
           actorId: request.actorId,
           workspace: request.workspace,
-        }),
-      );
+        }));
+      } catch (error) {
+        // Only bytes this request created belong to its refused staging.
+        // A supplied workspace path is never cleanup-owned by this handler.
+        if (createdUploadPath) await unlink(createdUploadPath).catch(() => {});
+        throw error;
+      }
     }
     if (["live", "messages/live"].includes(action)) {
       const runtime = this.runtime;

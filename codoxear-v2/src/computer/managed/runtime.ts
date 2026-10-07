@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
+import { unlink } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, join, basename, extname } from "node:path";
 import { Launch, type Operation } from "../../contracts/tunnel.js";
 import { DomainError } from "../../contracts/model.js";
@@ -19,12 +20,13 @@ import { OarFactory } from "./factory.js";
 import { readLaunchDefaults } from "../native/launch-defaults.js";
 import { readUnattendedPrompt } from "../native/workspace/unattended.js";
 import { NativeSidebar } from "../native/workspace/sidebar.js";
-import { openFile } from "../native/workspace/files.js";
+import { openFile, pinnedParent } from "../native/workspace/files.js";
 import type { Attachment } from "../native/types.js";
 
 type Unattended = {
   enabled: boolean; request: string; cooldown_minutes: number;
   remaining_injections: number; last_injection: number; commit_unknown: string | null;
+  actor_id?: string;
 };
 
 type LaunchOptions = ReturnType<typeof Launch.parse>;
@@ -149,6 +151,7 @@ export class ManagedRuntime implements Runtime {
       CREATE TABLE IF NOT EXISTS managed_read(local_id TEXT,actor_id TEXT,event_id TEXT,PRIMARY KEY(local_id,actor_id));
       CREATE TABLE IF NOT EXISTS managed_capabilities(local_id TEXT PRIMARY KEY,images INTEGER,steer INTEGER);
       CREATE TABLE IF NOT EXISTS managed_attachments(id TEXT PRIMARY KEY,local_id TEXT,actor_id TEXT,payload TEXT);
+      CREATE TABLE IF NOT EXISTS managed_uploads(id TEXT PRIMARY KEY,local_id TEXT,actor_id TEXT,payload TEXT);
       UPDATE managed_sessions SET state='unknown' WHERE state IN ('opening','running');
       UPDATE managed_receipts SET state='unknown' WHERE state IN ('dispatching','accepted');`);
     this.factory = options.factory ?? new OarFactory();
@@ -194,6 +197,27 @@ export class ManagedRuntime implements Runtime {
     const attachments = this.attachments(id, actorId);
     return { attachments, staged_attachments: attachments, pending_attachment: attachments.length > 0, actor_attachments: true };
   }
+  private async removeOwnedUpload(id: string, attachment: Attachment, actorId: string) {
+    const directory = actorId
+      ? join(this.stateHome, "uploads", createHash("sha256").update(actorId + ":" + JSON.stringify(attachment.workspace ?? "owner")).digest("hex"), id)
+      : join(this.stateHome, "uploads", id);
+    if (dirname(resolve(attachment.path)) !== resolve(directory) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}-/.test(basename(attachment.path))) return;
+    let parent: Awaited<ReturnType<typeof pinnedParent>> | undefined;
+    try {
+      parent = await pinnedParent(attachment.path);
+      await unlink(`/proc/self/fd/${parent.fd}/${basename(attachment.path)}`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    } finally { await parent?.close(); }
+  }
+  private consumeAttachments(id: string, actorId: string, attachments: Attachment[]) {
+    for (const attachment of attachments) {
+      // Keep real uploaded bytes available for later tool reads until the
+      // conversation is explicitly deleted; consumption is not file deletion.
+      this.db.prepare("INSERT OR IGNORE INTO managed_uploads VALUES(?,?,?,?)").run(attachment.id, id, actorId, JSON.stringify(attachment));
+      this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
+    }
+  }
   private async configureUnattended(id: string, body: Record<string, unknown>) {
     return this.serial(id, async () => {
       this.row(id);
@@ -207,6 +231,7 @@ export class ManagedRuntime implements Runtime {
         throw new DomainError(409, "unattended_commit_unknown", "Check the transcript and review the previous unattended attempt before enabling again");
       const next = {
         ...current,
+        ...(typeof body.actorId === "string" ? { actor_id: body.actorId } : {}),
         enabled: body.enabled === undefined ? current.enabled : body.enabled === true,
         request: String(body.request ?? current.request),
         cooldown_minutes: Math.max(1, Math.trunc(Number(body.cooldown_minutes ?? current.cooldown_minutes))),
@@ -220,7 +245,7 @@ export class ManagedRuntime implements Runtime {
     });
   }
   private unattendedReady(id: string, settings: Unattended) {
-    if (!settings.enabled || !settings.remaining_injections || settings.commit_unknown || this.unattendedBlocker(id) || this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? LIMIT 1").get(id)) return false;
+    if (!settings.enabled || !settings.remaining_injections || settings.commit_unknown || this.unattendedBlocker(id) || this.attachments(id, settings.actor_id ?? "").length) return false;
     if (!["idle", "archived"].includes(this.row(id).state)) return false;
     const last = this.db.prepare("SELECT role,receipt FROM managed_messages WHERE local_id=? ORDER BY at DESC,rowid DESC LIMIT 1").get(id) as { role: string; receipt: string } | undefined;
     if (last?.role !== "assistant") return false;
@@ -246,7 +271,7 @@ export class ManagedRuntime implements Runtime {
         if (!settings.remaining_injections) settings.enabled = false;
         this.saveUnattended(id, settings);
         try {
-          await this.send(id, prompt + (settings.request ? "\n\n" + settings.request : ""), settings.commit_unknown);
+          await this.send(id, prompt + (settings.request ? "\n\n" + settings.request : ""), settings.commit_unknown, settings.actor_id ?? "");
           settings.commit_unknown = null;
         } catch {
           settings.enabled = false;
@@ -367,7 +392,7 @@ export class ManagedRuntime implements Runtime {
       return new WorkspaceRegistry(this.stateHome, this.workspace).execute(
         operation,
       );
-    if (operation.op === "discover") return this.discover();
+    if (operation.op === "discover") return this.discover(operation.actorId);
     if (operation.op === "resume-candidates")
       return this.candidates(operation.backend, operation.cwd);
     if (operation.op === "launch-status")
@@ -840,14 +865,12 @@ export class ManagedRuntime implements Runtime {
       const receipt = this.previousReceipt(requestId);
       if (receipt?.state === "dispatching")
         this.result(requestId, "accepted", { accepted: true });
-      for (const attachment of attachments)
-        this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
+      this.consumeAttachments(id, actorId, attachments);
       return { ok: true, accepted: true, receiptId: requestId };
     } catch (error) {
       if (this.previousReceipt(requestId)?.state === "rejected") throw error;
       if (this.previousReceipt(requestId)?.state === "completed") {
-        for (const attachment of attachments)
-          this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
+        this.consumeAttachments(id, actorId, attachments);
         return {
           ok: true,
           accepted: true,
@@ -995,7 +1018,7 @@ export class ManagedRuntime implements Runtime {
       .get(id) as { count: number };
     return { messages: selected, truncated: selected.length !== count.count };
   }
-  private catalogue() {
+  private catalogue(actorId = "") {
     const rows = this.db
       .prepare(
         "SELECT * FROM managed_sessions ORDER BY updated DESC LIMIT 1000",
@@ -1003,17 +1026,17 @@ export class ManagedRuntime implements Runtime {
       .all() as Row[];
     const activeIds = new Set(rows.map((row) => row.id));
     return {
-      sessions: rows.map((row) => this.metadata(row, activeIds)),
+      sessions: rows.map((row) => this.metadata(row, activeIds, actorId)),
       new_session_defaults: readLaunchDefaults(this.home, this.workspace),
       recent_cwds: [...new Set(rows.map((row) => row.cwd))],
       tmux_available: false,
       runtime_driver: "oar",
     };
   }
-  private async discover() {
-    const own = this.catalogue();
+  private async discover(actorId = "") {
+    const own = this.catalogue(actorId);
     if (!this.options.legacy) return own;
-    const native = (await this.options.legacy.execute({ op: "discover" })) as {
+    const native = (await this.options.legacy.execute({ op: "discover", ...(actorId ? { actorId } : {}) })) as {
       sessions: Array<Record<string, unknown>>;
       new_session_defaults?: unknown;
       recent_cwds?: string[];
@@ -1028,7 +1051,7 @@ export class ManagedRuntime implements Runtime {
       ],
     };
   }
-  private metadata(row: Row, activeIds = new Set((this.db.prepare("SELECT id FROM managed_sessions").all() as { id: string }[]).map((entry) => entry.id))) {
+  private metadata(row: Row, activeIds = new Set((this.db.prepare("SELECT id FROM managed_sessions").all() as { id: string }[]).map((entry) => entry.id)), actorId = "") {
     return {
       session_id: row.id,
       thread_id: row.native_id ?? row.id,
@@ -1060,7 +1083,7 @@ export class ManagedRuntime implements Runtime {
       model_provider: null,
       lost: false,
       log_exists: !!row.stream,
-      pending_attachment: !!this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? LIMIT 1").get(row.id),
+      pending_attachment: !!this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? AND actor_id=? LIMIT 1").get(row.id, actorId),
       staged_attachments: [],
       files: [],
       draft_updated_ts: 0,
@@ -1121,13 +1144,15 @@ export class ManagedRuntime implements Runtime {
       ],
     };
   }
-  async sendQueued(localId: string, text: string) {
+  async sendQueued(localId: string, text: string, actorId = "") {
     if (localId.startsWith("broker-") && this.options.legacy?.sendQueued)
       return this.options.legacy.sendQueued(localId, text);
     try {
-      return await this.serial(localId, () =>
-        this.send(localId, text, randomUUID()),
-      );
+      return await this.serial(localId, () => {
+        if (this.attachments(localId, actorId).length)
+          throw new DomainError(409, "not_dispatched", "Complete or remove your staged attachments before dispatching queued work");
+        return this.send(localId, text, randomUUID(), actorId);
+      });
     } catch (error) {
       if (error instanceof DomainError && error.code === "not_dispatched")
         throw new DomainError(
@@ -1168,7 +1193,7 @@ export class ManagedRuntime implements Runtime {
     if (url.pathname.startsWith("/api/sessions/broker-") && this.options.legacy)
       return this.options.legacy.request(path, method, body);
     if (url.pathname === "/api/sessions" && method === "GET")
-      return this.discover();
+      return this.discover(typeof (body as Record<string, unknown> | undefined)?.actorId === "string" ? (body as { actorId: string }).actorId : "");
     if (url.pathname === "/api/session_resume_candidates")
       return this.candidates(
         url.searchParams.get("agent_backend") ?? "codex",
@@ -1207,11 +1232,13 @@ export class ManagedRuntime implements Runtime {
       if (["inject_file", "inject_image", "attachments/delete", "attachments/clear", "pending_attachment/clear"].includes(operation ?? "") && method === "POST")
         return this.serial(id, async () => {
           this.row(id);
-          if (operation === "attachments/delete")
-            this.db.prepare("DELETE FROM managed_attachments WHERE local_id=? AND actor_id=? AND id=?").run(id, actor, String(value.id ?? ""));
-          else if (operation === "attachments/clear" || operation === "pending_attachment/clear")
-            this.db.prepare("DELETE FROM managed_attachments WHERE local_id=? AND actor_id=?").run(id, actor);
-          else {
+          if (operation === "attachments/delete" || operation === "attachments/clear" || operation === "pending_attachment/clear") {
+            for (const attachment of this.attachments(id, actor)) {
+              if (operation === "attachments/delete" && attachment.id !== value.id) continue;
+              await this.removeOwnedUpload(id, attachment, actor);
+              this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
+            }
+          } else {
             if (typeof value.path !== "string" || !isAbsolute(value.path))
               throw new DomainError(400, "invalid_attachment", "Attachment requires an absolute uploaded file path");
             const file = await openFile(value.path);
@@ -1291,10 +1318,12 @@ export class ManagedRuntime implements Runtime {
           settings.enabled = false;
           this.saveUnattended(id, settings);
           await this.release(id);
+          const uploads = this.db.prepare("SELECT actor_id,payload FROM managed_attachments WHERE local_id=? UNION ALL SELECT actor_id,payload FROM managed_uploads WHERE local_id=?").all(id, id) as { actor_id: string; payload: string }[];
+          for (const upload of uploads) await this.removeOwnedUpload(id, JSON.parse(upload.payload), upload.actor_id);
           this.db.exec("BEGIN IMMEDIATE");
           try {
             this.db.prepare("DELETE FROM managed_events WHERE stream IN (SELECT id FROM managed_streams WHERE local_id=?)").run(id);
-            for (const table of ["managed_streams", "managed_messages", "managed_receipts", "managed_notifications", "managed_unattended", "managed_read", "managed_capabilities", "managed_attachments"])
+            for (const table of ["managed_streams", "managed_messages", "managed_receipts", "managed_notifications", "managed_unattended", "managed_read", "managed_capabilities", "managed_attachments", "managed_uploads"])
               this.db.prepare(`DELETE FROM ${table} WHERE local_id=?`).run(id);
             this.db.prepare("DELETE FROM managed_sessions WHERE id=?").run(id);
             this.db.exec("COMMIT");
