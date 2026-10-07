@@ -5,6 +5,7 @@ import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
+const repository = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: root, encoding: "utf8" }).trim();
 const args = process.argv.slice(2);
 const locked = args[0] === "--locked";
 if (locked) args.shift();
@@ -31,7 +32,7 @@ if (!locked) {
       const archive = resolve(temporary, component + ".tar");
       const tree = commit + ":codoxear-v2" + (component === "frontend" ? "/frontend" : "");
       execFileSync("git", ["archive", "--format=tar", "--output=" + archive, tree,
-        ...(component === "backend" ? ["package.json", "package-lock.json", "tsconfig.json", "tsconfig.backend.json", "tsup.config.ts", "src", "scripts/generate-protocol.ts"] : [])], { cwd: root });
+        ...(component === "backend" ? ["package.json", "package-lock.json", "tsconfig.json", "tsconfig.backend.json", "tsup.config.ts", "src", "scripts/generate-protocol.ts"] : [])], { cwd: repository });
       const command = component === "frontend"
         ? "npm run build && npm test"
         : "npm run build:backend && test -f dist/server/hub/main.js && test -f dist/server/computer/main.js";

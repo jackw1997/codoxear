@@ -355,6 +355,13 @@
       ],
       "checks": 21,
       "outcome": "Twenty-one managed runtime/protocol checks passed. Public authenticated browser verifies saved history, literal search/match navigation, wildcard user count, next-message relay and valid-HTTPS release report; zero uncaught page errors."
+    },
+    {
+      "id": "frontend-package-isolation",
+      "status": "isolated-build-and-host-verified",
+      "scope": "frontend/web, frontend/harmonyos and frontend/shared; frontend owns dependencies/build/static host; backend compiles without frontend",
+      "evidence": "artifacts/package-isolation.json",
+      "remaining": "Full browser regression after split is running; Hub/Computer/Identity backend package isolation remains open."
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
@@ -548,5 +555,14 @@
       "finalSearchProtocolPassed": 21,
       "scope": "Full suite passed before final saved-binding changes; focused binding and search/protocol checks passed afterward. No claim of a complete full-suite rerun or public search/navigation acceptance for the final snapshot."
     }
+  },
+  "componentPackaging": {
+    "frontend": "Independent package and static host; isolated Docker install/build/static-host checks passed",
+    "backend": "Builds without frontend; Hub/Computer/Identity still share one dependency/build/release package",
+    "gaps": [
+      "Computer source download archives entire v2 tree",
+      "Computer image contains all backend bundles",
+      "Shared behavior library ownership needs narrower enforcement"
+    ]
   }
 }

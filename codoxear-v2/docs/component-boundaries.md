@@ -22,3 +22,11 @@ The Computer's state directory is separate from the CLI authentication home. Sha
 The repository root `AGENTS.md` testing policy applies: behavioral tests run in Docker, and source-text assertions are not used as behavioral evidence. Native CLIs, Git and configured media tools are external executable interfaces. The original Python package and its static asset directory are not application or test dependencies.
 
 Existing legacy deployment processes must be preserved while validating and deploying the migration; changing source ownership does not authorize terminating the user's running agents.
+
+## Package isolation verified on 7 October 2026
+
+`npm run verify:isolation -- <commit>` creates two clean Docker containers, each capped at 2 GiB with no swap. One receives only `frontend/`: dependency installation, web build and static-host behavior pass without backend sources. The other receives only backend build inputs: dependency installation and backend compilation pass without frontend sources. The static-host check covers callback and worker headers, API-route rejection, traversal/symlink rejection and built assets. Evidence: `artifacts/package-isolation.json`. The browser transport SDK is now in `frontend/shared/`; there is no `src/client` backend directory.
+
+This establishes frontend/backend package separation. It does **not** establish independent packages for every backend component. Hub, Computer and optional Identity still share the root dependency manifest and tsup build. `scripts/package-computer.mjs` currently exports the entire v2 source tree, and the Computer runtime Dockerfile includes all backend bundles. These are explicit remaining packaging gaps. OAR has its own pinned dependency lock and worker processes. Native and OAR adapters are Computer internals, not peer network services.
+
+The import guard rejects frontend imports outside its package, backend imports into frontend and direct cross-component implementation imports. It does not prove that every shared library is behavior-free: authority/domain/persistence responsibilities need explicit ownership in a later backend-package split. Shared immutable wire contracts and utilities remain legitimate dependencies. No shared database is required between the independently running Hubs and Computers.
