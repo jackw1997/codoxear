@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import { isolateHub } from "../src/hub/migration.js";
 /** Disposable, interactive demo. The CLI and files are real; model responses are scripted. */
 import { existsSync } from "node:fs";
@@ -12,7 +13,6 @@ import { Authority } from "../src/identity/authority.js";
 import { Tokens, signingKey } from "../src/identity/tokens.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   invite,
   acceptInvite,
@@ -199,7 +199,7 @@ if (!existsSync(statePath)) {
     );
     for (let n = 0; n < (i === 0 ? 2 : 1); n++) {
       const result = store.change((s) =>
-        createComputer(
+        createAllowedComputer(
           s,
           "alice",
           hub.id,
@@ -224,7 +224,7 @@ if (!existsSync(statePath)) {
     acceptInvite(
       s,
       "bob",
-      invite(s, "alice", "hub", hubs[0]!.id, "bob@example.test", "operator")
+      invite(s, "alice", "hub", hubs[0]!.id, "bob@example.test", "member")
         .token,
     );
     acceptInvite(

@@ -1,5 +1,4 @@
 import {
-  type Action,
   type Agent,
   type Computer,
   type Decision,
@@ -11,17 +10,22 @@ import {
 export function activeUser(s: State, userId: string): boolean {
   return s.users.some((u) => u.id === userId && !u.disabled);
 }
-export function hubAccess(s: State, userId: string, hub: Hub): boolean {
-  return (
-    activeUser(s, userId) &&
-    (hub.ownerId === userId ||
-      s.memberships.some(
-        (m) =>
-          m.resource === "hub" &&
-          m.resourceId === hub.id &&
-          m.userId === userId,
-      ))
+export type HubRole = "owner" | "admin" | "member";
+export function hubRole(s: State, userId: string, hub: Hub): HubRole | null {
+  if (!activeUser(s, userId)) return null;
+  if (hub.ownerId === userId) return "owner";
+  const membership = s.memberships.find(
+    (m) =>
+      m.resource === "hub" && m.resourceId === hub.id && m.userId === userId,
   );
+  return membership ? (membership.role === "admin" ? "admin" : "member") : null;
+}
+export function canManageHub(s: State, userId: string, hub: Hub): boolean {
+  const role = hubRole(s, userId, hub);
+  return role === "owner" || role === "admin";
+}
+export function hubAccess(s: State, userId: string, hub: Hub): boolean {
+  return hubRole(s, userId, hub) !== null;
 }
 export function computerRole(
   s: State,
@@ -29,15 +33,13 @@ export function computerRole(
   computer: Computer,
 ): Role | null {
   if (!activeUser(s, userId)) return null;
-  if (computer.ownerId === userId) return "operator";
-  return (
-    s.memberships.find(
-      (m) =>
-        m.resource === "computer" &&
-        m.resourceId === computer.id &&
-        m.userId === userId,
-    )?.role ?? null
-  );
+  const role = s.memberships.find(
+    (m) =>
+      m.resource === "computer" &&
+      m.resourceId === computer.id &&
+      m.userId === userId,
+  )?.role;
+  return role === "viewer" || role === "operator" ? role : null;
 }
 export function canCreate(
   s: State,
@@ -80,53 +82,14 @@ export function agentAccess(s: State, userId: string, agent: Agent): Decision {
   )
     return denied("Active hub access is required");
   const role = computerRole(s, userId, computer);
-  const share = s.agentGrants.find(
-    (g) =>
-      g.agentId === agent.id &&
-      g.userId === userId &&
-      g.binding === computer.binding &&
-      g.ownerRevision === computer.revision,
-  );
-  const effectiveRole =
-    role === "operator" || share?.role === "operator"
-      ? "operator"
-      : (role ?? share?.role);
-  if (effectiveRole)
-    return {
-      actions:
-        effectiveRole === "operator" ? ["read", "send", "interrupt"] : ["read"],
-      mode: role === effectiveRole ? "member" : "shared",
-      source: role === effectiveRole ? "membership" : "agent",
-      reason:
-        role === effectiveRole
-          ? role === "operator"
-            ? "Computer operator"
-            : "Computer viewer"
-          : `Shared agent ${effectiveRole}`,
-    };
-  const prior = s.priorGrants.find(
-    (g) =>
-      g.userId === userId &&
-      g.agentId === agent.id &&
-      g.computerId === computer.id,
-  );
-  if (!prior) return denied("No access to this agent");
-  const { policy, source } = effectivePolicy(hub, computer);
-  const actions: Action[] =
-    policy === "retain"
-      ? [...prior.actions]
-      : policy === "read_only"
-        ? prior.actions.filter((a) => a === "read")
-        : [];
+  if (!role) return denied("An explicit Computer allowlist entry is required");
   return {
-    actions,
-    mode:
-      actions.length === 0
-        ? "denied"
-        : policy === "read_only"
-          ? "read_only"
-          : "retained",
-    source,
-    reason: `${source} rule: ${policy}`,
+    actions: role === "operator" ? ["read", "send", "interrupt"] : ["read"],
+    mode: "member",
+    source: "membership",
+    reason:
+      role === "operator"
+        ? "Computer write allowlist"
+        : "Computer read allowlist",
   };
 }

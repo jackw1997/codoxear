@@ -34,12 +34,22 @@ export const Computer = z.object({
   binding: z.number().int().positive(),
   revision: z.number().int().nonnegative(),
 });
-export const Membership = z.object({
-  resource: z.enum(["hub", "computer"]),
-  resourceId: Id,
-  userId: Id,
-  role: Role,
-});
+export const MembershipRole = z.enum(["admin", "member", "viewer", "operator"]);
+export type MembershipRole = z.infer<typeof MembershipRole>;
+export const Membership = z
+  .object({
+    resource: z.enum(["hub", "computer"]),
+    resourceId: Id,
+    userId: Id,
+    role: MembershipRole,
+  })
+  .refine(
+    (value) =>
+      value.resource === "hub" ||
+      value.role === "viewer" ||
+      value.role === "operator",
+    { message: "Computer allowlist role must be viewer or operator" },
+  );
 export const Agent = z.object({
   id: Id,
   computerId: Id,
@@ -75,10 +85,17 @@ export const Invitation = z
     ownerRevision: z.number(),
     email: z.email().optional(),
     target: InvitationTarget.optional(),
-    role: Role,
+    role: MembershipRole,
     expiresAt: z.number(),
     accepted: z.boolean(),
   })
+  .refine(
+    (value) =>
+      value.resource === "hub"
+        ? value.role === "member" || value.role === "admin"
+        : value.role === "viewer" || value.role === "operator",
+    { message: "Invitation role must match its resource" },
+  )
   .refine((value) => Boolean(value.email || value.target), {
     message: "Invitation needs a recipient",
   });

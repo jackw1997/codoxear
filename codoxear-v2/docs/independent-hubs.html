@@ -88,7 +88,7 @@
       <text x="845" y="123">Agents / files / tools</text>
       <text x="845" y="297">Computer B</text>
       <text x="845" y="323">Agents / files / tools</text>
-      <text x="480" y="210">Selected Hub account + client keys</text>
+      <text x="480" y="210">All signed-in Hub identities</text>
     </g>
     <g stroke="#825039" stroke-width="2" fill="none" marker-end="url(#arrow)">
       <path d="M245 171L375 111" />
@@ -107,10 +107,9 @@
   <p>
     Every hub and Computer has one person owner. Each Computer belongs to one
     hub. Hubs bind proven identities to hub-local people. A person can own or
-    join several hubs; there is no global user ID. Owners invite other people.
+    join several hubs; there is no global user ID. Owners and Admins invite other people.
     Creating an agent requires hub access and Computer operator access together,
-    under the same verified hub-local person. Hub retention policy overrides
-    Computer policy when defined.
+    under the same verified hub-local person. Every user, including owners and admins, requires explicit Computer allowlist access. Retained rights never bypass the allowlist.
   </p>
   <p>
     A client may retain several authenticated methods for a hub-local person.
@@ -121,17 +120,17 @@
     automatically merge accounts. An existing identity attached to another local
     account cannot be reassigned by a login.
   </p>
-  <h2>Choose a Hub and sign in</h2>
+  <h2>Hub roles and Computer allowlists</h2><p>Owners manage administrators and members. Admins can invite or remove ordinary members, but cannot remove admins or the owner. Owners and admins see all Computers and manage their allowlists. Members see only allowlisted Computers. Everyone must be explicitly allowlisted to use a Computer or create its agents, including owners and admins.</p><h2>Choose a Hub and sign in</h2>
   <ol>
-    <li>Select a saved Hub or enter its address. The client displays the Google and Feishu options configured on that Hub.</li>
+    <li>Enter the Hub address; no preset Hub suggestions are provided. The client displays the Google and Feishu options configured on that Hub.</li>
     <li>The selected Hub verifies your provider sign-in. No existing Codoxear account or password is required.</li>
-    <li>Your browser keeps a nonextractable private signing key in IndexedDB; the Hub stores the public key. Returning connections sign a one-use Hub challenge.</li>
-    <li>Initial Hub setup also requires its private one-time deployment code. Signing in alone does not grant ownership, membership or Computer access.</li>
+    <li>The Hub issues an ordinary revocable login session. There are no client device signing keys.</li>
+    <li>The private one-time initialization link assigns Owner during the first successful provider callback. Ordinary sign-in alone grants no membership or Computer access.</li>
     <li>Save multiple independent accounts on the same Hub. All contribute access at once; shared Computers and agents appear once, and each action uses an identity authorized for it.</li>
   </ol>
   <h2>One organization per Hub</h2>
   <p>Each organization operates its own Hub with at most one Feishu application and one verified tenant. Its app secret stays in private Hub configuration. Other organizations deploy their own Hubs/apps. Optional Google identities remain subject to the Hub's invitations and Computer permissions.</p>
-  <p>There is no global login service or enrollment broker. The Hub-owned design supersedes the earlier R51 broker proposal. R53 removes exclusive account switching: all saved identities contribute concurrently. Provider connection, verified tenant and stable subject distinguish accounts; matching email or display name never merges them. The Hub owner permits Feishu, Google, or both in Hub settings. This also controls existing sessions and keys; blocked local identities remain saved for later re-enabling. Password and verification-code login are removed.</p>
+  <p>There is no global login service or enrollment broker. The Hub-owned design supersedes the earlier R51 broker proposal. R53 removes exclusive account switching: all saved identities contribute concurrently. Provider connection, verified tenant and stable subject distinguish accounts; matching email or display name never merges them. The Hub owner permits Feishu, Google, or both in Hub settings. This also controls existing sessions; blocked local identities remain saved for later re-enabling. Password and verification-code login are removed.</p>
   <p>
     The web client uses IndexedDB, with short-lived access credentials and
     rotating refresh credentials. It never stores passwords or provider secrets,
@@ -253,10 +252,10 @@
     supplies <code>origin</code>, <code>hubId</code>, <code>catalog</code>,
     <code>database</code>, <code>signingKey</code>, <code>otpKey</code>, allowed
     <code>clientOrigins</code> and registered <code>clients</code>. First start
-    requires a private one-time owner setup code and configured Hub-local Google/Feishu authentication. <code>npm run client</code> serves static files;
+    requires a private expiring initialization URL and configured Hub-local Google/Feishu authentication. <code>npm run client</code> serves static files;
     it does not run an account service.
   </p>
-  <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private setup code; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
+  <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private single-use initialization link; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
   <h2>Invitations and selective sharing — local implementation</h2>
   <p>
     Owners can now address invitations to email, a verified phone number, or an

@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { independentAuthority } from "../src/hub/independent.js";
@@ -18,7 +19,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   invite,
   acceptInvite,
   passwordHash,
@@ -114,7 +114,7 @@ store.change((s) =>
   }),
 );
 const computer = store.change((s) =>
-  createComputer(
+  createAllowedComputer(
     s,
     "alice",
     createHub(s, "alice", "Runtime test").id,
@@ -213,7 +213,7 @@ provider.post("/v1/chat/completions", async(r,reply)=>{
 await provider.listen({host:"127.0.0.1",port:19820});
 store.change(s=>{
  s.users.push({id:"member",email:"member@test.invalid",name:"Member",passwordHash:passwordHash("isolated-password"),disabled:false});
- for(const [kind,id] of [["hub",computer.computer.hubId],["computer",computer.computer.id]] as const) acceptInvite(s,"member",invite(s,"alice",kind,id,"member@test.invalid","operator").token);
+ for(const [kind,id] of [["hub",computer.computer.hubId],["computer",computer.computer.id]] as const) acceptInvite(s,"member",invite(s,"alice",kind,id,"member@test.invalid",kind === "hub" ? "member" : "member").token);
 });
 const memberLogin=authority.accounts.password("member@test.invalid","isolated-password","member-browser");
 const memberContext=await browser.newContext({viewport:{width:390,height:844}}),member=await memberContext.newPage();

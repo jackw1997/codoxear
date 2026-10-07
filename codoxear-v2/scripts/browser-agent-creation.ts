@@ -125,8 +125,26 @@ app.get("/legacy-worker.js", async (_r, reply) =>
       `self.addEventListener('install', e => e.waitUntil(self.skipWaiting())); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('message', e => { if(e.data?.type === 'codoxear-transport-check') e.ports[0]?.postMessage({type:'codoxear-transport-ready',version:3}); }); self.addEventListener('fetch', e => { if (new URL(e.request.url).pathname.startsWith('/api/')) e.respondWith(new Response(JSON.stringify({error:'This is a static client. Authentication and APIs belong to your connected hubs.'}), {status:404,headers:{'Content-Type':'application/json'}})); });`,
     ),
 );
+app.get("/api/v1/me", async () => ({
+  id: "test",
+  name: "Test",
+  hubRole: "owner",
+  identities: [
+    {
+      method: "google",
+      connection: "fixture-google",
+      subject: "test-verified",
+      tenant: null,
+    },
+  ],
+  context: {
+    method: "google",
+    identityId: "test-verified",
+    authenticatedAt: Date.now(),
+  },
+}));
 app.get("/api/hubs", async () => [
-  { id: "hub", name: "Test hub", ownerId: "test", policy: null },
+  { id: "hub", name: "Test hub", ownerId: "test", role: "owner", policy: null },
 ]);
 app.get("/api/v1/computers", async () =>
   placements().map((p) => ({
@@ -134,6 +152,11 @@ app.get("/api/v1/computers", async () =>
     name: p.computerName,
     ownerId: "test",
     online: true,
+    canManage: true,
+    canUse: true,
+    canRead: true,
+    canWrite: true,
+    canCreate: true,
     policy: null,
     effectivePolicy: "remove",
   })),
@@ -232,10 +255,11 @@ try {
           origin,
           name: "Test hub",
           accountId: "test",
+          role: "owner",
           accessToken: "fixture-token",
           refreshToken: "fixture-refresh",
           expiresAt: Date.now() + 3600000,
-          identity: { name: "Test", method: "password", key: "test" },
+          identity: { name: "Test", method: "google", key: "test-verified" },
         },
         "test-login",
       );
@@ -841,6 +865,16 @@ try {
   passed = true;
 } catch (error) {
   errors.push(error instanceof Error ? error.stack : String(error));
+  await page
+    .screenshot({
+      path: "artifacts/agent-creation-failure.png",
+      fullPage: true,
+    })
+    .catch(() => {});
+  await writeFile(
+    "artifacts/agent-creation-failure.html",
+    await page.content(),
+  ).catch(() => {});
   throw error;
 } finally {
   await writeFile(

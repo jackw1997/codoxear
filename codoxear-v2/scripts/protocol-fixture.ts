@@ -1,7 +1,8 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import type { RouteOptions } from "fastify";
 import { Store } from "../src/persistence/store.js";
-import { createHub, createComputer, passwordHash, secret } from "../src/domain/commands.js";
+import { createHub, passwordHash, secret } from "../src/domain/commands.js";
 import { independentAuthority } from "../src/hub/independent.js";
 import { createHubApp } from "../src/hub/app.js";
 import { HubSessions } from "../src/hub/sessions.js";
@@ -16,7 +17,7 @@ export const routeCollector = (routes: RegisteredRoute[]) => (route: RouteOption
 export async function protocolFixture() {
   const store = new Store(":memory:");
   store.change(s => s.users.push({id:"owner",email:"owner@fixture.invalid",name:"Owner",passwordHash:passwordHash("fixture-isolated-password"),disabled:false}));
-  const computer = store.change(s => createComputer(s,"owner",createHub(s,"owner","Protocol fixture").id,"Computer","owner"));
+  const computer = store.change(s => createAllowedComputer(s,"owner",createHub(s,"owner","Protocol fixture").id,"Computer","owner"));
   const identityRoutes: RegisteredRoute[] = [], hubRoutes: RegisteredRoute[] = [];
   const origin = "https://protocol.fixture.invalid";
   const local = await independentAuthority({origin,hubId:computer.computer.hubId,store,otpKey:secret(),secureCookies:false,routeObserver:routeCollector(identityRoutes)});

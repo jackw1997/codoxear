@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
@@ -21,7 +22,6 @@ import { FixtureRuntime } from "../scripts/testing/fixture-runtime.js";
 import { createComputerApi } from "../src/computer/api.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   reserveAgent,
   secret,
@@ -177,7 +177,7 @@ test("HTTP relay preserves large binary/multipart/range/ETag/HLS and closes stre
     h = store.change((s) => createHub(s, "alice", "Streaming")),
     registration = a.registerHub(session, h.id, origin),
     computer = store.change((s) =>
-      createComputer(s, "alice", h.id, "Computer", "alice"),
+      createAllowedComputer(s, "alice", h.id, "Computer", "alice"),
     );
   store.change((s) => {
     const agent = reserveAgent(s, "alice", computer.computer.id, "Agent", "pi");

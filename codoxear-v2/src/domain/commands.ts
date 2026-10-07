@@ -11,14 +11,19 @@ import {
   type Computer,
   type Policy,
   type Resource,
-  type Role,
+  type MembershipRole,
   type State,
   DomainError,
   forbid,
   requireValue,
 } from "../contracts/model.js";
 import { InvitationTarget } from "../contracts/invitations.js";
-import { agentAccess, canCreate, hubAccess } from "./policy.js";
+import {
+  canCreate,
+  hubAccess,
+  hubRole,
+  canManageHub,
+} from "./policy.js";
 
 export const id = (): string => randomUUID();
 export const secret = (): string => randomBytes(32).toString("base64url");
@@ -75,7 +80,10 @@ export function createComputer(
   ownerId: string,
 ): { computer: Computer; credential: string } {
   const hub = requireValue(s.hubs.find((h) => h.id === hubId));
-  forbid(hub.ownerId === actorId, "Only the hub owner can admit a computer");
+  forbid(
+    canManageHub(s, actorId, hub),
+    "Only Hub owners and admins can admit a computer",
+  );
   forbid(
     hubAccess(s, ownerId, hub),
     "The computer owner needs active hub access",
@@ -151,20 +159,22 @@ export function transferOwner(
   if (nextOwnerId === actorId) return r;
   r.ownerId = nextOwnerId;
   r.revision++;
-  s.memberships = s.memberships.filter(
-    (m) =>
-      !(
-        m.resource === kind &&
-        m.resourceId === r.id &&
-        (m.userId === nextOwnerId || m.userId === actorId)
-      ),
-  );
-  s.memberships.push({
-    resource: kind,
-    resourceId: r.id,
-    userId: actorId,
-    role: "operator",
-  });
+  if (kind === "hub") {
+    s.memberships = s.memberships.filter(
+      (m) =>
+        !(
+          m.resource === "hub" &&
+          m.resourceId === r.id &&
+          (m.userId === nextOwnerId || m.userId === actorId)
+        ),
+    );
+    s.memberships.push({
+      resource: "hub",
+      resourceId: r.id,
+      userId: actorId,
+      role: "member",
+    });
+  }
   audit(s, actorId, `${kind}.owner.transfer`, r.id);
   return r;
 }
@@ -174,12 +184,23 @@ export function invite(
   kind: Resource,
   resourceId: string,
   destination: string | InvitationTarget,
-  role: Role,
+  role: MembershipRole,
 ) {
   const r = resource(s, kind, resourceId);
+  const hub =
+    kind === "hub"
+      ? (r as Hub)
+      : requireValue(s.hubs.find((h) => h.id === (r as Computer).hubId));
+  const issuerRole = hubRole(s, actorId, hub);
   forbid(
-    r.ownerId === actorId,
-    "Only this resource’s owner can invite members",
+    issuerRole === "owner" || issuerRole === "admin",
+    "Only Hub owners and admins can invite",
+  );
+  forbid(
+    kind === "hub"
+      ? role === "member" || (role === "admin" && issuerRole === "owner")
+      : role === "viewer" || role === "operator",
+    "Invalid membership role or insufficient authority",
   );
   const target = InvitationTarget.parse(
     typeof destination === "string"
@@ -246,12 +267,37 @@ export function acceptInvite(s: State, actorId: string, token: string) {
       "Invitation expired or already used",
     );
   const r = resource(s, invitation.resource, invitation.resourceId);
+  const hub =
+    invitation.resource === "hub"
+      ? (r as Hub)
+      : requireValue(s.hubs.find((h) => h.id === (r as Computer).hubId));
+  const issuerRole = hubRole(s, invitation.issuerId, hub);
   forbid(
-    r.ownerId === invitation.issuerId &&
-      r.revision === invitation.ownerRevision,
-    "Invitation owner changed; request a new invitation",
+    r.revision === invitation.ownerRevision &&
+      (issuerRole === "owner" || issuerRole === "admin") &&
+      (invitation.role !== "admin" || issuerRole === "owner"),
+    "Invitation authority changed; request a new invitation",
   );
-  if (r.ownerId !== actorId) {
+  if (invitation.resource === "computer")
+    forbid(
+      hubAccess(s, actorId, hub),
+      "Join the Hub before accepting Computer access",
+    );
+  const existing = s.memberships.find(
+    (m) =>
+      m.resource === invitation.resource &&
+      m.resourceId === r.id &&
+      m.userId === actorId,
+  );
+  forbid(
+    !(
+      invitation.resource === "hub" &&
+      existing?.role === "admin" &&
+      issuerRole !== "owner"
+    ),
+    "Admins cannot change another admin",
+  );
+  if (!(invitation.resource === "hub" && hub.ownerId === actorId)) {
     s.memberships = s.memberships.filter(
       (m) =>
         !(
@@ -279,13 +325,24 @@ export function removeMember(
   memberId: string,
 ) {
   const r = resource(s, kind, resourceId);
+  const hub =
+    kind === "hub"
+      ? (r as Hub)
+      : requireValue(s.hubs.find((h) => h.id === (r as Computer).hubId));
+  const actorRole = hubRole(s, actorId, hub);
   forbid(
-    r.ownerId === actorId,
-    "Only this resource’s owner can remove members",
+    actorRole === "owner" || actorRole === "admin",
+    "Only Hub owners and admins can remove members",
   );
   forbid(
-    memberId !== r.ownerId,
-    "Transfer ownership before removing the owner",
+    kind !== "hub" || memberId !== hub.ownerId,
+    "Transfer ownership before removing the Hub owner",
+  );
+  forbid(
+    kind !== "hub" ||
+      actorRole === "owner" ||
+      hubRole(s, memberId, hub) !== "admin",
+    "Admins cannot remove admins",
   );
   const member = s.memberships.find(
     (m) =>
@@ -317,17 +374,6 @@ export function removeMember(
     s.priorGrants = s.priorGrants.filter(
       (g) => !(g.userId === memberId && g.computerId === resourceId),
     );
-    for (const a of s.agents.filter((a) => a.computerId === resourceId)) {
-      const d = agentAccess(s, memberId, a);
-      if (d.actions.length)
-        s.priorGrants.push({
-          userId: memberId,
-          computerId: resourceId,
-          agentId: a.id,
-          actions: [...d.actions],
-          lostAt: Date.now(),
-        });
-    }
   }
   s.memberships = s.memberships.filter(
     (m) =>
@@ -337,6 +383,31 @@ export function removeMember(
         m.userId === memberId
       ),
   );
+  if (kind === "hub") {
+    const computerIds = new Set(
+      s.computers.filter((c) => c.hubId === resourceId).map((c) => c.id),
+    );
+    s.memberships = s.memberships.filter(
+      (m) =>
+        !(
+          m.resource === "computer" &&
+          computerIds.has(m.resourceId) &&
+          m.userId === memberId
+        ),
+    );
+    s.priorGrants = s.priorGrants.filter(
+      (g) => !(g.userId === memberId && computerIds.has(g.computerId)),
+    );
+    s.invitations = s.invitations.filter(
+      (i) =>
+        !(
+          i.issuerId === memberId &&
+          (i.resource === "hub"
+            ? i.resourceId === resourceId
+            : computerIds.has(i.resourceId))
+        ),
+    );
+  }
   audit(s, actorId, `${kind}.member.remove`, r.id);
 }
 export function reserveAgent(
@@ -366,4 +437,60 @@ export function reserveAgent(
   s.agents.push(agent);
   audit(s, actorId, "agent.create", agent.id);
   return agent;
+}
+
+export function setHubMemberRole(
+  s: State,
+  actorId: string,
+  hubId: string,
+  userId: string,
+  role: "admin" | "member",
+) {
+  const hub = requireValue(s.hubs.find((h) => h.id === hubId));
+  forbid(
+    hubRole(s, actorId, hub) === "owner",
+    "Only the Hub owner can change admin roles",
+  );
+  forbid(userId !== hub.ownerId, "The owner role cannot be changed");
+  const member = requireValue(
+    s.memberships.find(
+      (m) =>
+        m.resource === "hub" && m.resourceId === hubId && m.userId === userId,
+    ),
+  );
+  member.role = role;
+  audit(s, actorId, "hub.member.role", hubId);
+  return member;
+}
+export function setComputerAccess(
+  s: State,
+  actorId: string,
+  computerId: string,
+  userId: string,
+  access: "read" | "write",
+) {
+  const computer = requireValue(s.computers.find((c) => c.id === computerId));
+  const hub = requireValue(s.hubs.find((h) => h.id === computer.hubId));
+  forbid(
+    canManageHub(s, actorId, hub),
+    "Only Hub owners and admins can manage Computer allowlists",
+  );
+  forbid(hubAccess(s, userId, hub), "The user must be an active Hub member");
+  s.memberships = s.memberships.filter(
+    (m) =>
+      !(
+        m.resource === "computer" &&
+        m.resourceId === computerId &&
+        m.userId === userId
+      ),
+  );
+  const entry = {
+    resource: "computer" as const,
+    resourceId: computerId,
+    userId,
+    role: access === "write" ? ("operator" as const) : ("viewer" as const),
+  };
+  s.memberships.push(entry);
+  audit(s, actorId, "computer.allowlist.set", computerId);
+  return entry;
 }

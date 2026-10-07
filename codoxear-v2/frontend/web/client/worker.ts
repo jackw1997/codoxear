@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { vault, selectionId, hubScope, type HubLogin } from "./vault.js";
-import { DeviceSignInError, deviceKeys, proveDevice } from "./device-keys.js";
+import { SessionSignInError, refreshSession } from "./oauth-session.js";
 import { transportVersion } from "./transport-version.js";
 import {
   disconnectPush,
@@ -64,16 +64,11 @@ async function fresh(login: HubLogin): Promise<HubLogin> {
         if (!latest) throw new Error("Sign in to this hub again");
         await assertSelected(latest, generation);
         if (latest.expiresAt > Date.now() + 30000) return latest;
-        const key = await deviceKeys.get(latest.origin, latest.deviceKeyId);
-        if (!key || key.accountId !== latest.accountId)
-          throw new Error(
-            "Sign in with Google or Feishu to create a device key",
-          );
         let tokens;
         try {
-          tokens = await proveDevice(key);
+          tokens = await refreshSession(latest.origin, latest.refreshToken);
         } catch (error) {
-          if (error instanceof DeviceSignInError && error.status === 401)
+          if (error instanceof SessionSignInError && error.status === 401)
             await vault.removeIfSelection(login.id, generation);
           throw error;
         }
@@ -315,7 +310,9 @@ async function directory() {
           error: null,
         };
       } catch (e) {
-        blocked ||= e instanceof DeviceSignInError && e.code === "login_method_not_allowed";
+        blocked ||=
+          e instanceof SessionSignInError &&
+          e.code === "login_method_not_allowed";
         return {
           agents: [],
           placements: [],
@@ -411,7 +408,9 @@ async function catalog(placement: string | null) {
           ok: true,
         };
       } catch (error) {
-        blocked ||= error instanceof DeviceSignInError && error.code === "login_method_not_allowed";
+        blocked ||=
+          error instanceof SessionSignInError &&
+          error.code === "login_method_not_allowed";
         const signedOut = status === 401 || !(await vault.get(login.id));
         return {
           sessions: [],

@@ -24081,6 +24081,106 @@
         ],
         "additionalProperties": false
       },
+      "HubMembers": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin"
+            ]
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "owner",
+                    "admin",
+                    "member"
+                  ]
+                }
+              },
+              "required": [
+                "userId",
+                "name",
+                "role"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "hubId",
+          "role",
+          "members"
+        ],
+        "additionalProperties": false
+      },
+      "ComputerAllowlist": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "computerId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "canManage": {
+            "type": "boolean",
+            "const": true
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "access": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "write"
+                  ]
+                }
+              },
+              "required": [
+                "userId",
+                "name",
+                "access"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "computerId",
+          "canManage",
+          "entries"
+        ],
+        "additionalProperties": false
+      },
       "AdminOk": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -24230,6 +24330,21 @@
             ],
             "additionalProperties": false
           },
+          "hubRole": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "owner",
+                  "admin",
+                  "member"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "identities": {
             "type": "array",
             "items": {
@@ -24282,6 +24397,7 @@
           "name",
           "email",
           "context",
+          "hubRole",
           "identities"
         ],
         "additionalProperties": false
@@ -24331,24 +24447,6 @@
             "required": [
               "enabled",
               "method"
-            ],
-            "additionalProperties": false
-          },
-          "deviceKeys": {
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "const": true
-              },
-              "algorithm": {
-                "type": "string",
-                "const": "ES256"
-              }
-            },
-            "required": [
-              "enabled",
-              "algorithm"
             ],
             "additionalProperties": false
           },
@@ -24402,7 +24500,6 @@
         "required": [
           "providers",
           "registration",
-          "deviceKeys",
           "setupRequired",
           "organization",
           "loginMethods"
@@ -24472,6 +24569,17 @@
               "minimum": 0,
               "maximum": 9007199254740991
             },
+            "role": {
+              "type": "string",
+              "enum": [
+                "owner",
+                "admin",
+                "member"
+              ]
+            },
+            "canManage": {
+              "type": "boolean"
+            },
             "origin": {
               "anyOf": [
                 {
@@ -24538,6 +24646,8 @@
             "name",
             "policy",
             "revision",
+            "role",
+            "canManage",
             "origin",
             "access",
             "loginRequirement"
@@ -24590,6 +24700,18 @@
           "canCreate": {
             "type": "boolean"
           },
+          "canManage": {
+            "type": "boolean"
+          },
+          "canUse": {
+            "type": "boolean"
+          },
+          "canRead": {
+            "type": "boolean"
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
           "membership": {
             "anyOf": [
               {
@@ -24616,6 +24738,10 @@
           "policy",
           "binding",
           "canCreate",
+          "canManage",
+          "canUse",
+          "canRead",
+          "canWrite",
           "membership",
           "effectivePolicy"
         ],
@@ -24625,7 +24751,7 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_2fadc8947ff427d3"
+          "$ref": "#/components/schemas/Sharedobject_3649eba93509281d"
         }
       },
       "OnlineComputers": {
@@ -24675,6 +24801,18 @@
             "canCreate": {
               "type": "boolean"
             },
+            "canManage": {
+              "type": "boolean"
+            },
+            "canUse": {
+              "type": "boolean"
+            },
+            "canRead": {
+              "type": "boolean"
+            },
+            "canWrite": {
+              "type": "boolean"
+            },
             "membership": {
               "anyOf": [
                 {
@@ -24704,6 +24842,10 @@
             "policy",
             "binding",
             "canCreate",
+            "canManage",
+            "canUse",
+            "canRead",
+            "canWrite",
             "membership",
             "effectivePolicy",
             "online"
@@ -24874,7 +25016,7 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_ebb069acf8d6922d"
+          "$ref": "#/components/schemas/Sharedobject_7e498c815f19061e"
         }
       },
       "AgentShares": {
@@ -26183,6 +26325,8 @@
                       "role": {
                         "type": "string",
                         "enum": [
+                          "member",
+                          "admin",
                           "viewer",
                           "operator"
                         ]
@@ -26219,6 +26363,8 @@
                       "role": {
                         "type": "string",
                         "enum": [
+                          "member",
+                          "admin",
                           "viewer",
                           "operator"
                         ]
@@ -26487,7 +26633,7 @@
           {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Sharedobject_2fadc8947ff427d3"
+              "$ref": "#/components/schemas/Sharedobject_3649eba93509281d"
             }
           },
           {
@@ -26608,6 +26754,8 @@
               "role": {
                 "type": "string",
                 "enum": [
+                  "admin",
+                  "member",
                   "viewer",
                   "operator"
                 ]
@@ -26635,7 +26783,7 @@
           {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Sharedobject_ebb069acf8d6922d"
+              "$ref": "#/components/schemas/Sharedobject_7e498c815f19061e"
             }
           },
           {
@@ -28779,7 +28927,7 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_2fadc8947ff427d3": {
+      "Sharedobject_3649eba93509281d": {
         "type": "object",
         "properties": {
           "id": {
@@ -28823,6 +28971,18 @@
           "canCreate": {
             "type": "boolean"
           },
+          "canManage": {
+            "type": "boolean"
+          },
+          "canUse": {
+            "type": "boolean"
+          },
+          "canRead": {
+            "type": "boolean"
+          },
+          "canWrite": {
+            "type": "boolean"
+          },
           "membership": {
             "anyOf": [
               {
@@ -28849,12 +29009,16 @@
           "policy",
           "binding",
           "canCreate",
+          "canManage",
+          "canUse",
+          "canRead",
+          "canWrite",
           "membership",
           "effectivePolicy"
         ],
         "additionalProperties": false
       },
-      "Sharedobject_ebb069acf8d6922d": {
+      "Sharedobject_7e498c815f19061e": {
         "type": "object",
         "properties": {
           "resource": {
@@ -28875,6 +29039,8 @@
           "role": {
             "type": "string",
             "enum": [
+              "admin",
+              "member",
               "viewer",
               "operator"
             ]

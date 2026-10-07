@@ -24,7 +24,7 @@ export const InvitationTarget = z.discriminatedUnion("method", [
   ),
 ]);
 export type InvitationTarget = z.infer<typeof InvitationTarget>;
-const Role = z.enum(["viewer", "operator"]);
+const Role = z.enum(["member", "admin", "viewer", "operator"]);
 export const InvitationRequest = z.union([
   z.object({ email: Email, target: z.never().optional(), role: Role }).strict(),
   z

@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import { connect } from "node:net";
 import { socketPath } from "../src/computer/native/paths.js";
@@ -19,7 +20,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   secret,
   invite, acceptInvite,
@@ -89,7 +89,7 @@ store.change((s) =>
 );
 store.change(s=>s.users.push({id:"member",email:"member@test.invalid",name:"Member",passwordHash:passwordHash("isolated-password"),disabled:false}));
 const computer = store.change((s) =>
-  createComputer(
+  createAllowedComputer(
     s,
     "alice",
     createHub(s, "alice", "Accessibility Hub").id,
@@ -97,7 +97,7 @@ const computer = store.change((s) =>
     "alice",
   ),
 );
-store.change(s=>{ for(const [kind,id] of [["hub",computer.computer.hubId],["computer",computer.computer.id]] as const) acceptInvite(s,"member",invite(s,"alice",kind,id,"member@test.invalid","operator").token); });
+store.change(s=>{ for(const [kind,id] of [["hub",computer.computer.hubId],["computer",computer.computer.id]] as const) acceptInvite(s,"member",invite(s,"alice",kind,id,"member@test.invalid",kind === "hub" ? "member" : "operator").token); });
 const origin = "http://127.0.0.1:19754",
   clientOrigin = "http://127.0.0.1:19755";
 const local = await independentAuthority({

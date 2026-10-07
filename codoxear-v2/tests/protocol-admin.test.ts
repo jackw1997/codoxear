@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -16,7 +17,7 @@ import { AuthorityClient } from "../src/hub/authority-client.js";
 import { createHubApp } from "../src/hub/app.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/protocol/tunnels.js";
-import { createHub, createComputer, passwordHash, reserveAgent } from "../src/domain/commands.js";
+import { createHub, passwordHash, reserveAgent } from "../src/domain/commands.js";
 import { adminOperationSchemas, AccountProfile, PublicSigningKeys, InternalCallRequest, InternalCallSuccess, RelayAuthorization, MemberWorkspaceGrant } from "../src/protocol/admin-contracts.js";
 import { registeredContract } from "../src/protocol/inventory.js";
 assert.ok(existsSync("/.dockerenv"), "Administrative HTTP acceptance runs in Docker");
@@ -43,7 +44,7 @@ async function fixture(independent: boolean) {
   store.change(state => { for (const id of ["alice", "bob"]) state.users.push({ id, email: id + "@admin.invalid", name: id, passwordHash: passwordHash("fixture-password"), disabled: false }); });
   const created = store.change(state => {
     const hub = createHub(state, "alice", "Admin schemas");
-    const computer = createComputer(state, "alice", hub.id, "Admin Computer", "alice");
+    const computer = createAllowedComputer(state, "alice", hub.id, "Admin Computer", "alice");
     state.memberships.push({ resource: "hub", resourceId: hub.id, userId: "bob", role: "operator" }, { resource: "computer", resourceId: computer.computer.id, userId: "bob", role: "operator" });
     const agent = reserveAgent(state, "alice", computer.computer.id, "Published fixture", "fixture"); agent.state = "ready"; agent.localId = "admin-local";
     return { ...computer, hub, agent };
@@ -138,7 +139,12 @@ test("independent Hub administrative and account responses conform to exact regi
     const profile = await f.request("identity", "GET", "/api/v1/me", "/api/v1/me"); assert.equal(profile.identities.length, 2);
     const linked = profile.identities.find((identity: any) => identity.method === "feishu");
     await f.request("identity", "DELETE", `/api/v1/me/identities/${linked.id}`, "/api/v1/me/identities/:id");
-    await f.request("identity", "GET", "/api/v1/me/keys", "/api/v1/me/keys");
+    await f.request("identity", "GET", `/api/v1/hubs/${f.created.hub.id}/members`, "/api/v1/hubs/:id/members");
+    await f.request("identity", "PUT", `/api/v1/hubs/${f.created.hub.id}/members/bob`, "/api/v1/hubs/:id/members/:userId", {role:"admin"});
+    await f.request("identity", "PUT", `/api/v1/hubs/${f.created.hub.id}/members/bob`, "/api/v1/hubs/:id/members/:userId", {role:"member"});
+    await f.request("identity", "GET", `/api/v1/computers/${f.created.computer.id}/allowlist`, "/api/v1/computers/:id/allowlist");
+    await f.request("identity", "PUT", `/api/v1/computers/${f.created.computer.id}/allowlist/bob`, "/api/v1/computers/:id/allowlist/:userId", {access:"write"});
+    await f.request("identity", "DELETE", `/api/v1/computers/${f.created.computer.id}/allowlist/bob`, "/api/v1/computers/:id/allowlist/:userId");
     const invitation = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "viewer" });
     await f.request("hub", "POST", "/api/invitations/accept", "/api/invitations/accept", { token: invitation.token }, "bob");
     const another = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "operator" });

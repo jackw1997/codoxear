@@ -12,9 +12,9 @@ node --import tsx deploy/fresh-v2/bootstrap.ts /absolute/private/fresh-state
 ```
 
 The generator reads `~/.local/share/codoxear-v2/next/public-origins.json` and
-`pi-litellm-launch.json`, creates random Hub IDs and separate private setup codes,
-and saves the codes in `private/setup.json` as `{ "hubs": [{ "origin": "...", "setupToken": "..." }] }`.
-Each generated `config/hub-N.json` contains its matching `setupToken` and an empty
+`pi-litellm-launch.json`, creates random Hub IDs and private expiring initialization links,
+and saves them in `private/initialization.json` as `{ "hubs": [{ "origin": "...", "url": "https://HUB/initialize?token=...", "expiresAt": 0 }] }`.
+Each generated `config/hub-N.json` contains the matching private `initialization` configuration and an empty
 `providers` array. Configure Google and/or Feishu with your real application
 credentials and registered callback URLs before users can sign in; see
 [provider setup](../../docs/provider-login.md). No provider application or
@@ -105,7 +105,7 @@ pending owner and provisions two Computer credentials through the domain command
 before either Hub starts. Their databases and signing keys remain separate. Each resident Hub mounts only
 its own JSON configuration file; sibling Hub configuration secrets are not mounted. Hubs receive no bootstrap
 password environment. Computers receive only their own attachment and LiteLLM
-settings; setup codes and provider App Secrets are not mounted into them.
+settings; initialization secrets and provider App Secrets are not mounted into them.
 
 Provisioning writes a durable pending receipt before the first catalog mutation
 and a complete receipt after all catalogs/attachments exist. A later invocation
@@ -116,20 +116,11 @@ receipt, fails closed and needs private operator inspection. Do not delete the
 receipt or retry against partially initialized state. Provisioning exits before
 the resident stack starts, so its 256 MiB ceiling does not add to resident usage.
 
-At the preserved public client address, add or select the first Hub and sign in
-with its configured Google or Feishu connection. First verified sign-in creates
-your Hub account. Enter that Hub's private setup code from `private/setup.json`
-to claim ownership. The correct code plus a verified provider sign-in within the
-last five minutes assigns the Hub and its preprovisioned Computers to that
-account. Public sign-in alone never claims ownership or grants membership.
-Ownership persists in the catalog; repeating setup is rejected even when the
-configuration still contains the original code. Keep the private code secret.
+Open the Hub's private initialization URL from `private/initialization.json` and sign in with any enabled provider. The successful verified callback atomically assigns ownership and consumes the link. Public sign-in alone never claims ownership or grants membership. Expired or already consumed links cannot initialize the Hub. Keep these links private.
 
-Computer A and Computer B are already attached to the first Hub. After setup,
-the owner has target creation authority on both. The second Hub has its own
-provider configuration and independent setup code; repeat sign-in and setup
-there if needed. Invite other registered provider identities and grant Computer
-access separately. There is no password or verification-code fallback.
+At the preserved public client address, enter the Hub URL and sign in with Google or Feishu using its separate button. The same verified identity is recognized as Owner. Other identities can accept an invitation to become members. All signed-in identities contribute access concurrently.
+
+Computer A and Computer B are attached to the first Hub. Ownership provides management visibility but **no automatic execution access**. In each Computer's allowlist, explicitly add the owner (and any other authorized identities) with read or write access. Write access permits agent creation. Owners and admins can manage allowlists; members only see their allowed Computers. Initialize the second Hub through its own private URL if needed. There is no password or verification-code fallback.
 Each attachment
 uses OAR, the explicitly reviewed locally trusted policy and one resident managed
 runtime. OAR does not implement interactive native permission prompts. The second
@@ -154,11 +145,11 @@ real LiteLLM conversations and history before claiming deployment acceptance.
 
 Configure providers separately in each private `config/hub-N.json` using its `providers` array. One Hub represents one organization, with at most one Feishu app and one verified tenant. Other teams deploy their own Hubs. Optional Google sign-in uses that Hub's Google OAuth app; authentication does not grant membership or Computer access. See [provider login](../../docs/provider-login.md).
 
-The static frontend can receive `CODOXEAR_PUBLIC_HUBS_JSON`, a public suggestion array such as `[{"name":"Home Hub","origin":"https://home.example.com"},{"name":"Work Hub","origin":"https://work.example.com"}]`. It contains no provider app secrets or setup codes. Available providers come from each Hub's authentication API.
+The static frontend starts with Add Hub URL; it has no preset Hub suggestions. Available provider buttons come from that Hub’s authentication API.
 
 No global login container or enrollment broker is deployed. The gateway serves the static client at the preserved client origin and routes each Hub origin directly to its own Hub. Provider callbacks belong to that Hub: `https://HUB-ORIGIN/auth/CONNECTION-ID/callback`. The frontend `/auth-callback` is a separate client callback. Removing an obsolete broker route from an existing Caddyfile requires a reviewed replacement; the gateway generator never silently overwrites operator configuration.
 
-Select a Hub, sign in with one of its configured providers, and enter its private one-time setup code to initialize ownership. This claims an already deployed endpoint; it does not allocate cloud infrastructure. No old Codoxear credentials or migration are required. Add other accounts independently; all saved identities contribute access concurrently. The client deduplicates shared resources and sends each operation through one identity that actually authorizes it. The Hub owner chooses allowed provider types in Hub settings; the policy also applies to existing keys and sessions. Public-key reconnects use only the corresponding Hub and client key.
+Enter a Hub URL and sign in with an enabled provider. Initialization is a separate private link generated during deployment; it claims an already deployed endpoint and does not allocate cloud infrastructure. No old Codoxear credentials or migration are required. Add other accounts independently; all saved identities contribute access concurrently. The client deduplicates resources and dispatches once through an identity that authorizes the operation. Owners choose allowed provider types, promote/demote admins, and remove admins or members. Admins invite/remove ordinary members. Provider policy applies to existing sessions; the client uses rotating OAuth refresh sessions without device signing keys.
 
 To apply a private `{ "providers": [...] }` file to one Hub without reopening its catalog, run the bounded operator helper (index `0` means `config/hub-0.json`):
 
@@ -174,4 +165,4 @@ flock --nonblock /tmp/codoxear-v2-verification-$(id -u).lock docker run --rm --i
 
 The helper validates one Feishu application per Hub, writes only that Hub's private configuration with mode 0600, and keeps a private pre-change backup. Repeat to rotate an app secret without changing its connection/app identity. It does not alter databases, accounts, runtime attachments or LiteLLM settings. Apply the updated Hub configuration by restarting only the corresponding Hub service. Changing a configured organization tenant or replacing an app behind an existing connection ID is rejected.
 
-Configure Feishu's singular `tenant` when known. Otherwise the first owner must authenticate through Feishu and use the private setup code to bind the organization. Google cannot initialize a Feishu-enabled Hub until this binding exists. Hubs for different organizations need distinct tenant/app configuration and distinct public origins; separate ports on one hostname are suitable only for the same trusted operator.
+Configure Feishu’s singular `tenant` when known. Otherwise a Feishu owner initialization binds the verified organization atomically. A Google identity can initialize ownership independently; an unbound Feishu organization must then be pinned in deployment configuration before Feishu resource access. Normal public login never chooses the organization. Different organizations use distinct tenant/app configuration and public origins.

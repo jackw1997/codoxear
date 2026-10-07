@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -8,7 +9,6 @@ import { Tokens, signingKey } from "../src/identity/tokens.js";
 import { createIdentityApp } from "../src/identity/app.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   digest,
   secret,
@@ -43,7 +43,7 @@ async function fixture() {
   const hub = store.change((s) => createHub(s, "owner", "Hub"));
   authority.registerHub(session, hub.id, "https://hub.test");
   const computer = store.change((s) =>
-    createComputer(s, "owner", hub.id, "Computer", "owner"),
+    createAllowedComputer(s, "owner", hub.id, "Computer", "owner"),
   ).computer;
   return {
     store,

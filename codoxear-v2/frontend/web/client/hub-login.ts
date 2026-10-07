@@ -1,5 +1,5 @@
 import { appearance } from "../shared/ui.js";
-import { esc, field, submit, message, loginHeading } from "./views.js";
+import { esc, message, loginHeading } from "./views.js";
 const root = document.querySelector<HTMLElement>("#hubLogin")!;
 const query = new URLSearchParams(location.search),
   continuation = query.get("continue");
@@ -50,8 +50,10 @@ async function render() {
     return;
   }
   const fresh = !!me && Date.now() - me.context.authenticatedAt < 300000;
-  const providers = options.providers.filter((provider: any) =>
-    providerName(provider.method),
+  const providers = options.providers.filter(
+    (provider: any) =>
+      providerName(provider.method) &&
+      options.loginMethods.allowedMethods.includes(provider.method),
   );
   const title = me
     ? continuation
@@ -64,27 +66,19 @@ async function render() {
   root.setAttribute("aria-label", title);
   const toggle = new URL(registering ? "/login" : "/register", location.origin);
   toggle.search = location.search;
-  root.innerHTML = `${loginHeading(title, location.origin)}${me ? `<p>Signed in as <strong>${esc(me.name)}</strong></p>` : `<p class="connectionHint">${registering ? "Create your account with Google or Feishu. Your device holds its own private sign-in key." : "Continue with Google or Feishu. Your first sign-in creates your account."}</p>`}<div class="connectionMethods">${providers.map((provider: any) => `<a class="connectionProvider" href="/auth/${encodeURIComponent(provider.id)}/start?${new URLSearchParams({ ...(fresh && !continuation ? { link: "1" } : {}), ...(continuation ? { continue: continuation } : {}) })}">${fresh && !continuation ? "Link" : "Continue with"} ${providerName(provider.method)}${provider.name ? " · " + esc(provider.name) : ""}</a>`).join("")}</div>${providers.length ? "" : '<p class="connectionHint" role="status">Google and Feishu sign-in are not configured on this hub. Ask the hub owner to enable a sign-in provider.</p>'}<p class="connectionHint">To access a hub or computer, accept an invitation from its owner in Hubs & computers → Hub settings → Accept invitation.</p>${me ? '<section class="connectionStack connectionSection" id="identities"></section><section class="connectionStack connectionSection" id="keys"></section><button data-signout>Sign out of this hub</button>' : `<p class="connectionHint">${registering ? "Already have an account?" : "New to this hub?"} <a href="${esc(toggle.pathname + toggle.search)}">${registering ? "Sign in" : "Create an account"}</a></p>`}<p role="alert" class="connectionError"></p>`;
-  if (!me) return;
+  root.innerHTML = `${loginHeading(title, location.origin)}${me ? `<p>Signed in as <strong>${esc(me.name)}</strong> · ${esc(me.hubRole === "owner" ? "Owner" : me.hubRole === "admin" ? "Admin" : me.hubRole === "member" ? "Member" : "Not a member")}</p>` : `<p class="connectionHint">${registering ? "Create your account with Google or Feishu." : "Continue with Google or Feishu. Your first sign-in creates your account."}</p>`}<div class="connectionMethods">${providers.map((provider: any) => `<a class="connectionProvider" href="/auth/${encodeURIComponent(provider.id)}/start?${new URLSearchParams({ ...(fresh && !continuation && query.get("initialize") !== "1" ? { link: "1" } : {}), ...(continuation ? { continue: continuation } : {}) })}">${fresh && !continuation && query.get("initialize") !== "1" ? "Link" : "Continue with"} ${providerName(provider.method)}${provider.name ? " · " + esc(provider.name) : ""}</a>`).join("")}</div>${providers.length ? "" : '<p class="connectionHint" role="status">Google and Feishu sign-in are not configured on this hub. Ask the hub owner to enable a sign-in provider.</p>'}<p class="connectionHint">To access a hub or computer, accept an invitation from its owner in Hubs & computers → Hub settings → Accept invitation.</p>${me ? '<section class="connectionStack connectionSection" id="identities"></section><button data-signout>Sign out of this hub</button>' : `<p class="connectionHint">${registering ? "Already have an account?" : "New to this hub?"} <a href="${esc(toggle.pathname + toggle.search)}">${registering ? "Sign in" : "Create an account"}</a></p>`}<p role="alert" class="connectionError"></p>`;
   if (options.setupRequired) {
-    const setup = document.createElement("form");
-    const setupHelp = options.organization?.tenantBindingRequired
-      ? "The initial owner must sign in through this Hub’s Feishu app and enter the private setup code to bind its organization. Other members can connect after this setup."
-      : "The initial owner can use the one-time setup code from the Hub administrator. Other members can continue and accept an invitation.";
-    setup.className = "connectionForm connectionSection";
-    setup.innerHTML = `<h2>Set up this Hub</h2><p class="connectionHint">${esc(setupHelp)}</p>${field("One-time setup code", '<input name="token" type="password" autocomplete="off" required>')}<button class="primary" type="submit">Set up this Hub</button>`;
-    root.querySelector("[role=alert]")!.before(setup);
-    submit(
-      setup,
-      async (data) => {
-        await api("/api/v1/auth/setup", { token: data.get("token") });
-        await render();
-      },
-      error,
-    );
+    const hint = document.createElement("p");
+    hint.className = "connectionHint";
+    hint.textContent =
+      query.get("initialize") === "1"
+        ? "Sign in to initialize this Hub as its first owner using the private deployment link."
+        : "This Hub is awaiting initialization. The administrator must use its private initialization link.";
+    root.querySelector("[role=alert]")!.before(hint);
   }
+  if (!me) return;
   if (
-    fresh &&
+    me &&
     query.get("reauth") !== "1" &&
     continuation?.startsWith("/oauth/authorize?") &&
     new URL(continuation, location.origin).origin === location.origin
@@ -128,20 +122,6 @@ async function render() {
     button.onclick = () =>
       void api(
         "/api/v1/me/identities/" + encodeURIComponent(button.dataset.unlink!),
-        undefined,
-        "DELETE",
-      )
-        .then(render)
-        .catch(error);
-  const keys = await api("/api/v1/me/keys");
-  const keyList = root.querySelector<HTMLElement>("#keys")!;
-  keyList.innerHTML = `<h2>Device sign-in keys</h2><p class="connectionHint">Revoke a key to stop that device signing in again.${fresh ? "" : " Sign in again with Google or Feishu to revoke keys."}</p>${keys.map((key: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(key.name)}</strong><span class="connectionHint">Created ${esc(new Date(key.createdAt).toLocaleDateString())}</span></span><button data-revoke="${esc(key.id)}" ${fresh ? "" : "disabled"}>Revoke</button></div>`).join("")}${keys.length ? "" : '<p class="connectionHint">Connect this hub from the Codoxear app to create a device key.</p>'}`;
-  for (const button of keyList.querySelectorAll<HTMLButtonElement>(
-    "[data-revoke]",
-  ))
-    button.onclick = () =>
-      void api(
-        "/api/v1/me/keys/" + encodeURIComponent(button.dataset.revoke!),
         undefined,
         "DELETE",
       )

@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -11,7 +12,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/protocol/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   digest,
 } from "../src/domain/commands.js";
@@ -31,7 +31,7 @@ async function fixture(origin: string, userId: string) {
       passwordHash: passwordHash("test-password"),
       disabled: false,
     });
-    return createComputer(
+    return createAllowedComputer(
       state,
       userId,
       createHub(state, userId, userId + " Hub").id,

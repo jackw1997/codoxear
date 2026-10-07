@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
@@ -10,7 +11,6 @@ import { Tunnels } from "../src/server/tunnels.js";
 import { createApp } from "../src/server/app.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   digest,
 } from "../src/domain/commands.js";
@@ -36,7 +36,7 @@ async function fixture() {
       disabled: false,
     });
     const h = createHub(s, "alice", "Hub");
-    return createComputer(s, "alice", h.id, "Machine", "alice");
+    return createAllowedComputer(s, "alice", h.id, "Machine", "alice");
   });
   const app = await createApp({ store, tunnels, secureCookies: false });
   const url = await app.listen({ host: "127.0.0.1", port: 0 });

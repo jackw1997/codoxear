@@ -4,7 +4,13 @@ import {
   invitationBody,
 } from "../shared/invitation-form.js";
 import { appearance } from "../shared/ui.js";
-import { workspaceAccessFields, workspaceRootFields, bindWorkspaceGrant, workspaceGrantBody, type WorkspaceReview } from "../shared/workspace-access.js";
+import {
+  workspaceAccessFields,
+  workspaceRootFields,
+  bindWorkspaceGrant,
+  workspaceGrantBody,
+  type WorkspaceReview,
+} from "../shared/workspace-access.js";
 void appearance();
 import "./style.css";
 import { api, ApiError } from "./api.js";
@@ -21,6 +27,8 @@ type Computer = {
   policy: string | null;
   online: boolean;
   canCreate: boolean;
+  canManage?: boolean;
+  canWrite?: boolean;
   membership: Role | null;
   effectivePolicy: { policy: string; source: string };
 };
@@ -243,7 +251,7 @@ function renderContent() {
     return;
   }
   $("#content").innerHTML =
-    `<div class="row spread"><div><div class="eyebrow">${computer.online ? "Computer online" : "Computer offline"}</div><h2>Agents</h2><p class="muted small">Owner: ${esc(computer.ownerName)} · After access removal: ${esc(computer.effectivePolicy.policy)} (${esc(computer.effectivePolicy.source)})</p></div>${centralLogin ? `<a target="_blank" rel="noopener" href="/api/v1/computers/${computer.id}/">Open workspace</a>` : ""}${centralLogin && computer.ownerId === user?.id ? `<button data-action="import-agent" ${computer.online ? "" : "disabled"}>Import local session</button>` : ""}<button class="primary" data-action="new-agent" ${computer.canCreate && computer.online ? "" : "disabled"}>New agent</button></div>${!computer.canCreate ? '<div class="notice">Creating an agent requires access to this hub and operator access to this computer. Retained agent access does not allow new agents.</div>' : ""}<div class="catalog">${agents.map((a) => `<button class="agent-card" data-agent="${a.id}"><span class="badge">${esc(a.backend)} · ${esc(a.access.mode)}</span><strong>${esc(a.name)}</strong><span class="small muted">${esc(a.state)} · ${esc(a.access.reason)}</span></button>`).join("")}</div>${agents.length ? "" : '<p class="muted">No agents available yet.</p>'}`;
+    `<div class="row spread"><div><div class="eyebrow">${computer.online ? "Computer online" : "Computer offline"}</div><h2>Agents</h2><p class="muted small">Owner: ${esc(computer.ownerName)} · After access removal: ${esc(computer.effectivePolicy.policy)} (${esc(computer.effectivePolicy.source)})</p></div>${centralLogin ? `<a target="_blank" rel="noopener" href="/api/v1/computers/${computer.id}/">Open workspace</a>` : ""}${centralLogin && computer.canWrite ? `<button data-action="import-agent" ${computer.online ? "" : "disabled"}>Import local session</button>` : ""}<button class="primary" data-action="new-agent" ${computer.canCreate && computer.online ? "" : "disabled"}>New agent</button></div>${!computer.canCreate ? '<div class="notice">Creating or using agents requires an explicit Computer allowlist entry. Hub roles grant management access separately.</div>' : ""}<div class="catalog">${agents.map((a) => `<button class="agent-card" data-agent="${a.id}"><span class="badge">${esc(a.backend)} · ${esc(a.access.mode)}</span><strong>${esc(a.name)}</strong><span class="small muted">${esc(a.state)} · ${esc(a.access.reason)}</span></button>`).join("")}</div>${agents.length ? "" : '<p class="muted">No agents available yet.</p>'}`;
 }
 function showModal(
   title: string,
@@ -285,7 +293,10 @@ function inviteModal(token = "") {
 }
 async function renderManage() {
   if (!hub || !user) return;
-  const workspaceMembers = new Map<string, Parameters<typeof bindWorkspaceGrant>[1]>();
+  const workspaceMembers = new Map<
+    string,
+    Parameters<typeof bindWorkspaceGrant>[1]
+  >();
   const workspaceReviews = new Map<string, WorkspaceReview>();
   const epoch = generation;
   $("#content").innerHTML = "<p class=muted>Loading access settings…</p>";
@@ -295,8 +306,15 @@ async function renderManage() {
   ];
   const cards = await Promise.all(
     resources.map(async ({ kind, value }) => {
-      if (value.ownerId !== user!.id)
-        return `<div class="card"><h3>${esc(value.name)}</h3><p class="muted">Only this ${kind}’s owner can manage its members and policy.</p></div>`;
+      if (
+        kind === "computer"
+          ? !(value as Computer).canManage
+          : !["owner", "admin"].includes(
+              (value as Hub & { role?: string }).role ??
+                (value.ownerId === user!.id ? "owner" : ""),
+            )
+      )
+        return `<div class="card"><h3>${esc(value.name)}</h3><p class="muted">Hub owners and admins manage membership and Computer allowlists.</p></div>`;
       const members = await api<
         Array<{
           userId: string;
@@ -304,7 +322,14 @@ async function renderManage() {
           email: string;
           role: string;
           workspaceAccess?: "read" | "write" | null;
-          workspaceGrants?: Array<{workspaceId: string; access: string; paths?: string[]; git?: boolean; uploads?: boolean; transcode?: boolean}>;
+          workspaceGrants?: Array<{
+            workspaceId: string;
+            access: string;
+            paths?: string[];
+            git?: boolean;
+            uploads?: boolean;
+            transcode?: boolean;
+          }>;
         }>
       >(`/api/resources/${kind}/${value.id}/members`);
       const workspace =
@@ -319,22 +344,7 @@ async function renderManage() {
           : "";
       for (const member of members) workspaceMembers.set(member.userId, member);
       if (workspace) workspaceReviews.set(value.id, workspace);
-      return `<div class="card" data-resource="${kind}" data-resource-id="${value.id}"><div class="eyebrow">${kind} · you are the owner</div><h3>${esc(value.name)}</h3><form class="policy-form"><label>Existing agent access after computer removal<select name="policy">${[
-        [
-          "",
-          "Use " + (kind === "hub" ? "computer rule" : "default (no access)"),
-        ],
-        ["retain", "Retain previous access"],
-        ["read_only", "Read-only"],
-        ["none", "No access"],
-      ]
-        .map(
-          ([v, label]) =>
-            `<option value="${v}" ${(value.policy ?? "") === v ? "selected" : ""}>${label}</option>`,
-        )
-        .join(
-          "",
-        )}</select></label><button type="submit">Save policy</button></form>${kind === "computer" ? '<p class="small muted">An explicitly configured hub policy overrides this computer rule.</p>' : ""}<div class="divider"></div><h3>Members</h3>${workspace ? `<p class="small muted">File grants cover ${workspace.path ? `<code>${esc(workspace.path)}</code>` : "the Computer’s configured workspace (reconnect to review its path)"}. Removing membership also removes file access.</p>` : ""}${members.map((m) => `<div class="member"><div><strong>${esc(m.name)}</strong><br><span class="small muted">${esc(m.email)} · ${esc(m.role)}</span></div><button class="danger" data-remove="${m.userId}">Remove</button></div>${workspaceForm(m)}`).join("") || '<p class="small muted">No invited members yet.</p>'}<form class="invite-form">${invitationFields()}<label>Access<select name="role"><option value="operator">Operator</option><option value="viewer">Viewer</option></select></label><button type="submit">Create invitation</button><div class="invite-result" role="status"></div></form>${members.length ? `<details><summary class="small">Transfer ownership</summary><form class="owner-form"><label>New owner<select name="ownerId">${members.map((m) => `<option value="${m.userId}">${esc(m.name)}</option>`).join("")}</select></label><button type="submit">Transfer ownership</button></form></details>` : ""}</div>`;
+      return `<div class="card" data-resource="${kind}" data-resource-id="${value.id}"><div class="eyebrow">${kind} · you are the owner</div><h3>${esc(value.name)}</h3><div class="divider"></div><h3>Members</h3>${workspace ? `<p class="small muted">File grants cover ${workspace.path ? `<code>${esc(workspace.path)}</code>` : "the Computer’s configured workspace (reconnect to review its path)"}. Removing membership also removes file access.</p>` : ""}${members.map((m) => `<div class="member"><div><strong>${esc(m.name)}</strong><br><span class="small muted">${esc(m.email)} · ${esc(m.role)}</span></div><button class="danger" data-remove="${m.userId}">Remove</button></div>${workspaceForm(m)}`).join("") || '<p class="small muted">No invited members yet.</p>'}<form class="invite-form">${invitationFields()}<label>Access<select name="role">${kind === "hub" ? '<option value="member">Member</option>' + (hub?.ownerId === user?.id ? '<option value="admin">Admin</option>' : "") : '<option value="operator">Read and write</option><option value="viewer">Read only</option>'}</select></label><button type="submit">Create invitation</button><div class="invite-result" role="status"></div></form>${members.length ? `<details><summary class="small">Transfer ownership</summary><form class="owner-form"><label>New owner<select name="ownerId">${members.map((m) => `<option value="${m.userId}">${esc(m.name)}</option>`).join("")}</select></label><button type="submit">Transfer ownership</button></form></details>` : ""}</div>`;
     }),
   );
   if (epoch !== generation || view !== "manage") return;
@@ -343,21 +353,39 @@ async function renderManage() {
   document
     .querySelectorAll<HTMLFormElement>(".invite-form")
     .forEach(wireInvitationFields);
-  for (const form of document.querySelectorAll<HTMLFormElement>(".workspace-form")) bindWorkspaceGrant(form, workspaceMembers.get(form.dataset.member!)!);
+  for (const form of document.querySelectorAll<HTMLFormElement>(
+    ".workspace-form",
+  ))
+    bindWorkspaceGrant(form, workspaceMembers.get(form.dataset.member!)!);
   for (const [id, review] of workspaceReviews) {
-    const card = document.querySelector<HTMLElement>(`[data-resource-id="${id}"]`);
+    const card = document.querySelector<HTMLElement>(
+      `[data-resource-id="${id}"]`,
+    );
     if (!card) continue;
     const roots = document.createElement("section");
     roots.innerHTML = workspaceRootFields(review);
     card.append(roots);
-    roots.querySelector("form")!.addEventListener("submit", event => {
+    roots.querySelector("form")!.addEventListener("submit", (event) => {
       event.preventDefault();
       const data = new FormData(event.target as HTMLFormElement);
-      void api(`/api/computers/${id}/workspace`, "PUT", {name: data.get("name"), path: data.get("path")}).then(renderManage).catch(error => toast(String(error)));
+      void api(`/api/computers/${id}/workspace`, "PUT", {
+        name: data.get("name"),
+        path: data.get("path"),
+      })
+        .then(renderManage)
+        .catch((error) => toast(String(error)));
     });
-    for (const button of roots.querySelectorAll<HTMLButtonElement>("[data-remove-workspace]")) button.onclick = () => {
-      void api(`/api/computers/${id}/workspace`, "PUT", {id: button.dataset.removeWorkspace, remove: true}).then(renderManage).catch(error => toast(String(error)));
-    };
+    for (const button of roots.querySelectorAll<HTMLButtonElement>(
+      "[data-remove-workspace]",
+    ))
+      button.onclick = () => {
+        void api(`/api/computers/${id}/workspace`, "PUT", {
+          id: button.dataset.removeWorkspace,
+          remove: true,
+        })
+          .then(renderManage)
+          .catch((error) => toast(String(error)));
+      };
   }
   document
     .querySelectorAll<HTMLFormElement>(
@@ -379,7 +407,18 @@ async function renderManage() {
             );
             toast("Workspace access saved.");
             const member = workspaceMembers.get(form.dataset.member!)!;
-            member.workspaceGrants = [...(member.workspaceGrants ?? []).filter(g => g.workspaceId !== grant.workspaceId), ...(grant.access ? [grant as unknown as NonNullable<typeof member.workspaceGrants>[number]] : [])];
+            member.workspaceGrants = [
+              ...(member.workspaceGrants ?? []).filter(
+                (g) => g.workspaceId !== grant.workspaceId,
+              ),
+              ...(grant.access
+                ? [
+                    grant as unknown as NonNullable<
+                      typeof member.workspaceGrants
+                    >[number],
+                  ]
+                : []),
+            ];
           } else if (form.classList.contains("policy-form")) {
             await api(base + "/policy", "PUT", {
               policy: data.get("policy") || null,

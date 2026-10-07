@@ -1,6 +1,6 @@
 # Google and Feishu sign-in
 
-Codoxear supports configured Google and Feishu connections. The web client selects a Hub, discovers its configured providers, signs in through that Hub, and enrolls a client-held signing key. Each Hub represents one organization. Sign-in creates a local account; it does not grant Hub membership, access to Computers, or ownership. Access comes from an invitation or an explicit administrator grant. Returning sign-in uses the same provider identity, even when the user's email or display name changes. There is no automatic email-based account merging.
+Codoxear supports configured Google and Feishu connections. The web client selects a Hub, discovers its configured providers, signs in through that Hub, and stores its revocable Hub login session. Each Hub represents one organization. Sign-in creates a local account; it does not grant Hub membership, access to Computers, or ownership. Access comes from an invitation or an explicit administrator grant. Returning sign-in uses the same provider identity, even when the user's email or display name changes. There is no automatic email-based account merging.
 
 Add the desired entries from [`config/providers.example.json`](../config/providers.example.json) to each Hub's private `providers` array. Replace placeholders with that Hub's actual app credentials and configure `CODOXEAR_HUB_CONFIG`. One Hub permits at most one Feishu app and one verified organization tenant. Google can be offered separately under the Hub's own access policy. The browser discovers providers from the Hub API. No global login service or broker configuration is required.
 
@@ -52,32 +52,31 @@ Sources: [Feishu authorization codes](https://open.feishu.cn/document/common-cap
 
 Each organization administrator deploys a Hub and configures that organization's Feishu application on it. End users select the Hub and sign in through its advertised providers. They never supply an App Secret. A second organization uses a second Hub and its own app rather than adding organization connections to a global login service.
 
-Connection IDs are unique and stable within a Hub. Use a new connection ID for a different OAuth app; changing its display name does not change its identity. Set the Feishu connection’s singular `tenant` to the expected organization tenant key. If omitted, only a fresh Feishu sign-in with the private initial-owner setup code can bind the Hub’s tenant. While an enabled Feishu connection remains unbound, Google cannot initialize ownership. Once bound, other tenants’ provider sessions and device keys are rejected. The persisted tenant cannot be changed through another user’s sign-in. Never derive organization membership from a display name, email domain or client-supplied tenant.
+Connection IDs are unique and stable within a Hub. Use a new connection ID for a different OAuth app; changing its display name does not change its identity. Set the Feishu connection’s singular `tenant` to the expected organization tenant key. If omitted, organization binding is established from a verified Feishu identity under the Hub initialization rules. Google ownership does not depend on completing a Feishu sign-in. If Google initializes the Hub before its Feishu tenant is bound, configure the expected tenant before granting Feishu resource access. Once bound, other tenants’ provider sessions are rejected. The persisted tenant cannot be changed through another user’s sign-in. Never derive organization membership from a display name, email domain or client-supplied tenant.
 
 Accounts bind to the Hub-local connection, provider method, verified tenant and stable subject. Equal names/emails or provider IDs across Hubs do not merge accounts. Invites and Computer grants stay on the corresponding Hub. Authentication alone grants no Hub membership or Computer execution rights.
 
 ## Multiple accounts on one Hub
 
-All independently authenticated accounts saved for the same Hub contribute access simultaneously. The client shows their combined accessible Computers and agents without duplicates. For each action it chooses one currently authorized identity that grants the required capability, then dispatches the action once. It never merges accounts or combines partial proofs into a new principal. Removing one saved identity leaves other identities and keys available; cached content must still be authorized by a remaining identity.
+All independently authenticated accounts saved for the same Hub contribute access simultaneously. The client shows their combined accessible Computers and agents without duplicates. For each action it chooses one currently authorized identity that grants the required capability, then dispatches the action once. It never merges accounts or combines partial proofs into a new principal. Removing one saved identity leaves other identities and sessions available; cached content must still be authorized by a remaining identity.
 
-The Hub owner controls allowed sign-in methods in Hub settings: Feishu only, Google only, or both. Choices come from configured provider types so future providers can extend the list. The policy applies to existing sessions, public-key reconnects, refresh tokens and new OAuth sign-ins. A blocked provider's local key remains saved and works again when the policy permits it. Before removing the owner's current sign-in method, the owner must use another authorized owner identity that the new policy retains. Explicit identity linking can associate another provider proof with that owner account; equal email addresses never do so automatically.
+The Hub owner controls allowed sign-in methods in Hub settings: Feishu only, Google only, or both. Choices come from configured provider types so future providers can extend the list. The policy applies to existing sessions, refresh tokens and new OAuth sign-ins. A blocked provider's local identity remains saved; its ordinary session can resume when policy permits, or the user signs in again if the session expired. Before removing the owner's current sign-in method, the owner must use another authorized owner identity that the new policy retains. Explicit identity linking can associate another provider proof with that owner account; equal email addresses never do so automatically.
 
-A fresh provider sign-in enrolls a local nonextractable P-256 key. The Hub stores its public key and verifies signed, single-use challenges for reconnection. Provider app secrets remain on the Hub; private device keys remain on the client. Signing in with another Google or Feishu account creates a separate saved account. Explicit identity linking is a different operation and never happens merely because email addresses match.
+A provider sign-in creates a revocable Hub session with short-lived access and rotating refresh credentials. The client does not generate device signing keys, enroll public keys or sign reconnect challenges. Provider secrets remain on the Hub. Computer service credentials remain separate and authenticate the Computer's outbound WSS connection.
 
 ## Initial owner
 
-A new independent Hub requires a private random `setupToken` of at least 32
-characters in its configuration. Generate one with `openssl rand -hex 32`; the
-fresh deployment generator instead creates separate codes for each Hub in
-`private/setup.json`.
+Deployment generates a private one-time initialization URL with an expiration. Open that link, choose any enabled provider, and complete sign-in. The Hub atomically assigns that verified identity as Owner and consumes the initialization link during the callback. There is no separate setup-code form. Opening the public Hub address cannot confer ownership, and an expired or consumed initialization link is rejected.
 
-The initial owner is a reserved disabled account. Sign in with Google or Feishu,
-then submit the private setup code within five minutes of that verified sign-in.
-Successful setup assigns the Hub and any Computers explicitly preprovisioned
-for its pending owner to your account. Persisted ownership consumes the setup
-operation: the code cannot claim it again. The first public sign-in alone does
-not become owner. An ordinary new account still requires invitations or explicit
-grants for Hub membership and Computer access.
+After setup, enter the Hub URL in the client and sign in using the same provider identity. The Hub recognizes its existing Owner role. Configuring Feishu does not force a Google owner to sign in through Feishu. Google and Feishu are parallel options; each requires its own privately configured app credentials and registered callback.
+
+## Members, administrators and Computers
+
+The Owner controls provider policy and can invite/remove members, promote a member to Admin, demote an Admin, or remove an Admin. Admins can invite and remove ordinary members, but cannot remove or demote the Owner or another Admin. Identities display their Hub role. An ordinary sign-in without membership displays a clear signed-in nonmember state with an invitation action.
+
+Owners and Admins see every Computer and manage its allowlist. Members see only allowlisted Computers. **Everyone, including the Hub Owner, Admins and the Computer owner, must be explicitly allowlisted before using the Computer or creating/using its agents.** Computer creation and ownership do not add automatic execution rights. An Owner/Admin can explicitly add themselves. Agent shares and retained access cannot bypass this requirement.
+
+The client starts with Add Hub and a URL field, with no preset Hub suggestions. After discovery, each available provider has its own sign-in button. All saved permitted identities contribute concurrently, and the client uses one actual authorized identity for each operation.
 
 ## Verification limits
 

@@ -70,7 +70,7 @@ test("two independent hub processes own separate accounts and survive sibling sh
       const config = join(home, `hub-${i}.json`);
       await writeFile(config, JSON.stringify({
         origin, hubId: `hub-${i}`, independent: true,
-        database: join(home, `hub-${i}.sqlite`), setupToken: "fixture-setup-code-".repeat(4),
+        database: join(home, `hub-${i}.sqlite`), initialization: { token: "fixture-initialization-token-".repeat(4), expiresAt: Date.now() + 86400000 },
         listenPort: Number(new URL(origin).port), secureCookies: false,
       }));
       const child = start("src/hub/main.ts", {

@@ -71,7 +71,7 @@ try {
     await stopped;
   }
 }
-// Google/Feishu registration and device keys replace deprecated central password/code auth acceptance.
+// Private initialization and provider-only sessions exercise the independent Hub login flow.
 await run(["--import", "tsx", "scripts/browser-registration.ts"]);
 const distributed = spawn(
   process.execPath,

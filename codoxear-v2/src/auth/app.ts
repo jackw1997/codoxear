@@ -1,3 +1,4 @@
+import { canManageHub } from "../domain/policy.js";
 import { agentShares, setAgentShare } from "../domain/agent-sharing.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "../presentation/browser-workspace.js";
@@ -23,10 +24,10 @@ import { z } from "zod";
 import * as oauth from "oauth4webapi";
 import { createHash } from "node:crypto";
 import { Accounts } from "./accounts.js";
-import { DeviceKeys } from "./device-keys.js";
+import { registerAdminMembershipRoutes } from "./admin-membership-routes.js";
+import { hubRole } from "../domain/policy.js";
 import { configureHubOrganization, checkHubLoginMethod, hubLoginMethods } from "./hub-organization.js";
 import { HubLoginMethodsRequest } from "../contracts/hub-organization.js";
-import { DeviceKeyEnrollmentRequest, DeviceKeyLoginRequest, DeviceKeyProof } from "../contracts/device-keys.js";
 import { Authority } from "./authority.js";
 import { type Provider } from "./providers.js";
 import { AuthRequirement, type IdentitySession } from "./model.js";
@@ -53,6 +54,7 @@ import {
   transferOwner,
   resource,
 } from "../domain/commands.js";
+import type { State } from "../contracts/model.js";
 export interface IdentityOptions {
   routeObserver?: (route: RouteOptions) => void;
   frontendAssetsRoot?: string | undefined;
@@ -64,13 +66,14 @@ export interface IdentityOptions {
   secureCookies?: boolean;
   clients?: Array<{ id: string; redirectUris: string[] }>;
   codeDelivery?: Array<"email" | "phone">;
-  setup?: { pending(): boolean; claim(session: IdentitySession, token: string, hubName?: string): void };
+  setup?: { pending(): boolean; prepare(token: string): {id: string; expiresAt: number}; complete(state: State, session: IdentitySession, initializationId: string): void };
 
 }
 export async function createIdentityApp(options: IdentityOptions) {
   const assetsRoot = frontendAssetsRoot(options.frontendAssetsRoot);
   const cookieName = options.cookieName ?? "codoxear_identity";
   const flowCookie = cookieName + "_oauth";
+  const initializationCookie = cookieName + "_initialize";
   const loginPath = options.loginPath ?? "/";
   const { authority: a } = options,
     accounts = a.accounts,
@@ -80,7 +83,6 @@ export async function createIdentityApp(options: IdentityOptions) {
   if (new Set(providers.map((provider) => provider.id)).size !== providers.length)
     throw new Error("Provider connection IDs must be unique");
   if (options.localHubId) configureHubOrganization(store, options.localHubId, providers);
-  const keys = new DeviceKeys(accounts, a.tokens.issuer);
   if (options.routeObserver) app.addHook("onRoute", options.routeObserver);
   await app.register(cookie);
   app.setErrorHandler((e, _r, reply) =>
@@ -124,6 +126,7 @@ export async function createIdentityApp(options: IdentityOptions) {
     }
     return accounts.session(r.cookies[cookieName] ?? "");
   }
+  registerAdminMembershipRoutes(app, a, session);
   await browserWorkspace(
     app,
     {
@@ -209,7 +212,6 @@ export async function createIdentityApp(options: IdentityOptions) {
   app.get("/api/v1/auth/options", async () => ({
     providers: providers.map((p) => ({ id: p.id, method: p.method, ...(p.name ? { name: p.name } : {}) })),
     registration: { enabled: providers.length > 0, method: "provider" },
-    deviceKeys: { enabled: true, algorithm: "ES256" },
     setupRequired: options.setup?.pending() ?? false,
     organization: (() => {
       const organization = store.read().identity.hubOrganizations.find((value) => value.hubId === options.localHubId);
@@ -218,44 +220,16 @@ export async function createIdentityApp(options: IdentityOptions) {
     })(),
     loginMethods: hubLoginMethods(store, options.localHubId, providers),
   }));
-  app.post("/api/v1/auth/setup", async (r) => {
-    accounts.rateLimit("setup:" + r.ip, 5, 60000);
-    const input = z.object({ token: z.string().min(32).max(256), name: Name.optional() }).strict().parse(r.body);
-    const current = await session(r);
-    forbid(!!options.setup, "Hub setup is unavailable");
-    options.setup!.claim(current, input.token, input.name);
-    return { ok: true };
-  });
-  app.post("/api/v1/auth/keys/enroll/challenge", async (r) => {
-    accounts.rateLimit("key-enroll:" + r.ip, 10, 60000);
-    return keys.enrollChallenge(await session(r), DeviceKeyEnrollmentRequest.parse(r.body));
-  });
-  app.post("/api/v1/auth/keys/enroll/verify", async (r) => {
-    accounts.rateLimit("key-enroll-verify:" + r.ip, 20, 60000);
-    const input = DeviceKeyProof.parse(r.body);
-    return keys.enrollVerify(await session(r), input.challengeId, input.signature);
-  });
-  app.post("/api/v1/auth/keys/challenge", async (r) => {
-    accounts.rateLimit("key-login:" + r.ip, 10, 60000);
-    const input = DeviceKeyLoginRequest.parse(r.body);
-    accounts.rateLimit("key-login:" + input.keyId, 20, 60000);
-    return keys.loginChallenge(input);
-  });
-  app.post("/api/v1/auth/keys/verify", async (r) => {
-    accounts.rateLimit("key-login-verify:" + r.ip, 20, 60000);
-    const input = DeviceKeyProof.parse(r.body);
-    const value = keys.loginVerify(input.challengeId, input.signature);
-    return {
-      access_token: await a.tokens.issue(value.session, a.tokens.issuer, "identity_access"),
-      refresh_token: value.refreshToken,
-      token_type: "Bearer",
-      expires_in: 300,
-    };
-  });
-  app.get("/api/v1/me/keys", async (r) => keys.list(await session(r)));
-  app.delete("/api/v1/me/keys/:id", async (r) => {
-    keys.revoke(await session(r), Id.parse((r.params as { id: string }).id));
-    return { ok: true };
+  app.get("/initialize", async (r, reply) => {
+    accounts.rateLimit("initialize:" + r.ip, 10, 60000);
+    const input = z.object({ token: z.string().min(32).max(256), continue: z.string().max(4096).optional() }).strict().parse(r.query);
+    if (!options.setup) throw new DomainError(403, "initialization_rejected", "Initialization is unavailable");
+    const initialized = options.setup.prepare(input.token);
+    if (input.continue && (!input.continue.startsWith("/oauth/authorize?") || new URL(input.continue, a.tokens.issuer).origin !== a.tokens.issuer))
+      throw new DomainError(400, "invalid_return", "Invalid sign-in continuation");
+    reply.setCookie(initializationCookie, input.token, { path: "/auth/", httpOnly: true,
+      secure: options.secureCookies ?? true, sameSite: "lax", maxAge: Math.max(0, Math.floor((initialized.expiresAt - Date.now()) / 1000)) });
+    return reply.redirect(loginPath + "?" + new URLSearchParams({ initialize: "1", ...(input.continue ? { continue: input.continue } : {}) }));
   });
   for (const path of ["/api/v1/auth/logout", "/workspace/api/logout"])
     app.post(path, async (r, reply) => {
@@ -276,6 +250,7 @@ export async function createIdentityApp(options: IdentityOptions) {
       name: u.name,
       email: u.email,
       context: s.context,
+      hubRole: options.localHubId ? hubRole(store.read(), s.userId, requireValue(store.read().hubs.find((hub) => hub.id === options.localHubId))) : null,
       identities: store
         .read()
         .identity.identities.filter((x) => x.userId === s.userId)
@@ -472,6 +447,9 @@ export async function createIdentityApp(options: IdentityOptions) {
         "invalid_return",
         "Invalid sign-in continuation",
       );
+    const initialization = r.cookies[initializationCookie] ? options.setup?.prepare(r.cookies[initializationCookie]!) : undefined;
+    if (initialization && query.link === "1")
+      throw new DomainError(400, "initialization_rejected", "Initialize with a provider sign-in, without linking accounts");
     const linking = query.link === "1" ? await session(r) : null;
     if (linking && Date.now() - linking.context.authenticatedAt > 300000)
       throw new DomainError(
@@ -497,6 +475,7 @@ export async function createIdentityApp(options: IdentityOptions) {
         linkUserId: linking?.userId ?? null,
         linkSessionId: linking?.id ?? null,
         continuePath: query.continue,
+        ...(initialization ? { initializationId: initialization.id } : {}),
       });
     });
     reply.setCookie(flowCookie, browser, {
@@ -558,10 +537,12 @@ export async function createIdentityApp(options: IdentityOptions) {
     );
     setSession(
       reply,
-      accounts.finish(verified, "web", flow.linkSessionId ?? undefined),
+      accounts.finish(verified, "web", flow.linkSessionId ?? undefined, flow.initializationId ? (state, session) => {
+        if (!options.setup) throw new DomainError(403, "initialization_rejected", "Initialization is unavailable");
+        options.setup.complete(state, session, flow.initializationId!);
+      } : undefined),
     );
-    if (options.setup?.pending())
-      return reply.redirect(loginPath + (flow.continuePath ? "?continue=" + encodeURIComponent(flow.continuePath) : ""));
+    if (flow.initializationId) reply.clearCookie(initializationCookie, { path: "/auth/" });
     return reply.redirect(flow.continuePath ?? loginPath);
   });
   // Identity authorization endpoint for native clients and each registered hub's BFF.
@@ -594,12 +575,6 @@ export async function createIdentityApp(options: IdentityOptions) {
         loginPath + "?continue=" + encodeURIComponent(r.url),
       );
     }
-    const currentIdentity = store.read().identity.identities.find((identity) =>
-      identity.id === s.context.identityId && identity.userId === s.userId && identity.verifiedAt > 0);
-    if (s.deviceKeyId || !currentIdentity || !["google", "feishu"].includes(currentIdentity.method) ||
-      currentIdentity.method !== s.context.method || currentIdentity.tenant !== s.context.tenant ||
-      Date.now() - s.context.authenticatedAt > 300000)
-      return reply.redirect(loginPath + "?reauth=1&continue=" + encodeURIComponent(r.url));
     if (registered) {
       try {
         a.context(s, registered.hubId);
@@ -950,11 +925,11 @@ export async function createIdentityApp(options: IdentityOptions) {
       case "members": {
         const p = resourceParams.parse(args),
           res = resourceInHub(p.kind, p.id, hubId);
-        forbid(
-          res.ownerId === s.userId,
-          "Only resource owner can list members",
-        );
         const state = store.read();
+        forbid(
+          canManageHub(state,s.userId,requireValue(state.hubs.find(h=>h.id === hubId))),
+          "Only Hub owners and admins can list members",
+        );
         return state.memberships
           .filter((m) => m.resource === p.kind && m.resourceId === p.id)
           .map((m) => ({

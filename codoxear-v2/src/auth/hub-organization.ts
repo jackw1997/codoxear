@@ -25,9 +25,6 @@ export function configureHubOrganization(store: Store, hubId: string, providers:
       throw new Error("A Hub's bound Feishu organization cannot be changed; create a separate Hub");
     if (selected?.tenant) organization.feishuTenant = selected.tenant;
     organization.feishuConnection = selected?.id ?? null;
-    const pending = state.users.some((user) => user.id === hub.ownerId && user.disabled && user.email === `${hubId}@setup.invalid`);
-    if (selected && !organization.feishuTenant && !pending)
-      throw new Error("Configure the Feishu tenant before enabling it on an already configured Hub");
   });
 }
 export function hubLoginMethods(store: Store, hubId: string | undefined, providers: Provider[]) {

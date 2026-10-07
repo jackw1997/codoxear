@@ -273,3 +273,23 @@ The user explicitly corrected R52: “All the identity is active for the hub” 
 The Hub owner selects allowed account types: Feishu only, Google only, or both, with provider-type lists extensible to configured future adapters. Enforce this on new OAuth sign-ins and previously issued sessions, refresh tokens, cached Hub tokens and public-key proofs. Keep policy-blocked identities and private keys locally so re-enabling the provider restores access without re-registration. Actual revoked keys cannot reconnect. Owner policy changes require an owner proof retained by the new policy, avoiding an unintended owner lockout; another owner proof can be explicitly linked first.
 
 R52's one organization and one Feishu app/verified tenant per Hub, private app credentials, public-key client authentication, independent component boundaries and private initial-owner setup remain in force. R51's global broker remains removed. No account migration, password fallback or paid verification service is introduced.
+
+
+## R54 — User-corrected multi-user sign-in and Computer authorization (7 October 2026)
+
+The user rejected the previous sign-in journey and explicitly authorized implementing these replacements. This is a requirement change, not a migration requirement. R50–R53 historical device-key evidence remains historical.
+
+| Previous implementation / interpretation | Current requirement |
+|---|---|
+| Client offers a preset Work Hub | Client starts with Add Hub URL only; no deployment suggestions |
+| Separate owner setup-code form after ordinary sign-in | Deploy produces a private one-time expiring initialization URL; its allowed-provider callback atomically establishes Owner |
+| Configured unbound Feishu requires a Feishu initial owner | Google and Feishu are parallel; either allowed identity can claim initialization |
+| Client generates private device signing keys and reconnects by signed challenges | Remove device signing keys; use Hub-issued revocable OAuth/refresh sessions |
+| Only owner can administer; Hub membership uses resource operator/viewer roles | Explicit Owner/Admin/Member administration: admins manage ordinary members; only owner manages admins |
+| Computer ownership implicitly permits execution | Every actor, including owner/admin, must have explicit Computer allowlist membership |
+| Agent shares or retained grants may allow access after Computer membership removal | Computer allowlist is mandatory; shares and retention do not bypass it |
+| Only owner sees/adopts Computers | Owner/admin see all Computers and manage allowlists; members see allowlisted Computers only |
+
+All signed-in identities continue contributing simultaneously under the Hub provider policy. Owner/admin visibility is administration only, not implicit access to agent content or execution. An owner/admin can explicitly add themselves to an allowlist. Computer service credentials for outbound WSS remain necessary and separate from the removed human device keys.
+
+Ordinary provider sign-in records a verified identity. An invitation grants membership; a private initialization flow grants initial ownership. Reconnecting clients receive the already established role by matching stable provider identity, without client-supplied role claims or automatic email merging. Uninvited signed-in identities receive a clear membership state and invitation action.

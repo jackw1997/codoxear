@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
@@ -11,7 +12,7 @@ import { createHubApp } from "../src/hub/app.js";
 import { NotificationInbox } from "../src/hub/notifications.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
-import { createHub, createComputer, reserveAgent } from "../src/domain/commands.js";
+import { createHub, reserveAgent } from "../src/domain/commands.js";
 assert.ok(existsSync("/.dockerenv"), "Docker only");
 const callback = "codoxear-v2://oauth/callback";
 async function hub(origin: string) {
@@ -23,7 +24,7 @@ async function hub(origin: string) {
       subject: "google-alice", tenant: null, email: null, verifiedAt: Date.now(),
     });
   });
-  const created = store.change(s => createComputer(s,"alice",createHub(s,"alice","Native fixture").id,"Computer","alice"));
+  const created = store.change(s => createAllowedComputer(s,"alice",createHub(s,"alice","Native fixture").id,"Computer","alice"));
   store.change(s => {const agent=reserveAgent(s,"alice",created.computer.id,"Native tap","pi");agent.state="ready";agent.localId="native-session";});
   const local = await independentAuthority({origin,store,hubId:created.computer.hubId,otpKey:"native-test-key".repeat(4),clients:[{id:"codoxear-harmony",redirectUris:[callback]}],secureCookies:false});
   const signed = local.authority.accounts.finish({

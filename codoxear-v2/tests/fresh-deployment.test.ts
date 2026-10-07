@@ -39,7 +39,7 @@ test("fresh generation preserves origins and provider defaults without importing
       assert.equal(settings.defaultModel, launch.model);
       assert.equal(settings.defaultThinkingLevel, "high");
     }
-    assert.equal((await stat(join(target, "private/setup.json"))).mode & 0o777, 0o600);
+    assert.equal((await stat(join(target, "private/initialization.json"))).mode & 0o777, 0o600);
     assert.equal(existsSync(join(target, "old-catalog.sqlite")), false);
     await prepareFreshGateway(target);
     const gatewayFile = join(target, "gateway/Caddyfile");
@@ -60,7 +60,7 @@ test("fresh generation preserves origins and provider defaults without importing
     assert.deepEqual(await provisionFreshState(target), { alreadyProvisioned: false });
     const receiptBytes = await readFile(join(target, "provision-receipt.json"), "utf8");
     const receipt = JSON.parse(receiptBytes);
-    const owner = JSON.parse(await readFile(join(target, "private/setup.json"), "utf8"));
+    const owner = JSON.parse(await readFile(join(target, "private/initialization.json"), "utf8"));
     const store = new Store(join(target, "hub-0/catalog.sqlite"));
     try {
       const state = store.read();
@@ -76,7 +76,7 @@ test("fresh generation preserves origins and provider defaults without importing
         assert.equal(canCreate(state, state.users[0]!.id, computer), false);
         assert.equal(attachment.oarMaxResident, 1);
         assert.equal(attachment.runtime, "oar");
-        assert.equal(JSON.stringify(attachment).includes(owner.hubs[0].setupToken), false);
+        assert.equal(JSON.stringify(attachment).includes(new URL(owner.hubs[0].url).searchParams.get("token")!), false);
       }
     } finally { store.close(); }
     assert.deepEqual(await provisionFreshState(target), { alreadyProvisioned: true });

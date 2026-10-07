@@ -71,18 +71,6 @@ async function accept(token) {
     .click();
   await bob.locator("#modal").waitFor({ state: "hidden" });
 }
-async function policy(kind, value) {
-  await alice
-    .getByRole("button", { name: "Manage access", exact: true })
-    .click();
-  const card = alice.locator(`[data-resource="${kind}"]`);
-  await card.locator("select[name=policy]").selectOption(value);
-  await card.getByRole("button", { name: "Save policy" }).click();
-  await alice
-    .getByRole("status")
-    .filter({ hasText: "Policy saved." })
-    .waitFor();
-}
 async function startComputer(config, index) {
   const home = await mkdtemp(join(tmpdir(), `computer-${index}-`)),
     path = join(home, "pairing.json");
@@ -142,7 +130,21 @@ try {
     const download = await downloading,
       path = await download.path();
     const { readFile } = await import("node:fs/promises");
-    return startComputer(await readFile(path, "utf8"), index);
+    const config = await readFile(path, "utf8"),
+      paired = JSON.parse(config);
+    const grant = await owner.request.put(
+      base + "/api/resources/computer/" + paired.computerId + "/members/alice",
+      { data: { access: "write" } },
+    );
+    assert.equal(
+      grant.status(),
+      200,
+      "Computer admission requires a separate explicit owner allowlist grant",
+    );
+    const running = await startComputer(config, index);
+    await alice.reload();
+    await alice.getByRole("button", { name: "Sign out" }).waitFor();
+    return running;
   }
   const first = await addComputer("Office Mac", 1);
   await until(() =>
@@ -210,8 +212,23 @@ try {
   await bob.getByLabel("Your hub").selectOption({ label: hubName });
   await bob.getByText("No computers available.").waitFor();
   await report("Hub membership alone does not expose computer agents");
-  const tokenComputer = await inviteMember("computer");
-  await accept(tokenComputer);
+  const ownerHubs = await (await owner.request.get(base + "/api/hubs")).json();
+  const ownerHub = ownerHubs.find((h) => h.name === hubName);
+  const ownerComputers = await (
+    await owner.request.get(base + "/api/hubs/" + ownerHub.id + "/computers")
+  ).json();
+  const selectedComputer = ownerComputers.find((c) => c.name === "Office Mac");
+  assert.ok(
+    selectedComputer,
+    "Owner can review the admitted Computer before assigning use",
+  );
+  const allowBob = await owner.request.put(
+    base + "/api/resources/computer/" + selectedComputer.id + "/members/bob",
+    { data: { access: "write" } },
+  );
+  assert.equal(allowBob.status(), 200);
+  await bob.reload();
+  await bob.getByLabel("Your hub").selectOption({ label: hubName });
   await bob.getByRole("button", { name: "Office Mac" }).click();
   await bob.getByRole("button", { name: "New agent", exact: true }).waitFor();
   assert.equal(
@@ -230,7 +247,7 @@ try {
     .filter({ hasText: "Member with both grants" })
     .waitFor();
   await report(
-    "Separate hub and computer invitations enable member creation and sending",
+    "Hub membership and an explicit Computer allowlist entry enable creation and sending",
   );
   const catalog = await member.request.get(base + "/api/hubs");
   const hubs = await catalog.json();
@@ -247,69 +264,56 @@ try {
       )
     ).json()
   ).find((a) => a.name === "Member agent");
-  await policy("computer", "read_only");
-  await alice
-    .getByRole("button", { name: "Manage access", exact: true })
-    .click();
-  await alice
-    .locator("[data-resource=computer]")
-    .getByRole("button", { name: "Remove", exact: true })
-    .click();
-  await until(() =>
-    bob.getByRole("button", { name: "Send", exact: true }).isDisabled(),
+  const legacyReadOnly = await owner.request.put(
+    base + "/api/resources/computer/" + selectedComputer.id + "/policy",
+    { data: { policy: "read_only" } },
   );
+  assert.equal(legacyReadOnly.status(), 200);
+  const removeBob = await owner.request.delete(
+    base + "/api/resources/computer/" + selectedComputer.id + "/members/bob",
+  );
+  assert.equal(removeBob.status(), 200);
+  await until(async () => {
+    const send = bob.getByRole("button", { name: "Send", exact: true });
+    return !(await send.count()) || await send.isDisabled();
+  });
   await bob.screenshot({
     path: "artifacts/02-member-read-only.png",
     fullPage: true,
   });
   await report(
-    "Removing computer membership immediately makes an open agent read-only",
+    "Removing a Computer allowlist entry immediately disables an open agent",
   );
   const denied = await member.request.post(
     base + "/api/agents/" + memberAgent.id + "/send",
     { data: { text: "Denied" } },
   );
   assert.equal(denied.status(), 403);
-  await policy("hub", "retain");
-  await until(() =>
-    bob.getByRole("button", { name: "Send", exact: true }).isEnabled(),
+  const legacyRetain = await owner.request.put(
+    base + "/api/resources/hub/" + selectedHub.id + "/policy",
+    { data: { policy: "retain" } },
   );
-  await bob
-    .getByLabel("Message", { exact: true })
-    .fill("Retained under hub rule");
-  await bob.getByRole("button", { name: "Send", exact: true }).click();
-  await bob
-    .locator(".message.assistant")
-    .filter({ hasText: "Retained under hub rule" })
-    .waitFor();
+  assert.equal(legacyRetain.status(), 200);
+  const retainedRead = await member.request.get(
+    base + "/api/agents/" + memberAgent.id + "/messages",
+  );
+  assert.equal(retainedRead.status(), 403);
+  const retainedSend = await member.request.post(
+    base + "/api/agents/" + memberAgent.id + "/send",
+    { data: { text: "No retained bypass" } },
+  );
+  assert.equal(retainedSend.status(), 403);
   await report(
-    "Explicit hub retain policy overrides the computer read-only rule",
+    "Legacy retention policies cannot bypass the explicit Computer allowlist",
   );
-  await alice.getByRole("button", { name: "Agents", exact: true }).click();
-  await createAgent(alice, "Created after removal");
-  await bob.getByRole("button", { name: "Agents", exact: true }).click();
-  assert.equal(
-    await bob
-      .getByRole("button", { name: "New agent", exact: true })
-      .isDisabled(),
-    true,
-  );
-  assert.equal(
-    await bob
-      .locator("[data-agent]")
-      .filter({ hasText: "Created after removal" })
-      .count(),
-    0,
-  );
-  await report("Retained rights exclude new agents and never grant creation");
-  await policy("hub", "none");
+  await bob.reload();
   await until(() =>
     bob
       .locator("[data-computer]")
       .count()
       .then((x) => x === 0),
   );
-  await report("Hub none policy removes retained access");
+  await report("Revoked member sees no Computers or agent creation targets");
   await alice.getByRole("button", { name: "Agents", exact: true }).click();
   await addComputer("Linux workstation", 2);
   await until(() =>

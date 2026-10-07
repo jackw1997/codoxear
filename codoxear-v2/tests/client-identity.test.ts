@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -16,8 +17,7 @@ import { createIdentityApp } from "../src/identity/app.js";
 import {
   secret,
   createHub,
-  createComputer,
-} from "../src/domain/commands.js";
+  } from "../src/domain/commands.js";
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
 async function fixture() {
   const store = new Store(":memory:"),
@@ -52,10 +52,10 @@ async function fixture() {
     "https://hub.test",
   );
   const computer = store.change((s) =>
-    createComputer(s, "alice", hub.id, "Laptop", "alice"),
+    createAllowedComputer(s, "alice", hub.id, "Laptop", "alice"),
   ).computer;
   const computer2 = store.change((s) =>
-    createComputer(s, "alice", hub.id, "Desktop", "alice"),
+    createAllowedComputer(s, "alice", hub.id, "Desktop", "alice"),
   ).computer;
   const app = await createIdentityApp({
       authority,

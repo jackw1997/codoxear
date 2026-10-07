@@ -34,8 +34,10 @@ export async function generateFreshState(target: string, preserved = join(homedi
   for (const child of ["config", "hub-0", "hub-1", "private", ...["computer-a", "computer-b"].flatMap(name =>
     [name, `${name}/computer`, `${name}/workspace`, `${name}/.pi`, `${name}/.pi/agent`])])
     await mkdir(join(directory, child), { mode: 0o700 });
-  const setupTokens = [secret(), secret()];
-  await writePrivate(join(directory, "private/setup.json"), { hubs: origins.hubs.map((origin, i) => ({ origin, setupToken: setupTokens[i] })) });
+  const initializations = [0, 1].map(() => ({ token: secret(), expiresAt: Date.now() + 24 * 60 * 60 * 1000 }));
+  await writePrivate(join(directory, "private/initialization.json"), { hubs: origins.hubs.map((origin, i) => ({
+    origin, url: origin + "/initialize?" + new URLSearchParams({ token: initializations[i]!.token }), expiresAt: initializations[i]!.expiresAt,
+  })) });
   // Retain the launch object verbatim, including the endpoint, key, model and effort.
   await writeFile(join(directory, "private/pi-litellm-launch.json"), await readFile(join(preserved, "pi-litellm-launch.json")), { mode: 0o600, flag: "wx" });
   await writePrivate(join(directory, "private/public-origins.json"), origins);
@@ -58,7 +60,7 @@ export async function generateFreshState(target: string, preserved = join(homedi
   for (let i = 0; i < 2; i++) await writePrivate(join(directory, `config/hub-${i}.json`), {
     independent: true, hubId: randomUUID(), name: `Hub ${i + 1}`, origin: origins.hubs[i],
     catalog: "/state/catalog.sqlite", database: "/state/sessions.sqlite", signingKey: "/state/key.json",
-    setupToken: setupTokens[i], providers: [], listenHost: "0.0.0.0", listenPort: 17430, secureCookies: true,
+    initialization: initializations[i], providers: [], listenHost: "0.0.0.0", listenPort: 17430, secureCookies: true,
     clientOrigins: [origins.client], clients: [{ id: "codoxear-web", redirectUris: [origins.client + "/auth-callback"] }],
   });
   // Generated gateway fragment uses preserved origins without copying certificates.

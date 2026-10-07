@@ -30,6 +30,8 @@ import {
 import {
   agentAccess,
   hubAccess,
+  hubRole,
+  canManageHub,
   computerRole,
   canCreate,
   effectivePolicy,
@@ -59,7 +61,13 @@ export class Authority {
     const s = this.store.read(),
       h = requireValue(s.hubs.find((x) => x.id === hubId));
     forbid(hubAccess(s, session.userId, h), "Hub access required");
-    checkHubOrganization(s, hubId, session.context.method, session.context.tenant, true);
+    checkHubOrganization(
+      s,
+      hubId,
+      session.context.method,
+      session.context.tenant,
+      true,
+    );
     const req = s.identity.requirements.find((x) => x.hubId === hubId)?.rule;
     if (req) this.checkAuthentication(session, req);
     return h;
@@ -101,6 +109,8 @@ export class Authority {
         }
         return {
           ...h,
+          role: hubRole(s, session.userId, h),
+          canManage: canManageHub(s, session.userId, h),
           origin: registration?.origin ?? null,
           access,
           loginRequirement:
@@ -238,8 +248,9 @@ export class Authority {
       );
     if (route.action === "computer.admin") {
       forbid(
-        computer.ownerId === session.userId,
-        "Computer-wide files and settings require the computer owner",
+        computer.ownerId === session.userId &&
+          canCreate(s, session.userId, computer),
+        "Computer-wide files and settings require an explicitly allowlisted Computer owner",
       );
       return {
         actorId: session.userId,
@@ -269,6 +280,11 @@ export class Authority {
           ? "send"
           : (route.action as "read" | "send" | "interrupt"),
     );
+    if (isFile && route.action === "files.write")
+      forbid(
+        computerRole(s, session.userId, computer) === "operator",
+        "Computer write allowlist access is required",
+      );
     let workspace: WorkspaceContext | undefined;
     const workspaceId =
       new URL(path, "http://workspace.invalid").searchParams.get(
@@ -548,14 +564,8 @@ export class Authority {
       .filter(
         (c) =>
           c.hubId === hubId &&
-          (c.ownerId === session.userId ||
-            h.ownerId === session.userId ||
-            computerRole(s, session.userId, c) ||
-            s.agents.some(
-              (a) =>
-                a.computerId === c.id &&
-                agentAccess(s, session.userId, a).actions.length,
-            )),
+          (canManageHub(s, session.userId, h) ||
+            computerRole(s, session.userId, c)),
       )
       .map((c) => ({
         id: c.id,
@@ -566,6 +576,10 @@ export class Authority {
         policy: c.policy,
         binding: c.binding,
         canCreate: canCreate(s, session.userId, c),
+        canManage: canManageHub(s, session.userId, h),
+        canUse: computerRole(s, session.userId, c) !== null,
+        canRead: computerRole(s, session.userId, c) !== null,
+        canWrite: canCreate(s, session.userId, c),
         membership: computerRole(s, session.userId, c),
         effectivePolicy: effectivePolicy(h, c),
       }));
@@ -850,8 +864,12 @@ export class Authority {
       c = requireValue(s.computers.find((x) => x.id === computerId));
     this.context(session, c.hubId);
     forbid(
-      c.ownerId === session.userId,
-      "Only the computer owner can enroll it",
+      canManageHub(
+        s,
+        session.userId,
+        requireValue(s.hubs.find((h) => h.id === c.hubId)),
+      ),
+      "Only Hub owners and admins can enroll Computers",
     );
     return this.store.change((state) => {
       const now = this.now();
@@ -871,7 +889,8 @@ export class Authority {
         codeHash: digest(code),
         computerId,
         hubId: c.hubId,
-        ownerId: session.userId,
+        ownerId: c.ownerId,
+        issuerId: session.userId,
         binding: c.binding,
         expiresAt,
         used: false,
@@ -905,6 +924,14 @@ export class Authority {
             x.binding === p.binding &&
             x.ownerId === p.ownerId,
         ),
+      );
+      forbid(
+        canManageHub(
+          s,
+          p.issuerId ?? p.ownerId,
+          requireValue(s.hubs.find((h) => h.id === p.hubId)),
+        ),
+        "Pairing issuer lost Hub administration rights",
       );
       forbid(
         hubAccess(
@@ -970,6 +997,14 @@ export class Authority {
     );
     const h = requireValue(
       s.identity.hubs.find((entry) => entry.hubId === c.hubId && entry.enabled),
+    );
+    forbid(
+      canManageHub(
+        s,
+        p.issuerId ?? p.ownerId,
+        requireValue(s.hubs.find((hub) => hub.id === p.hubId)),
+      ),
+      "Pairing issuer lost Hub administration rights",
     );
     return { p, c, h };
   }
@@ -1159,8 +1194,8 @@ export class Authority {
   ) {
     const target = this.context(session, targetHubId);
     forbid(
-      target.ownerId === session.userId,
-      "Only the target hub owner can admit a computer",
+      canManageHub(this.store.read(), session.userId, target),
+      "Only target Hub owners and admins can admit a computer",
     );
     const state = this.store.read(),
       computer = requireValue(state.computers.find((c) => c.id === computerId));
@@ -1216,7 +1251,7 @@ export class Authority {
       const currentTarget = requireValue(
         state.hubs.find((h) => h.id === targetHubId),
       );
-      if (currentTarget.ownerId !== session.userId) {
+      if (!canManageHub(state, session.userId, currentTarget)) {
         const admission = state.identity.admissions.find(
           (a) =>
             a.tokenHash === digest(admissionToken ?? "") &&
@@ -1228,7 +1263,7 @@ export class Authority {
             admission.expiresAt > Date.now() &&
             admission.computerOwnerId === computer.ownerId &&
             admission.binding === computer.binding &&
-            admission.issuerId === currentTarget.ownerId &&
+            canManageHub(state, admission.issuerId, currentTarget) &&
             admission.ownerRevision === currentTarget.revision,
           "Target hub owner must issue a current admission for this computer",
         );

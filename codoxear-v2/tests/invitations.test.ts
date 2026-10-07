@@ -48,7 +48,7 @@ test("phone invitation requires the current verified phone and remains single-us
     "hub",
     h.id,
     { method: "phone", phone: identity.subject },
-    "viewer",
+    "member",
   );
   assert.throws(() => acceptInvite(s, "eve", token));
   identity.verifiedAt = 0;
@@ -61,7 +61,7 @@ test("phone invitation requires the current verified phone and remains single-us
   assert.throws(() => acceptInvite(s, "bob", token));
   s.identity.identities.push(...linked);
   acceptInvite(s, "bob", token);
-  assert.equal(s.memberships[0]!.role, "viewer");
+  assert.equal(s.memberships[0]!.role, "member");
   assert.throws(() => acceptInvite(s, "bob", token));
 });
 for (const method of ["google", "feishu", "wechat", "oidc"] as const)
@@ -73,7 +73,7 @@ for (const method of ["google", "feishu", "wechat", "oidc"] as const)
       subject: "recipient-id",
       tenant: method === "google" ? null : "team-a",
     };
-    const { token } = invite(s, "alice", "hub", h.id, target, "operator");
+    const { token } = invite(s, "alice", "hub", h.id, target, "member");
     const identity = {
       ...target,
       id: "recipient",
@@ -95,19 +95,19 @@ for (const method of ["google", "feishu", "wechat", "oidc"] as const)
       assert.throws(() => acceptInvite(s, "bob", token));
       Object.assign(identity, { [field]: before });
     }
-    assert.throws(() => invite(s, "bob", "hub", h.id, target, "operator"));
+    assert.throws(() => invite(s, "bob", "hub", h.id, target, "member"));
     acceptInvite(s, "bob", token);
-    assert.equal(s.memberships[0]!.role, "operator");
+    assert.equal(s.memberships[0]!.role, "member");
   });
 test("phone/provider invites preserve expiry and ownership revision checks", () => {
   const { s, h, identity } = fixture();
   const target: InvitationTarget = { method: "phone", phone: identity.subject };
-  const expired = invite(s, "alice", "hub", h.id, target, "operator");
+  const expired = invite(s, "alice", "hub", h.id, target, "member");
   expired.invitation.expiresAt = Date.now() - 1;
   assert.throws(() => acceptInvite(s, "bob", expired.token));
-  const first = invite(s, "alice", "hub", h.id, target, "operator");
+  const first = invite(s, "alice", "hub", h.id, target, "member");
   acceptInvite(s, "bob", first.token);
-  const stale = invite(s, "alice", "hub", h.id, target, "viewer");
+  const stale = invite(s, "alice", "hub", h.id, target, "member");
   transferOwner(s, "alice", "hub", h.id, "bob");
   assert.throws(() => acceptInvite(s, "bob", stale.token));
   removeMember(s, "bob", "hub", h.id, "alice");
@@ -120,7 +120,7 @@ test("new recipient records and legacy email-only invitations survive schema rel
     "hub",
     h.id,
     " BOB@EXAMPLE.TEST ",
-    "viewer",
+    "member",
   );
   delete (legacy.invitation as { target?: unknown }).target;
   const phone = invite(
@@ -129,12 +129,12 @@ test("new recipient records and legacy email-only invitations survive schema rel
     "hub",
     h.id,
     { method: "phone", phone: identity.subject },
-    "operator",
+    "member",
   );
   const loaded = State.parse(JSON.parse(JSON.stringify(s)));
   acceptInvite(loaded, "bob", legacy.token);
   acceptInvite(loaded, "bob", phone.token);
-  assert.equal(loaded.memberships[0]!.role, "operator");
+  assert.equal(loaded.memberships[0]!.role, "member");
 });
 test("invitation requests reject ambiguous targets, unknown fields and invalid international numbers", () => {
   assert.equal(
@@ -196,16 +196,21 @@ test("different organizations keep distinct accounts and refreshed email claims 
           subject: "recipient",
           tenant: "old-team",
         },
-        "viewer",
+        "member",
       ),
     );
     const email = store.change((s) =>
-      invite(s, "alice", "hub", f.h.id, "old@example.test", "viewer"),
+      invite(s, "alice", "hub", f.h.id, "old@example.test", "member"),
     );
-    const sameTeam = accounts.finish({ ...identity, email: "updated@example.test" }, "email-update");
+    const sameTeam = accounts.finish(
+      { ...identity, email: "updated@example.test" },
+      "email-update",
+    );
     assert.equal(first.session.userId, sameTeam.session.userId);
     assert.throws(() =>
-      store.change((s) => acceptInvite(s, sameTeam.session.userId, email.token)),
+      store.change((s) =>
+        acceptInvite(s, sameTeam.session.userId, email.token),
+      ),
     );
     const fresh = accounts.finish(
       { ...identity, tenant: "new-team", email: "new@example.test" },
@@ -230,7 +235,7 @@ test("different organizations keep distinct accounts and refreshed email claims 
           subject: "recipient",
           tenant: "new-team",
         },
-        "viewer",
+        "member",
       ),
     );
     store.change((s) => acceptInvite(s, fresh.session.userId, current.token));

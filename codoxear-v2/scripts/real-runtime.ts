@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { backendGateway } from "./backend-gateway.js";
@@ -30,7 +31,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   invite,
   acceptInvite,
   setPolicy,
@@ -190,7 +190,7 @@ store.change((s) =>
   }),
 );
 const computer = store.change((s) =>
-  createComputer(
+  createAllowedComputer(
     s,
     "alice",
     createHub(s, "alice", "Runtime test").id,
@@ -792,7 +792,7 @@ await hub.listen({ host: "127.0.0.1", port: 19744 });
         "hub",
         computer.computer.hubId,
         "reader@test.invalid",
-        "operator",
+        "member",
       ).token,
     );
     acceptInvite(

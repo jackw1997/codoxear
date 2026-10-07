@@ -8,8 +8,8 @@ export interface HubLogin {
   origin: string;
   hubId: string;
   name: string;
+  role?: "owner" | "admin" | "member" | null;
   accountId: string;
-  deviceKeyId: string;
   accessToken: string;
   refreshToken: string;
   expiresAt: number;

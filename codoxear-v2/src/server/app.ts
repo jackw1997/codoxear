@@ -36,6 +36,8 @@ import {
   resource,
   secret,
   setPolicy,
+  setComputerAccess,
+  setHubMemberRole,
   transferOwner,
 } from "../domain/commands.js";
 import {
@@ -44,6 +46,8 @@ import {
   computerRole,
   effectivePolicy,
   hubAccess,
+  canManageHub,
+  hubRole,
 } from "../domain/policy.js";
 import { Tunnels } from "../protocol/tunnels.js";
 import { Message, MAX_FRAME_BYTES } from "../contracts/tunnel.js";
@@ -224,6 +228,7 @@ export async function createApp(options: AppOptions) {
       .filter((h) => hubAccess(s, userId, h))
       .map((h) => ({
         ...h,
+        role: hubRole(s, userId, h),
         ownerName: s.users.find((u) => u.id === h.ownerId)?.name,
       }));
   });
@@ -242,7 +247,7 @@ export async function createApp(options: AppOptions) {
       .filter(
         (c) =>
           c.hubId === hubId &&
-          (h.ownerId === userId ||
+          (canManageHub(s, userId, h) ||
             !!computerRole(s, userId, c) ||
             s.agents.some(
               (a) =>
@@ -310,7 +315,9 @@ export async function createApp(options: AppOptions) {
       { kind, id: resourceId } = MembershipParams.parse(request.params),
       s = store.read(),
       r = resource(s, kind, resourceId);
-    forbid(r.ownerId === userId, "Only the owner can list members");
+    const hub = kind === "hub" ? s.hubs.find(h => h.id === r.id)!
+      : requireValue(s.hubs.find(h => h.id === requireValue(s.computers.find(c => c.id === resourceId)).hubId));
+    forbid(canManageHub(s, userId, hub), "Hub owner or admin required");
     return s.memberships
       .filter((m) => m.resource === kind && m.resourceId === resourceId)
       .map((m) => ({
@@ -366,6 +373,18 @@ export async function createApp(options: AppOptions) {
     const userId = actor(request),
       p = MembershipParams.extend({ memberId: Id }).parse(request.params);
     store.change((s) => removeMember(s, userId, p.kind, p.id, p.memberId));
+    return { ok: true };
+  });
+  app.put(`${resourcePath}/members/:memberId`, async (request) => {
+    const userId = actor(request),
+      p = MembershipParams.extend({ memberId: Id }).parse(request.params);
+    if (p.kind === "computer") {
+      const body = z.object({ access: z.enum(["read", "write"]) }).strict().parse(request.body);
+      store.change(s => setComputerAccess(s, userId, p.id, p.memberId, body.access));
+    } else {
+      const body = z.object({ role: z.enum(["admin", "member"]) }).strict().parse(request.body);
+      store.change(s => setHubMemberRole(s, userId, p.id, p.memberId, body.role));
+    }
     return { ok: true };
   });
   app.put(`${resourcePath}/policy`, async (request) => {

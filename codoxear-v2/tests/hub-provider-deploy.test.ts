@@ -10,7 +10,7 @@ const provider = { kind: "feishu", id: "work", name: "Work", clientId: "app-id",
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "hub-providers-"));
   await mkdir(join(root, "config")); await mkdir(join(root, "hub-0"));
-  const config = { independent: true, hubId: "work-hub", origin: "https://work.test", setupToken: "setup-sentinel", providers: [], customSetting: "preserve" };
+  const config = { independent: true, hubId: "work-hub", origin: "https://work.test", initialization: { token: "initialization-sentinel", expiresAt: 123456789 }, providers: [], customSetting: "preserve" };
   await writeFile(join(root, "config/hub-0.json"), JSON.stringify(config));
   await writeFile(join(root, "hub-0/catalog.sqlite"), "existing-history");
   const providerFile = join(root, "providers.json");

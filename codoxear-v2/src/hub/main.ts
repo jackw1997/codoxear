@@ -1,6 +1,6 @@
 import { independentAuthority } from "./independent.js";
 import { Store } from "../persistence/store.js";
-import { initializeHub, hubSetup } from "../auth/hub-setup.js";
+import { initializeHub, hubSetup, HubInitialization } from "../auth/hub-setup.js";
 import {
   HubProviders,
   provider,
@@ -34,7 +34,7 @@ const config = z
     independent: z.boolean().default(true),
     catalog: z.string().optional(),
     signingKey: z.string().optional(),
-    setupToken: z.string().min(32).optional(),
+    initialization: HubInitialization.optional(),
     name: z.string().default("My hub"),
     clientOrigins: z.array(z.url()).default([]),
     clients: z
@@ -61,7 +61,7 @@ let local: Awaited<ReturnType<typeof independentAuthority>> | undefined;
 if (config.independent) {
   catalog = new Store(resolve(config.catalog ?? config.database + ".catalog"));
   if (!catalog.read().hubs.length) {
-    if (!config.setupToken) throw new Error("First Hub start requires a private setupToken (32+ random characters)");
+    if (!config.initialization) throw new Error("First Hub start requires a private expiring initialization link");
     catalog.change((s) => initializeHub(s, config.hubId, config.name));
   }
   local = await independentAuthority({
@@ -69,7 +69,7 @@ if (config.independent) {
     hubId: config.hubId,
     store: catalog,
     signingKey: resolve(config.signingKey ?? config.database + ".key.json"),
-    setup: hubSetup(catalog, config.hubId, config.setupToken),
+    setup: hubSetup(catalog, config.hubId, config.initialization),
     providers: config.providers.map((p) => provider(p)),
     clients: config.clients,
     frontendAssetsRoot: config.frontendAssetsRoot,

@@ -1,12 +1,12 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { emptyState, type Policy } from "../src/contracts/model.js";
+import { emptyState } from "../src/contracts/model.js";
 import {
   createHub,
-  createComputer,
   reserveAgent,
   invite,
   acceptInvite,
@@ -30,7 +30,13 @@ function fixture() {
       disabled: false,
     });
   const h = createHub(s, "alice", "Hub"),
-    { computer: c } = createComputer(s, "alice", h.id, "Computer", "alice");
+    { computer: c } = createAllowedComputer(
+      s,
+      "alice",
+      h.id,
+      "Computer",
+      "alice",
+    );
   return { s, h, c };
 }
 function joinResource(
@@ -44,7 +50,7 @@ function joinResource(
     kind,
     kind === "hub" ? f.h.id : f.c.id,
     "bob@example.test",
-    role,
+    kind === "hub" ? "member" : role,
   );
   acceptInvite(f.s, "bob", token);
 }
@@ -59,15 +65,7 @@ for (const hub of [null, "retain", "read_only", "none"] as const)
         f.h.policy = hub;
         f.c.policy = computer;
         removeMember(f.s, "alice", "computer", f.c.id, "bob");
-        const policy: Policy = hub ?? computer ?? "none";
-        assert.deepEqual(
-          agentAccess(f.s, "bob", a).actions,
-          policy === "none"
-            ? []
-            : policy === "read_only" || role === "viewer"
-              ? ["read"]
-              : ["read", "send", "interrupt"],
-        );
+        assert.deepEqual(agentAccess(f.s, "bob", a).actions, []);
         assert.equal(canCreate(f.s, "bob", f.c), false);
         const future = reserveAgent(f.s, "alice", f.c.id, "Future", "fixture");
         assert.deepEqual(agentAccess(f.s, "bob", future).actions, []);
@@ -75,18 +73,20 @@ for (const hub of [null, "retain", "read_only", "none"] as const)
         assert.deepEqual(agentAccess(f.s, "bob", a).actions, []);
       });
     }
-test("creation requires both memberships; hub owner cannot control another owner’s computer", () => {
+test("Computer owner cannot manage Hub allowlists without Hub admin role", () => {
   const f = fixture();
-  joinResource(f, "computer");
-  assert.equal(canCreate(f.s, "bob", f.c), false);
+  assert.throws(() => joinResource(f, "computer"));
   joinResource(f, "hub");
+  joinResource(f, "computer");
   assert.equal(canCreate(f.s, "bob", f.c), true);
   transferOwner(f.s, "alice", "computer", f.c.id, "bob");
-  removeMember(f.s, "bob", "computer", f.c.id, "alice");
+  assert.throws(() => removeMember(f.s, "bob", "computer", f.c.id, "alice"));
+  removeMember(f.s, "alice", "computer", f.c.id, "alice");
   assert.equal(canCreate(f.s, "alice", f.c), false);
+  assert.equal(canCreate(f.s, "bob", f.c), true);
   assert.throws(() => setPolicy(f.s, "alice", "computer", f.c.id, "retain"));
-  assert.equal(f.c.ownerId, "bob");
-  assert.throws(() => removeMember(f.s, "bob", "computer", f.c.id, "bob"));
+  removeMember(f.s, "alice", "computer", f.c.id, "bob");
+  assert.equal(canCreate(f.s, "bob", f.c), false);
 });
 test("invitations are recipient-bound, single-use and invalid after ownership transfer", () => {
   const f = fixture();
@@ -96,7 +96,7 @@ test("invitations are recipient-bound, single-use and invalid after ownership tr
     "hub",
     f.h.id,
     "bob@example.test",
-    "operator",
+    "member",
   );
   assert.throws(() => acceptInvite(f.s, "eve", first.token));
   acceptInvite(f.s, "bob", first.token);
@@ -107,7 +107,7 @@ test("invitations are recipient-bound, single-use and invalid after ownership tr
     "hub",
     f.h.id,
     "eve@example.test",
-    "viewer",
+    "member",
   );
   transferOwner(f.s, "alice", "hub", f.h.id, "bob");
   assert.throws(() => acceptInvite(f.s, "eve", pending.token));
@@ -151,9 +151,13 @@ test("typed computer API persists one attachment, hides credential, and excludes
   await assert.rejects(
     api.attach({ ...config, hubUrl: "http://example.test" }),
   );
-  await assert.rejects(api.service().start(), /explicitly injected verification adapter/);
+  await assert.rejects(
+    api.service().start(),
+    /explicitly injected verification adapter/,
+  );
   const service = api.service(undefined, {
-    runtime: (_config, stateHome) => new FixtureRuntime(join(stateHome, "fixture.sqlite")),
+    runtime: (_config, stateHome) =>
+      new FixtureRuntime(join(stateHome, "fixture.sqlite")),
   });
   await service.start();
   await assert.rejects(api.detach());

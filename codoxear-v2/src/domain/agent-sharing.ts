@@ -16,8 +16,9 @@ function ownedAgent(s: State, actorId: string, agentId: string) {
   );
   const hub = requireValue(s.hubs.find((h) => h.id === agent.hubId));
   forbid(
-    computer.ownerId === actorId && hubAccess(s, actorId, hub),
-    "Only the computer owner can share this agent",
+    computer.ownerId === actorId && hubAccess(s, actorId, hub) &&
+      computerRole(s, actorId, computer) === "operator",
+    "Sharing requires the Computer owner with explicit write access",
   );
   return { agent, computer, hub };
 }

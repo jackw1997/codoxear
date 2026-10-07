@@ -51,24 +51,6 @@ export function createStaticServer() {
         path.split("/").some((p) => p === "." || p === "..")
       )
         return send(400, "application/json", '{"error":"Invalid asset path"}');
-      if (path === "/client-config.json") {
-        const hubs = process.env.CODOXEAR_PUBLIC_HUBS_JSON
-          ? JSON.parse(process.env.CODOXEAR_PUBLIC_HUBS_JSON)
-          : [];
-        if (!Array.isArray(hubs))
-          throw new Error("Public hubs configuration must be an array");
-        const publicHubs = hubs.map((hub) => ({
-          name: String(hub.name),
-          origin: String(hub.origin),
-        }));
-        return send(
-          200,
-          "application/json",
-          JSON.stringify({
-            hubs: publicHubs,
-          }),
-        );
-      }
       if (path === "/health")
         return send(
           200,

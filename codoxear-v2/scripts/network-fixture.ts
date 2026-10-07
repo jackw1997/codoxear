@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -19,7 +20,6 @@ import { createComputerApi } from "../src/computer/api.js";
 import { FixtureRuntime } from "./testing/fixture-runtime.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   secret,
 } from "../src/domain/commands.js";
@@ -98,7 +98,7 @@ if (process.argv[2] === "hub") {
     h = store.change((s) => createHub(s, "alice", "Network test")),
     registration = a.registerHub(session, h.id, origin),
     computer = store.change((s) =>
-      createComputer(s, "alice", h.id, "Private computer", "alice"),
+      createAllowedComputer(s, "alice", h.id, "Private computer", "alice"),
     );
   const identity = await createIdentityApp({ authority: a }),
     sessions = new HubSessions(":memory:"),

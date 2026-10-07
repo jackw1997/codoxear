@@ -1,3 +1,5 @@
+import { setComputerAccess } from "../src/domain/commands.js";
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -12,7 +14,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   invite,
   acceptInvite,
@@ -194,13 +195,13 @@ test("queue permits only authorize their current actor, session, agent and compu
       ).session,
       hub = f.store.change((s) => createHub(s, "alice", "Hub")),
       c = f.store.change((s) =>
-        createComputer(s, "alice", hub.id, "Computer", "alice"),
+        createAllowedComputer(s, "alice", hub.id, "Computer", "alice"),
       );
     f.store.change((s) => {
       acceptInvite(
         s,
         "bob",
-        invite(s, "alice", "hub", hub.id, "bob@example.test", "operator").token,
+        invite(s, "alice", "hub", hub.id, "bob@example.test", "member").token,
       );
       acceptInvite(
         s,
@@ -280,15 +281,16 @@ test("queue permits only authorize their current actor, session, agent and compu
     assert.throws(() =>
       a.authorizeQueue(hub.id, c.computer.id, c.credential, permit, "local"),
     );
-    assert.equal(
-      a.authorizeNotification(
-        hub.id,
-        bob.id,
-        published.id,
-        c.computer.id,
-        c.computer.binding,
-      ).ok,
-      true,
+    assert.throws(
+      () =>
+        a.authorizeNotification(
+          hub.id,
+          bob.id,
+          published.id,
+          c.computer.id,
+          c.computer.binding,
+        ),
+      "Computer allowlist removal immediately revokes notification authorization",
     );
     f.store.change((s) => setPolicy(s, "alice", "hub", hub.id, "none"));
     assert.throws(() =>
@@ -479,7 +481,7 @@ test("pairing is single-use; transfer fences old credentials and drops old grant
     a.registerHub(session, h1.id, "https://one.test");
     a.registerHub(session, h2.id, "https://two.test");
     const c = f.store.change((s) =>
-      createComputer(s, "alice", h1.id, "Computer", "alice"),
+      createAllowedComputer(s, "alice", h1.id, "Computer", "alice"),
     ).computer;
     const pairing = a.pairing(session, c.id),
       bound = a.redeem(pairing.code);
@@ -690,11 +692,11 @@ test("local import and computer-wide files/settings require the computer owner, 
       acceptInvite(
         s,
         "bob",
-        invite(s, "alice", "hub", h.id, "bob@example.test", "operator").token,
+        invite(s, "alice", "hub", h.id, "bob@example.test", "member").token,
       ),
     );
     const c = f.store.change((s) =>
-      createComputer(s, "alice", h.id, "Alice computer", "alice"),
+      createAllowedComputer(s, "alice", h.id, "Alice computer", "alice"),
     ).computer;
     f.store.change((s) =>
       acceptInvite(
@@ -799,15 +801,14 @@ test("transfer to a differently owned hub requires scoped single-use owner admis
     a.registerHub(alice, home.id, "https://home.test");
     a.registerHub(bob, work.id, "https://work.test");
     const c = f.store.change((s) =>
-      createComputer(s, "alice", home.id, "Laptop", "alice"),
+      createAllowedComputer(s, "alice", home.id, "Laptop", "alice"),
     );
     assert.throws(() => a.admitComputer(bob, work.id, c.computer.id));
     f.store.change((s) =>
       acceptInvite(
         s,
         "alice",
-        invite(s, "bob", "hub", work.id, "alice@example.test", "operator")
-          .token,
+        invite(s, "bob", "hub", work.id, "alice@example.test", "member").token,
       ),
     );
     a.importAgent(
@@ -828,6 +829,14 @@ test("transfer to a differently owned hub requires scoped single-use owner admis
     );
     a.transferComputer(alice, c.computer.id, work.id, true, admission.token);
     assert.throws(() => a.device(home.id, c.computer.id, c.credential));
+    assert.equal(
+      a.agents(alice, work.id, c.computer.id).length,
+      0,
+      "Transferred Computer requires a fresh target Hub allowlist grant",
+    );
+    f.store.change((state) =>
+      setComputerAccess(state, "bob", c.computer.id, "alice", "write"),
+    );
     assert.equal(a.agents(alice, work.id, c.computer.id).length, 1);
     assert.equal(
       a.agents(bob, work.id, c.computer.id).length,
@@ -873,14 +882,21 @@ test("workspace grants are separate from agent roles and end on revocation, owne
     ).session;
     const h = f.store.change((s) => createHub(s, "alice", "Workspace"));
     const c = f.store.change((s) =>
-      createComputer(s, "alice", h.id, "Computer", "alice"),
+      createAllowedComputer(s, "alice", h.id, "Computer", "alice"),
     ).computer;
     const join = (kind: "hub" | "computer", id: string) =>
       f.store.change((s) =>
         acceptInvite(
           s,
           "bob",
-          invite(s, "alice", kind, id, "bob@example.test", "operator").token,
+          invite(
+            s,
+            "alice",
+            kind,
+            id,
+            "bob@example.test",
+            kind === "hub" ? "member" : "operator",
+          ).token,
         ),
       );
     join("hub", h.id);
@@ -943,7 +959,10 @@ test("workspace grants are separate from agent roles and end on revocation, owne
       setPolicy(s, "alice", "hub", h.id, "retain");
       removeMember(s, "alice", "computer", c.id, "bob");
     });
-    assert.ok(a.authorize(member, h.id, agent.id, "read"));
+    assert.throws(
+      () => a.authorize(member, h.id, agent.id, "read"),
+      "Retained agent access cannot bypass the Computer allowlist",
+    );
     assert.throws(read, "Retaining the agent does not retain file access");
     join("computer", c.id);
     assert.throws(read, "Joining again cannot revive a removed file grant");
@@ -998,10 +1017,10 @@ test("account agent directory spans authorized hubs, omits restricted agents and
   authority.registerHub(alice, first.id, "https://home.test");
   authority.registerHub(alice, second.id, "https://work.test");
   const c1 = f.store.change((s) =>
-    createComputer(s, "alice", first.id, "Laptop", "alice"),
+    createAllowedComputer(s, "alice", first.id, "Laptop", "alice"),
   ).computer;
   const c2 = f.store.change((s) =>
-    createComputer(s, "alice", second.id, "Workstation", "alice"),
+    createAllowedComputer(s, "alice", second.id, "Workstation", "alice"),
   ).computer;
   const a1 = authority.importAgent(
     alice,
@@ -1023,7 +1042,7 @@ test("account agent directory spans authorized hubs, omits restricted agents and
     acceptInvite(
       s,
       "bob",
-      invite(s, "alice", "hub", first.id, "bob@example.test", "operator").token,
+      invite(s, "alice", "hub", first.id, "bob@example.test", "member").token,
     );
     acceptInvite(
       s,
@@ -1038,21 +1057,34 @@ test("account agent directory spans authorized hubs, omits restricted agents and
     [a1.id],
   );
   assert.equal(authority.agentDirectory(bob).placements.length, 1);
-  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read", "send", "interrupt"]);
+  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, [
+    "read",
+    "send",
+    "interrupt",
+  ]);
   f.store.change((s) => {
-    s.memberships.find((membership) => membership.resource === "computer" && membership.resourceId === c1.id && membership.userId === "bob")!.role = "viewer";
+    s.memberships.find(
+      (membership) =>
+        membership.resource === "computer" &&
+        membership.resourceId === c1.id &&
+        membership.userId === "bob",
+    )!.role = "viewer";
   });
   // Both roles use access='member'; explicit actions distinguish their rights.
   assert.equal(authority.agentDirectory(bob).agents[0]?.access, "member");
   assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read"]);
   assert.equal(authority.agentDirectory(bob).placements.length, 0);
   f.store.change((s) => {
-    s.memberships.find((membership) => membership.resource === "computer" && membership.resourceId === c1.id && membership.userId === "bob")!.role = "operator";
+    s.memberships.find(
+      (membership) =>
+        membership.resource === "computer" &&
+        membership.resourceId === c1.id &&
+        membership.userId === "bob",
+    )!.role = "operator";
   });
   f.store.change((s) => setPolicy(s, "alice", "hub", first.id, "read_only"));
   f.store.change((s) => removeMember(s, "alice", "computer", c1.id, "bob"));
-  assert.equal(authority.agentDirectory(bob).agents[0]?.access, "read_only");
-  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read"]);
+  assert.deepEqual(authority.agentDirectory(bob).agents, []);
   assert.equal(authority.agentDirectory(bob).placements.length, 0);
   f.store.change((s) =>
     s.identity.requirements.push({
@@ -1090,7 +1122,7 @@ test("settings Computer creation requires the hub owner and returns only one-tim
     acceptInvite(
       s,
       "bob",
-      invite(s, "alice", "hub", h.id, "bob@example.test", "operator").token,
+      invite(s, "alice", "hub", h.id, "bob@example.test", "member").token,
     ),
   );
   const app = await createIdentityApp({

@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 /** Docker-only live inference acceptance. Private configuration stays external;
  * artifacts contain fixed fixture markers and native identities only. */
 import assert from "node:assert/strict";
@@ -21,7 +22,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/protocol/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
 } from "../src/domain/commands.js";
 import { createComputerApi } from "../src/computer/api.js";
@@ -102,7 +102,7 @@ async function hubFixture(port: number, userId: string) {
       passwordHash: passwordHash("fixture-password"),
       disabled: false,
     });
-    return createComputer(
+    return createAllowedComputer(
       s,
       userId,
       createHub(s, userId, userId + " independent Hub").id,

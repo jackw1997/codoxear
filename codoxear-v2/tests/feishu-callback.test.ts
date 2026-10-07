@@ -12,9 +12,9 @@ import { initializeHub, hubSetup } from "../src/auth/hub-setup.js";
 
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
 
-test("Feishu's no-code token response completes the real adapter callback and preserves private Hub setup continuation", async () => {
+test("real Feishu adapter callback accepts no-code token success, preserves OAuth continuation and initializes only through the private browser-bound link", async () => {
   const origin = "https://callback-hub.test", cookieName = "codoxear_identity_callback-hub";
-  const setupCode = "private-initial-owner-code-".repeat(3), store = new Store(":memory:");
+  const token = "private-initial-owner-link-".repeat(3), store = new Store(":memory:");
   const hub = store.change((state) => initializeHub(state, "callback-hub", "New Hub"));
   const accounts = new Accounts(store, "callback-tests-secret-".repeat(4), { async send() {} });
   const authority = new Authority(store, accounts, new Tokens(origin, await signingKey()));
@@ -30,9 +30,8 @@ test("Feishu's no-code token response completes the real adapter callback and pr
       assert.equal(body.grant_type, "authorization_code");
       assert.equal(body.client_id, "fixture-app");
       assert.equal(body.client_secret, "fixture-private-app-secret");
-      assert.equal(body.code, "fresh-provider-code");
+      assert.ok(["normal-provider-code", "initial-owner-provider-code"].includes(body.code));
       assert.equal(body.redirect_uri, origin + "/auth/work-feishu/callback");
-      assert.ok(typeof body.code_verifier === "string" && body.code_verifier.length >= 43);
       assert.equal(createHash("sha256").update(body.code_verifier).digest("base64url"), expectedPkceChallenge);
       return Response.json({ access_token: "fixture-user-token", token_type: "Bearer", expires_in: 7200 });
     }
@@ -41,7 +40,7 @@ test("Feishu's no-code token response completes the real adapter callback and pr
     return Response.json({ code: 0, data: { open_id: "verified-app-open-id", tenant_key: "verified-team", name: "Owner" } });
   };
   const app = await createIdentityApp({ authority, localHubId: hub.id, cookieName, loginPath: "/login",
-    setup: hubSetup(store, hub.id, setupCode), secureCookies: false,
+    setup: hubSetup(store, hub.id, { token, expiresAt: Date.now() + 86400000 }), secureCookies: false,
     providers: [provider({ kind: "feishu", id: "work-feishu", clientId: "fixture-app", clientSecret: "fixture-private-app-secret" }, { fetch: transport })],
     clients: [{ id: "fixture-client", redirectUris: ["https://client.test/auth-callback"] }],
   });
@@ -49,39 +48,55 @@ test("Feishu's no-code token response completes the real adapter callback and pr
     const continuation = "/oauth/authorize?" + new URLSearchParams({ client_id: "fixture-client", redirect_uri: "https://client.test/auth-callback",
       response_type: "code", state: "browser-client-state-123456789", code_challenge_method: "S256",
       code_challenge: createHash("sha256").update("v".repeat(43)).digest("base64url") });
-    const start = await app.inject({ method: "GET", url: "/auth/work-feishu/start?" + new URLSearchParams({ continue: continuation }) });
-    assert.equal(start.statusCode, 302);
-    const authorize = new URL(start.headers.location!), flowCookie = start.cookies.find((cookie) => cookie.name === cookieName + "_oauth")!;
-    assert.equal(authorize.searchParams.get("code_challenge_method"), "S256");
-    expectedPkceChallenge = authorize.searchParams.get("code_challenge")!;
-    const callbackUrl = "/auth/work-feishu/callback?" + new URLSearchParams({ state: authorize.searchParams.get("state")!, code: "fresh-provider-code" });
-    const callback = await app.inject({ method: "GET", url: callbackUrl, cookies: { [flowCookie.name]: flowCookie.value } });
-    assert.equal(callback.statusCode, 302, callback.body);
-    assert.equal(callback.headers.location, "/login?continue=" + encodeURIComponent(continuation));
-    const credential = callback.cookies.find((cookie) => cookie.name === cookieName)!.value, session = accounts.session(credential);
-    assert.equal(session.context.method, "feishu");
-    assert.equal(session.context.tenant, "verified-team");
-    const identity = store.read().identity.identities.find((identity) => identity.id === session.context.identityId)!;
-    assert.equal(identity.subject, "verified-app-open-id");
-    assert.equal(identity.connection, "work-feishu");
-    assert.equal(identity.email, null);
+    const options = await app.inject({ method: "GET", url: "/api/v1/auth/options" });
+    assert.equal(options.body.includes(token), false);
+    assert.equal(Object.hasOwn(options.json(), "deviceKeys"), false);
+    const startUrl = "/auth/work-feishu/start?" + new URLSearchParams({ continue: continuation });
+    const normalStart = await app.inject({ method: "GET", url: startUrl });
+    const normalAuthorize = new URL(normalStart.headers.location!), normalCookie = normalStart.cookies.find(cookie => cookie.name === cookieName + "_oauth")!;
+    expectedPkceChallenge = normalAuthorize.searchParams.get("code_challenge")!;
+    const normalCallback = await app.inject({ method: "GET", url: "/auth/work-feishu/callback?" + new URLSearchParams({
+      state: normalAuthorize.searchParams.get("state")!, code: "normal-provider-code" }), cookies: { [normalCookie.name]: normalCookie.value } });
+    assert.equal(normalCallback.statusCode, 302, normalCallback.body);
+    assert.equal(normalCallback.headers.location, continuation);
+    const normalCredential = normalCallback.cookies.find(cookie => cookie.name === cookieName)!.value;
+    const normalProfile = await app.inject({ method: "GET", url: "/api/v1/me", cookies: { [cookieName]: normalCredential } });
+    assert.equal(normalProfile.json().hubRole, null);
     assert.equal(store.read().hubs[0]!.ownerId, hub.ownerId);
     assert.deepEqual(store.read().memberships, []);
-    assert.equal(store.read().identity.hubOrganizations[0]!.feishuTenant, null);
-    assert.equal((await app.inject({ method: "GET", url: "/api/v1/me", cookies: { [cookieName]: credential } })).statusCode, 200);
-    const claimed = await app.inject({ method: "POST", url: "/api/v1/auth/setup", cookies: { [cookieName]: credential }, payload: { token: setupCode } });
-    assert.equal(claimed.statusCode, 200, claimed.body);
+    const initialize = await app.inject({ method: "GET", url: "/initialize?" + new URLSearchParams({ token, continue: continuation }) });
+    assert.equal(initialize.statusCode, 302, initialize.body);
+    assert.equal(new URL(initialize.headers.location!, origin).searchParams.get("continue"), continuation);
+    assert.equal(initialize.headers.location!.includes(token), false);
+    const initializeCookie = initialize.cookies.find(cookie => cookie.name === cookieName + "_initialize")!;
+    assert.equal(initializeCookie.httpOnly, true); assert.equal(initializeCookie.path, "/auth/");
+    const start = await app.inject({ method: "GET", url: startUrl, cookies: { [initializeCookie.name]: initializeCookie.value } });
+    assert.equal(start.statusCode, 302);
+    const authorize = new URL(start.headers.location!), flowCookie = start.cookies.find(cookie => cookie.name === cookieName + "_oauth")!;
+    assert.equal(authorize.searchParams.get("code_challenge_method"), "S256");
+    expectedPkceChallenge = authorize.searchParams.get("code_challenge")!;
+    const callbackUrl = "/auth/work-feishu/callback?" + new URLSearchParams({ state: authorize.searchParams.get("state")!, code: "initial-owner-provider-code" });
+    assert.equal((await app.inject({ method: "GET", url: callbackUrl, cookies: { [initializeCookie.name]: initializeCookie.value } })).statusCode, 401);
+    const callback = await app.inject({ method: "GET", url: callbackUrl, cookies: { [flowCookie.name]: flowCookie.value } });
+    assert.equal(callback.statusCode, 302, callback.body); assert.equal(callback.headers.location, continuation);
+    const credential = callback.cookies.find(cookie => cookie.name === cookieName)!.value, session = accounts.session(credential);
+    assert.equal(session.userId, accounts.session(normalCredential).userId);
+    assert.equal(session.context.method, "feishu"); assert.equal(session.context.tenant, "verified-team");
     assert.equal(store.read().hubs[0]!.ownerId, session.userId);
     assert.equal(store.read().identity.hubOrganizations[0]!.feishuTenant, "verified-team");
+    assert.equal(store.read().identity.initializations[0]!.consumedAt !== null, true);
+    const profile = await app.inject({ method: "GET", url: "/api/v1/me", cookies: { [cookieName]: credential } });
+    assert.equal(profile.json().hubRole, "owner");
     const continued = await app.inject({ method: "GET", url: continuation, cookies: { [cookieName]: credential } });
     assert.equal(continued.statusCode, 302, continued.body);
     const returned = new URL(continued.headers.location!);
     assert.equal(returned.origin + returned.pathname, "https://client.test/auth-callback");
-    assert.equal(returned.searchParams.get("state"), "browser-client-state-123456789");
-    assert.ok(returned.searchParams.get("code"));
-    const tokenBody = JSON.parse(String(calls[0]!.init.body));
-    assert.equal(createHash("sha256").update(tokenBody.code_verifier).digest("base64url"), authorize.searchParams.get("code_challenge"));
+    assert.equal(returned.searchParams.get("state"), "browser-client-state-123456789"); assert.ok(returned.searchParams.get("code"));
     assert.equal((await app.inject({ method: "GET", url: callbackUrl, cookies: { [flowCookie.name]: flowCookie.value } })).statusCode, 401);
-    assert.equal(calls.length, 2, "Replayed browser callbacks never retry the single-use provider code");
+    assert.equal((await app.inject({ method: "GET", url: "/initialize?" + new URLSearchParams({ token }) })).statusCode, 403);
+    assert.equal(calls.length, 4, "Invalid browser callbacks and initialization replay do not retry provider codes");
+    for (const path of ["/api/v1/auth/setup", "/api/v1/auth/keys/challenge", "/api/v1/auth/keys/verify"])
+      assert.equal((await app.inject({ method: "POST", url: path, payload: {} })).statusCode, 404);
+    assert.equal((await app.inject({ method: "GET", url: "/api/v1/me/keys" })).statusCode, 404);
   } finally { await app.close(); store.close(); }
 });

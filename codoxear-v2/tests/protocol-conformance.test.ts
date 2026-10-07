@@ -76,8 +76,6 @@ test("actual anonymous metadata and current account envelopes satisfy generated 
 test("generated structural request limits agree with real handlers for auth, push, transfer, workspace and download",async()=>{
   const f=await protocolFixture();try {
     const invalid=[
-      ["POST","/api/v1/auth/keys/challenge",{keyId:"short",installationId:"fixture"}],
-      ["POST","/api/v1/auth/keys/verify",{challengeId:"challenge",signature:"short"}],
       ["POST","/oauth/token",{grant_type:"refresh_token",refresh_token:"short"}],
       ["POST","/oauth/revoke",{token:"short"}],
       ["POST","/api/v1/pairing/inspect-transfer",{code:"short"}],

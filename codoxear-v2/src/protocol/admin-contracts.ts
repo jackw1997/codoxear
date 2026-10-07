@@ -16,24 +16,26 @@ export const AdminHealth = z.union([z.object({ ok: z.literal(true), service: z.l
 export const AccountSummary = z.object({ id: Id, name: text, email: z.email() }).strict();
 export const AccountProfile = AccountSummary.extend({
   context: LoginContext,
+  hubRole: z.enum(["owner", "admin", "member"]).nullable(),
   identities: z.array(ExternalIdentity.pick({ id: true, connection: true, method: true, subject: true, tenant: true }).strict()),
 }).strict();
 export const AuthOptions = z.object({
   providers: z.array(z.object({ id: Id, method: z.enum(["google", "feishu"]), name: z.string().optional() }).strict()),
   registration: z.object({ enabled: z.boolean(), method: z.literal("provider") }).strict(),
-  deviceKeys: z.object({ enabled: z.literal(true), algorithm: z.literal("ES256") }).strict(),
   setupRequired: z.boolean(),
   organization: HubOrganizationSummary,
   loginMethods: HubLoginMethodsSummary,
 }).strict();
 export const AuthChallenge = z.object({ challengeId: Id, transaction: secret, expiresAt: timestamp }).strict();
-export const HubDirectory = z.array(Hub.extend({ origin: z.url().nullable(), access: z.enum(["allowed", "reauthentication_required"]), loginRequirement: AuthRequirement.nullable() }).strict());
+export const HubDirectory = z.array(Hub.extend({ role: z.enum(["owner", "admin", "member"]), canManage: z.boolean(), origin: z.url().nullable(), access: z.enum(["allowed", "reauthentication_required"]), loginRequirement: AuthRequirement.nullable() }).strict());
 export const ComputerDirectoryEntry = z.object({
   id: Id, name: text, hubId: Id, ownerId: Id, ownerName: text.optional(), policy: Policy.nullable(), binding: positive,
-  canCreate: z.boolean(), membership: Role.nullable(), effectivePolicy: z.object({ policy: Policy, source: z.enum(["hub", "computer", "default"]) }).strict(),
+  canCreate: z.boolean(), canManage: z.boolean(), canUse: z.boolean(), canRead: z.boolean(), canWrite: z.boolean(), membership: Role.nullable(), effectivePolicy: z.object({ policy: Policy, source: z.enum(["hub", "computer", "default"]) }).strict(),
 }).strict();
 export const ComputerDirectory = z.array(ComputerDirectoryEntry);
 export const OnlineComputers = z.array(ComputerDirectoryEntry.extend({ online: z.boolean() }).strict());
+export const HubMembers = z.object({ hubId: Id, role: z.enum(["owner", "admin"]), members: z.array(z.object({ userId: Id, name: text, role: z.enum(["owner", "admin", "member"]) }).strict()) }).strict();
+export const ComputerAllowlist = z.object({ computerId: Id, canManage: z.literal(true), entries: z.array(z.object({ userId: Id, name: text, access: z.enum(["read", "write"]) }).strict()) }).strict();
 export const AccountComputers = z.array(z.object({ id: Id, hubId: Id, name: text, binding: positive, ownerId: Id, hubName: text }).strict());
 export const ActorWorkspaceGrant = z.object({
   workspaceId: Id, access: z.enum(["read", "write"]), paths: z.array(GrantPath), git: z.boolean(), uploads: z.boolean(), transcode: z.boolean(), grantRevision: Id,
@@ -98,7 +100,7 @@ const noArguments = new Set(["notification-session", "me", "hub", "computers"]);
 export const InternalCallRequest = z.union(Object.entries(adminOperationSchemas).map(([op, schemas]) => z.object({ op: z.literal(op), args: noArguments.has(op) ? schemas.request.optional() : schemas.request })));
 export const InternalCallSuccess = z.union(Object.values(adminOperationSchemas).map(schemas => schemas.response)).describe("Unwrapped dispatcher result. Select the exact response by the request op using x-dispatch-operation-schemas; authentication and operation failures use the documented error status schemas.");
 export const adminSchemas: Record<string, z.ZodType> = {
-  AdminOk, AdminHealth, AccountSummary, AccountProfile, AuthOptions, AuthChallenge, HubDirectory, ComputerDirectoryEntry, ComputerDirectory, OnlineComputers, AccountComputers,
+  HubMembers, ComputerAllowlist, AdminOk, AdminHealth, AccountSummary, AccountProfile, AuthOptions, AuthChallenge, HubDirectory, ComputerDirectoryEntry, ComputerDirectory, OnlineComputers, AccountComputers,
   ActorWorkspaceGrant, MemberWorkspaceGrant, ResourceMembers, AgentShares, AgentShareResult, AuthorizedAgent, AuthorizedAgents, AgentDirectory,
   PairingReceipt, ComputerCreated, ComputerEnrollment, HubToken, RegisteredHub, Admission, SharedTransfer, DeviceBinding, EnrolledComputer, NotificationTarget, RelayAuthorization, QueuePermit, PublicSigningKeys, InternalCallRequest, InternalCallSuccess,
 };
@@ -107,6 +109,12 @@ export const adminDetails: Record<string, Partial<Omit<Endpoint, "method" | "pat
   "GET /oauth/authorize": { statuses: [302, 400, 401, 403, 500] },
   "GET /api/v1/auth/options": { response: AuthOptions },
   "GET /api/v1/me": { response: AccountProfile },
+  "GET /api/v1/hubs/:id/members": { response: HubMembers },
+  "PUT /api/v1/hubs/:id/members/:userId": { body: z.object({ role: z.enum(["admin", "member"]) }).strict(), response: AdminOk },
+  "DELETE /api/v1/hubs/:id/members/:userId": { response: AdminOk },
+  "GET /api/v1/computers/:id/allowlist": { response: ComputerAllowlist },
+  "PUT /api/v1/computers/:id/allowlist/:userId": { body: z.object({ access: z.enum(["read", "write"]) }).strict(), response: AdminOk },
+  "DELETE /api/v1/computers/:id/allowlist/:userId": { response: AdminOk },
   "DELETE /api/v1/me/identities/:id": { response: AdminOk },
   "POST /api/v1/me/agents": { body: undefined, response: AgentDirectory, summary: "Read the current account's authorized agent directory; this POST does not create an agent." },
   "GET /api/v1/me/hubs": { response: HubDirectory },

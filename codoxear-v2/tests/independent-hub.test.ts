@@ -1,3 +1,5 @@
+import { setComputerAccess, removeMember } from "../src/domain/commands.js";
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -10,7 +12,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   invite,
   acceptInvite,
@@ -31,7 +32,7 @@ async function fixture(origin: string) {
       disabled: false,
     });
     hubId = createHub(s, "alice", "Independent hub").id;
-    createComputer(s, "alice", hubId, "Laptop", "alice");
+    createAllowedComputer(s, "alice", hubId, "Laptop", "alice");
   });
   const local = await independentAuthority({
     origin,
@@ -88,12 +89,37 @@ test("independent hub Google/Feishu invitations flow through the public API with
   const origin = "https://invitation.test",
     f = await fixture(origin);
   try {
-    const owner = f.local.authority.accounts.finish({ method: "google", connection: "personal-google", subject: "alice-google",
-      tenant: null, email: "alice@example.test", name: "Alice" }, "owner-provider-browser", f.signed.session.id);
-    const ownerToken = await f.local.authority.tokens.issue(owner.session, origin, "identity_access");
+    const owner = f.local.authority.accounts.finish(
+      {
+        method: "google",
+        connection: "personal-google",
+        subject: "alice-google",
+        tenant: null,
+        email: "alice@example.test",
+        name: "Alice",
+      },
+      "owner-provider-browser",
+      f.signed.session.id,
+    );
+    const ownerToken = await f.local.authority.tokens.issue(
+      owner.session,
+      origin,
+      "identity_access",
+    );
     configureHubOrganization(f.store, f.hubId, [
-      configuredProvider({ kind: "feishu", id: "company", clientId: "fixture-app", clientSecret: "fixture-secret", tenant: "team" }),
-      configuredProvider({ kind: "google", id: "personal-google", clientId: "fixture-google-app", clientSecret: "fixture-google-secret" }),
+      configuredProvider({
+        kind: "feishu",
+        id: "company",
+        clientId: "fixture-app",
+        clientSecret: "fixture-secret",
+        tenant: "team",
+      }),
+      configuredProvider({
+        kind: "google",
+        id: "personal-google",
+        clientId: "fixture-google-app",
+        clientSecret: "fixture-google-secret",
+      }),
     ]);
     const bob = f.local.authority.accounts.finish(
       {
@@ -122,8 +148,12 @@ test("independent hub Google/Feishu invitations flow through the public API with
     assert.equal(
       (
         await create({
-          target: { method: "google", connection: "personal-google", subject: "" },
-          role: "viewer",
+          target: {
+            method: "google",
+            connection: "personal-google",
+            subject: "",
+          },
+          role: "member",
         })
       ).statusCode,
       400,
@@ -132,15 +162,25 @@ test("independent hub Google/Feishu invitations flow through the public API with
       (
         await create({
           email: "bob@example.test",
-          target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
-          role: "viewer",
+          target: {
+            method: "google",
+            connection: "personal-google",
+            subject: "bob-google",
+            tenant: null,
+          },
+          role: "member",
         })
       ).statusCode,
       400,
     );
     const invited = await create({
-      target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
-      role: "viewer",
+      target: {
+        method: "google",
+        connection: "personal-google",
+        subject: "bob-google",
+        tenant: null,
+      },
+      role: "member",
     });
     assert.equal(invited.statusCode, 200, invited.body);
     const accept = (token: string, credential: string) =>
@@ -150,7 +190,10 @@ test("independent hub Google/Feishu invitations flow through the public API with
         headers: { authorization: "Bearer " + credential },
         payload: { token },
       });
-    assert.equal((await accept(invited.json().token, ownerToken)).statusCode, 403);
+    assert.equal(
+      (await accept(invited.json().token, ownerToken)).statusCode,
+      403,
+    );
     assert.equal(
       (await accept(invited.json().token, bobToken)).statusCode,
       200,
@@ -163,8 +206,13 @@ test("independent hub Google/Feishu invitations flow through the public API with
       (
         await create(
           {
-            target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
-            role: "operator",
+            target: {
+              method: "google",
+              connection: "personal-google",
+              subject: "bob-google",
+              tenant: null,
+            },
+            role: "member",
           },
           { authorization: "Bearer " + bobToken },
         )
@@ -174,7 +222,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
     assert.equal(
       f.store.read().memberships.find((m) => m.userId === bob.session.userId)
         ?.role,
-      "viewer",
+      "member",
     );
     const provider = f.local.authority.accounts.finish(
       {
@@ -199,7 +247,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
         subject: "open-id",
         tenant: "team",
       },
-      role: "operator",
+      role: "member",
     });
     assert.equal(targeted.statusCode, 200, targeted.body);
     assert.equal(
@@ -247,7 +295,7 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
         "hub",
         f.hubId,
         { method: "phone", phone: "+8613800138000" },
-        "viewer",
+        "member",
       ).token,
     );
     s.computers[0]!.credentialHash = digest("fixture-device");
@@ -321,6 +369,20 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
       ),
     );
     assert.equal((await share("operator")).statusCode, 200);
+    assert.equal(
+      (await send()).statusCode,
+      403,
+      "Agent share cannot bypass Computer allowlist",
+    );
+    f.store.change((state) =>
+      setComputerAccess(
+        state,
+        "alice",
+        computerId,
+        bob.session.userId,
+        "write",
+      ),
+    );
     assert.equal((await send()).statusCode, 200);
     assert.equal(dispatches, 1);
     const permit = f.local.authority.queuePermit(
@@ -340,11 +402,11 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
     );
     assert.deepEqual(
       f.local.authority.agentDirectory(bob.session).agents.map((a) => a.id),
-      [agentId],
+      [agentId, privateId],
     );
-    assert.deepEqual(
-      f.local.authority.agentDirectory(bob.session).placements,
-      [],
+    assert.equal(
+      f.local.authority.agentDirectory(bob.session).placements.length,
+      1,
     );
     assert.ok(
       f.local.authority.authorizeNotification(
@@ -370,9 +432,12 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
         received += decoder.decode(part.value, { stream: true });
       }
     }
-    await until("Shared agent operator");
+    await until("Computer write allowlist");
     assert.equal((await share("viewer")).statusCode, 200);
-    await until("Shared agent viewer");
+    f.store.change((state) =>
+      setComputerAccess(state, "alice", computerId, bob.session.userId, "read"),
+    );
+    await until("Computer read allowlist");
     assert.throws(() =>
       f.local.authority.authorizeQueue(
         f.hubId,
@@ -384,6 +449,9 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
     );
     assert.equal((await send()).statusCode, 403);
     assert.equal((await share(null)).statusCode, 200);
+    f.store.change((state) =>
+      removeMember(state, "alice", "computer", computerId, bob.session.userId),
+    );
     await until("event: access_lost");
     assert.throws(() =>
       f.local.authority.authorizeNotification(
@@ -484,7 +552,7 @@ test("agent creation forwards runtime selections and preserves owner/capability 
             resource,
             resourceId,
             "bob@example.test",
-            "operator",
+            resource === "hub" ? "member" : "operator",
           ).token,
         );
     });
@@ -622,7 +690,18 @@ test("independent hubs authenticate, authorize and revoke without any remote aut
 test("hub-local PKCE login issues client credentials and rejects replay and unregistered clients", async () => {
   const f = await fixture("https://hub.test");
   try {
-    const verified = f.local.authority.accounts.finish({method:"google",connection:"google-fixture",subject:"alice",tenant:null,email:null,name:"Alice"}, "fixture", f.signed.session.id);
+    const verified = f.local.authority.accounts.finish(
+      {
+        method: "google",
+        connection: "google-fixture",
+        subject: "alice",
+        tenant: null,
+        email: null,
+        name: "Alice",
+      },
+      "fixture",
+      f.signed.session.id,
+    );
     const cookie = "codoxear_identity_" + f.hubId + "=" + verified.credential;
     const verifier = "v".repeat(43),
       challenge = createHash("sha256").update(verifier).digest("base64url");
@@ -778,7 +857,7 @@ test("a newcomer can accept hub and computer invitations without an existing hub
     };
     const computer = f.store.read().computers[0]!;
     const invitation = f.store.change((s) =>
-      invite(s, "alice", "hub", f.hubId, "bob@example.test", "operator"),
+      invite(s, "alice", "hub", f.hubId, "bob@example.test", "member"),
     );
     assert.equal(
       (
@@ -850,7 +929,7 @@ test("migration isolates hub state while retaining live Computer and agent bindi
   try {
     f.store.change((s) => {
       const h = createHub(s, "alice", "Other hub");
-      createComputer(s, "alice", h.id, "Other Computer", "alice");
+      createAllowedComputer(s, "alice", h.id, "Other Computer", "alice");
       s.agents.push({
         id: "live-agent",
         hubId: f.hubId,

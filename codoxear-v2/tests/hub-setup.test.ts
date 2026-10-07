@@ -3,120 +3,98 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { Store } from "../src/persistence/store.js";
 import { Accounts } from "../src/auth/accounts.js";
-import { Authority } from "../src/auth/authority.js";
-import { Tokens, signingKey } from "../src/auth/tokens.js";
-import { createIdentityApp } from "../src/auth/app.js";
 import { initializeHub, hubSetup } from "../src/auth/hub-setup.js";
+import { configureHubOrganization } from "../src/auth/hub-organization.js";
 import { createComputer } from "../src/domain/commands.js";
+import type { Provider } from "../src/auth/providers.js";
 
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
-const setupToken = "setup-code-known-only-to-administrator-" + "z".repeat(32);
+const token = "private-owner-initialization-link-".repeat(3);
 function fixture() {
   const store = new Store(":memory:");
   let now = Date.now();
   const hub = store.change((state) => initializeHub(state, "local-hub", "New Hub"));
-  const accounts = new Accounts(store, "setup-tests-secret".repeat(4), { async send() {} }, () => now);
-  const setup = hubSetup(store, hub.id, setupToken, () => now);
-  function provider(method: "google" | "feishu" | "email" = "google", subject = "owner") {
-    return accounts.finish({ connection: method, method, subject, tenant: method === "feishu" ? "enterprise" : null,
-      email: `${subject}@example.test`, name: subject }, "provider-browser");
-  }
-  return { store, hub, accounts, setup, provider, advance(ms: number) { now += ms; } };
+  const accounts = new Accounts(store, "initialization-tests-secret".repeat(4), { async send() {} }, () => now);
+  const initialization = { token, expiresAt: now + 86400000 };
+  const setup = hubSetup(store, hub.id, initialization, () => now);
+  configureHubOrganization(store, hub.id, ["google", "feishu"].map(method => ({ id: method, method,
+    async authorize() { return "https://provider.test"; }, async exchange() { throw Error("unused"); } } as Provider)));
+  const identity = (method: "google" | "feishu" = "google", subject = "owner") => ({ connection: method, method, subject,
+    tenant: method === "feishu" ? "enterprise" : null, email: method === "google" ? `${subject}@example.test` : null, name: subject });
+  const finish = (method: "google" | "feishu", subject = "owner", initializationId?: string) =>
+    accounts.finish(identity(method, subject), "browser", undefined, initializationId ? (state, session) => setup.complete(state, session, initializationId) : undefined);
+  return { store, hub, accounts, initialization, setup, identity, finish, advance(ms: number) { now += ms; } };
 }
 
-test("new Hub reserves a disabled owner and requires an explicit private setup token", () => {
+test("new Hub has no public first-visitor ownership and rejects invalid or expired initialization links", () => {
   const f = fixture();
   try {
     assert.equal(f.setup.pending(), true);
-    const reserved = f.store.read().users.find((user) => user.id === f.hub.ownerId)!;
-    assert.equal(reserved.disabled, true);
-    assert.equal(reserved.passwordHash, "");
-    assert.throws(() => hubSetup(f.store, f.hub.id, undefined), /setupToken/);
-    assert.throws(() => hubSetup(f.store, f.hub.id, "too-short"), /setupToken/);
-    const member = f.provider();
+    const reserved = f.store.read().users.find(user => user.id === f.hub.ownerId)!;
+    assert.equal(reserved.disabled, true); assert.equal(reserved.passwordHash, "");
+    assert.throws(() => hubSetup(f.store, f.hub.id, undefined), /initialization link/);
+    assert.throws(() => hubSetup(f.store, f.hub.id, { token: "short", expiresAt: Date.now() }), /small/);
+    f.finish("google", "normal-google"); f.finish("feishu", "normal-feishu");
     assert.equal(f.store.read().hubs[0]!.ownerId, reserved.id);
     assert.deepEqual(f.store.read().memberships, []);
-    assert.throws(() => f.setup.claim(member.session, "wrong-token"), /Incorrect setup code/);
+    assert.throws(() => f.setup.prepare("invalid-private-token".repeat(3)), /invalid, expired or already used/);
+    assert.equal(f.setup.prepare(token).expiresAt, f.initialization.expiresAt);
+    f.advance(86400000);
+    assert.throws(() => f.setup.prepare(token), /invalid, expired or already used/);
     assert.equal(f.setup.pending(), true);
-    assert.equal(f.store.read().hubs[0]!.ownerId, reserved.id);
   } finally { f.store.close(); }
 });
 
-test("fresh Google/Feishu setup transfers only reserved ownership and cannot replay", () => {
+test("initialization accepts either allowed Google or Feishu proof and transfers only deployment-reserved ownership", () => {
   for (const method of ["google", "feishu"] as const) {
     const f = fixture();
     try {
-      const member = f.provider(method);
-      const computer = f.store.change((state) => {
-        // Provisioning can reserve execution resources before browser setup.
-        const reserved = state.users.find((user) => user.id === f.hub.ownerId)!;
+      const reservedComputer = f.store.change(state => {
+        const reserved = state.users.find(user => user.id === f.hub.ownerId)!;
         reserved.disabled = false;
-        const created = createComputer(state, reserved.id, f.hub.id, "Pre-provisioned", reserved.id);
-        reserved.disabled = true;
-        return created.computer;
+        const computer = createComputer(state, reserved.id, f.hub.id, "Pre-provisioned", reserved.id).computer;
+        reserved.disabled = true; return computer;
       });
-      const other = f.provider(method, "member");
-      const otherComputer = f.store.change((state) => {
-        state.memberships.push({ resource: "hub", resourceId: f.hub.id, userId: other.session.userId, role: "operator" });
-        return createComputer(state, f.hub.ownerId, f.hub.id, "Other owner", other.session.userId).computer;
-      });
-      f.setup.claim(member.session, setupToken);
-      const state = f.store.read();
-      assert.equal(state.hubs[0]!.ownerId, member.session.userId);
-      assert.equal(state.hubs[0]!.revision, f.hub.revision + 1);
-      const claimed = state.computers.find((value) => value.id === computer.id)!;
-      assert.equal(claimed.ownerId, member.session.userId);
-      assert.equal(claimed.revision, computer.revision + 1);
-      assert.equal(claimed.binding, computer.binding);
-      assert.equal(claimed.credentialHash, computer.credentialHash);
-      assert.equal(state.computers.find((value) => value.id === otherComputer.id)!.ownerId, other.session.userId);
+      const prepared = f.setup.prepare(token), owner = f.finish(method, "owner", prepared.id), state = f.store.read();
+      assert.equal(state.hubs[0]!.ownerId, owner.session.userId);
+      assert.equal(state.computers.find(computer => computer.id === reservedComputer.id)!.ownerId, owner.session.userId);
+      assert.equal(state.computers[0]!.binding, reservedComputer.binding);
+      assert.equal(state.identity.initializations[0]!.consumedAt !== null, true);
+      assert.equal(state.identity.hubOrganizations[0]!.feishuTenant, method === "feishu" ? "enterprise" : null);
       assert.equal(f.setup.pending(), false);
-      assert.throws(() => f.setup.claim(other.session, setupToken), /already complete/);
-      assert.equal(f.store.read().hubs[0]!.ownerId, member.session.userId);
+      assert.throws(() => f.setup.prepare(token), /already used/);
+      assert.equal(JSON.stringify(state).includes(token), false);
     } finally { f.store.close(); }
   }
 });
 
-test("setup rejects stale, disabled and non-provider accounts", () => {
+test("competing initialization callbacks consume once and roll back the losing account and session atomically", () => {
   const f = fixture();
   try {
-    const email = f.provider("email", "email-user");
-    assert.throws(() => f.setup.claim(email.session, setupToken), /Google or Feishu/);
-    const member = f.provider();
-    f.store.change((state) => { state.users.find((u) => u.id === member.session.userId)!.disabled = true; });
-    assert.throws(() => f.setup.claim(member.session, setupToken), /Google or Feishu/);
-    f.store.change((state) => { state.users.find((u) => u.id === member.session.userId)!.disabled = false; });
-    f.advance(300001);
-    assert.throws(() => f.setup.claim(member.session, setupToken), /Google or Feishu/);
-    assert.equal(f.setup.pending(), true);
+    const first = f.setup.prepare(token), second = f.setup.prepare(token);
+    const owner = f.finish("google", "winner", first.id), before = f.store.read();
+    assert.throws(() => f.finish("feishu", "loser", second.id), /already used/);
+    const after = f.store.read();
+    assert.equal(after.hubs[0]!.ownerId, owner.session.userId);
+    assert.equal(after.users.length, before.users.length);
+    assert.equal(after.identity.identities.length, before.identity.identities.length);
+    assert.equal(after.identity.sessions.length, before.identity.sessions.length);
+    assert.equal(after.identity.identities.some(identity => identity.subject === "loser"), false);
   } finally { f.store.close(); }
 });
 
-test("HTTP setup never auto-owns a Hub and requires live provider proof plus the setup code", async () => {
-  const f = fixture(), tokens = new Tokens("https://hub.test", await signingKey());
-  const app = await createIdentityApp({ authority: new Authority(f.store, f.accounts, tokens), localHubId: f.hub.id,
-    setup: f.setup, secureCookies: false });
-  try {
-    const options = await app.inject({ method: "GET", url: "/api/v1/auth/options" });
-    assert.equal(options.json().setupRequired, true);
-    assert.equal(options.body.includes(setupToken), false);
-    assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/setup", payload: { token: setupToken } })).statusCode, 401);
-    const member = f.provider();
-    const accessToken = await tokens.issue(member.session, tokens.issuer, "identity_access");
-    const headers = { authorization: "Bearer " + accessToken };
-    assert.equal(f.store.read().hubs[0]!.ownerId, f.hub.ownerId);
-    assert.deepEqual((await app.inject({ method: "GET", url: "/api/v1/me/hubs", headers })).json(), []);
-    assert.equal((await app.inject({ method: "POST", url: "/api/v1/hubs", headers, payload: { name: "Unauthorized Hub" } })).statusCode, 403);
-    const rejected = await app.inject({ method: "POST", url: "/api/v1/auth/setup", headers, payload: { token: "wrong".repeat(10) } });
-    assert.equal(rejected.statusCode, 403);
-    assert.equal(f.setup.pending(), true);
-    const claimed = await app.inject({ method: "POST", url: "/api/v1/auth/setup", headers, payload: { token: setupToken } });
-    assert.equal(claimed.statusCode, 200);
-    assert.deepEqual(claimed.json(), { ok: true });
-    assert.equal(f.store.read().hubs[0]!.ownerId, member.session.userId);
-    assert.equal((await app.inject({ method: "GET", url: "/api/v1/auth/options" })).json().setupRequired, false);
-    assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/setup", headers, payload: { token: setupToken } })).statusCode, 409);
-    f.accounts.revoke(member.credential);
-    assert.equal((await app.inject({ method: "POST", url: "/api/v1/auth/setup", headers, payload: { token: setupToken } })).statusCode, 401);
-  } finally { await app.close(); f.store.close(); }
+test("expired links and stale, disabled or mismatched proof cannot complete initialization", () => {
+  for (const invalid of ["expired", "stale", "disabled", "mismatch"] as const) {
+    const f = fixture();
+    try {
+      const prepared = f.setup.prepare(token), member = f.finish("google");
+      if (invalid === "expired") f.advance(86400000);
+      if (invalid === "stale") f.advance(300001);
+      if (invalid === "disabled") f.store.change(state => { state.users.find(user => user.id === member.session.userId)!.disabled = true; });
+      const proof = invalid === "mismatch" ? { ...member.session, context: { ...member.session.context, method: "feishu" as const } } : member.session;
+      assert.throws(() => f.store.change(state => f.setup.complete(state, proof, prepared.id)), /Initialization link|fresh verified/);
+      assert.equal(f.setup.pending(), true);
+      assert.equal(f.store.read().identity.initializations[0]!.consumedAt, null);
+    } finally { f.store.close(); }
+  }
 });

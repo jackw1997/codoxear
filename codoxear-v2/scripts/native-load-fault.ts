@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 /** Bounded native Linux acceptance, Docker only. Installed Pi uses a controlled
  * OpenAI-compatible provider. Measurements are observations, not production SLOs. */
 import assert from "node:assert/strict";
@@ -33,7 +34,6 @@ import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { NativeHttpTarget } from "../src/computer/native/http.js";
 import {
   createHub,
-  createComputer,
   reserveAgent,
   passwordHash,
 } from "../src/domain/commands.js";
@@ -215,7 +215,7 @@ store.change((state) =>
 );
 const h = store.change((state) => createHub(state, "alice", "Load acceptance"));
 const c = store.change((state) =>
-  createComputer(state, "alice", h.id, "Native fixture", "alice"),
+  createAllowedComputer(state, "alice", h.id, "Native fixture", "alice"),
 );
 const origin = "http://127.0.0.1:19831";
 const local = await independentAuthority({

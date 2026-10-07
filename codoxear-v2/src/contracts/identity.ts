@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { WorkspaceOptions } from "./workspaces.js";
-import { DevicePublicKey } from "./device-keys.js";
 import { HubOrganization } from "./hub-organization.js";
 const Identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 export const LoginMethod = z.enum([
@@ -39,7 +38,6 @@ export const IdentitySession = z.object({
   revoked: z.boolean(),
   installationId: Identifier,
   parentId: Identifier.optional(),
-  deviceKeyId: Identifier.optional(),
 });
 export type IdentitySession = z.infer<typeof IdentitySession>;
 export const OtpChallenge = z.object({
@@ -56,6 +54,7 @@ export const OtpChallenge = z.object({
 });
 export const ProviderFlow = z.object({
   continuePath: z.string().optional(),
+  initializationId: Identifier.optional(),
   id: Identifier,
   stateHash: z.string(),
   browserHash: z.string(),
@@ -87,6 +86,7 @@ export const Pairing = z.object({
   computerId: Identifier,
   hubId: Identifier,
   ownerId: Identifier,
+  issuerId: Identifier.optional(),
   binding: z.number(),
   expiresAt: z.number(),
   used: z.boolean(),
@@ -106,16 +106,8 @@ export const AuthRequirement = z.object({
 export type AuthRequirement = z.infer<typeof AuthRequirement>;
 export const IdentityState = z.object({
   hubOrganizations: z.array(HubOrganization).default([]),
-  deviceKeys: z.array(z.object({
-    id: Identifier, userId: Identifier, publicKey: DevicePublicKey,
-    name: z.string(), installationId: Identifier, context: LoginContext,
-    createdAt: z.number(), lastUsedAt: z.number().nullable(), revoked: z.boolean(),
-  })).default([]),
-  deviceKeyChallenges: z.array(z.object({
-    id: Identifier, purpose: z.enum(["enroll", "login"]), issuer: z.url(),
-    keyId: Identifier, publicKey: DevicePublicKey, payload: z.string(),
-    installationId: Identifier, name: z.string(),
-    enrollmentSessionId: Identifier.nullable(), expiresAt: z.number(), used: z.boolean(),
+  initializations: z.array(z.object({
+    id: Identifier, hubId: Identifier, tokenHash: z.string(), expiresAt: z.number(), consumedAt: z.number().nullable(),
   })).default([]),
   workspaceGrants: z.array(z.object({
     computerId: Identifier, userId: Identifier, ...WorkspaceOptions.shape,

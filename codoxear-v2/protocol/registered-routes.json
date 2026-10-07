@@ -1,6 +1,33 @@
 {
   "hub": [
     {
+      "path": "/api/v1/computers/:id/allowlist",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/computers/:id/allowlist/:userId",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ]
+    },
+    {
+      "path": "/initialize",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ]
+    },
+    {
       "path": "/.well-known/jwks.json",
       "methods": [
         "DELETE",
@@ -583,6 +610,38 @@
   ],
   "identity": [
     {
+      "path": "/api/v1/hubs/:id/members",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/hubs/:id/members/:userId",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/api/v1/computers/:id/allowlist",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/computers/:id/allowlist/:userId",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/initialize",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
       "path": "/*",
       "methods": [
         "OPTIONS"
@@ -646,48 +705,6 @@
       "path": "/api/v1/auth/options",
       "methods": [
         "GET"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/keys/enroll/challenge",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/keys/enroll/verify",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/keys/challenge",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/keys/verify",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/setup",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/me/keys",
-      "methods": [
-        "GET"
-      ]
-    },
-    {
-      "path": "/api/v1/me/keys/:id",
-      "methods": [
-        "DELETE"
       ]
     },
     {

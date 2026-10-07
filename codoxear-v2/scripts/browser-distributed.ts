@@ -76,6 +76,21 @@ async function computer(page, name) {
     config = await readFile(await download.path(), "utf8"),
     home = await mkdtemp(join(tmpdir(), "enrolled-")),
     path = join(home, "enrollment.json");
+  const paired = JSON.parse(config),
+    origin = new URL(page.url()).origin;
+  const grant = await page
+    .context()
+    .request.put(
+      "http://127.0.0.1:19420/api/v1/computers/" +
+        paired.computerId +
+        "/allowlist/alice",
+      { data: { access: "write" } },
+    );
+  assert.equal(
+    grant.status(),
+    200,
+    "Computer creation requires explicit owner allowlist grant",
+  );
   await writeFile(path, config, { mode: 0o600 });
   const env = { ...process.env, CODOXEAR_COMPUTER_HOME: home };
   execFileSync(
@@ -89,6 +104,7 @@ async function computer(page, name) {
     { env, stdio: "ignore" },
   );
   children.push(child);
+  await page.reload();
   await page.locator(".dot.online").waitFor();
 }
 async function agent(page, name) {

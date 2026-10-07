@@ -9,7 +9,7 @@ assert.ok(existsSync("/.dockerenv"), "Run in Docker");
 test("removed Hub identities cannot display, open or renew notifications", async (t) => {
   const login: HubLogin = {
     id: "alice", accountKey: "alice-scope", origin: "https://hub.test", hubId: "hub",
-    name: "Work", accountId: "alice-account", deviceKeyId: "key", accessToken: "access",
+    name: "Work", accountId: "alice-account", accessToken: "access",
     refreshToken: "refresh", expiresAt: Date.now() + 60_000,
     identity: { name: "Alice", method: "feishu", key: "key" },
   };

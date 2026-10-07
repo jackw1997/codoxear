@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import "../scripts/testing/frontend-artifact.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,6 @@ import { resolveSchemaReferences } from "../scripts/openapi-schemas.js";
 import { Store } from "../src/persistence/store.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
 } from "../src/domain/commands.js";
 import { independentAuthority } from "../src/hub/independent.js";
@@ -172,7 +172,7 @@ test(
         disabled: false,
         passwordHash: passwordHash("fixture-password"),
       });
-      return createComputer(
+      return createAllowedComputer(
         s,
         "owner",
         createHub(s, "owner", "Protocol Hub").id,

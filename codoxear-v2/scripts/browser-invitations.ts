@@ -11,6 +11,7 @@ import {
   createComputer,
   passwordHash,
   reserveAgent,
+  setComputerAccess,
 } from "../src/domain/commands.ts";
 import { independentAuthority } from "../src/hub/independent.ts";
 import { createHubApp } from "../src/hub/app.ts";
@@ -39,6 +40,7 @@ store.change((s) => {
   });
   hubId = createHub(s, "alice", "Invitation hub").id;
   const { computer } = createComputer(s, "alice", hubId, "Laptop", "alice");
+  setComputerAccess(s, "alice", computer.id, "alice", "write");
   const shared = reserveAgent(
     s,
     "alice",
@@ -208,7 +210,7 @@ try {
   }
   await settings();
   await dialog()
-    .getByRole("button", { name: "Manage hub access", exact: true })
+    .getByRole("button", { name: "Manage Hub members", exact: true })
     .click();
   await dialog()
     .getByLabel("Invite by", { exact: true })
@@ -302,7 +304,7 @@ try {
     store
       .read()
       .memberships.some(
-        (m) => m.userId === google.session.userId && m.role === "viewer",
+        (m) => m.userId === google.session.userId && m.role === "member",
       ),
   );
   await acceptAs("feishu", feishuCode);
@@ -313,7 +315,7 @@ try {
     store
       .read()
       .memberships.some(
-        (m) => m.userId === colleague.session.userId && m.role === "viewer",
+        (m) => m.userId === colleague.session.userId && m.role === "member",
       ),
   );
   checks.push(
@@ -354,12 +356,11 @@ try {
       (await fetch("/api/client/hubs/google/api/agent-directory")).json(),
     );
   let directory = await snapshot();
-  assert.deepEqual(
-    directory.agents.map((a) => a.name),
-    ["Shared agent"],
-  );
+  assert.deepEqual(directory.agents, []);
   assert.deepEqual(directory.placements, []);
-  const sharedId = directory.agents[0].id;
+  const sharedId = store
+    .read()
+    .agents.find((agent) => agent.name === "Shared agent").id;
   const trySend = () =>
     recipient.evaluate(
       async (id) =>
@@ -377,49 +378,80 @@ try {
     .getByLabel("Shared access for Google member")
     .selectOption("operator");
   const upgraded = page.waitForResponse(
-    (r) =>
-      r.request().method() === "PUT" &&
-      r.url().includes("/shares/") &&
-      r.status() === 200,
+    (response) =>
+      response.request().method() === "PUT" &&
+      response.url().includes("/shares/") &&
+      response.status() === 200,
   );
   await form.getByRole("button", { name: "Save agent access" }).click();
   await upgraded;
-  assert.equal(await trySend(), 200);
-  await form
-    .locator("[data-current-access]")
-    .filter({ hasText: "Shared agent operator" })
-    .waitFor();
-  await page.screenshot({ path: "artifacts/agent-sharing-mobile.png" });
-  await form
-    .getByLabel("Shared access for Google member")
-    .selectOption("viewer");
-  const downgraded = page.waitForResponse(
-    (r) =>
-      r.request().method() === "PUT" &&
-      r.url().includes("/shares/") &&
-      r.status() === 200,
-  );
-  await form.getByRole("button", { name: "Save agent access" }).click();
-  await downgraded;
-  await form
-    .locator("[data-current-access]")
-    .filter({ hasText: "Shared agent viewer" })
-    .waitFor();
   assert.equal(await trySend(), 403);
-  await form.getByLabel("Shared access for Google member").selectOption("");
-  const saved = page.waitForResponse(
-    (r) =>
-      r.request().method() === "PUT" &&
-      r.url().includes("/shares/") &&
-      r.status() === 200,
+  checks.push(
+    "Agent sharing cannot bypass the required Computer allowlist, including operator shares",
   );
-  await form.getByRole("button", { name: "Save agent access" }).click();
-  await saved;
+  await dialog()
+    .getByRole("button", { name: "Manage computer access", exact: true })
+    .click();
+  const allowlist = page.getByRole("dialog", {
+    name: "Computer allowlist",
+    exact: true,
+  });
+  await allowlist
+    .getByLabel("Hub member", { exact: true })
+    .selectOption({ label: "Google member · Member" });
+  await allowlist
+    .getByLabel("Computer access", { exact: true })
+    .selectOption("read");
+  await allowlist
+    .getByRole("button", { name: "Grant computer access", exact: true })
+    .click();
+  await allowlist
+    .locator(".connectionRow")
+    .filter({ has: page.getByText("Google member", { exact: true }) })
+    .waitFor();
+  directory = await snapshot();
+  assert.deepEqual(directory.agents.map((agent) => agent.name).sort(), [
+    "Private agent",
+    "Shared agent",
+  ]);
+  assert.deepEqual(directory.placements, []);
+  assert.equal(await trySend(), 403);
+  // Saving a grant rerenders the form and resets its member selection.
+  await allowlist
+    .getByLabel("Hub member", { exact: true })
+    .selectOption({ label: "Google member · Member" });
+  await allowlist
+    .getByLabel("Computer access", { exact: true })
+    .selectOption("write");
+  const written = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      response.url().includes("/allowlist/") &&
+      response.status() === 200,
+  );
+  await allowlist
+    .getByRole("button", { name: "Grant computer access", exact: true })
+    .click();
+  await written;
+  assert.equal(await trySend(), 200);
+  await page.screenshot({ path: "artifacts/agent-sharing-mobile.png" });
+  const removed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().includes("/allowlist/") &&
+      response.status() === 200,
+  );
+  await allowlist
+    .locator(".connectionRow")
+    .filter({ has: page.getByText("Google member", { exact: true }) })
+    .getByRole("button", { name: "Remove access", exact: true })
+    .click();
+  await removed;
   directory = await snapshot();
   assert.deepEqual(directory.agents, []);
   assert.equal(await trySend(), 403);
   checks.push(
-    "Two browser accounts verify single-agent viewer/operator sharing and revocation without computer membership, private-agent visibility or creation rights",
+    "Two browser accounts verify explicit Computer read/write grants and revocation; an agent share cannot elevate read-only or removed Computer access",
   );
   await recipient.close();
   const identityPage = await browser.newPage();

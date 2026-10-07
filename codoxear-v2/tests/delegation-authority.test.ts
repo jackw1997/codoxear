@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { existsSync } from "node:fs";
@@ -8,7 +9,6 @@ import { Authority } from "../src/auth/authority.js";
 import { Tokens, signingKey } from "../src/auth/tokens.js";
 import {
   createHub,
-  createComputer,
   reserveAgent,
   passwordHash,
   digest,
@@ -34,7 +34,7 @@ async function fixture() {
         disabled: false,
       });
     const hub = createHub(s, "owner", "Hub");
-    const sourceCreation = createComputer(
+    const sourceCreation = createAllowedComputer(
       s,
       "owner",
       hub.id,
@@ -42,7 +42,7 @@ async function fixture() {
       "owner",
     );
     const source = sourceCreation.computer;
-    const target = createComputer(
+    const target = createAllowedComputer(
       s,
       "owner",
       hub.id,
@@ -73,7 +73,7 @@ async function fixture() {
     parent.state = "ready";
     parent.localId = "native-parent";
     const foreignHub = createHub(s, "owner", "Other Hub");
-    const foreign = createComputer(
+    const foreign = createAllowedComputer(
       s,
       "owner",
       foreignHub.id,

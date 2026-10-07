@@ -94,7 +94,7 @@ const hubs = store.change((s) => {
         subject: "bob",
         tenant: null,
       },
-      "operator",
+      "member",
     ).token,
   );
   return [home, work];

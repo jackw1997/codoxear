@@ -1,6 +1,9 @@
 // Registered HTTP entry points. Docker conformance checks this explicit inventory against Fastify onRoute.
 export type RegisteredEndpoint = {path: string; methods: string[]; websocket?: boolean};
 export const hubRegisteredEndpoints: RegisteredEndpoint[] = [
+  {path:"/api/v1/computers/:id/allowlist",methods:["DELETE","GET","POST","PUT"]},
+  {path:"/api/v1/computers/:id/allowlist/:userId",methods:["DELETE","GET","POST","PUT"]},
+  {"path":"/initialize","methods":["DELETE","GET","POST","PUT"]},
   {"path":"/.well-known/jwks.json","methods":["DELETE","GET","POST","PUT"]},
   {"path":"/*","methods":["GET"]},
   {"path":"/account.js","methods":["DELETE","GET","POST","PUT"]},
@@ -88,6 +91,11 @@ export const hubRegisteredEndpoints: RegisteredEndpoint[] = [
   {"path":"/workspace/api/sessions","methods":["GET"]},
 ];
 export const identityRegisteredEndpoints: RegisteredEndpoint[] = [
+  {path:"/api/v1/hubs/:id/members",methods:["GET"]},
+  {path:"/api/v1/hubs/:id/members/:userId",methods:["PUT","DELETE"]},
+  {path:"/api/v1/computers/:id/allowlist",methods:["GET"]},
+  {path:"/api/v1/computers/:id/allowlist/:userId",methods:["PUT","DELETE"]},
+  {"path":"/initialize","methods":["GET"]},
   {"path":"/*","methods":["OPTIONS"]},
   {"path":"/login","methods":["GET"]},
   {"path":"/register","methods":["GET"]},
@@ -99,13 +107,6 @@ export const identityRegisteredEndpoints: RegisteredEndpoint[] = [
   {"path":"/api/agent-directory","methods":["GET"]},
   {"path":"/api/v1/auth/logout","methods":["POST"]},
   {"path":"/api/v1/auth/options","methods":["GET"]},
-  {"path":"/api/v1/auth/keys/enroll/challenge","methods":["POST"]},
-  {"path":"/api/v1/auth/keys/enroll/verify","methods":["POST"]},
-  {"path":"/api/v1/auth/keys/challenge","methods":["POST"]},
-  {"path":"/api/v1/auth/keys/verify","methods":["POST"]},
-  {"path":"/api/v1/auth/setup","methods":["POST"]},
-  {"path":"/api/v1/me/keys","methods":["GET"]},
-  {"path":"/api/v1/me/keys/:id","methods":["DELETE"]},
   {"path":"/api/v1/computers/:id/transfer","methods":["POST"]},
   {"path":"/api/v1/hub-token","methods":["POST"]},
   {"path":"/api/v1/hubs","methods":["POST"]},

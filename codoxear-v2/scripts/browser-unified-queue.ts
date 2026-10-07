@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import { connect } from "node:net";
 import { socketPath } from "../src/computer/native/paths.js";
@@ -18,7 +19,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   secret,
 } from "../src/domain/commands.js";
@@ -86,7 +86,7 @@ store.change((s) =>
   }),
 );
 const computer = store.change((s) =>
-  createComputer(
+  createAllowedComputer(
     s,
     "alice",
     createHub(s, "alice", "Queue test").id,

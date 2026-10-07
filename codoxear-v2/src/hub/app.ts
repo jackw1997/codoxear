@@ -1780,6 +1780,7 @@ export async function createHubApp(o: HubOptions) {
   });
   if (o.localIdentity) {
     for (const url of [
+      "/initialize",
       "/api/v1/auth/*",
       "/api/v1/me",
       "/api/v1/me/*",
@@ -1791,6 +1792,8 @@ export async function createHubApp(o: HubOptions) {
       "/api/v1/pairing/inspect-transfer",
       "/api/v1/pairing/redeem-transfer",
       "/api/v1/computers/:id/transfer",
+      "/api/v1/computers/:id/allowlist",
+      "/api/v1/computers/:id/allowlist/:userId",
       "/oauth/*",
       "/auth/:connection/start",
       "/auth/:connection/callback",

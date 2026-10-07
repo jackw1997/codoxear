@@ -7,8 +7,6 @@ import { attachCommand, computerSetup } from "./computer-setup.js";
 import { delegationSection, bindDelegation } from "./delegation.js";
 import { vault, type HubLogin } from "./vault.js";
 import { connectHub } from "./login.js";
-import { deviceKeys } from "./device-keys.js";
-import { clientConfig } from "./client-config.js";
 import { canonicalOrigin } from "../../shared/context.js";
 import { ConnectionPages, esc, icon, field, submit, message } from "./views.js";
 import {
@@ -26,6 +24,11 @@ type Computer = {
   policy: string | null;
   effectivePolicy: string;
   online: boolean;
+  canManage?: boolean;
+  canUse?: boolean;
+  canRead?: boolean;
+  canWrite?: boolean;
+  canCreate?: boolean;
 };
 type Group = { key: string; logins: HubLogin[] };
 type HubInfo = {
@@ -33,7 +36,16 @@ type HubInfo = {
   name: string;
   ownerId: string;
   policy: string | null;
+  role?: "owner" | "admin" | "member" | null;
 };
+const roleLabel = (role: HubLogin["role"]) =>
+  role === "owner"
+    ? "Owner"
+    : role === "admin"
+      ? "Admin"
+      : role === "member"
+        ? "Member"
+        : "Not a member";
 let current: ConnectionPages | undefined;
 async function api(
   login: HubLogin,
@@ -103,13 +115,29 @@ export function openConnections(
         const results = await Promise.all(
           group.logins.map(async (login) => {
             try {
+              const me = await api(login, "/api/v1/me");
+              login.role = me.hubRole;
+              const fallback: HubInfo = {
+                id: login.hubId,
+                name: login.name,
+                ownerId: "",
+                policy: null,
+                role: me.hubRole,
+              };
+              if (!me.hubRole)
+                return {
+                  login,
+                  hub: fallback,
+                  computers: [] as Computer[],
+                  notMember: true,
+                };
               const [hubs, computers] = await Promise.all([
                 api(login, "/api/hubs"),
                 api(login, "/api/v1/computers"),
               ]);
               return {
                 login,
-                hub: hubs[0] as HubInfo,
+                hub: { ...(hubs[0] ?? fallback), role: me.hubRole } as HubInfo,
                 computers: computers as Computer[],
               };
             } catch (e) {
@@ -120,28 +148,44 @@ export function openConnections(
         if (!box.isConnected) return;
         loading = false;
         const good = results.filter((r) => r.hub);
-        const owner = good.find((r) => r.hub!.ownerId === r.login.accountId);
+        const owner = good.find((r) => r.login.role === "owner");
+        const manager = owner ?? good.find((r) => r.login.role === "admin");
         const machines = new Map<
           string,
-          { computer: Computer; login: HubLogin }
+          {
+            computer: Computer;
+            login: HubLogin;
+            writer: HubLogin|undefined;
+            usable: boolean;
+          }
         >();
         for (const result of good)
           for (const computer of result.computers!) {
-            if (
-              !machines.has(computer.id) ||
-              computer.ownerId === result.login.accountId
-            )
-              machines.set(computer.id, { computer, login: result.login });
+            const previous = machines.get(computer.id);
+            const prefer =
+              !previous ||
+              (computer.canManage && !previous.computer.canManage) ||
+              (!previous.computer.canManage &&
+                computer.canWrite &&
+                !previous.computer.canWrite);
+            machines.set(computer.id, {
+              computer: prefer ? computer : previous!.computer,
+              login: prefer ? result.login : previous!.login,
+              writer:
+                previous?.writer ??
+                (computer.canWrite ? result.login : undefined),
+              usable: !!previous?.usable || !!computer.canUse,
+            });
           }
-        box.innerHTML = `<section class="connectionSection"><h2>Hub identities</h2>${group.logins.map((login) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(login.identity.name)}</strong><span class="connectionHint">${esc(login.identity.method)}</span></span><span class="connectionHint">${esc(results.find((result) => result.login.id === login.id)?.error ?? "Connected")}</span></div>`).join("")}<button data-add-identity>Add identity</button></section><div class="connectionHubTools"><button data-add-computer ${owner ? "" : "disabled"}>${icon("plus")}Add computer</button><button data-hub-settings>Hub settings</button></div>${good.length ? (machines.size ? `<div class="connectionComputers">${[...machines.values()].map(({ computer: c }) => `<button class="connectionComputer" data-computer="${esc(c.id)}">${icon("computer")}<span class="connectionRowText"><strong>${esc(c.name)}</strong><span class="connectionHint">${c.online ? "Online" : "Offline"}${c.ownerName ? " · " + esc(c.ownerName) : ""}</span></span>${icon("chevron")}</button>`).join("")}</div>` : '<p class="connectionHint">No computers in this hub yet.</p>') : `<p class="connectionError">${esc(results[0]?.error ?? "Hub unavailable")}</p><button data-retry>Retry</button>`}${!owner && good.length ? '<p class="connectionHint">Only the hub owner can add computers.</p>' : ""}`;
+        box.innerHTML = `<section class="connectionSection"><h2>Hub identities</h2>${group.logins.map((login) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(login.identity.name)}</strong><span class="connectionHint">${esc(login.identity.method)} · <strong>${esc(roleLabel(login.role))}</strong></span></span><span class="connectionHint">${esc(results.find((result) => result.login.id === login.id)?.error ?? "Connected")}</span></div>`).join("")}<button data-add-identity>Add identity</button></section><div class="connectionHubTools"><button data-add-computer ${manager ? "" : "disabled"}>${icon("plus")}Add computer</button><button data-hub-settings>Hub settings</button></div>${good.length ? (machines.size ? `<div class="connectionComputers">${[...machines.values()].map(({ computer: c, usable }) => `<button class="connectionComputer" data-computer="${esc(c.id)}">${icon("computer")}<span class="connectionRowText"><strong>${esc(c.name)}</strong><span class="connectionHint">${c.online ? "Online" : "Offline"}${!usable ? " · Not allowlisted" : ""}${c.ownerName ? " · " + esc(c.ownerName) : ""}</span></span>${icon("chevron")}</button>`).join("")}</div>` : '<p class="connectionHint">${good.some(result=>result.login.role)?"No computers are available to these identities. Ask a Hub owner or admin for allowlist access.":"Signed in, but not a Hub member. Accept an invitation from a Hub owner or admin in Hub settings."}</p>') : `<p class="connectionError">${esc(results[0]?.error ?? "Hub unavailable")}</p><button data-retry>Retry</button>`}${!manager && good.length ? '<p class="connectionHint">A Hub owner or admin can add computers.</p>' : ""}`;
         box.querySelector<HTMLButtonElement>("[data-add-identity]")!.onclick =
           () => addIdentity(group.logins[0]!.origin);
         loaded = !!good.length;
         box.querySelector<HTMLButtonElement>("[data-hub-settings]")!.onclick =
-          () => settings(group, owner?.hub ?? good[0]?.hub);
-        if (owner)
+          () => settings(group, manager?.hub ?? good[0]?.hub);
+        if (manager)
           box.querySelector<HTMLButtonElement>("[data-add-computer]")!.onclick =
-            () => addComputer(owner.login, owner.hub!);
+            () => addComputer(manager.login, manager.hub!);
         box
           .querySelector<HTMLButtonElement>("[data-retry]")
           ?.addEventListener("click", () => void load().catch(page.error));
@@ -150,7 +194,7 @@ export function openConnections(
         ))
           button.onclick = () => {
             const selected = machines.get(button.dataset.computer!)!;
-            computerPage(selected.login, selected.computer);
+            computerPage(selected.login, selected.computer, selected.writer);
           };
       };
       details.ontoggle = () => {
@@ -185,18 +229,38 @@ export function openConnections(
     home();
   }
   function addIdentity(origin: string) {
-    const previous = vault.activeList();
-    void connectHub(origin)
-      .then(async (login) =>
-        finishConnect(
-          login,
-          (await previous).filter((row) => row.origin === origin),
-        ),
-      )
-      .catch(page.error);
+    void providerChoices(origin, home).catch(page.error);
+  }
+  async function providerChoices(origin: string, back: () => void) {
+    const response = await fetch(origin + "/api/v1/auth/options", {
+      credentials: "omit",
+      redirect: "error",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok)
+      throw new Error("Unable to load this Hub's sign-in providers");
+    const options = await response.json();
+    const providers = options.providers.filter(
+      (provider: any) =>
+        ["google", "feishu"].includes(provider.method) &&
+        options.loginMethods.allowedMethods.includes(provider.method),
+    );
+    const choice = page.render(
+      "Sign in to Hub",
+      `<p class="connectionHint">${esc(origin)}</p><div class="connectionStack">${providers.map((provider: any) => `<button class="primary" data-provider="${esc(provider.id)}">Continue with ${provider.method === "google" ? "Google" : "Feishu"}${provider.name ? " · " + esc(provider.name) : ""}</button>`).join("")}</div>${providers.length ? '<p class="connectionHint">Sign in with each identity you want to use. Accept a Hub invitation to become a member; computer access is granted separately.</p>' : '<p role="status">No sign-in providers are available. Ask the Hub owner to configure Google or Feishu.</p>'}${options.setupRequired ? '<p class="connectionHint">This Hub is awaiting its first owner. The administrator must open the private initialization link from the Hub deployment.</p>' : ""}`,
+      back,
+    );
+    for (const button of choice.querySelectorAll<HTMLButtonElement>(
+      "[data-provider]",
+    ))
+      button.onclick = () => {
+        const previous = vault.list();
+        void connectHub(origin, button.dataset.provider)
+          .then(async (login) => finishConnect(login, await previous))
+          .catch(page.error);
+      };
   }
   async function addHub() {
-    const config = await clientConfig();
     let preset = "";
     try {
       preset = canonicalOrigin(
@@ -205,17 +269,10 @@ export function openConnections(
     } catch {}
     const root = page.render(
       "Add hub",
-      `<form class="connectionForm"><p class="connectionHint">Enter the address of the hub you want to use.</p>${(config.hubs ?? []).map((hub, index) => `<button type="button" data-suggested="${index}">${esc(hub.name)}</button>`).join("")}${field("Hub address", `<input name="origin" type="text" inputmode="url" autocomplete="url" placeholder="https://hub.example.com" value="${esc(preset)}" required>`)}<div class="connectionActions"><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Connect hub</button></div><p role="status" class="connectionStatus"></p></form>`,
+      `<form class="connectionForm"><p class="connectionHint">Enter the address of the hub you want to use.</p>${field("Hub address", `<input name="origin" type="text" inputmode="url" autocomplete="url" placeholder="https://hub.example.com" value="${esc(preset)}" required>`)}<div class="connectionActions"><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Connect hub</button></div><p role="status" class="connectionStatus"></p></form>`,
       home,
     );
     root.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = home;
-    for (const button of root.querySelectorAll<HTMLButtonElement>(
-      "[data-suggested]",
-    ))
-      button.onclick = () => {
-        root.querySelector<HTMLInputElement>("[name=origin]")!.value =
-          config.hubs![Number(button.dataset.suggested)]!.origin;
-      };
     submit(
       root.querySelector("form")!,
       async (data) => {
@@ -229,31 +286,7 @@ export function openConnections(
             "Enter a complete HTTPS hub address, such as https://hub.example.com.",
           );
         }
-        const keys = (await deviceKeys.list()).filter(
-          (key) => key.origin === origin,
-        );
-        const choice = page.render(
-          "Connect hub",
-          `<p class="connectionHint">${esc(origin)}</p><p class="connectionHint">Choose an account saved on this device, or register and sign in with Google or Feishu.</p><div class="connectionStack">${keys.map((key) => `<button data-device-key="${esc(key.id)}">Continue as ${esc(key.accountName)}</button>`).join("")}<button class="primary" data-provider>Continue with Google or Feishu</button></div><p class="connectionHint">Computer access appears after sign-in and requires an owner invitation.</p>`,
-          () => void addHub().catch(page.error),
-        );
-        const connect = (keyId?: string) => {
-          const previous = vault.activeList();
-          void connectHub(origin, keyId)
-            .then(async (login) =>
-              finishConnect(
-                login,
-                (await previous).filter((row) => row.origin === origin),
-              ),
-            )
-            .catch(page.error);
-        };
-        choice.querySelector<HTMLButtonElement>("[data-provider]")!.onclick =
-          () => connect();
-        for (const button of choice.querySelectorAll<HTMLButtonElement>(
-          "[data-device-key]",
-        ))
-          button.onclick = () => connect(button.dataset.deviceKey);
+        await providerChoices(origin, () => void addHub().catch(page.error));
       },
       (e) => {
         root.querySelector("[role=status]")!.textContent = "";
@@ -339,19 +372,19 @@ export function openConnections(
         .then(show)
         .catch(page.error);
   }
-  function computerPage(login: HubLogin, c: Computer) {
-    const owner = c.ownerId === login.accountId;
+  function computerPage(login: HubLogin, c: Computer, writer?: HubLogin) {
+    const owner = !!c.canManage;
+    const importLogin = writer ?? (c.canWrite ? login : undefined);
     const root = page.render(
       c.name,
-      `<div class="connectionForm"><dl class="connectionFact"><dt>Hub</dt><dd>${esc(login.name)}</dd><dt>Status</dt><dd>${c.online ? "Online" : "Offline"}</dd><dt>Owner</dt><dd>${esc(c.ownerName ?? "You")}</dd></dl>${owner ? `<div class="connectionActions"><button data-pair>Pair computer</button><button data-access>Manage access</button><button data-import ${c.online ? "" : "disabled"}>Import local session</button></div>` : '<p class="connectionHint">Contact the computer owner to change access.</p>'}</div>`,
+      `<div class="connectionForm"><dl class="connectionFact"><dt>Hub</dt><dd>${esc(login.name)}</dd><dt>Status</dt><dd>${c.online ? "Online" : "Offline"}</dd><dt>Owner</dt><dd>${esc(c.ownerName ?? "You")}</dd></dl><div class="connectionActions">${owner ? "<button data-pair>Pair computer</button><button data-access>Manage access</button>" : ""}<button data-import ${c.online && importLogin ? "" : "disabled"}>Import local session</button></div>${!owner && !importLogin ? '<p class="connectionHint">Ask a Hub owner or admin for computer allowlist access.</p>' : ""}</div>`,
       home,
     );
     root
       .querySelector<HTMLButtonElement>("[data-import]")
-      ?.addEventListener(
-        "click",
-        () => void importSession(login, c).catch(page.error),
-      );
+      ?.addEventListener("click", () => {
+        if (importLogin) void importSession(importLogin, c).catch(page.error);
+      });
     root
       .querySelector<HTMLButtonElement>("[data-pair]")
       ?.addEventListener("click", () => pairing(login, c));
@@ -360,8 +393,8 @@ export function openConnections(
       ?.addEventListener(
         "click",
         () =>
-          void accessPage(page, login, "computer", c.id, c.policy, () =>
-            computerPage(login, c),
+          void allowlistPage(login, c, () => computerPage(login, c)).catch(
+            page.error,
           ),
       );
   }
@@ -407,24 +440,23 @@ export function openConnections(
   }
   function settings(group: Group, hub?: HubInfo) {
     const first = group.logins[0]!,
-      owner = group.logins.find((l) => l.accountId === hub?.ownerId);
+      owner = group.logins.find((l) => l.role === "owner"),
+      manager = owner ?? group.logins.find((l) => l.role === "admin");
     const root = page.render(
       "Hub settings",
-      `<div class="connectionStack"><div><h2>${esc(hub?.name ?? first.name)}</h2><p class="connectionHint">${esc(first.origin)}</p></div>${owner ? '<div class="connectionActions"><button data-access>Manage hub access</button><button data-login-policy>Allowed sign-in types</button></div>' : ""}<section class="connectionSection"><h2>Sign-ins on this device</h2>${group.logins.map((l) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(l.identity.name)}</strong><span class="connectionHint">${esc(l.identity.method)}</span></span><button data-identities="${l.id}">Sign-in methods</button><button data-forget="${l.id}">Disconnect</button></div>`).join("")}</section><div class="connectionActions"><button data-signin>Add sign-in</button><button data-invite>Accept invitation</button></div></div>`,
+      `<div class="connectionStack"><div><h2>${esc(hub?.name ?? first.name)}</h2><p class="connectionHint">${esc(first.origin)}</p></div>${manager ? `<div class="connectionActions"><button data-access>Manage Hub members</button>${owner ? "<button data-login-policy>Allowed sign-in types</button>" : ""}</div>` : ""}<section class="connectionSection"><h2>Sign-ins on this device</h2>${group.logins.map((l) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(l.identity.name)}</strong><span class="connectionHint">${esc(l.identity.method)} · ${esc(roleLabel(l.role))}</span></span><button data-identities="${l.id}">Sign-in methods</button><button data-forget="${l.id}">Disconnect</button></div>`).join("")}</section><div class="connectionActions"><button data-signin>Add sign-in</button><button data-invite>Accept invitation</button></div></div>`,
       home,
     );
-    if (owner)
+    if (manager)
       root.querySelector<HTMLButtonElement>("[data-access]")!.onclick = () =>
-        void accessPage(page, owner, "hub", owner.hubId, hub!.policy, () =>
-          settings(group, hub),
-        );
+        void hubMembers(manager, () => settings(group, hub)).catch(page.error);
     if (owner)
       root.querySelector<HTMLButtonElement>("[data-login-policy]")!.onclick =
         () =>
           void loginPolicy(
             owner,
             () => settings(group, hub),
-            group.logins.filter((row) => row.accountId === hub?.ownerId),
+            group.logins.filter((row) => row.role === "owner"),
           ).catch(page.error);
     root.querySelector<HTMLButtonElement>("[data-signin]")!.onclick = () =>
       addIdentity(first.origin);
@@ -444,7 +476,7 @@ export function openConnections(
         const login = group.logins.find((l) => l.id === b.dataset.forget)!;
         const view = page.render(
           "Disconnect hub",
-          `<div class="connectionForm"><p>Remove the saved ${esc(login.identity.method)} sign-in for ${esc(login.name)} from this device?</p><p class="connectionHint">Your device sign-in key remains available for reconnecting. Revoke it in Sign-in methods to remove its access.</p><div class="connectionActions"><button data-cancel>Cancel</button><button class="primary" data-confirm>Disconnect</button></div></div>`,
+          `<div class="connectionForm"><p>Remove the saved ${esc(login.identity.method)} sign-in for ${esc(login.name)} from this device?</p><p class="connectionHint">Sign in through this Hub’s configured provider to connect this identity again.</p><div class="connectionActions"><button data-cancel>Cancel</button><button class="primary" data-confirm>Disconnect</button></div></div>`,
           () => settings(group, hub),
         );
         view.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = () =>
@@ -465,6 +497,63 @@ export function openConnections(
           };
       };
   }
+  async function hubMembers(login: HubLogin, back: () => void) {
+    page.render("Hub members", '<p role="status">Loading members…</p>', back);
+    const version = page.version;
+    const path = "/api/v1/hubs/" + encodeURIComponent(login.hubId) + "/members";
+    const data = await api(login, path);
+    if (page.version !== version || !page.element.isConnected) return;
+    const root = page.render(
+      "Hub members",
+      `<section class="connectionStack">${data.members.map((member: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(member.name)}</strong><span>${esc(roleLabel(member.role))}</span></span>${data.role === "owner" && member.role !== "owner" ? `<button data-role="${esc(member.userId)}" data-next="${member.role === "admin" ? "member" : "admin"}">${member.role === "admin" ? "Make member" : "Make admin"}</button>` : ""}${member.role !== "owner" && (data.role === "owner" || member.role === "member") ? `<button data-kick="${esc(member.userId)}">Remove member</button>` : ""}</div>`).join("")}</section><form class="connectionForm connectionSection"><h2>Invite to Hub</h2>${invitationFields()}${field("Hub role", `<select name="role" aria-label="Hub role"><option value="member">Member</option>${data.role === "owner" ? '<option value="admin">Admin</option>' : ""}</select>`)}<button type="submit">Create invitation</button><output class="connectionCode" hidden></output></form>`,
+      back,
+    );
+    for (const button of root.querySelectorAll<HTMLButtonElement>(
+      "[data-role]",
+    ))
+      button.onclick = () =>
+        void api(
+          login,
+          path + "/" + encodeURIComponent(button.dataset.role!),
+          { role: button.dataset.next },
+          "PUT",
+        )
+          .then(() => hubMembers(login, back))
+          .catch(page.error);
+    for (const button of root.querySelectorAll<HTMLButtonElement>(
+      "[data-kick]",
+    ))
+      button.onclick = () =>
+        void api(
+          login,
+          path + "/" + encodeURIComponent(button.dataset.kick!),
+          undefined,
+          "DELETE",
+        )
+          .then(() => hubMembers(login, back))
+          .catch(page.error);
+    const form = root.querySelector<HTMLFormElement>("form")!;
+    wireInvitationFields(form);
+    submit(
+      form,
+      async (values) => {
+        const result = await api(
+          login,
+          "/api/resources/hub/" + login.hubId + "/invitations",
+          invitationBody(values),
+        );
+        const output = form.querySelector<HTMLOutputElement>("output")!;
+        output.textContent = "Invitation code: " + result.token;
+        output.hidden = false;
+      },
+      page.error,
+    );
+  }
+  const allowlistPage = (
+    login: HubLogin,
+    computer: Computer,
+    back: () => void,
+  ) => computerAllowlistPage(page, login, computer, back, changed);
   async function loginPolicy(
     login: HubLogin,
     back: () => void,
@@ -532,14 +621,11 @@ export function openConnections(
       back,
     );
     const version = page.version;
-    const [me, keys] = await Promise.all([
-      api(login, "/api/v1/me"),
-      api(login, "/api/v1/me/keys"),
-    ]);
+    const me = await api(login, "/api/v1/me");
     if (page.version !== version || !page.element.isConnected) return;
     const root = page.render(
       "Sign-in methods",
-      `<div class="connectionStack"><p>Signed in as <strong>${esc(me.name)}</strong> on ${esc(login.name)}.</p><section class="connectionStack connectionSection"><h2>Invitation identity</h2><p class="connectionHint">Share these details with this Hub's owner. Invitations use the verified identity on this Hub.</p>${me.identities.map((identity: any, index: number) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(identity.method === "google" ? "Google" : "Feishu")}</strong><span class="connectionHint">${esc(identity.connection)}${identity.tenant ? " · " + esc(identity.tenant) : ""}</span></span><button data-copy-identity="${index}">Copy invitation details</button></div>`).join("")}</section><section class="connectionStack connectionSection"><h2>Device sign-in keys</h2>${keys.map((key: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(key.name)}${key.id === login.deviceKeyId ? " · This device" : ""}</strong><span class="connectionHint">Created ${esc(new Date(key.createdAt).toLocaleDateString())}</span></span><button data-revoke-key="${esc(key.id)}">Revoke</button></div>`).join("")}</section><p class="connectionStatus" role="status"></p></div>`,
+      `<div class="connectionStack"><p>Signed in as <strong>${esc(me.name)}</strong> on ${esc(login.name)}.</p><section class="connectionStack connectionSection"><h2>Invitation identity</h2><p class="connectionHint">Share these details with this Hub's owner. Invitations use the verified identity on this Hub.</p>${me.identities.map((identity: any, index: number) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(identity.method === "google" ? "Google" : "Feishu")}</strong><span class="connectionHint">${esc(identity.connection)}${identity.tenant ? " · " + esc(identity.tenant) : ""}</span></span><button data-copy-identity="${index}">Copy invitation details</button></div>`).join("")}</section><p class="connectionStatus" role="status"></p></div>`,
       back,
     );
     for (const button of root.querySelectorAll<HTMLButtonElement>(
@@ -560,32 +646,6 @@ export function openConnections(
             button.textContent = "Copied";
           })
           .catch(page.error);
-      };
-    for (const button of root.querySelectorAll<HTMLButtonElement>(
-      "[data-revoke-key]",
-    ))
-      button.onclick = () => {
-        button.disabled = true;
-        void api(
-          login,
-          "/api/v1/me/keys/" + encodeURIComponent(button.dataset.revokeKey!),
-          undefined,
-          "DELETE",
-        )
-          .then(async () => {
-            if (button.dataset.revokeKey === login.deviceKeyId) {
-              await deviceKeys.remove(login.origin, login.deviceKeyId);
-              await vault.remove(login.id);
-              await broadcastIdentityChange();
-              forgotten();
-              await changed();
-              home();
-            } else await hubSignInMethods(login, back);
-          })
-          .catch(page.error)
-          .finally(() => {
-            button.disabled = false;
-          });
       };
   }
   function invitation(group: Group, back: () => void) {
@@ -619,6 +679,72 @@ export function openConnections(
   home();
   return page;
 }
+async function computerAllowlistPage(
+  page: ConnectionPages,
+  login: HubLogin,
+  computer: Computer,
+  back: () => void,
+  changed: () => Promise<void> = async () => {},
+) {
+  page.render(
+    "Computer allowlist",
+    '<p role="status">Loading allowlist…</p>',
+    back,
+  );
+  const version = page.version;
+  const path =
+    "/api/v1/computers/" + encodeURIComponent(computer.id) + "/allowlist";
+  const [data, people] = await Promise.all([
+    api(login, path),
+    api(login, "/api/v1/hubs/" + login.hubId + "/members"),
+  ]);
+  if (page.version !== version || !page.element.isConnected) return;
+  const root = page.render(
+    "Computer allowlist",
+    `<button type="button" data-workspaces>Workspace permissions</button><p>Hub roles manage computers. Using this computer requires a separate allowlist entry, including for owners and admins.</p><section class="connectionStack">${data.entries.map((entry: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(entry.name)}</strong><span>${entry.access === "write" ? "Read and write" : "Read only"}</span></span><button data-remove-allowlist="${esc(entry.userId)}">Remove access</button></div>`).join("") || "<p>No identities are allowlisted.</p>"}</section><form class="connectionForm connectionSection">${field("Hub member", `<select name="userId" aria-label="Hub member">${people.members.map((member: any) => `<option value="${esc(member.userId)}">${esc(member.name)} · ${esc(roleLabel(member.role))}</option>`).join("")}</select>`)}${field("Computer access", '<select name="access" aria-label="Computer access"><option value="read">Read only</option><option value="write">Read and write</option></select>')}<button type="submit">Grant computer access</button><p role="status" class="connectionStatus"></p></form>`,
+    back,
+  );
+  root.querySelector<HTMLButtonElement>("[data-workspaces]")!.onclick = () =>
+    void accessPage(
+      page,
+      login,
+      "computer",
+      computer.id,
+      computer.policy,
+      () =>
+        void computerAllowlistPage(page, login, computer, back, changed).catch(
+          page.error,
+        ),
+      true,
+    );
+  for (const button of root.querySelectorAll<HTMLButtonElement>(
+    "[data-remove-allowlist]",
+  ))
+    button.onclick = () =>
+      void api(
+        login,
+        path + "/" + encodeURIComponent(button.dataset.removeAllowlist!),
+        undefined,
+        "DELETE",
+      )
+        .then(() => computerAllowlistPage(page, login, computer, back, changed))
+        .catch(page.error);
+  submit(
+    root.querySelector("form")!,
+    async (values) => {
+      await api(
+        login,
+        path + "/" + encodeURIComponent(String(values.get("userId"))),
+        { access: values.get("access") },
+        "PUT",
+      );
+      await changed();
+      await computerAllowlistPage(page, login, computer, back, changed);
+    },
+    page.error,
+  );
+}
+
 async function accessPage(
   page: ConnectionPages,
   login: HubLogin,
@@ -626,9 +752,10 @@ async function accessPage(
   id: string,
   policy: string | null,
   back: () => void,
+  workspaceOnly = false,
 ) {
   const root = page.render(
-      "Manage access",
+      workspaceOnly ? "Workspace permissions" : "Manage access",
       '<p class="connectionHint" role="status">Loading access…</p>',
       back,
     ),
@@ -647,8 +774,10 @@ async function accessPage(
         : null;
     if (page.version !== version || !root.isConnected) return;
     page.render(
-      "Manage access",
-      `<div class="connectionStack"><section class="connectionStack"><h2>Members</h2>${members.map((m: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(m.name ?? m.email)}</strong><span class="connectionHint">${esc(m.role)}</span></span><button data-remove="${esc(m.userId)}">Remove access</button></div>`).join("") || '<p class="connectionHint">No invited members.</p>'}</section><form data-invite class="connectionForm connectionSection"><h2>Invite someone</h2>${invitationFields()}${field("Role", '<select name="role"><option value="viewer">Viewer</option><option value="operator">Operator</option></select>')}<div class="connectionActions"><button type="submit">Create invitation</button></div><output class="connectionCode" hidden></output></form><form data-policy class="connectionForm connectionSection"><h2>After access is removed</h2><p class="connectionHint">A hub policy takes precedence over the computer policy.</p>${field("Existing agents", `<select name="policy"><option value="">${kind === "hub" ? "Follow computer policy" : "Default (no access)"}</option><option value="retain">Retain access</option><option value="read_only">Read only</option><option value="none">No access</option></select>`)}<div class="connectionActions"><button class="primary" type="submit">Save policy</button></div><p role="status" class="connectionStatus"></p></form></div>`,
+      workspaceOnly ? "Workspace permissions" : "Manage access",
+      workspaceOnly
+        ? '<div class="connectionStack"></div>'
+        : `<div class="connectionStack"><section class="connectionStack"><h2>Members</h2>${members.map((m: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(m.name ?? m.email)}</strong><span class="connectionHint">${esc(m.role)}</span></span><button data-remove="${esc(m.userId)}">Remove access</button></div>`).join("") || '<p class="connectionHint">No invited members.</p>'}</section><form data-invite class="connectionForm connectionSection"><h2>Invite someone</h2>${invitationFields()}${field("Role", '<select name="role"><option value="viewer">Viewer</option><option value="operator">Operator</option></select>')}<div class="connectionActions"><button type="submit">Create invitation</button></div><output class="connectionCode" hidden></output></form><form data-policy class="connectionForm connectionSection"><h2>After access is removed</h2><p class="connectionHint">A hub policy takes precedence over the computer policy.</p>${field("Existing agents", `<select name="policy"><option value="">${kind === "hub" ? "Follow computer policy" : "Default (no access)"}</option><option value="retain">Retain access</option><option value="read_only">Read only</option><option value="none">No access</option></select>`)}<div class="connectionActions"><button class="primary" type="submit">Save policy</button></div><p role="status" class="connectionStatus"></p></form></div>`,
       back,
     );
     if (workspace) {
@@ -696,7 +825,7 @@ async function accessPage(
             { name: data.get("name"), path: data.get("path") },
             "PUT",
           );
-          await accessPage(page, login, kind, id, policy, back);
+          await accessPage(page, login, kind, id, policy, back, workspaceOnly);
         },
         page.error,
       );
@@ -710,7 +839,9 @@ async function accessPage(
             { id: button.dataset.removeWorkspace, remove: true },
             "PUT",
           )
-            .then(() => accessPage(page, login, kind, id, policy, back))
+            .then(() =>
+              accessPage(page, login, kind, id, policy, back, workspaceOnly),
+            )
             .catch(page.error);
         };
     }
@@ -725,37 +856,39 @@ async function accessPage(
           .then(() => b.closest(".connectionRow")?.remove())
           .catch(page.error);
       };
-    const invite = root.querySelector<HTMLFormElement>("[data-invite]")!;
-    wireInvitationFields(invite);
-    submit(
-      invite,
-      async (data) => {
-        const result = await api(
-          login,
-          path + "/invitations",
-          invitationBody(data),
-        );
-        const output = invite.querySelector("output")!;
-        output.hidden = false;
-        output.textContent = "Invitation code: " + result.token;
-      },
-      page.error,
-    );
-    const settings = root.querySelector<HTMLFormElement>("[data-policy]")!;
-    settings.querySelector<HTMLSelectElement>("select")!.value = policy ?? "";
-    submit(
-      settings,
-      async (data) => {
-        await api(
-          login,
-          path + "/policy",
-          { policy: data.get("policy") || null },
-          "PUT",
-        );
-        settings.querySelector("[role=status]")!.textContent = "Policy saved";
-      },
-      page.error,
-    );
+    if (!workspaceOnly) {
+      const invite = root.querySelector<HTMLFormElement>("[data-invite]")!;
+      wireInvitationFields(invite);
+      submit(
+        invite,
+        async (data) => {
+          const result = await api(
+            login,
+            path + "/invitations",
+            invitationBody(data),
+          );
+          const output = invite.querySelector("output")!;
+          output.hidden = false;
+          output.textContent = "Invitation code: " + result.token;
+        },
+        page.error,
+      );
+      const settings = root.querySelector<HTMLFormElement>("[data-policy]")!;
+      settings.querySelector<HTMLSelectElement>("select")!.value = policy ?? "";
+      submit(
+        settings,
+        async (data) => {
+          await api(
+            login,
+            path + "/policy",
+            { policy: data.get("policy") || null },
+            "PUT",
+          );
+          settings.querySelector("[role=status]")!.textContent = "Policy saved";
+        },
+        page.error,
+      );
+    }
   } catch (e) {
     page.error(e);
   }
@@ -793,7 +926,7 @@ export async function openAgentAccess(agent: any) {
           computer = target;
         }
         // This read establishes a single owner's proof for subsequent writes.
-        if (target?.ownerId === candidate.accountId) {
+        if (target?.canManage) {
           const authorized = await api(
             candidate,
             `/api/agents/${agentId}/shares`,
@@ -819,7 +952,7 @@ export async function openAgentAccess(agent: any) {
       : "";
     const root = page.render(
       "Agent access",
-      `<dl class="connectionFact"><dt>Agent</dt><dd>${esc(agent.name)}</dd><dt>Computer</dt><dd>${esc(agent.computerName)}</dd><dt>Hub</dt><dd>${esc(agent.hubName)}</dd></dl>${computer?.ownerId === authorizedLogin.accountId ? '<div class="connectionActions"><button data-access>Manage computer access</button></div>' : '<p class="connectionHint">Contact the computer owner to change access.</p>'}${delegationSection(computers)}${shareSection}`,
+      `<dl class="connectionFact"><dt>Agent</dt><dd>${esc(agent.name)}</dd><dt>Computer</dt><dd>${esc(agent.computerName)}</dd><dt>Hub</dt><dd>${esc(agent.hubName)}</dd></dl>${computer?.canManage ? '<div class="connectionActions"><button data-access>Manage computer access</button></div>' : '<p class="connectionHint">Ask a Hub owner or admin for computer allowlist access.</p>'}${delegationSection(computers)}${shareSection}`,
       page.close,
     );
     page.own(
@@ -856,17 +989,10 @@ export async function openAgentAccess(agent: any) {
     root.querySelector<HTMLButtonElement>("[data-access]")?.addEventListener(
       "click",
       () =>
-        void accessPage(
-          page,
-          login,
-          "computer",
-          agent.computerId,
-          computer!.policy,
-          () => {
-            page.close();
-            void openAgentAccess(agent);
-          },
-        ),
+        void computerAllowlistPage(page, authorizedLogin, computer!, () => {
+          page.close();
+          void openAgentAccess(agent);
+        }),
     );
   } catch (e) {
     page.error(e);

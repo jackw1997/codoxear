@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { independentAuthority } from "../src/hub/independent.js";
@@ -18,7 +19,6 @@ import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import {
   createHub,
-  createComputer,
   passwordHash,
   secret,
 } from "../src/domain/commands.js";
@@ -112,7 +112,7 @@ store.change((s) =>
   }),
 );
 const computer = store.change((s) =>
-  createComputer(
+  createAllowedComputer(
     s,
     "alice",
     createHub(s, "alice", "Runtime test").id,

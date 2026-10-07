@@ -1,3 +1,4 @@
+import { createAllowedComputer } from "./testing/authorized-fixtures.js";
 import "./testing/frontend-artifact.js";
 /** Docker-only browser worker acceptance. CDP injects push events; this does not
  * claim FCM reception. No PushManager or Notification implementation is faked. */
@@ -10,7 +11,7 @@ import { spawn } from "node:child_process";
 import { createECDH, randomBytes } from "node:crypto";
 import webpush from "web-push";
 import { Store } from "../src/persistence/store.js";
-import { createHub, createComputer, reserveAgent, passwordHash, secret } from "../src/domain/commands.js";
+import { createHub, reserveAgent, passwordHash, secret } from "../src/domain/commands.js";
 import { independentAuthority } from "../src/hub/independent.js";
 import { createHubApp } from "../src/hub/app.js";
 import { NotificationInbox, subscriptionTag } from "../src/hub/notifications.js";
@@ -26,7 +27,7 @@ await writeFile(join(home,".pi","agent","models.json"),JSON.stringify({providers
 await writeFile(join(home,".pi","agent","settings.json"),JSON.stringify({defaultProvider:"fixture",defaultModel:"fixture",defaultThinkingLevel:"off",defaultProjectTrust:"always",quietStartup:true}));
 Object.assign(process.env,{PI_BIN:"/opt/codoxear-tools/node/bin/pi",CODEX_BIN:"/opt/codoxear-tools/node/bin/codex",IS_SANDBOX:"1"});
 const store = new Store(":memory:"); store.change(s=>s.users.push({id:"alice",email:"alice@push.invalid",name:"Alice",passwordHash:passwordHash("isolated-password"),disabled:false}));
-const computer=store.change(s=>createComputer(s,"alice",createHub(s,"alice","Push test").id,"Real Pi","alice"));
+const computer=store.change(s=>createAllowedComputer(s,"alice",createHub(s,"alice","Push test").id,"Real Pi","alice"));
 const local=await independentAuthority({origin,hubId:computer.computer.hubId,store,otpKey:secret(),secureCookies:false});
 const session=local.authority.accounts.password("alice@push.invalid","isolated-password","fixture").session;
 const vapid=webpush.generateVAPIDKeys(), provider=new WebPushProvider({...vapid,subject:"mailto:push@fixture.invalid"});
