@@ -1,15 +1,17 @@
 # Codoxear v2
 
-Codoxear v2 is a self-contained Node.js application. It does not require Python or the original `codoxear/` package. Browser controllers may use JavaScript; backend, runtime and test tools use TypeScript.
+Codoxear v2 keeps the web frontend and backend independently installable and buildable. The browser source is in `frontend/web/`; HarmonyOS source is in `frontend/harmonyos/`. The frontend uses its own `frontend/package.json` and lockfile. The backend uses the root package. The browser calls backend APIs through its own DTOs and does not import backend `src/` implementation modules. No Python or original `codoxear/` package is required.
 
 The supported deployment target for this migration is Linux with Node.js 22.13 or later and a packaged PTY native binary. Secure workspace access uses Linux file descriptors; macOS acceptance and its secure file adapter remain pending. Install Pi, Codex or Claude Code separately on each Computer and complete the CLI's local authentication and workspace trust setup.
 
 ```sh
 npm ci
-npm run build
+npm run build:backend
 npm run computer -- attach --hub https://your-hub.example --code YOURCODE --workspace /absolute/workspace
 npm run computer -- start
 ```
+
+To install, build, or serve the web frontend on its own, run `npm ci`, `npm run build`, or `npm start` from `frontend/`. The root `npm run build` coordinates backend and frontend builds and assembles the workspace.
 
 The Computer connects outward to one hub. It runs the native local runtime directly, without a local HTTP server or runtime password. Detached Node brokers own CLI PTYs and persist session metadata. Restarting the Computer connection must preserve those sessions. Deleting a session is an explicit operation.
 
@@ -27,7 +29,7 @@ Behavioral verification runs in Docker:
 npm run verify:docker
 ```
 
-`npm run check:boundaries` checks module import boundaries. This is a structural build check, not proof of feature parity. Behavioral acceptance and remaining design work are recorded in `docs/milestone.json`. The migration scope and remaining parity gaps are recorded in [docs/pr-readiness.md](docs/pr-readiness.md), with the latest step-by-step [work-progress.json](docs/work-progress.json) and detailed historical-versus-current requirement decisions in [docs/requirements-reconciliation.md](docs/requirements-reconciliation.md). Run `node --import tsx scripts/render-progress.ts` to refresh the phone-readable [progress report](docs/progress.html), published at `/progress.html` on the static client host.
+`npm run check:boundaries` checks backend module import boundaries. This is a structural build check, not proof of frontend/backend behavioral isolation or feature parity. Behavioral acceptance and remaining design work are recorded in `docs/milestone.json`. The migration scope and remaining parity gaps are recorded in [docs/pr-readiness.md](docs/pr-readiness.md), with the latest step-by-step [work-progress.json](docs/work-progress.json) and detailed historical-versus-current requirement decisions in [docs/requirements-reconciliation.md](docs/requirements-reconciliation.md). Run `node --import tsx scripts/render-progress.ts` to refresh the phone-readable [progress report](docs/progress.html), published at `/progress.html` on the static client host.
 
 Git is required for Git features. Media and voice features may require their configured external tools or provider; missing tools must produce an explicit error. Provider keys, CLI logs and local runtime state stay outside the release source.
 

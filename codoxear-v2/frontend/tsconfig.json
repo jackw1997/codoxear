@@ -6,8 +6,7 @@
     "lib": [
       "ES2023",
       "DOM",
-      "DOM.Iterable",
-      "WebWorker"
+      "DOM.Iterable"
     ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -20,9 +19,8 @@
     ]
   },
   "include": [
-    "src",
-    "tests",
-    "scripts",
-    "*.ts"
+    "web",
+    "vite.config.ts",
+    "shared"
   ]
 }

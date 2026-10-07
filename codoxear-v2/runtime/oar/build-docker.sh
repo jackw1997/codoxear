@@ -13,7 +13,7 @@ if [[ "$image" == -* || "$image" == *[[:space:]]* || -z "$image" ]]; then
   echo 'Invalid output image name' >&2
   exit 64
 fi
-for file in package-lock.json runtime/oar/package-lock.json src/computer/managed/worker.ts src/hub/main.ts src/client/web-server.ts; do
+for file in frontend/package-lock.json package-lock.json runtime/oar/package-lock.json src/computer/managed/worker.ts src/hub/main.ts frontend/serve.mjs; do
   if ! git -C "$repository" cat-file -e "$commit:codoxear-v2/$file" 2>/dev/null; then
     echo "Selected commit is missing codoxear-v2/$file; use a committed v2 snapshot with its real OAR lock." >&2
     exit 65
@@ -64,13 +64,14 @@ container_id=$(docker create --init --memory=2g --memory-swap=2g --cpus=2 --pids
     ln -s /usr/bin/fdfind /usr/local/bin/fd
     rm -rf /var/lib/apt/lists/*
     npm ci --no-audit --no-fund
+    npm ci --prefix frontend --no-audit --no-fund
     ./node_modules/.bin/playwright install --with-deps chromium
     chmod -R a+rX /opt/ms-playwright
     npm ci --prefix runtime/oar --omit=dev --no-audit --no-fund
     npm install --global --no-audit --no-fund @earendil-works/pi-coding-agent@1.0.0 @openai/codex@0.160.0 @anthropic-ai/claude-code@2.1.287
     npm run build
     printf "%s\n" "$CODOXEAR_BUILD_COMMIT" > build-commit.txt
-    sha256sum package-lock.json runtime/oar/package-lock.json > build-locks.sha256
+    sha256sum package-lock.json frontend/package-lock.json runtime/oar/package-lock.json > build-locks.sha256
     rm -rf /root/.npm
   ')
 base_image_id=$(docker inspect --format '{{.Image}}' "$container_id")

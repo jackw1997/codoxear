@@ -10,7 +10,7 @@ const children = [
     ["scripts/demo-tls-bridge.mjs", "container", "/demo-bridge"],
     { stdio: "inherit" },
   ),
-  spawn(process.execPath, ["dist/server/client/web-server.js"], {
+  spawn(process.execPath, ["frontend/serve.mjs"], {
     stdio: "inherit",
   }),
 ];

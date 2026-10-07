@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ConversationCache } from "../web/workspace/cache.js";
+import { ConversationCache } from "../frontend/web/workspace/cache.js";
 import {
   boundedSet,
   LOCAL_BUDGET,
   localBytes,
-} from "../web/shared/local-storage.js";
+} from "../frontend/web/shared/local-storage.js";
 class MemoryStorage implements Storage {
   values = new Map<string, string>();
   get length() {

@@ -1,0 +1,28 @@
+{
+  "name": "@codoxear/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && node build.mjs",
+    "start": "node serve.mjs",
+    "test": "node --experimental-strip-types --test --test-concurrency=1 tests/*.test.ts"
+  },
+  "dependencies": {
+    "hls.js": "1.6.19",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  }
+}

@@ -321,7 +321,18 @@
     <p>Build-only checks can run locally:</p>
     <pre>
 npm ci
-npm run build</pre>
+npm run build:backend</pre>
+    <p>
+      The web frontend is independently installable and buildable from
+      <code>frontend/</code>: run <code>npm ci</code>, then
+      <code>npm run build</code>; use <code>npm start</code> there to serve it.
+      Its source is in <code>frontend/web/</code>, and HarmonyOS source is in
+      <code>frontend/harmonyos/</code>. The root <code>npm run build</code>
+      coordinates backend and frontend builds. The browser uses frontend-owned
+      API DTOs and does not import backend implementation from root
+      <code>src/</code>. Package/build separation is documented here; current
+      behavioral isolation evidence is pending.
+    </p>
     <p>
       The current environment’s system Docker socket was unavailable.
       Verification used a separate user-owned Docker daemon in private PID,

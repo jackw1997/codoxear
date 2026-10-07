@@ -34,12 +34,12 @@ container_id=$(docker create --init --user root --memory 2g --memory-swap 2g --c
   --workdir /opt/codoxear --entrypoint bash "$base" -euc '
     mkdir /tmp/reviewed-source
     tar -xf /tmp/source.tar -C /tmp/reviewed-source
-    for file in package.json package-lock.json runtime/oar/package.json runtime/oar/package-lock.json runtime/oar/build-docker.sh; do
+    for file in package.json package-lock.json frontend/package.json frontend/package-lock.json runtime/oar/package.json runtime/oar/package-lock.json runtime/oar/build-docker.sh; do
       cmp "/tmp/reviewed-source/$file" "/opt/codoxear/$file" || { echo "Dependency/build recipe changed; use full build" >&2; exit 65; }
     done
     node --input-type=module -e '\''
       import { readdir, rm } from "node:fs/promises";
-      const keep = new Set(["/opt/codoxear/node_modules", "/opt/codoxear/runtime/oar/node_modules"]);
+      const keep = new Set(["/opt/codoxear/node_modules", "/opt/codoxear/frontend/node_modules", "/opt/codoxear/runtime/oar/node_modules"]);
       async function prune(path) {
         if (keep.has(path)) return;
         if ([...keep].some(k => k.startsWith(path + "/"))) {
@@ -52,7 +52,7 @@ container_id=$(docker create --init --user root --memory 2g --memory-swap 2g --c
     rm -rf /tmp/source.tar /tmp/reviewed-source
     npm run build
     printf "%s\n" "$CODOXEAR_BUILD_COMMIT" > build-commit.txt
-    sha256sum package-lock.json runtime/oar/package-lock.json > build-locks.sha256
+    sha256sum package-lock.json frontend/package-lock.json runtime/oar/package-lock.json > build-locks.sha256
   ')
 docker cp "$temporary/source.tar" "$container_id:/tmp/source.tar"
 status=0

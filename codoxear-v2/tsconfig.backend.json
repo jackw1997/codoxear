@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "scripts/generate-protocol.ts",
+    "tsup.config.ts"
+  ],
+  "exclude": [
+    "frontend",
+    "tests"
+  ]
+}

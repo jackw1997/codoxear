@@ -291,7 +291,7 @@ if (independent) {
   }
 }
 store.close();
-if (independent) child(["dist/server/client/web-server.js"]);
+if (independent) child(["frontend/serve.mjs"]);
 else
   child(["dist/server/identity/main.js"], {
     CODOXEAR_IDENTITY_CONFIG: join(home, "identity.json"),

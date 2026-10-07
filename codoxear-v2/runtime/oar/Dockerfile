@@ -7,8 +7,9 @@ ENV NODE_OPTIONS=--max-old-space-size=768
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY src ./src
-COPY tsup.config.ts tsconfig.json ./
-RUN ./node_modules/.bin/tsup
+COPY tsup.config.ts tsconfig.json tsconfig.backend.json ./
+COPY scripts/generate-protocol.ts ./scripts/
+RUN npm run build:backend
 RUN npm prune --omit=dev --no-audit --no-fund
 
 FROM ${NODE24_IMAGE} AS oar

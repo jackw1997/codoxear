@@ -150,7 +150,7 @@ await api.attach({
 let service = api.service();
 const staticClient = spawn(
   process.execPath,
-  ["dist/server/client/web-server.js"],
+  ["frontend/serve.mjs"],
   { env: { ...process.env, CODOXEAR_CLIENT_PORT: "19945" }, stdio: "ignore" },
 );
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE!);

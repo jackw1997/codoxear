@@ -18,6 +18,14 @@ The root [AGENTS.md](../AGENTS.md) remains binding for testing and product behav
 - Treat the development computer as an 8 GiB target. Run verification through the shared per-user lock; serialize test files and cap verification containers at 2 GiB. This ceiling is a starting constraint, not evidence that the entire suite fits. Do not create overlapping preview stacks. Record total process-tree/cgroup memory before increasing concurrency. Saved conversation history must not imply an indefinitely resident backend process.
 - The user's 6 October request authorizes stopping all Codoxear demo/test containers created during this work, including resumed copies. Preserve their data, credentials and histories; this scoped cleanup supersedes the earlier instruction to preserve running agents inside those containers. It does not authorize terminating unrelated host sessions.
 - No raw source-string tests. Execute behavior and assert outcomes; CSS checks parse rules. Import-graph/build checks are architectural checks, not behavioral acceptance.
+
+## Frontend and backend source boundary
+
+- Web frontend source is in `frontend/web/`; HarmonyOS source is in `frontend/harmonyos/`.
+- The web frontend owns `frontend/package.json` and `frontend/package-lock.json`. Install and build it independently from `frontend/` with `npm ci` and `npm run build`; serve it there with `npm start`.
+- The backend owns the root `package.json` and lockfile. Install from the root with `npm ci` and build it with `npm run build:backend`. Root `npm run build` coordinates backend and frontend builds.
+- The browser communicates with backend services through public API protocols and frontend-owned DTOs. Frontend code must not import backend implementation from root `src/`.
+- Separate packages and successful builds establish package/build separation only; do not describe frontend/backend behavioral isolation as proven until current Docker behavioral evidence is recorded.
 - Exercise the real interface before claiming a user-facing feature works. Report implemented slices, native/browser evidence, missing acceptance and external blockers separately. Record every requested task's resolution or explicit deferral.
 - Keep one authoritative writer per displayed value; retain widget-owned subscriptions, atomic stores, producer-backed model/effort/runtime state, scoped caches and stale-response fencing. Escape does not close/cancel a dialog. Downloads must preserve the mounted application and follow its teardown contract.
 - Preserve root appearance tokens, family-invariant fonts, 44px touch targets, undimmed bounded overlays, and the locked touch/desktop session-card branches. Apply semantic design rules, not legacy file locations.

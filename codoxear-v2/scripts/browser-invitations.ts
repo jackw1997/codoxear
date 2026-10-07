@@ -51,7 +51,7 @@ store.change((s) => {
 });
 const bundle = await build({
   stdin: {
-    contents: `import {openConnections, openAgentAccess} from './web/client/connections.ts'; import {vault} from './web/client/vault.ts';
+    contents: `import {openConnections, openAgentAccess} from './frontend/web/client/connections.ts'; import {vault} from './frontend/web/client/vault.ts';
   window.signAs = async (id) => { for(const login of await vault.list()) await vault.remove(login.id); const login=await (await fetch('/fixture/login/'+id)).json(); await vault.put(login); await openConnections(async()=>{},()=>{}); };
   document.querySelector('button').onclick = () => window.signAs('alice'); document.querySelector('[data-agent]').onclick = async()=>openAgentAccess(await (await fetch('/fixture/agent')).json());`,
     resolveDir: process.cwd(),

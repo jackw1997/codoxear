@@ -11,8 +11,8 @@ import {
   SupersededConnection,
   type RelayProfile,
   type CredentialVault,
-} from "../src/client/context.js";
-import { ClientTransport, ClientFailure } from "../src/client/transport.js";
+} from "../frontend/shared/context.js";
+import { ClientTransport, ClientFailure } from "../frontend/shared/transport.js";
 assert.ok(existsSync("/.dockerenv"), "Docker only");
 const profile: RelayProfile = {
   mode: "relay",

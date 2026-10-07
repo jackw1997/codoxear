@@ -137,7 +137,7 @@ app.get("/setup", async (_r, reply) =>
 const harness = await build({
   stdin: {
     contents:
-      'import {placementDialog} from "./web/shared/ui.js"; window.openCreation = () => placementDialog(window.placements, async (p, values) => { const r = await fetch(`/api/computers/${p.computerId}/agents`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values)}); if(!r.ok) throw new Error((await r.json()).error); }); document.querySelector("button").onclick = window.openCreation;',
+      'import {placementDialog} from "./frontend/web/shared/ui.js"; window.openCreation = () => placementDialog(window.placements, async (p, values) => { const r = await fetch(`/api/computers/${p.computerId}/agents`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values)}); if(!r.ok) throw new Error((await r.json()).error); }); document.querySelector("button").onclick = window.openCreation;',
     resolveDir: process.cwd(),
   },
   bundle: true,

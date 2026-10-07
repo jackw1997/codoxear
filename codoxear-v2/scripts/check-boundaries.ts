@@ -27,9 +27,15 @@ async function walk(path: string): Promise<void> {
         const target = resolve(dirname(file), specifier.text);
         const destination = relative(root, target).split(sep);
         if (!target.startsWith(root + sep)) violations.push(`${relative(root,file)}: import escapes v2: ${specifier.text}`);
+        if (owner[0] === "frontend" && destination[0] !== "frontend")
+          violations.push(`${relative(root,file)}: frontend imports outside its package: ${specifier.text}`);
+        if (owner[0] === "src" && destination[0] === "frontend")
+          violations.push(`${relative(root,file)}: backend imports frontend implementation: ${specifier.text}`);
         if (owner[0] === "src" && destination[0] === "src" && components.has(destination[1]!) && owner[1] !== destination[1])
           violations.push(`${relative(root,file)}: ${owner[1]} imports component ${destination[1]}: ${specifier.text}`);
       }
+      if (specifier && ts.isStringLiteralLike(specifier) && owner[0] === "frontend" && owner[1] === "web" && specifier.text.startsWith("node:"))
+        violations.push(`${relative(root,file)}: browser imports a Node runtime module: ${specifier.text}`);
       ts.forEachChild(node, visit);
     }
     visit(source);

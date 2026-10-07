@@ -1,5 +1,5 @@
 import { vault, type HubLogin } from "./vault.js";
-import { canonicalOrigin } from "../../src/client/context.js";
+import { canonicalOrigin } from "../../shared/context.js";
 const random = () =>
   btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
     .replaceAll("+", "-")

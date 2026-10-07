@@ -8,8 +8,8 @@ import { workspaceAccessFields, workspaceRootFields, bindWorkspaceGrant, workspa
 void appearance();
 import "./style.css";
 import { api, ApiError } from "./api.js";
-import type { Hub, Agent, Decision, Role } from "../../src/contracts/model.js";
-import type { Message } from "../../src/contracts/tunnel.js";
+import type { Hub, Agent, Decision, Role } from "../shared/api-types.js";
+import type { Message } from "../shared/api-types.js";
 
 type User = { id: string; name: string; email: string };
 type Computer = {

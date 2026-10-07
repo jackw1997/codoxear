@@ -7,6 +7,8 @@ COPY package.json package-lock.json ./
 RUN npm ci && npx playwright install --with-deps chromium
 RUN npm install --global @earendil-works/pi-coding-agent@1.0.0 @openai/codex@0.160.0 @anthropic-ai/claude-code@2.1.287
 ENV PI_BIN=/usr/local/bin/pi CODEX_BIN=/usr/local/bin/codex CLAUDE_BIN=/usr/local/bin/claude
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN npm ci --prefix frontend --no-audit --no-fund
 COPY . .
 RUN npm run build
 CMD ["node", "--import", "tsx", "scripts/verify-container.ts"]

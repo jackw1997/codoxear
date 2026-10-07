@@ -1,0 +1,5 @@
+# Machine-generated contracts and unchanged third-party distributions should not
+# dominate code review. Their sources/generators remain ordinary reviewable code.
+protocol/*.json linguist-generated=true
+frontend/web/legacy/monaco/** linguist-vendored=true linguist-generated=true
+frontend/web/legacy/vendor/** linguist-vendored=true linguist-generated=true

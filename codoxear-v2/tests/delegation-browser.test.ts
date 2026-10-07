@@ -12,7 +12,7 @@ test("Agent access enables/revokes scoped delegation and ignores stale responses
   const compiled = await build({
     stdin: {
       contents: `
-    import {delegationSection,bindDelegation} from './web/client/delegation.ts';
+    import {delegationSection,bindDelegation} from './frontend/web/client/delegation.ts';
     window.mount = () => {
       window.cleanup?.();
       document.body.innerHTML = '<div class="connectionPage">'+delegationSection([

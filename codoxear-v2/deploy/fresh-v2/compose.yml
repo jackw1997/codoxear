@@ -73,7 +73,7 @@ services:
     ports: ["127.0.0.1:19531:17430"]
   client:
     <<: *role
-    command: [node, dist/server/client/web-server.js]
+    command: [node, frontend/serve.mjs]
     mem_limit: 128m
     memswap_limit: 128m
     environment:

@@ -8,19 +8,23 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "npm run check:boundaries && npm run typecheck && node --import tsx scripts/generate-protocol.ts && vite build && node scripts/build-workspace.mjs && tsup",
+    "build": "npm run check:boundaries && npm run typecheck && npm run build:backend && npm run build:frontend",
     "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
-    "start": "node dist/server/client/web-server.js",
+    "start": "node frontend/serve.mjs",
     "computer": "node dist/server/computer/main.js",
-    "dev": "tsx src/client/web-server.ts",
+    "dev": "node frontend/serve.mjs",
     "test:browser": "node --import tsx scripts/browser-verification.ts",
     "verify:docker": "node --experimental-strip-types scripts/verify-docker.ts",
     "verify:managed": "node --experimental-strip-types scripts/verify-docker.ts --managed",
     "identity": "node dist/server/identity/main.js",
-    "client": "node dist/server/client/web-server.js",
+    "client": "node frontend/serve.mjs",
     "hub": "node dist/server/hub/main.js",
     "package:computer": "node scripts/package-computer.mjs",
-    "check:boundaries": "node --import tsx scripts/check-boundaries.ts"
+    "check:boundaries": "node --import tsx scripts/check-boundaries.ts",
+    "build:backend": "npm run typecheck:backend && node --import tsx scripts/generate-protocol.ts && tsup",
+    "typecheck:backend": "tsc --project tsconfig.backend.json --noEmit",
+    "build:frontend": "npm --prefix frontend run build && node scripts/build-workspace.mjs",
+    "verify:isolation": "node --experimental-strip-types scripts/verify-isolation.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
@@ -28,7 +32,6 @@
     "@fastify/websocket": "^11.2.0",
     "@lydell/node-pty": "1.2.0-beta.15",
     "fastify": "^5.12.5",
-    "hls.js": "1.6.19",
     "jose": "^6.2.12",
     "oauth4webapi": "^3.8.8",
     "web-push": "3.6.7",
@@ -44,8 +47,7 @@
     "prettier": "^3.9.9",
     "tsup": "^8.5.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.12"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "esbuild": "^0.28.2"

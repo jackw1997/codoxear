@@ -4,3 +4,5 @@ artifacts
 .data
 .env*
 *.sqlite*
+frontend/node_modules
+frontend/dist

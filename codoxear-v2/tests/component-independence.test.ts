@@ -44,7 +44,7 @@ async function stop(child: ChildProcess) {
 }
 test("static client starts without hub/account/computer configuration", async () => {
   const origin = "http://127.0.0.1:" + await port();
-  const process = start("src/client/web-server.ts", {
+  const process = start("frontend/serve.mjs", {
     CODOXEAR_CLIENT_PORT: new URL(origin).port,
     CODOXEAR_HUB_CONFIG: "",
     CODOXEAR_IDENTITY_CONFIG: "",

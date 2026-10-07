@@ -36,7 +36,7 @@ const sockets = new Set<import("node:net").Socket>(); hub.server.on("connection"
 await hub.listen({host:"127.0.0.1",port:19944});
 const native=new NativeRuntime(home,workspace,join(home,"computer")), api=createComputerApi(join(home,"computer"));
 await api.attach({version:1,hubUrl:origin,hubId:computer.computer.hubId,computerId:computer.computer.id,credential:computer.credential,runtime:"native",nativeHome:home,workspacePath:workspace});
-const service=api.service(), staticClient=spawn(process.execPath,["dist/server/client/web-server.js"],{env:{...process.env,CODOXEAR_CLIENT_PORT:"19945"},stdio:"ignore"});
+const service=api.service(), staticClient=spawn(process.execPath,["frontend/serve.mjs"],{env:{...process.env,CODOXEAR_CLIENT_PORT:"19945"},stdio:"ignore"});
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE!), browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH,args:["--no-sandbox","--disable-dev-shm-usage"]});
 const context=await browser.newContext({viewport:{width:1440,height:1000}}); await context.grantPermissions(["notifications"],{origin:clientOrigin});
 const page=await context.newPage(), cdp=await context.newCDPSession(page), checks:string[]=[], errors:string[]=[];

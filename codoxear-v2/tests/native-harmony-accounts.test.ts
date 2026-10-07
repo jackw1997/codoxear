@@ -52,7 +52,7 @@ async function fixture() {
     vm.runInNewContext(transpiled.outputText,{exports,Observed:(value:any)=>value,Date:class extends Date{static override now(){return now;}},console,setTimeout,clearTimeout,Uint8Array,Map,JSON,encodeURIComponent,decodeURIComponent,
       require:(name:string)=>name.startsWith(".")?load(resolve(dirname(file),name+".ets")):name==="@kit.AssetStoreKit"?{asset:mockAsset}:name==="@kit.NetworkKit"?{http}:name==="@kit.ArkTS"?{util,url:{URL}}:name==="@kit.CryptoArchitectureKit"?{cryptoFramework}:name==="@kit.PushKit"?{pushService:{async getToken(){return token;},async deleteToken(){deletedTokens++;},on(_event:string,_ability:unknown,fn:(token:string)=>void){update=fn;},off(){update=undefined;}}}:{}},{filename:file});return exports;
   }
-  const directory="native/harmony/entry/src/main/ets/services/", {IdentityPlatform,AssetVault,PushKitInstallation}=load(directory+"IdentityPlatform.ets"),{HubAccounts}=load(directory+"HubAccounts.ets"),{HubPush}=load(directory+"HubPush.ets");
+  const directory="frontend/harmonyos/entry/src/main/ets/services/", {IdentityPlatform,AssetVault,PushKitInstallation}=load(directory+"IdentityPlatform.ets"),{HubAccounts}=load(directory+"HubAccounts.ets"),{HubPush}=load(directory+"HubPush.ets");
   const platform=new IdentityPlatform({async openLink(url:string){browsers.push(url);}}),vault=new AssetVault(platform),provider=new PushKitInstallation({});
   const accounts=new HubAccounts(vault,platform,"native-installation"),push=new HubPush(accounts,vault,provider,"native-installation");
   async function begin(index:number){await accounts.begin(hubs[index]!.origin);const url=new URL(browsers.at(-1)!);const h=hubs[index]!;const response=await h.app.inject({url:url.pathname+url.search,cookies:{["codoxear_identity_"+h.computer.hubId]:h.signed.credential}});assert.equal(response.statusCode,302,response.body);return String(response.headers.location);}
@@ -80,7 +80,7 @@ test("delivered native account presenter restores the collection and Computer ch
  }finally{await f.close();}
 });
 test("delivered native project has no missing or outside-project imports",()=>{
- const root=resolve("native/harmony");let count=0;
+ const root=resolve("frontend/harmonyos");let count=0;
  const walk=(directory:string)=>{for(const entry of readdirSync(directory,{withFileTypes:true})){const file=resolve(directory,entry.name);if(entry.isDirectory()){walk(file);continue;}if(!/\.(?:ets|ts)$/.test(file))continue;
   const source=ts.createSourceFile(file,readFileSync(file,"utf8"),ts.ScriptTarget.Latest,true);
   for(const declaration of source.statements){if(!ts.isImportDeclaration(declaration)||!ts.isStringLiteral(declaration.moduleSpecifier))continue;const name=declaration.moduleSpecifier.text;if(!name.startsWith("."))continue;const target=resolve(dirname(file),name);assert.ok(target.startsWith(root+"/"),file);assert.ok([".ets",".ts",".js"].some(extension=>existsSync(target+extension))||existsSync(target),file+" imports missing "+name);count++;}

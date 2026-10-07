@@ -1,8 +1,8 @@
 import { defineConfig } from "tsup";
 export default defineConfig({
+  tsconfig: "tsconfig.backend.json",
   entry: [
     "src/server/main.ts",
-    "src/client/web-server.ts",
     "src/identity/main.ts",
     "src/hub/main.ts",
     "src/computer/main.ts",

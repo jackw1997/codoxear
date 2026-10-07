@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { vault, type HubLogin } from "./vault.js";
-import { PushHint } from "../../src/contracts/web-push.js";
-import { NOTIFICATION_TTL } from "../../src/protocol/notifications.js";
+import { PushHint } from "../shared/push-contract.js";
+import { NOTIFICATION_TTL } from "../shared/push-contract.js";
 
 export type PushInstallation = { loginId: string; computerId: string; installationId: string; scope: string; vapidPublicKey: string; endpoint: string; sessionMarker: string };
 let opening: Promise<IDBDatabase> | undefined;

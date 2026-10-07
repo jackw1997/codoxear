@@ -6,7 +6,7 @@ import {
   effortsFor,
   launchOptions,
   type BackendDefaults,
-} from "../web/shared/agent-options.js";
+} from "../frontend/web/shared/agent-options.js";
 const pi: BackendDefaults = {
   provider_choice: "a",
   model: "same-name",
