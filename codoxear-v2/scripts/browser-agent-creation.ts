@@ -666,10 +666,15 @@ try {
     .getByRole("status")
     .getByText("Loading choices from this computer…")
     .waitFor();
+  for (const label of ["Runtime", "Provider", "Model"])
+    assert.equal(await dialog().getByLabel(label, { exact: true }).isDisabled(), true);
+  assert.equal(await dialog().getByRole("button", { name: "Cancel", exact: true }).isEnabled(), true);
   await dialog()
     .getByLabel("Computer & hub", { exact: true })
     .selectOption("1");
   await ready();
+  for (const label of ["Runtime", "Provider", "Model"])
+    assert.equal(await dialog().getByLabel(label, { exact: true }).isEnabled(), true);
   await page.waitForTimeout(800);
   assert.equal(
     await dialog()

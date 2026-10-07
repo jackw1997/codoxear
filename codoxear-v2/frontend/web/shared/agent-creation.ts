@@ -202,6 +202,17 @@ export function agentCreationDialog(
     updateButton();
   };
   const updateButton = () => {
+    // Computer configuration replaces these choices atomically. Do not allow
+    // edits that the pending response would immediately overwrite.
+    const pendingChoices = loading || submitting;
+    select("backend").disabled = pendingChoices;
+    const runtimeFields = dialog.querySelector<HTMLElement>(".agent-runtime-fields")!;
+    runtimeFields.setAttribute("aria-busy", String(loading));
+    for (const control of runtimeFields.querySelectorAll<
+      HTMLInputElement | HTMLSelectElement | HTMLButtonElement
+    >("input, select, button"))
+      control.disabled = pendingChoices;
+    input("cwd").disabled = pendingChoices || resuming();
     button.disabled = !placements.length || loading || submitting;
     button.textContent = submitting
       ? resuming()

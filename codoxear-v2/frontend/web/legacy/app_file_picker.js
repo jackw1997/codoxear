@@ -105,6 +105,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
   }
 
   function prependDraftFileEntry(entries, query, context) {
+    if (context && context.searchState && context.searchState.accessDenied) return entries;
     if (context && typeof context.draftSuppressed === "function" && context.draftSuppressed()) return entries;
     const draftPath = CodoxearFileHelpers.normalizeDraftFilePath(query);
     if (draftPath && !entries.some((entry) => entry.path === draftPath)) {
@@ -451,13 +452,13 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
       // in the candidate (no-query) view, where the changed-files section lives.
       if (gitMessage && !query) appendGitStatus(gitMessage);
       if (entries === null) {
-        const showDraft = draftPath && !draftSuppressed();
+        const showDraft = draftPath && !draftSuppressed() && !state.accessDenied;
         if (showDraft) appendDraft(draftPath, 0, focus === 0);
         appendStatus("Searching files...");
         return showDraft ? [draftEntry(draftPath)] : [];
       }
       if (!entries.length) {
-        const showDraft = draftPath && !draftSuppressed();
+        const showDraft = draftPath && !draftSuppressed() && !state.accessDenied;
         if (showDraft) {
           appendDraft(draftPath, 0, focus === 0);
           syncActiveDescendant(0);
@@ -608,7 +609,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
     if (!query) {
       const entries = candidateKeys.map((key) => pickerEntryForKey(key)).filter(Boolean);
       const activeFilePath = String((context && context.activeFilePath) || "");
-      if (context && context.activeFileDraft && activeFilePath && !entries.some((entry) => entry.path === activeFilePath && !entry.gitPath)) {
+      if (!searchState.accessDenied && context && context.activeFileDraft && activeFilePath && !entries.some((entry) => entry.path === activeFilePath && !entry.gitPath)) {
         entries.unshift(draftEntry(activeFilePath));
       }
       return entries;
@@ -821,6 +822,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
     let pendingQuery = "";
     let errorQuery = "";
     let error = "";
+    let accessDenied = false;
     let truncatedQuery = "";
     let sessionId = "";
     let accessContext = "";
@@ -841,6 +843,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
         pendingQuery,
         errorQuery,
         error,
+        accessDenied,
         truncatedQuery,
         sessionId,
       };
@@ -867,6 +870,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
       pendingQuery = "";
       errorQuery = "";
       error = "";
+      accessDenied = false;
       truncatedQuery = "";
       seq += 1;
     }
@@ -923,6 +927,7 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
           matches.push({ path, score, apiPath });
         }
         results = matches;
+        accessDenied = false;
         loadedQuery = trimmed;
         pendingQuery = "";
         truncatedQuery = res && res.truncated ? trimmed : "";
@@ -935,6 +940,10 @@ import { fileAccessContext, observeFileAccessContext } from "./app_file_access_c
         pendingQuery = "";
         errorQuery = trimmed;
         error = err && err.message ? err.message : "Unable to search files";
+        // Keep confirmed capability denial across queries until a successful
+        // search or credential/context reset. Network failures do not imply
+        // that file creation is forbidden.
+        if (err && (err.status === 401 || err.status === 403)) accessDenied = true;
         truncatedQuery = "";
         throw err;
       } finally {

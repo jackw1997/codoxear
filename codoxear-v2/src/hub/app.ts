@@ -740,14 +740,15 @@ export async function createHubApp(o: HubOptions) {
     .passthrough();
   app.get("/api/computers/:id/launch-defaults", async (r) => {
     const computerId = Id.parse((r.params as { id: string }).id);
-    await call(r, "computer-owner", { computerId });
+    await requireComputerCreation(r, computerId);
     const catalog = LocalCatalog.parse(
       await tunnels.request(computerId, { op: "discover" }),
     );
-    await call(r, "computer-owner", { computerId });
+    const computer = await requireComputerCreation(r, computerId);
+    const actor = await call<{ id: string }>(r, "me");
     return {
       new_session_defaults: catalog.new_session_defaults,
-      recent_cwds: catalog.recent_cwds ?? [],
+      recent_cwds: computer.ownerId === actor.id ? catalog.recent_cwds ?? [] : [],
       tmux_available: false,
     };
   });
@@ -1025,22 +1026,23 @@ export async function createHubApp(o: HubOptions) {
       return { ok: true, registered: true };
     },
   );
+  async function requireComputerCreation(r: FastifyRequest, computerId: string) {
+    const available = await call<Array<{ id: string; canCreate: boolean; ownerId: string }>>(r, "computers");
+    const computer = available.find((c) => c.id === computerId && c.canCreate);
+    if (!computer)
+      throw new DomainError(403, "forbidden", "Hub and computer creation access required");
+    return computer;
+  }
   async function createRemoteAgent(
     r: FastifyRequest,
     computerId: string,
     b: { name: string; backend: AgentType["backend"] },
     launch?: z.infer<typeof Launch>,
   ) {
-    const available = await call<Array<{ id: string; canCreate: boolean }>>(
-      r,
-      "computers",
-    );
-    if (!available.some((c) => c.id === computerId && c.canCreate))
-      throw new DomainError(
-        403,
-        "forbidden",
-        "Hub and computer creation access required",
-      );
+    await requireComputerCreation(r, computerId);
+    // Continuing existing local history retains its owner-only boundary.
+    if (launch?.resume_session_id)
+      await call(r, "computer-owner", { computerId });
     if (!tunnels.online(computerId))
       throw new DomainError(503, "not_dispatched", "Computer offline");
     const agent = await call<AgentType>(r, "create-agent", {
@@ -1088,9 +1090,7 @@ export async function createHubApp(o: HubOptions) {
       .strict()
       .parse(r.body);
     if (launch && Object.keys(launch).length) {
-      // These choices reveal/use local config and paths, just like the rich
-      // session endpoint. Preserve its owner and capability boundary.
-      await call(r, "computer-owner", { computerId });
+      await requireComputerCreation(r, computerId);
       if (!tunnels.supports(computerId, "launch-options"))
         throw new DomainError(
           409,
@@ -1134,9 +1134,7 @@ export async function createHubApp(o: HubOptions) {
     const computerId = Id.parse(
       (r.params as { computerId: string }).computerId,
     );
-    // Rich launch options include workspace paths and existing local history.
-    // They require the computer owner in addition to normal creation rights.
-    await call(r, "computer-owner", { computerId });
+    await requireComputerCreation(r, computerId);
     if (!tunnels.supports(computerId, "launch-options"))
       throw new DomainError(
         409,

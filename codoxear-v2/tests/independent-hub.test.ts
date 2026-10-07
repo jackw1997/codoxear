@@ -470,7 +470,7 @@ test("selective agent shares enforce creation, queue, push and live-stream revoc
     await f.close();
   }
 });
-test("agent creation forwards runtime selections and preserves owner/capability boundaries", async () => {
+test("agent creation forwards runtime selections and preserves write/capability boundaries", async () => {
   const f = await fixture("https://launch.test");
   const computerId = f.store.read().computers[0]!.id;
   const operations: unknown[] = [];
@@ -571,26 +571,27 @@ test("agent creation forwards runtime selections and preserves owner/capability 
         )),
     };
     capability = true;
-    assert.equal(
-      (
-        await create(
-          {
-            name: "Unauthorized options",
-            backend: "pi",
-            launch: { model: "custom" },
-          },
-          bobHeaders,
-        )
-      ).statusCode,
-      403,
-    );
-    assert.equal(operations.length, 1);
+    const explicit = await create({
+      name: "Member options", backend: "pi", launch: { model: "custom" },
+    }, bobHeaders);
+    assert.equal(explicit.statusCode, 200, explicit.body);
+    assert.equal(operations.length, 2);
+    assert.deepEqual(operations[1], {
+      op: "create", agentId: explicit.json().id, name: "Member options",
+      backend: "pi", launch: { model: "custom" },
+    });
     const simple = await create(
       { name: "Computer defaults", backend: "pi" },
       bobHeaders,
     );
     assert.equal(simple.statusCode, 200, simple.body);
-    assert.equal(operations.length, 2);
+    assert.equal(operations.length, 3);
+    f.store.change((s) => setComputerAccess(s, "alice", computerId, "bob", "read"));
+    const readOnly = await create({
+      name: "Read-only options", backend: "pi", launch: { model: "custom" },
+    }, bobHeaders);
+    assert.equal(readOnly.statusCode, 403, readOnly.body);
+    assert.equal(operations.length, 3, "Read-only launch selections never reach the Computer");
   } finally {
     await f.close();
   }
@@ -1043,6 +1044,67 @@ test("private providers cross both creation APIs without being stored in agent r
   } finally {
     await f.close();
   }
+});
+
+test("write-allowlisted Members read launch configuration and create explicit agents without local import or history authority", async () => {
+  const origin = "https://member-launch.test", f = await fixture(origin);
+  try {
+    const computerId = f.store.read().computers[0]!.id;
+    const member = f.local.authority.accounts.finish({
+      method: "google", connection: "google", subject: "member-launch",
+      tenant: null, email: "member@example.test", name: "Member",
+    }, "member-browser");
+    f.store.change((s) => {
+      acceptInvite(s, member.session.userId, invite(s, "alice", "hub", f.hubId, "member@example.test", "member").token);
+      setComputerAccess(s, "alice", computerId, member.session.userId, "write");
+    });
+    const token = await f.local.authority.tokens.issue(member.session, origin, "identity_access");
+    const headers = { authorization: `Bearer ${token}` };
+    const launch = { model_provider: "gateway", model: "explicit-model", reasoning_effort: "off" };
+    const operations: Array<{ op: string; launch?: unknown }> = [];
+    let revokeDuringDiscover = false;
+    f.tunnels.online = () => true;
+    f.tunnels.supports = () => true;
+    f.tunnels.request = async (_id, operation) => {
+      operations.push(operation);
+      if (operation.op === "discover") {
+        if (revokeDuringDiscover) f.store.change((s) => setComputerAccess(s, "alice", computerId, member.session.userId, "read"));
+        return { sessions: [], recent_cwds: ["/owner/private-history"], new_session_defaults: { backends: { pi: { model: "explicit-model", provider_choice: "gateway" } } } };
+      }
+      return { localId: "managed-" + String(operations.length).padStart(32, "0") };
+    };
+    const defaults = await f.app.inject({ url: `/api/computers/${computerId}/launch-defaults`, headers });
+    assert.equal(defaults.statusCode, 200, defaults.body);
+    assert.equal(defaults.json().new_session_defaults.backends.pi.provider_choice, "gateway");
+    assert.deepEqual(defaults.json().recent_cwds, []);
+    for (const [url, payload] of [
+      [`/api/computers/${computerId}/agents`, { name: "Explicit member agent", backend: "pi", launch }],
+      [`/api/v1/computers/${computerId}/api/sessions`, { name: "Explicit member session", agent_backend: "pi", ...launch }],
+    ] as const) {
+      const created = await f.app.inject({ method: "POST", url, headers, payload });
+      assert.equal(created.statusCode, 200, created.body);
+      assert.deepEqual(operations.at(-1)?.launch, launch);
+    }
+    const dispatches = operations.length;
+    for (const [method, url, payload] of [
+      ["GET", `/api/computers/${computerId}/discovered`, undefined],
+      ["POST", `/api/computers/${computerId}/import`, { localId: "broker-" + "a".repeat(32), name: "Private local", backend: "pi" }],
+      ["GET", `/api/computers/${computerId}/resume-candidates?backend=pi&cwd=%2Fworkspace`, undefined],
+      ["POST", `/api/computers/${computerId}/agents`, { name: "Private resume", backend: "pi", launch: { ...launch, resume_session_id: "private-native-session" } }],
+      ["POST", `/api/v1/computers/${computerId}/api/sessions`, { agent_backend: "pi", ...launch, resume_session_id: "private-native-session" }],
+    ] as const) {
+      const denied = await f.app.inject({ method, url, headers, ...(payload ? { payload } : {}) });
+      assert.equal(denied.statusCode, 403, denied.body);
+    }
+    assert.equal(operations.length, dispatches, "Owner-only import/history actions never reach the Computer");
+    assert.equal(f.store.read().computers[0]!.ownerId, "alice");
+    revokeDuringDiscover = true;
+    assert.equal((await f.app.inject({ url: `/api/computers/${computerId}/launch-defaults`, headers })).statusCode, 403);
+    const afterRevocation = operations.length;
+    assert.equal((await f.app.inject({ url: `/api/computers/${computerId}/launch-defaults`, headers })).statusCode, 403);
+    assert.equal((await f.app.inject({ method: "POST", url: `/api/computers/${computerId}/agents`, headers, payload: { name: "Read only", backend: "pi", launch } })).statusCode, 403);
+    assert.equal(operations.length, afterRevocation);
+  } finally { await f.close(); }
 });
 
 test("saved-session candidates require Computer ownership and recheck it after dispatch", async () => {

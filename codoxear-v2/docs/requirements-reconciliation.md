@@ -293,3 +293,13 @@ The user rejected the previous sign-in journey and explicitly authorized impleme
 All signed-in identities continue contributing simultaneously under the Hub provider policy. Owner/admin visibility is administration only, not implicit access to agent content or execution. An owner/admin can explicitly add themselves to an allowlist. Computer service credentials for outbound WSS remain necessary and separate from the removed human device keys.
 
 Ordinary provider sign-in records a verified identity. An invitation grants membership; a private initialization flow grants initial ownership. Reconnecting clients receive the already established role by matching stable provider identity, without client-supplied role claims or automatic email merging. Uninvited signed-in identities receive a clear membership state and invitation action.
+
+## R55 — Customer walkthrough and settings layout (7 October 2026)
+
+The user reported poorly ordered Hub settings/Computer allowlist controls and managed-session toolbar errors. Follow RAFT's grouped settings and identity-card patterns while retaining Codoxear's themes and authorization rules. Put administration navigation together, saved identity actions beside each identity, and the Computer grant action beside its form. Workspace permissions remain a separate navigation item.
+
+Before a user handoff, run the full journey through the browser: initialize an Owner, create and attach a Computer, sign in with a second identity, create and accept an invitation, add a second Computer, and verify separate allowlists, creation, read-only access and revocation. Show screenshots; backend-seeded identities/grants or direct API mutations do not establish browser acceptance. Exercise Files, Details and Unattended mode for managed agents.
+
+R54's explicit write allowlist authorizes agent creation for Members as well as Owners/Admins. The historical owner-only launch-configuration and explicit-launch checks conflict with that rule and are removed. Owner-only local-session import and private history discovery remain distinct protections. Computer configuration must finish loading before launch inputs can be edited, so delayed defaults cannot overwrite a user's selections.
+
+The current product still requires a local Computer service to be installed, attached and started. Report that external infrastructure step and any controlled OAuth/managed-driver boundary separately; a browser fixture does not establish browser-only Computer deployment, two real external-provider logins or live-model acceptance.
