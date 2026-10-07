@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "stage": "Computer B: remove allowlist for member",
+  "checks": [
+    "First verified browser identity initializes ownership on an empty independent Hub",
+    "Owner creates Computer A through UI and explicitly grants only itself execution access",
+    "Second identity signs in via provider popup, shares invitation identity through UI, and joins through the owner-created UI invitation",
+    "Owner sees both Computers but cannot create on B; Member sees only B with separate explicit allowlists",
+    "Before an explicit workspace grant, Member file access is denied and neither a create-file option nor Enter opens an editor",
+    "Computer owner separately grants Member access to the approved workspace through UI",
+    "Both allowed identities create real managed agents and send through UI; View file, Details and Unattended controls open, with unattended settings saved",
+    "Read-only grant retains persisted managed history and disables UI message mutation",
+    "UI revocation removes Member access to Computer B and its existing agent after reload"
+  ],
+  "failures": [],
+  "screenshots": [
+    "initialization-provider-choice.png",
+    "initialization-controlled-provider.png",
+    "initialized-owner.png",
+    "provider-owner.png",
+    "empty-owner-hub.png",
+    "owner-hub-settings-role.png",
+    "customer-hub-settings-portrait.png",
+    "computer-a-pairing.png",
+    "computer-a-write.png",
+    "customer-computer-allowlist-portrait.png",
+    "provider-member.png",
+    "member-before-invitation.png",
+    "owner-created-invitation.png",
+    "member-joined-no-computers.png",
+    "computer-b-pairing.png",
+    "computer-b-write.png",
+    "owner-sees-both-with-b-blocked.png",
+    "member-sees-only-b.png",
+    "owner-agent-a-create.png",
+    "owner-agent-a-reply.png",
+    "owner-view-file.png",
+    "member-agent-b-create.png",
+    "member-agent-b-reply.png",
+    "member-files-denied-without-create.png",
+    "owner-grants-member-b-files.png",
+    "member-details.png",
+    "member-view-file.png",
+    "member-unattended-saved.png",
+    "computer-b-read.png",
+    "member-read-only-history.png",
+    "computer-b-revoked.png",
+    "member-revoked.png"
+  ],
+  "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+  "oauthBoundary": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+  "runtimeBoundary": "Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory, no live LLM acceptance",
+  "externalBootstrap": [
+    {
+      "computer": "Computer A",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory"
+    },
+    {
+      "computer": "Computer B",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory"
+    }
+  ],
+  "physicalBootstrapBoundary": "Computer attachment and start are external infrastructure operations, not browser-only product support"
+}

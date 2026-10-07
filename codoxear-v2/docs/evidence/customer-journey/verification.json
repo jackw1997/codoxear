@@ -1,0 +1,236 @@
+{
+  "sourceCommit": "15ae60dba15dd69d1002260c79c8922d315043d8",
+  "toolsImage": "sha256:6f053eda8c40629b07243eb089de253c19d50397b6139b19911a4715bad5f05b",
+  "journeyChecks": 9,
+  "backend": {
+    "sourceCommit": "b2248cb3ba9893f1b10dd52a3c3c4d301becb457",
+    "tests": 27,
+    "passed": 27,
+    "failed": 0,
+    "suites": [
+      "managed-runtime",
+      "independent-hub"
+    ],
+    "note": "Later production edit only fixes frontend file-picker callback; backend unchanged."
+  },
+  "regressions": {
+    "agent-creation": {
+      "passed": true,
+      "checks": [
+        "An already-controlled tab upgrades the old worker before rendering; Hubs & computers loads working controls instead of the static-client error",
+        "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",
+        "Independent client opens Pi/Codex/Claude creation; provider-specific Pi models and reasoning reach the service worker launch request",
+        "Codex maps ChatGPT authentication and Fast correctly; changing models removes unsupported reasoning",
+        "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
+        "pi: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "codex: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "cc: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "Unknown configured provider or model stays unselected and cannot create an agent with empty launch values",
+        "Switching computers clears previous selections and paths; late catalog responses cannot replace current choices",
+        "Keyboard focus wraps within creation; Escape preserves dialog; invalid names focus their associated alert; pending launch announces status and locks choices",
+        "Account/workspace form submits the actual configured provider, model and reasoning; all three runtime forms fit 390px and cancel restores focus",
+        "Resume selects a scoped saved session or explicit ID, clears IDs on runtime changes, and sends no saved credentials"
+      ],
+      "errors": [],
+      "launches": [
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "pi",
+            "model": "pi-reasoner",
+            "model_provider": "anthropic",
+            "reasoning_effort": "high",
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "codex",
+            "model": "codex-small",
+            "model_provider": "openai",
+            "preferred_auth_method": "chatgpt",
+            "reasoning_effort": "low",
+            "service_tier": "fast",
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "cc",
+            "model": "claude-custom",
+            "model_provider": "anthropic",
+            "reasoning_effort": "medium",
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "pi",
+            "model": "PrivateModel",
+            "provider_config": {
+              "base_url": "https://private.test/v1",
+              "api_key": "[redacted]",
+              "api": "anthropic-messages",
+              "image_support": true
+            },
+            "reasoning_effort": "low",
+            "env_vars": {
+              "EXTRA_SETTING": "[redacted]"
+            },
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "codex",
+            "model": "PrivateModel",
+            "provider_config": {
+              "base_url": "https://private.test/v1",
+              "api_key": "[redacted]"
+            },
+            "reasoning_effort": "low",
+            "env_vars": {
+              "EXTRA_SETTING": "[redacted]"
+            },
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Phone agent",
+            "agent_backend": "cc",
+            "model": "PrivateModel",
+            "provider_config": {
+              "base_url": "https://private.test/v1",
+              "api_key": "[redacted]"
+            },
+            "reasoning_effort": "low",
+            "service_tier": "fast",
+            "env_vars": {
+              "EXTRA_SETTING": "[redacted]"
+            },
+            "command": "private-claude",
+            "create_in_tmux": false
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Default config",
+            "backend": "pi",
+            "launch": {
+              "model": "pi-default",
+              "model_provider": "local",
+              "reasoning_effort": "off"
+            }
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Default config",
+            "backend": "pi",
+            "launch": {
+              "model": "pi-default",
+              "model_provider": "local",
+              "reasoning_effort": "off"
+            }
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Continue saved work",
+            "backend": "codex",
+            "launch": {
+              "model": "codex-model",
+              "model_provider": "openai",
+              "preferred_auth_method": "chatgpt",
+              "reasoning_effort": "high",
+              "cwd": "/saved/workspace",
+              "resume_session_id": "saved-laptop-codex"
+            }
+          }
+        },
+        {
+          "computer": "laptop",
+          "body": {
+            "name": "Continue saved work",
+            "backend": "pi",
+            "launch": {
+              "model": "pi-default",
+              "model_provider": "local",
+              "reasoning_effort": "off",
+              "cwd": "/saved/workspace",
+              "resume_session_id": "explicit-pi-id"
+            }
+          }
+        }
+      ]
+    },
+    "invitation": {
+      "passed": true,
+      "checks": [
+        "hub-settings: portrait, landscape and desktop layouts fit, retain 44px controls and grouped navigation",
+        "Owner creates Google and tenant-specific Feishu invitations using the actual mobile Manage access form",
+        "No provider account gains access before accepting an invitation; malformed codes display an error",
+        "An unrelated Google identity cannot redeem a Feishu invitation",
+        "Google and Feishu users accept through the actual invitation screen with verified provider identities",
+        "Reusing a redeemed code displays an error without another membership change",
+        "Agent sharing cannot bypass the required Computer allowlist, including operator shares",
+        "computer-allowlist: portrait, landscape and desktop layouts fit, retain 44px controls and grouped navigation",
+        "Two browser accounts verify explicit Computer read/write grants and revocation; an agent share cannot elevate read-only or removed Computer access",
+        "Actual hub Sign-in methods copies the exact connection, identity and tenant for an invitation"
+      ],
+      "errors": []
+    },
+    "registration": {
+      "passed": true,
+      "checks": [
+        "Private expiring initialization URL binds the first owner to a verified provider identity without a code form",
+        "Add Hub URL exposes parallel configured provider buttons; owner sees computers but has no implicit usage or agent creation grant",
+        "Reloadable Hub credentials use standard rotating OAuth refresh sessions without a browser signing-key database",
+        "Temporary refresh outage preserves the saved account and recovers without provider reauthentication",
+        "A registered identity remains a nonmember until a targeted invitation; Admin status grants management without Computer usage",
+        "An Admin-only browser sees computers without usage, invites normal Members, and has no admin-promotion or owner-policy controls",
+        "Parallel identities remain connected and shared Computer and agent resources are deduplicated across explicit allowlists",
+        "A mutation selects one write-authorized identity and dispatches once without retrying another identity",
+        "Owner sign-in policy blocks and reallows a saved Feishu OAuth session without deleting or recreating the identity",
+        "Fresh provider authentication replaces only that identity session while other identities stay connected"
+      ],
+      "errors": [],
+      "provider": "Controlled Google/Feishu; no live credentials"
+    }
+  },
+  "limits": {
+    "memoryGiB": 2,
+    "swapGiB": 0,
+    "cpus": 2,
+    "pids": 512,
+    "serialized": true
+  },
+  "boundaries": {
+    "applicationMutations": "All customer journey application actions through browser UI",
+    "computerBootstrap": "External Computer enroll/start using UI-generated pairing code",
+    "oauth": "Controlled provider pages; real Google/Feishu logins not claimed",
+    "managedDriver": "Deterministic ManagedFactory; real ManagedRuntime/ComputerService/NativeHttpTarget, no live model claim",
+    "device": "Desktop Chromium plus layout portrait/landscape checks; no physical mobile acceptance"
+  },
+  "journeyScreenshots": 32,
+  "fixture": {
+    "path": "scripts/browser-customer-journey.ts",
+    "sha256": "31d7ec098116abf7df142ea318f9286da426039b700301a10a24a41b4f7e2df4",
+    "execution": "Test-only script mounted read-only into reviewed compiled production image; no production source overlays",
+    "negativeChecks": "Wait for completed identity/Computer discovery and sidebar discovery before absence assertions; require visible disabled Send for read-only access"
+  }
+}

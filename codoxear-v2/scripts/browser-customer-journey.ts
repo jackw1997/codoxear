@@ -98,6 +98,8 @@ async function home(page) {
   const summary = dialog(page, 'Hubs & computers').locator('.connectionHub summary');
   await summary.first().waitFor();
   if (!(await summary.first().evaluate(node => node.parentElement.open))) await summary.first().click();
+  // Hub settings is installed only after identity and Computer discovery settles.
+  await dialog(page, 'Hubs & computers').getByRole('button', { name: 'Hub settings', exact: true }).waitFor();
 }
 async function settings(page) { await home(page); await dialog(page, 'Hubs & computers').getByRole('button', { name: 'Hub settings', exact: true }).click(); }
 async function backHome(page) {
@@ -176,6 +178,11 @@ async function access(name, user, value, remove = false) {
     await allow.locator('.connectionMembers').getByText(value === 'write' ? 'Read and write' : 'Read only', { exact: true }).waitFor();
   }
   await shot(ownerPage, name.replaceAll(' ', '-').toLowerCase() + '-' + (remove ? 'revoked' : value));
+  if (name === 'Computer A' && user === 'owner' && value === 'write' && !remove) {
+    await ownerPage.setViewportSize({ width: 390, height: 844 });
+    await shot(ownerPage, 'customer-computer-allowlist-portrait');
+    await ownerPage.setViewportSize({ width: 1440, height: 1000 });
+  }
   await backHome(ownerPage);
 }
 async function grantMemberFiles() {
@@ -245,7 +252,11 @@ try {
   await dialog(ownerPage, 'Hubs & computers').getByText('No computers yet. Add a computer to get started.', { exact: true }).waitFor();
   await shot(ownerPage, 'empty-owner-hub');
   stage = 'owner: Hub settings role and return';
-  await settings(ownerPage); await shot(ownerPage, 'owner-hub-settings-role'); await backHome(ownerPage);
+  await settings(ownerPage); await shot(ownerPage, 'owner-hub-settings-role');
+  await ownerPage.setViewportSize({ width: 390, height: 844 });
+  await shot(ownerPage, 'customer-hub-settings-portrait');
+  await ownerPage.setViewportSize({ width: 1440, height: 1000 });
+  await backHome(ownerPage);
   pass('First verified browser identity initializes ownership on an empty independent Hub');
   stage = 'create Computer A'; const workspaceA = await createComputer('Computer A');
   await access('Computer A', 'owner', 'write');
@@ -353,11 +364,15 @@ try {
   await memberPage.locator('.msg.assistant:not(.typing)').filter({ hasText: 'Managed response: Member UI message' }).first().waitFor();
   // Read-only behavior must be visible: the composer/send cannot offer mutation.
   const sendButton = memberPage.locator('#sendBtn');
-  assert.ok(!(await sendButton.isVisible().catch(() => false)) || await sendButton.isDisabled(), 'Read-only identity must not have an enabled Send action');
+  await sendButton.waitFor({ state: 'visible' });
+  assert.equal(await sendButton.isDisabled(), true, 'Read-only identity must not have an enabled Send action');
   await shot(memberPage, 'member-read-only-history');
   pass('Read-only grant retains persisted managed history and disables UI message mutation');
   await access('Computer B', 'member', 'read', true);
   await memberPage.reload(); await home(memberPage);
+  await dialog(memberPage, 'Hubs & computers').getByText('Member', { exact: true }).waitFor();
+  await dialog(memberPage, 'Hubs & computers').getByText('No computers are available to these identities. Ask a Hub owner or admin for allowlist access.', { exact: true }).waitFor();
+  await memberPage.locator('.sidebarEmptyHint').getByText('No sessions yet', { exact: true }).waitFor();
   assert.equal(await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer B/ }).count(), 0);
   assert.equal(await card(memberPage, 'Member agent B').count(), 0);
   await shot(memberPage, 'member-revoked');

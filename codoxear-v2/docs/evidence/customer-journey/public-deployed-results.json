@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "checks": [
+    "Public demo loads phone-sized browser UI",
+    "Add Hub URL discovers configured Feishu sign-in from deployed Work Hub",
+    "Deployed Work Hub health passes",
+    "No browser page errors"
+  ],
+  "boundary": "Read-only public browser smoke; no provider sign-in or protected agent actions"
+}
