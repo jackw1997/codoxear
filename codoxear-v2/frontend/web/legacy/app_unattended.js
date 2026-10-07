@@ -653,7 +653,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       } catch (e) {
         if (unattendedMenuToken !== openToken || unattendedMenuSessionId !== sid || sessionState.get("selected") !== sid) return;
         console.error("load unattended mode failed", e);
-        setToast(`unattended load error: ${e && e.message ? e.message : "unknown error"}`);
+        setToast(`Could not load unattended mode: ${e && e.message ? e.message : "unknown error"}`);
         setUnattendedControlsDisabled(false);
         hideUnattendedMenu({ restoreFocus: true });
       }

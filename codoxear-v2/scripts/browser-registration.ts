@@ -483,6 +483,7 @@ try {
   await adminPanel("Hub settings")
     .getByRole("button", { name: "Manage Hub members", exact: true })
     .click();
+  await adminPanel("Hub members").getByLabel("Hub role", { exact: true }).waitFor();
   assert.deepEqual(
     await adminPanel("Hub members")
       .locator("select[name=role] option")

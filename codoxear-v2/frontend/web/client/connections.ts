@@ -177,7 +177,7 @@ export function openConnections(
               usable: !!previous?.usable || !!computer.canUse,
             });
           }
-        box.innerHTML = `<section class="connectionSection"><h2>Hub identities</h2>${group.logins.map((login) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(login.identity.name)}</strong><span class="connectionHint">${esc(login.identity.method)} · <strong>${esc(roleLabel(login.role))}</strong></span></span><span class="connectionHint">${esc(results.find((result) => result.login.id === login.id)?.error ?? "Connected")}</span></div>`).join("")}<button data-add-identity>Add identity</button></section><div class="connectionHubTools"><button data-add-computer ${manager ? "" : "disabled"}>${icon("plus")}Add computer</button><button data-hub-settings>Hub settings</button></div>${good.length ? (machines.size ? `<div class="connectionComputers">${[...machines.values()].map(({ computer: c, usable }) => `<button class="connectionComputer" data-computer="${esc(c.id)}">${icon("computer")}<span class="connectionRowText"><strong>${esc(c.name)}</strong><span class="connectionHint">${c.online ? "Online" : "Offline"}${!usable ? " · Not allowlisted" : ""}${c.ownerName ? " · " + esc(c.ownerName) : ""}</span></span>${icon("chevron")}</button>`).join("")}</div>` : '<p class="connectionHint">${good.some(result=>result.login.role)?"No computers are available to these identities. Ask a Hub owner or admin for allowlist access.":"Signed in, but not a Hub member. Accept an invitation from a Hub owner or admin in Hub settings."}</p>') : `<p class="connectionError">${esc(results[0]?.error ?? "Hub unavailable")}</p><button data-retry>Retry</button>`}${!manager && good.length ? '<p class="connectionHint">A Hub owner or admin can add computers.</p>' : ""}`;
+        box.innerHTML = `<section class="connectionSection"><h2>Hub identities</h2>${group.logins.map((login) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(login.identity.name)}</strong><span class="connectionHint">${esc(login.identity.method)} · <strong>${esc(roleLabel(login.role))}</strong></span></span><span class="connectionHint">${esc(results.find((result) => result.login.id === login.id)?.error ?? "Connected")}</span></div>`).join("")}<button data-add-identity>Add identity</button></section><div class="connectionHubTools"><button data-add-computer ${manager ? "" : "disabled"}>${icon("plus")}Add computer</button><button data-hub-settings>Hub settings</button></div>${good.length ? (machines.size ? `<div class="connectionComputers">${[...machines.values()].map(({ computer: c, usable }) => `<button class="connectionComputer" data-computer="${esc(c.id)}">${icon("computer")}<span class="connectionRowText"><strong>${esc(c.name)}</strong><span class="connectionHint">${c.online ? "Online" : "Offline"}${!usable ? " · Not allowlisted" : ""}${c.ownerName ? " · " + esc(c.ownerName) : ""}</span></span>${icon("chevron")}</button>`).join("")}</div>` : `<p class="connectionHint">${manager ? "No computers yet. Add a computer to get started." : good.some(result=>result.login.role)?"No computers are available to these identities. Ask a Hub owner or admin for allowlist access.":"Signed in, but not a Hub member. Accept an invitation from a Hub owner or admin in Hub settings."}</p>`) : `<p class="connectionError">${esc(results[0]?.error ?? "Hub unavailable")}</p><button data-retry>Retry</button>`}${!manager && good.length ? '<p class="connectionHint">A Hub owner or admin can add computers.</p>' : ""}`;
         box.querySelector<HTMLButtonElement>("[data-add-identity]")!.onclick =
           () => addIdentity(group.logins[0]!.origin);
         loaded = !!good.length;
@@ -322,7 +322,7 @@ export function openConnections(
   ) {
     const root = page.render(
       "Pair computer",
-      `<div class="connectionForm"><h2>${esc(computer.name)}</h2><p class="connectionHint">Use this code when attaching the computer to ${esc(login.name)}. It is single-use and expires in 15 minutes.</p><div class="connectionCode connectionPairCode" data-code>${esc(value?.code ?? "")}</div><div class="connectionActions"><button data-copy ${value?.code ? "" : "disabled"}>Copy code</button><button data-renew>New code</button><button class="primary" data-done>Done</button></div><p class="connectionStatus" role="status"></p><section class="connectionSection"><h2>Attach on your computer</h2><p class="connectionHint">After installing Codoxear Computer, run this from its folder on your computer:</p><pre class="connectionCode" data-command></pre><div class="connectionActions"><button data-copy-command>Copy attach command</button><button data-setup>Setup guide</button></div><p class="connectionHint">Enter your workspace directory when prompted. Then start Computer:</p><pre class="connectionCode">npm run computer -- start</pre><p class="connectionHint">Keep it running. This computer will appear Online in the hub list.</p></section></div>`,
+      `<div class="connectionForm"><h2>${esc(computer.name)}</h2><p class="connectionHint">Use this code when attaching the computer to ${esc(login.name)}. It is single-use and expires in 15 minutes.</p><div class="connectionCode connectionPairCode" data-code>${esc(value?.code ?? "")}</div><div class="connectionActions"><button data-copy ${value?.code ? "" : "disabled"}>Copy code</button><button data-renew>New code</button><button class="primary" data-done>Done</button></div><p class="connectionStatus" role="status"></p><section class="connectionSection"><h2>Attach on your computer</h2><p class="connectionHint">After installing Codoxear Computer, run this from its folder on your computer:</p><pre class="connectionCode" data-command></pre><div class="connectionActions"><button data-copy-command>Copy attach command</button><button data-setup>Setup guide</button></div><p class="connectionHint">Enter your workspace directory when prompted. Then start Computer:</p><pre class="connectionCode">node dist/server/computer/main.js start</pre><p class="connectionHint">Keep it running. This computer will appear Online in the hub list. Hub owners and admins also need an explicit allowlist grant before creating agents.</p></section></div>`,
       home,
     );
     const version = page.version;
@@ -444,7 +444,26 @@ export function openConnections(
       manager = owner ?? group.logins.find((l) => l.role === "admin");
     const root = page.render(
       "Hub settings",
-      `<div class="connectionStack"><div><h2>${esc(hub?.name ?? first.name)}</h2><p class="connectionHint">${esc(first.origin)}</p></div>${manager ? `<div class="connectionActions"><button data-access>Manage Hub members</button>${owner ? "<button data-login-policy>Allowed sign-in types</button>" : ""}</div>` : ""}<section class="connectionSection"><h2>Sign-ins on this device</h2>${group.logins.map((l) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(l.identity.name)}</strong><span class="connectionHint">${esc(l.identity.method)} · ${esc(roleLabel(l.role))}</span></span><button data-identities="${l.id}">Sign-in methods</button><button data-forget="${l.id}">Disconnect</button></div>`).join("")}</section><div class="connectionActions"><button data-signin>Add sign-in</button><button data-invite>Accept invitation</button></div></div>`,
+      `<div class="connectionStack">
+        <div><h2>${esc(hub?.name ?? first.name)}</h2><p class="connectionHint">${esc(first.origin)}</p></div>
+        ${manager ? `<section class="connectionSection">
+          <h2>Hub administration</h2>
+          <div class="connectionNavigation">
+            <button data-access aria-label="Manage Hub members"><span class="connectionRowText"><strong>Manage Hub members</strong><span class="connectionHint">Invite people and manage their roles</span></span>${icon("chevron")}</button>
+            ${owner ? `<button data-login-policy aria-label="Allowed sign-in types"><span class="connectionRowText"><strong>Allowed sign-in types</strong><span class="connectionHint">Choose which providers can sign in</span></span>${icon("chevron")}</button>` : ""}
+          </div>
+        </section>` : ""}
+        <section class="connectionSection">
+          <div class="connectionSectionHeader"><h2>Sign-ins on this device</h2><button class="primary" data-signin>${icon("plus")}Add sign-in</button></div>
+          ${group.logins.map((l) => `<div class="connectionIdentity">
+            <div class="connectionRowText"><strong>${esc(l.identity.name)}</strong><span class="connectionHint">${esc(l.identity.method)} · ${esc(roleLabel(l.role))}</span></div>
+            <div class="connectionIdentityActions"><button data-identities="${l.id}">Sign-in methods</button><button class="connectionDestructive" data-forget="${l.id}">Disconnect</button></div>
+          </div>`).join("")}
+        </section>
+        <section class="connectionSection">
+          <div class="connectionNavigation"><button data-invite aria-label="Accept invitation"><span class="connectionRowText"><strong>Accept invitation</strong><span class="connectionHint">Join this Hub with an invitation code</span></span>${icon("chevron")}</button></div>
+        </section>
+      </div>`,
       home,
     );
     if (manager)
@@ -701,7 +720,19 @@ async function computerAllowlistPage(
   if (page.version !== version || !page.element.isConnected) return;
   const root = page.render(
     "Computer allowlist",
-    `<button type="button" data-workspaces>Workspace permissions</button><p>Hub roles manage computers. Using this computer requires a separate allowlist entry, including for owners and admins.</p><section class="connectionStack">${data.entries.map((entry: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(entry.name)}</strong><span>${entry.access === "write" ? "Read and write" : "Read only"}</span></span><button data-remove-allowlist="${esc(entry.userId)}">Remove access</button></div>`).join("") || "<p>No identities are allowlisted.</p>"}</section><form class="connectionForm connectionSection">${field("Hub member", `<select name="userId" aria-label="Hub member">${people.members.map((member: any) => `<option value="${esc(member.userId)}">${esc(member.name)} · ${esc(roleLabel(member.role))}</option>`).join("")}</select>`)}${field("Computer access", '<select name="access" aria-label="Computer access"><option value="read">Read only</option><option value="write">Read and write</option></select>')}<button type="submit">Grant computer access</button><p role="status" class="connectionStatus"></p></form>`,
+    `<div><h2>${esc(computer.name)}</h2><p class="connectionHint">Everyone needs an explicit Computer access grant, including Hub owners and admins.</p></div>
+    <section class="connectionSection"><h2>People with access</h2><div class="connectionMembers">${data.entries.map((entry: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(entry.name)}</strong><span class="connectionHint">${entry.access === "write" ? "Read and write" : "Read only"}</span></span><button class="connectionDestructive" data-remove-allowlist="${esc(entry.userId)}">Remove access</button></div>`).join("") || '<p class="connectionHint">No identities are allowlisted.</p>'}</div></section>
+    <form class="connectionForm connectionSection">
+      <h2>Grant or update access</h2>
+      <div class="connectionFields">
+        ${field("Hub member", `<select name="userId" aria-label="Hub member">${people.members.map((member: any) => `<option value="${esc(member.userId)}">${esc(member.name)} · ${esc(roleLabel(member.role))}</option>`).join("")}</select>`)}
+        ${field("Computer access", '<select name="access" aria-label="Computer access"><option value="read">Read only</option><option value="write">Read and write</option></select>')}
+      </div>
+      <p class="connectionHint">Read only allows viewing agents. Read and write also allows creating agents and sending messages.</p>
+      <div class="connectionActions"><button class="primary" type="submit">Grant computer access</button></div>
+      <p role="status" class="connectionStatus"></p>
+    </form>
+    <section class="connectionSection"><div class="connectionNavigation"><button type="button" data-workspaces aria-label="Workspace permissions"><span class="connectionRowText"><strong>Workspace permissions</strong><span class="connectionHint">Manage access to files and workspace roots</span></span>${icon("chevron")}</button></div></section>`,
     back,
   );
   root.querySelector<HTMLButtonElement>("[data-workspaces]")!.onclick = () =>

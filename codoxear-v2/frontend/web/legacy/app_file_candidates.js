@@ -262,15 +262,12 @@ import { fileAccessContext } from "./app_file_access_context.js";
         changedEntries = entriesIn.map(normalizeChangedEntry).filter(Boolean);
         changedEntriesFresh = true;
       } catch (error) {
-        // A non-repo / git error must be surfaced explicitly instead of leaving
-        // the user with a silently empty changed-files list. Other failures
-        // (transient network, auth) still fall back silently to mentioned/recent
-        // entries below, matching the historical behaviour.
         const message = String((error && error.message) || "");
         // Precisely match git's non-repo fatal so a transient 409 (e.g. "git
         // changed during refresh") is not misreported as a non-repo cwd.
         const isNonRepo = /not a git repository/i.test(message);
         if (isNonRepo) gitStateMessage = "Not a git repository \u2014 no changed files";
+        else gitStateMessage = `Could not load changed files: ${message || "unknown error"}`;
       }
       if (!changedEntriesFresh && renderedFallback) {
         if (gitStateMessage) setGitStateMessage(gitStateMessage);

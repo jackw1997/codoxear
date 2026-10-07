@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ManagedRuntime } from "../src/computer/managed/runtime.js";
+import { NativeHttpTarget } from "../src/computer/native/http.js";
+import { emptyBody } from "../src/protocol/http-frames.js";
 import {
   ManagedSetupError,
   type ManagedFactory,
@@ -106,6 +109,77 @@ async function tick() {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+test("managed unattended mode persists settings, respects cooldown and queue, spends a bounded budget and stops after interruption", async () => {
+  let clock = 1000;
+  const f = fixture({ now: () => clock });
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    const endpoint = `/api/sessions/${localId}/unattended`;
+    assert.equal((await f.runtime.request(endpoint)).enabled, false);
+    await f.runtime.request(endpoint, "POST", { enabled: true, cooldown_minutes: 1, remaining_injections: 1, request: "Continue bounded work" });
+    await f.runtime.sendQueued(localId, "Original objective");
+    f.factory.sessions[0]!.emit([{ kind: "text_delta", text: "Completed initial turn" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+    await f.runtime.runUnattended();
+    assert.equal(f.factory.sessions[0]!.prompts.length, 1);
+    clock += 60_000;
+    f.runtime.setUnattendedBlocker(() => true);
+    await f.runtime.runUnattended();
+    assert.equal(f.factory.sessions[0]!.prompts.length, 1);
+    assert.equal((await f.runtime.request(endpoint)).remaining_injections, 1);
+    f.runtime.setUnattendedBlocker(() => false);
+    await f.runtime.runUnattended();
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2);
+    assert.ok(f.factory.sessions[0]!.prompts[1]!.endsWith("Continue bounded work"));
+    const exhausted = await f.runtime.request(endpoint);
+    assert.equal(exhausted.remaining_injections, 0);
+    assert.equal(exhausted.enabled, false);
+    assert.equal(exhausted.commit_unknown, null);
+    await f.runtime.request(endpoint, "POST", { enabled: true, remaining_injections: 2 });
+    await f.runtime.request(`/api/sessions/${localId}/interrupt`, "POST");
+    clock += 60_000;
+    await f.runtime.runUnattended();
+    assert.equal((await f.runtime.request(endpoint)).enabled, false);
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2);
+  } finally {
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
+test("uncertain unattended dispatch remains disabled and review fenced after restart without replay", async () => {
+  let clock = 1000;
+  const f = fixture({ now: () => clock });
+  let reopened: ManagedRuntime | undefined;
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    const endpoint = `/api/sessions/${localId}/unattended`;
+    await f.runtime.sendQueued(localId, "Original objective");
+    f.factory.sessions[0]!.emit([{ kind: "text_delta", text: "Completed initial turn" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+    await f.runtime.request(endpoint, "POST", { enabled: true, cooldown_minutes: 1, remaining_injections: 2 });
+    clock += 60_000;
+    f.factory.sessions[0]!.failPrompt = true;
+    await f.runtime.runUnattended();
+    const failed = await f.runtime.request(endpoint);
+    assert.equal(failed.enabled, false);
+    assert.equal(failed.remaining_injections, 1);
+    assert.ok(failed.commit_unknown);
+    await f.runtime.close();
+    reopened = new ManagedRuntime(f.config);
+    assert.deepEqual(await reopened.request(endpoint), failed);
+    await assert.rejects(reopened.request(endpoint, "POST", { enabled: true }), /review the previous unattended attempt/);
+    await assert.rejects(reopened.request(endpoint, "POST", { review_attempt: "stale" }), /Reload unattended settings/);
+    await reopened.request(endpoint, "POST", { review_attempt: failed.commit_unknown, enabled: true });
+    clock += 60_000;
+    await reopened.runUnattended();
+    assert.equal(f.factory.opens.length, 1, "Uncertain runtime outcome blocks automatic replay even after settings review");
+    assert.equal(f.factory.sessions[0]!.prompts.length, 2);
+  } finally {
+    await reopened?.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
 test("managed state home cannot depend on the invoking working directory", () => {
   assert.throws(() => new ManagedRuntime({
     home: "/tmp",
@@ -136,6 +210,36 @@ test("archived saved transcripts retain one binding across catalogue, state and 
     const state = await reopened.request(`/api/sessions/${localId}/state`);
     const catalogue = await reopened.request("/api/sessions");
     const listed = catalogue.sessions.find((item: { session_id: string }) => item.session_id === localId);
+    const diagnostics = await reopened.request(`/api/sessions/${localId}/diagnostics`);
+    assert.equal(diagnostics.runtime, "oar");
+    assert.equal(diagnostics.session_id, localId);
+    assert.equal(diagnostics.agent_backend, "pi");
+    assert.equal(diagnostics.cwd, f.path);
+    assert.equal(diagnostics.resident, false);
+    assert.equal(diagnostics.runtime_state, "archived");
+    assert.ok(diagnostics.retained_records > 0);
+    assert.ok(diagnostics.retained_record_bytes > 0);
+    assert.equal(f.factory.opens.length, 1, "Inspecting diagnostics must not resume the archived agent");
+    writeFileSync(join(f.path, "review.txt"), "saved workspace file");
+    execFileSync("git", ["init", "--quiet", f.path]);
+    const http = new NativeHttpTarget(reopened, f.path);
+    try {
+      const inspect = async (action: string) => {
+        const response = await http.execute({
+          method: "GET", path: `/api/sessions/${localId}/${action}`,
+          headers: {}, body: emptyBody, signal: new AbortController().signal,
+        });
+        assert.equal(response.status, 200);
+        const chunks: Buffer[] = [];
+        for await (const chunk of response.body) chunks.push(Buffer.from(chunk));
+        return JSON.parse(Buffer.concat(chunks).toString());
+      };
+      assert.equal((await inspect("diagnostics")).session_id, localId);
+      assert.ok((await inspect("file/list")).files.includes("review.txt"));
+      assert.equal((await inspect("file/read?path=review.txt")).text, "saved workspace file");
+      assert.ok(JSON.stringify(await inspect("git/changed_files")).includes("review.txt"));
+      assert.equal(f.factory.opens.length, 1, "Files and Git inspect an archived workspace without starting OAR");
+    } finally { http.close(); }
     assert.deepEqual(tail.events.map((event: { text: string }) => event.text), ["saved user", "saved assistant"]);
     for (const snapshot of [original, tail, state, listed]) {
       assert.equal(snapshot.transcript_state, "bound");

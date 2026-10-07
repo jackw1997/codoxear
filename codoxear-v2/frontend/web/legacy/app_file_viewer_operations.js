@@ -768,7 +768,7 @@
       if (isFileOpenAbortError(error)) return false;
       if (!isCurrentFileOpenRequest(request)) return false;
       resetActiveFileBufferState();
-      fileStatus.textContent = `error: ${error && error.message ? error.message : "unknown error"}`;
+      fileStatus.textContent = `Could not open file: ${error && error.message ? error.message : "unknown error"}`;
       updateFileTouchToolbar();
       return false;
     }
@@ -777,7 +777,7 @@
       if (isFileOpenAbortError(error)) return false;
       if (!isCurrentFileOpenRequest(request)) return false;
       resetActiveFileBufferState();
-      fileStatus.textContent = `error: ${error && error.message ? error.message : "unknown error"}`;
+      fileStatus.textContent = `Could not open file draft: ${error && error.message ? error.message : "unknown error"}`;
       return false;
     }
 

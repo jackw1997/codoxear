@@ -136,6 +136,10 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
         return fmtRelativeAge(s);
       };
       addRow("Session", d && d.session_id ? d.session_id : "-");
+      if (d && d.runtime) addRow("Runtime", d.runtime);
+      if (d && d.native_session_id) addRow("Native session", d.native_session_id);
+      if (d && typeof d.retained_records === "number") addRow("Retained records", String(d.retained_records));
+      if (d && typeof d.retained_record_bytes === "number") addRow("Retained bytes", String(d.retained_record_bytes));
       addRow("Thread", d && d.thread_id ? d.thread_id : "-");
       addRow("Owned", d ? sessionLaunchLabel(d).replace("-owned", "") : "-");
       addRow("Busy", d && typeof d.busy === "boolean" ? (d.busy ? "busy" : "idle") : "-");
@@ -198,7 +202,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       diagCopyText = "";
       diagConversationCopyReady = false;
       resetActionButtonState();
-      diagStatus.textContent = `error: ${e && e.message ? e.message : "unknown error"}`;
+      diagStatus.textContent = `Could not load agent details: ${e && e.message ? e.message : "unknown error"}`;
     }
 
     async function show({ opener = null } = {}) {

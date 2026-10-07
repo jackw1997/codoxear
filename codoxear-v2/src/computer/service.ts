@@ -275,6 +275,9 @@ export class ComputerService {
           void run.catch(() => {}).finally(() => this.running.delete(run));
         }, 1000);
       }
+      this.runtime!.setUnattendedBlocker?.((localId) =>
+        this.stopped || this.queue === undefined || this.queue.list(localId).length > 0,
+      );
       await this.status(config, "starting", "Computer runtime initialized");
       this.connect(config);
     } catch (e) {

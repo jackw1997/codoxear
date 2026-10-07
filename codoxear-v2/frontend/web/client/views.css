@@ -417,11 +417,70 @@
   }
 }
 
-.connectionRow:has([data-identities]) {
+.connectionSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.connectionNavigation,
+.connectionIdentity,
+.connectionMembers {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.connectionPage .connectionNavigation > button {
+  width: 100%;
+  padding: var(--space-5);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  gap: var(--space-5);
+}
+.connectionPage .connectionNavigation > button + button,
+.connectionMembers > .connectionRow + .connectionRow {
+  border-top: 1px solid var(--hairline);
+}
+.connectionIdentity {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.connectionIdentityActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-3);
+}
+.connectionIdentityActions .connectionDestructive {
+  margin-left: auto;
+}
+.connectionPage .connectionDestructive {
+  color: var(--text-error);
+}
+.connectionMembers > .connectionRow {
+  padding: var(--space-5);
   flex-wrap: wrap;
 }
-.connectionRow:has([data-identities]) .connectionRowText {
-  flex-basis: 100%;
+.connectionMembers > .connectionRow > .connectionRowText {
+  flex-basis: 140px;
+}
+.connectionMembers > p {
+  padding: var(--space-5);
+}
+.connectionFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-5);
+}
+.connectionPage .connectionNavigation > button:focus-visible {
+  outline-offset: -3px;
 }
 
 .connectionBrand {

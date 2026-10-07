@@ -68,7 +68,7 @@ proxy.get("/", async (_r, reply) =>
   reply
     .type("text/html")
     .send(
-      '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/connections.css"><div id="root"><button>Hubs & computers</button><button data-agent>Agent access</button></div><script type="module" src="/fixture.js"></script>',
+      '<!doctype html><html data-theme="clay" data-mode="light"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/themes/clay.css"><link rel="stylesheet" href="/connections.css"><div id="root"><button>Hubs & computers</button><button data-agent>Agent access</button></div><script type="module" src="/fixture.js"></script>',
     ),
 );
 proxy.get("/fixture.js", async (_r, reply) =>
@@ -77,6 +77,7 @@ proxy.get("/fixture.js", async (_r, reply) =>
 for (const [url, file] of [
   ["/app.css", "dist/client/app.css"],
   ["/connections.css", "dist/client/connections.css"],
+  ["/themes/clay.css", "dist/client/themes/clay.css"],
 ])
   proxy.get(url, async (_r, reply) =>
     reply.type("text/css").send(await readFile(file)),
@@ -208,7 +209,37 @@ try {
       .getByRole("button", { name: "Hub settings", exact: true })
       .click();
   }
+  async function captureLayout(name) {
+    await mkdir("artifacts", { recursive: true });
+    for (const viewport of [
+      { width: 390, height: 844, name: "portrait" },
+      { width: 944, height: 560, name: "landscape" },
+      { width: 1280, height: 800, name: "desktop" },
+    ]) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      assert.equal(
+        await dialog().locator(".connectionBody").evaluate((e) => e.scrollWidth <= e.clientWidth),
+        true,
+        `${name} ${viewport.name}: content fits without horizontal scrolling`,
+      );
+      const buttons = await dialog().getByRole("button").evaluateAll((nodes) =>
+        nodes.map((e) => ({ text: e.textContent, width: e.getBoundingClientRect().width, height: e.getBoundingClientRect().height })),
+      );
+      for (const button of buttons) {
+        assert.ok(button.height >= 44 && button.width >= 44, `${button.text}: 44px touch target`);
+      }
+      const navigation = dialog().locator(".connectionNavigation > button");
+      for (let i = 0; i < await navigation.count(); i++) {
+        assert.equal(await navigation.nth(i).evaluate((e) => getComputedStyle(e).textAlign), "left");
+      }
+      await dialog().locator(".connectionBody").evaluate((e) => { e.scrollTop = 0; });
+      await page.screenshot({ path: `artifacts/${name}-${viewport.name}.png` });
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    checks.push(`${name}: portrait, landscape and desktop layouts fit, retain 44px controls and grouped navigation`);
+  }
   await settings();
+  await captureLayout("hub-settings");
   await dialog()
     .getByRole("button", { name: "Manage Hub members", exact: true })
     .click();
@@ -434,6 +465,8 @@ try {
     .click();
   await written;
   assert.equal(await trySend(), 200);
+  await allowlist.locator(".connectionRow").filter({ has: page.getByText("Google member", { exact: true }) }).waitFor();
+  await captureLayout("computer-allowlist");
   await page.screenshot({ path: "artifacts/agent-sharing-mobile.png" });
   const removed = page.waitForResponse(
     (response) =>

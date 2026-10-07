@@ -17,6 +17,12 @@ import {
 } from "./driver.js";
 import { OarFactory } from "./factory.js";
 import { readLaunchDefaults } from "../native/launch-defaults.js";
+import { readUnattendedPrompt } from "../native/workspace/unattended.js";
+
+type Unattended = {
+  enabled: boolean; request: string; cooldown_minutes: number;
+  remaining_injections: number; last_injection: number; commit_unknown: string | null;
+};
 
 type LaunchOptions = ReturnType<typeof Launch.parse>;
 type Row = {
@@ -81,6 +87,7 @@ export class ManagedRuntime implements Runtime {
   private readonly timer: ReturnType<typeof setInterval>;
   private closed = false;
   private closePromise: Promise<void> | undefined;
+  private unattendedBlocker: (id: string) => boolean = () => false;
   private readonly now: () => number;
   private readonly maxResident: number;
   private readonly idleMs: number;
@@ -130,12 +137,21 @@ export class ManagedRuntime implements Runtime {
       CREATE INDEX IF NOT EXISTS managed_message_order ON managed_messages(local_id,at);
       CREATE TABLE IF NOT EXISTS managed_receipts(id TEXT PRIMARY KEY,local_id TEXT,kind TEXT,state TEXT,result TEXT,created INTEGER,updated INTEGER);
       CREATE TABLE IF NOT EXISTS managed_notifications(id TEXT PRIMARY KEY,local_id TEXT,kind TEXT,at INTEGER);
+      CREATE TABLE IF NOT EXISTS managed_unattended(local_id TEXT PRIMARY KEY,settings TEXT NOT NULL);
       UPDATE managed_sessions SET state='unknown' WHERE state IN ('opening','running');
       UPDATE managed_receipts SET state='unknown' WHERE state IN ('dispatching','accepted');`);
     this.factory = options.factory ?? new OarFactory();
+    for (const entry of this.db.prepare("SELECT local_id,settings FROM managed_unattended").all() as { local_id: string; settings: string }[]) {
+      const settings = JSON.parse(entry.settings) as Unattended;
+      if (settings.commit_unknown) {
+        settings.enabled = false;
+        this.saveUnattended(entry.local_id, settings);
+      }
+    }
     this.timer = setInterval(
       () => {
         void this.quiesceIdle().catch(() => {});
+        void this.runUnattended().catch(() => {});
       },
       Math.min(this.idleMs, 10_000),
     );
@@ -146,6 +162,80 @@ export class ManagedRuntime implements Runtime {
   }
   setQueueScope(scope: string) {
     this.options.legacy?.setQueueScope?.(scope);
+  }
+  setUnattendedBlocker(blocker: (localId: string) => boolean) {
+    this.unattendedBlocker = blocker;
+  }
+  private unattended(id: string): Unattended {
+    const row = this.db.prepare("SELECT settings FROM managed_unattended WHERE local_id=?").get(id) as { settings: string } | undefined;
+    return row ? JSON.parse(row.settings) : {
+      enabled: false, request: "", cooldown_minutes: 5, remaining_injections: 10,
+      last_injection: 0, commit_unknown: null,
+    };
+  }
+  private saveUnattended(id: string, settings: Unattended) {
+    this.db.prepare("INSERT INTO managed_unattended VALUES(?,?) ON CONFLICT(local_id) DO UPDATE SET settings=excluded.settings").run(id, JSON.stringify(settings));
+  }
+  private async configureUnattended(id: string, body: Record<string, unknown>) {
+    return this.serial(id, async () => {
+      this.row(id);
+      const current = this.unattended(id);
+      if (body.review_attempt !== undefined) {
+        if (!current.commit_unknown || body.review_attempt !== current.commit_unknown)
+          throw new DomainError(409, "unattended_review_changed", "Reload unattended settings before reviewing this attempt");
+        current.commit_unknown = null;
+      }
+      if (current.commit_unknown && body.enabled === true)
+        throw new DomainError(409, "unattended_commit_unknown", "Check the transcript and review the previous unattended attempt before enabling again");
+      const next = {
+        ...current,
+        enabled: body.enabled === undefined ? current.enabled : body.enabled === true,
+        request: String(body.request ?? current.request),
+        cooldown_minutes: Math.max(1, Math.trunc(Number(body.cooldown_minutes ?? current.cooldown_minutes))),
+        remaining_injections: Math.max(0, Math.trunc(Number(body.remaining_injections ?? current.remaining_injections))),
+      };
+      if (!Number.isSafeInteger(next.cooldown_minutes) || !Number.isSafeInteger(next.remaining_injections) || next.request.length > 100_000)
+        throw new DomainError(400, "invalid_unattended", "Unattended counts must be finite integers and the request at most 100000 characters");
+      if (!next.remaining_injections) next.enabled = false;
+      this.saveUnattended(id, next);
+      return next;
+    });
+  }
+  private unattendedReady(id: string, settings: Unattended) {
+    if (!settings.enabled || !settings.remaining_injections || settings.commit_unknown || this.unattendedBlocker(id)) return false;
+    if (!["idle", "archived"].includes(this.row(id).state)) return false;
+    const last = this.db.prepare("SELECT role,receipt FROM managed_messages WHERE local_id=? ORDER BY at DESC,rowid DESC LIMIT 1").get(id) as { role: string; receipt: string } | undefined;
+    if (last?.role !== "assistant") return false;
+    const receipt = this.previousReceipt(last.receipt);
+    if (receipt?.state !== "completed" || !receipt.result || JSON.parse(receipt.result).outcome?.kind !== "completed") return false;
+    const cooldown = settings.cooldown_minutes * 60_000;
+    return this.now() - receipt.updated >= cooldown && (!settings.last_injection || this.now() - settings.last_injection >= cooldown);
+  }
+  /** Existing unattended mode spends a durable bounded budget; it is not a
+   * general execution scheduler. Ambiguous sends are never replayed. */
+  async runUnattended() {
+    if (this.closed) return;
+    const rows = this.db.prepare("SELECT local_id FROM managed_unattended").all() as { local_id: string }[];
+    for (const { local_id: id } of rows) {
+      if (!this.unattendedReady(id, this.unattended(id))) continue;
+      await this.serial(id, async () => {
+        const prompt = await readUnattendedPrompt(this.stateHome);
+        const settings = this.unattended(id);
+        if (!this.unattendedReady(id, settings)) return;
+        settings.commit_unknown = randomUUID();
+        settings.last_injection = this.now();
+        settings.remaining_injections--;
+        if (!settings.remaining_injections) settings.enabled = false;
+        this.saveUnattended(id, settings);
+        try {
+          await this.send(id, prompt + (settings.request ? "\n\n" + settings.request : ""), settings.commit_unknown);
+          settings.commit_unknown = null;
+        } catch {
+          settings.enabled = false;
+        }
+        this.saveUnattended(id, settings);
+      });
+    }
   }
   private assertOpen() {
     if (this.closed)
@@ -208,7 +298,7 @@ export class ManagedRuntime implements Runtime {
     return this.db
       .prepare("SELECT * FROM managed_receipts WHERE id=?")
       .get(id) as
-      | { local_id: string; kind: string; state: string; result: string | null }
+      | { local_id: string; kind: string; state: string; result: string | null; updated: number }
       | undefined;
   }
   private uncertain(): never {
@@ -732,6 +822,11 @@ export class ManagedRuntime implements Runtime {
   }
   private async interrupt(id: string, requestId: string) {
     this.row(id);
+    const unattended = this.unattended(id);
+    if (unattended.enabled) {
+      unattended.enabled = false;
+      this.saveUnattended(id, unattended);
+    }
     const previous = this.previousReceipt(requestId);
     if (previous) {
       if (previous.local_id !== id || previous.kind !== "interrupt")
@@ -930,7 +1025,7 @@ export class ManagedRuntime implements Runtime {
       system: 0,
       subagents_running: 0,
       subagent_details: [],
-      unattended_enabled: false,
+      unattended_enabled: this.unattended(row.id).enabled,
       slash_commands: [],
     };
   }
@@ -1050,6 +1145,27 @@ export class ManagedRuntime implements Runtime {
     const operation = match?.[2];
     if (id) {
       const value = (body ?? {}) as Record<string, unknown>;
+      if (operation === "unattended" && method === "GET") {
+        this.row(id);
+        return this.unattended(id);
+      }
+      if (operation === "unattended" && method === "POST")
+        return this.configureUnattended(id, value);
+      if (operation === "diagnostics" && method === "GET") {
+        const row = this.row(id);
+        const evidence = this.db.prepare(
+          "SELECT count(*) AS records, COALESCE(sum(bytes),0) AS bytes FROM managed_events WHERE stream IN (SELECT id FROM managed_streams WHERE local_id=?)",
+        ).get(id) as { records: number; bytes: number };
+        // Diagnostics inspect Computer-owned durable state. They must remain
+        // available after worker eviction and never open or resume a driver.
+        return {
+          ...this.metadata(row),
+          runtime: "oar",
+          native_session_id: row.native_id,
+          retained_records: evidence.records,
+          retained_record_bytes: evidence.bytes,
+        };
+      }
       if (operation === "messages" || operation === "chat") {
         const result = this.messages(id);
         return {
