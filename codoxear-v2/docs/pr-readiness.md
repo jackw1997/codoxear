@@ -1,6 +1,10 @@
-# Component isolation and generated protocol reduction PR
+# TypeScript Computer–Hub–Client PR
 
-Suggested title: **Package every v2 component independently and compact generated protocol schemas**
+Current draft: [Rewrite v2 in TypeScript with isolated Computer–Hub–Client services and Hub-owned sign-in](https://github.com/jackw1997/codoxear/pull/1).
+
+Current authentication follows R54: the client starts with an Add Hub URL field, each Hub advertises its own separate provider buttons, and a private initialization URL assigns the first verified allowed-provider identity as Owner. Routine access uses revocable Hub sessions, without client device signing keys or password/email login. All saved identities remain active. Owner/Admin/Member roles govern administration, while every human needs an explicit Computer allowlist grant and file access needs its separate workspace grant.
+
+The implementation and validation paragraphs below record earlier named snapshots. Their counts and old login mechanisms are historical evidence, not acceptance of the latest tree. The current customer run and deployment are recorded separately in the daily browser evidence.
 
 ## Reviewable PR description
 
@@ -22,8 +26,8 @@ Earlier release evidence remains scoped to its recorded snapshot: the R47 public
 
 This PR does not claim completion of the broader roadmap, every managed/native feature combination, production SLOs, live identity/delivery configuration, macOS secure workspaces, HarmonyOS SDK/signing/Push Kit or physical mobile/Safari acceptance. Linux, Node.js 24 backend packages, Node.js 22.13-or-newer frontend support and the explicitly tested browser slices are the current scope. Public addresses, private provider settings and archived histories follow R47; new package verification does not authorize unrelated service/session changes or deployment by itself.
 
-## Provider-only registration update
+## Historical provider-only registration snapshot
 
-The current independent-Hub login uses Google or Feishu, with client-held P-256 signing keys for routine reconnects. Password and email/SMS login routes and UI are removed from Hub/Identity services; no migration fallback is provided. One-time initial setup requires a verified provider identity plus the private deployment setup code. Key revocation invalidates derived sessions; temporary Hub outages preserve local credentials.
+The earlier R51–R53 snapshot used client-held P-256 device signing keys and a separate setup-code form. R54 supersedes both mechanisms with Hub OAuth sessions and a private one-time initialization URL. Its registration/key checks below remain evidence only for that earlier revision.
 
 At runtime snapshot `bd57072a`, all 336 backend tests passed, followed by seven registration/setup/key browser checks and seven invitation/sharing checks. Hub, optional Identity and frontend independently built and passed pruned-runtime startup checks. Verification was serialized under a 2GiB/no-swap limit. Provider transports/identities were controlled fixtures; real Google/Feishu app credentials are still needed before activating this release at the public endpoint. [Exact evidence](evidence/provider-registration.json).

@@ -17,6 +17,7 @@ import { Tunnels } from '../src/protocol/tunnels.js';
 import { createComputerApi } from '../src/computer/api.js';
 import { ManagedRuntime } from '../src/computer/managed/runtime.js';
 import { createStaticServer } from '../frontend/serve.mjs';
+process.env.DAILY_EXERCISE ??= '1';
 assert.ok(existsSync('/.dockerenv'), 'Customer journey must run in Docker');
 const artifacts = process.env.CUSTOMER_JOURNEY_ARTIFACTS ?? '/opt/codoxear/artifacts/customer-journey';
 await mkdir(artifacts, { recursive: true });
@@ -94,6 +95,17 @@ const dialog = (page, name) => page.getByRole('dialog', { name, exact: true });
 const pass = text => { checks.push(text); console.log('PASS', text); };
 async function shot(page, name) {
   const path = join(artifacts, name + '.png');
+  if (name.includes('failure') || name === 'daily-settings-slate-dark' || name === 'daily-renamed-priority-persisted') {
+    const appearance = await page.evaluate(() => ({
+      htmlClass: document.documentElement.className,
+      htmlTheme: document.documentElement.getAttribute('data-theme'),
+      htmlMode: document.documentElement.getAttribute('data-mode'),
+      bodyClass: document.body.className,
+      background: getComputedStyle(document.body).backgroundColor,
+      font: getComputedStyle(document.body).fontFamily,
+    })).catch(() => undefined);
+    browserDiagnostics.push('Appearance ' + name + ': ' + JSON.stringify(appearance));
+  }
   await page.screenshot({ path, fullPage: true, mask: [page.locator('[data-code], [data-command], output, input[name="token"], input[type="password"]')] });
   screenshots.push(name + '.png');
 }
@@ -462,7 +474,7 @@ async function dailyCustomer(workspaceA) {
     await ownerPage.keyboard.press('Control+End'); await ownerPage.keyboard.type('\nDaily customer Git change');
     const saved = ownerPage.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/file/write') && response.ok()); void saved.catch(() => {});
     await ownerPage.getByRole('button', { name: 'Save file', exact: true }).click(); await saved;
-    await ownerPage.getByRole('button', { name: 'Toggle Git diff', exact: true }).click();
+    await ownerPage.getByRole('button', { name: 'Toggle diff', exact: true }).click();
     await ownerPage.locator('#fileStatus').filter({ hasText: 'journey.txt - diff' }).waitFor();
     await ownerPage.locator('#fileViewer .monaco-diff-editor').waitFor({ state: 'visible' });
     await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Daily customer Git change' }).first().waitFor();
@@ -508,10 +520,18 @@ async function dailyCustomer(workspaceA) {
     await card(ownerPage, 'Owner agent A').hover();
     await card(ownerPage, 'Owner agent A').getByRole('button', { name: 'Duplicate session', exact: true }).click();
     const copy = dialog(ownerPage, 'New agent');
+    await copy.waitFor({ state: 'visible' });
+    await copy.getByText("Create a new agent on this Computer and runtime. Re-enter the source agent's private provider credentials and launch settings; they are not copied.", { exact: true }).waitFor();
+    assert.match(await copy.getByLabel('Computer & hub', { exact: true }).locator('option:checked').innerText(), /Computer A/);
+    assert.equal(await copy.getByLabel('Runtime', { exact: true }).inputValue(), 'pi');
+    await copy.getByText('More', { exact: true }).click();
+    assert.equal(await copy.getByLabel('Working directory', { exact: true }).inputValue(), workspaceA);
+    await shot(ownerPage, 'daily-duplicate-private-credentials-required');
     await copy.getByLabel('Agent name', { exact: true }).fill('Daily disposable duplicate');
     await copy.locator('[data-catalog-status]').filter({ hasText: 'Provider and model choices were read' }).waitFor();
     await copy.getByLabel('Runtime', { exact: true }).selectOption('pi');
     await copy.getByLabel('Provider', { exact: true }).selectOption({ label: 'Custom API' });
+    assert.equal(await copy.getByLabel('API key', { exact: true }).inputValue(), '', 'Duplicate must require re-entry rather than copy saved secrets');
     await copy.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
     await copy.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
     await copy.getByLabel('Custom model', { exact: true }).fill('journey-model');
@@ -527,7 +547,7 @@ async function dailyCustomer(workspaceA) {
     await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor();
     assert.equal(await card(ownerPage, 'Daily disposable duplicate').count(), 0);
     await shot(ownerPage, 'daily-deleted-after-reload'); await card(ownerPage, 'Owner agent A').click();
-    pass('Daily customer duplicates an agent through UI, cancels deletion once, then confirms deletion and verifies it remains absent after reload');
+    pass('Duplicate opens New agent on the source Computer/runtime/directory without copying secrets; customer re-enters credentials, cancels deletion once, confirms deletion, and verifies it remains absent after reload');
   });
   await dailyAttempt('Daily rename and snooze', async () => {
   stage = 'Daily customer: rename priority and snooze';

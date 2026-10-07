@@ -42,6 +42,7 @@ export type CreationOptions = {
   initialBackend?: Backend;
   initialName?: string;
   initialCwd?: string;
+  initialHint?: string;
 };
 const escape = (value: unknown) =>
   String(value ?? "").replace(
@@ -83,6 +84,12 @@ export function agentCreationDialog(
   const button = dialog.querySelector<HTMLButtonElement>("[type=submit]")!;
   const status = dialog.querySelector<HTMLElement>("[data-catalog-status]")!;
   const alert = dialog.querySelector<HTMLElement>("[role=alert]")!;
+  if (options.initialHint) {
+    const hint = document.createElement("p");
+    hint.className = "directory-hint";
+    hint.textContent = options.initialHint;
+    dialog.querySelector(".agent-creation-body")!.prepend(hint);
+  }
   alert.id = "agent-creation-error";
   alert.setAttribute("aria-atomic", "true");
   let invalidField: HTMLInputElement | HTMLSelectElement | undefined;

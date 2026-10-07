@@ -305,3 +305,22 @@ R54's explicit write allowlist authorizes agent creation for Members as well as 
 The current product still requires a local Computer service to be installed, attached and started. Report that external infrastructure step and any controlled OAuth/managed-driver boundary separately; a browser fixture does not establish browser-only Computer deployment, two real external-provider logins or live-model acceptance.
 
 R55 evidence: [two-identity browser journey](evidence/customer-journey/results.json), [32 masked screenshots](evidence/customer-journey/), [regression/runtime boundaries](evidence/customer-journey/verification.json), and [deployed component snapshots](evidence/customer-journey/deployment.json). Revocation waits for completed discovery; a loading placeholder is not an absence assertion.
+
+## R56 — Daily customer use and removal of obsolete flows (7 October 2026)
+
+The user broadened acceptance from the reported toolbar/layout failures to ordinary daily customer actions and asked that obsolete designs be removed. The current client and independent-Hub authorization remain R54; no backend account, credential, invitation or allowlist seeding may compensate for missing web controls.
+
+| Conflicting old implementation or documentation | Current decision |
+|---|---|
+| Separate Vite password/email/SMS Computer-first client under `frontend/web/src` | Removed; the independently built client is the sole current web entry, including the compatibility `web` output |
+| Old password/demo customer verification chain presented as default acceptance | Removed those entrypoints and made the provider-only customer journey the default; native/security component fixtures remain separately scoped |
+| Duplicate immediately launches through a legacy broker path or only reports credential re-entry in a toast | Opens the current creation form on the source Computer/runtime/directory, without copying secrets; the user reviews precise launch options and supplies private credentials |
+| Download identity matching uses only a retained credential key | Resolve the current Hub identity scope as well, so a valid signed-in owner can download through a browser download handoff |
+| Managed refresh reports pending attachments but an empty staged list | Return the actual actor-specific durable staging list; other identities' uploads neither leak nor block that actor's queue/unattended work |
+| Clearing or deleting owned staging leaves temporary bytes, or a refused upload remains on disk | Remove only server-generated upload paths owned by that actor/conversation; retain delivered files until conversation deletion and preserve workspace files |
+| Previously loaded pages silently keep an older deployed UI | Publish a no-store release manifest and offer an explicit Reload while preserving the current form; this cannot patch a page already running a release predating the update detector |
+| Active readiness docs still describe device signing keys, setup-code forms or password popup checks | Correct current guidance and visibly label old snapshot-specific checks as historical; Hub token signing keys remain required and are distinct from removed client device keys |
+
+The root `AGENTS.md` architecture describes the older Python/password product. Its v1 implementation details do not override the user's TypeScript-only, independent-v2 and R54 requirements. Applicable Docker isolation, bounded memory and preservation rules still govern verification and deployment. Reused JavaScript rendering widgets and vendored browser libraries remain permitted frontend implementation; they are not the removed alternate sign-in design.
+
+Daily browser acceptance covers real UI file creation/edit/save/download, Markdown/image/PDF previews, Git comparison, staging and sending attachments, model commands, queued messages and interruption, conversation copy/search, rename/priority/snooze, duplication/deletion, appearance/settings, provider identities and Hub roles, in addition to the two-Computer allowlist journey. Controlled provider and managed-transport boundaries, external Computer enrollment/start and browser permission setup remain explicit in the run's evidence. Exact final counts and images belong to that run, not an aggregate of historical test totals.

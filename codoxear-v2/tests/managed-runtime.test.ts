@@ -267,11 +267,27 @@ test("managed HTTP attachments are actor scoped and delivered once as native ima
     const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
     const image = await call("inject_image", "POST", { filename: "pixel.png", data_b64: png, content_type: "image/png" });
     assert.equal(image.status, 200);
+    const refresh = async (actorId: string) => {
+      const catalog = await f.runtime.execute({ op: "discover", actorId }) as { sessions: { session_id: string; attachments: { id: string }[]; staged_attachments: { id: string }[]; pending_attachment: boolean }[] };
+      return catalog.sessions.find((session) => session.session_id === localId)!;
+    };
+    const ownerRefresh = await refresh("alice");
+    assert.deepEqual(ownerRefresh.staged_attachments.map((attachment) => attachment.id), [file.value.attachment.id, image.value.attachment.id], "Polling keeps the durable actor-owned chips mounted");
+    assert.deepEqual(ownerRefresh.attachments, ownerRefresh.staged_attachments);
+    assert.equal(ownerRefresh.pending_attachment, true);
+    const ownerState = await f.runtime.request(`/api/sessions/${localId}/state`, "GET", { actorId: "alice" });
+    assert.deepEqual(ownerState.staged_attachments.map((attachment: { id: string }) => attachment.id), ownerRefresh.staged_attachments.map((attachment) => attachment.id));
+    const peerRefresh = await refresh("bob");
+    assert.deepEqual(peerRefresh.staged_attachments, []);
+    assert.deepEqual(peerRefresh.attachments, []);
+    assert.equal(peerRefresh.pending_attachment, false);
     assert.equal((await call("attachments", "GET", undefined, "bob")).value.attachments.length, 0);
     await call("attachments/delete", "POST", { id: file.value.attachment.id }, "bob");
     assert.equal((await call("attachments")).value.attachments.length, 2);
     const peer = await call("inject_file", "POST", { filename: "peer.txt", data_b64: Buffer.from("Private peer attachment").toString("base64") }, "bob");
     assert.equal(peer.status, 200);
+    assert.deepEqual((await refresh("alice")).staged_attachments.map((attachment) => attachment.id), [file.value.attachment.id, image.value.attachment.id]);
+    assert.deepEqual((await refresh("bob")).staged_attachments.map((attachment) => attachment.id), [peer.value.attachment.id]);
     f.factory.sessions[0]!.capabilities.images = false;
     const unsupported = await call("send", "POST", { text: "Read these attachments", request_id: "image-refused" });
     assert.equal(unsupported.status, 409);

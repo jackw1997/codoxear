@@ -81,3 +81,5 @@ The client starts with Add Hub and a URL field, with no preset Hub suggestions. 
 ## Verification limits
 
 Adapter verification uses controlled HTTP transports and signed test tokens inside Docker. This exercises protocol and cryptographic rejection behavior without fabricated live connections. A successful real-provider sign-in requires your enabled provider application, actual credentials, registered public callback, and a permitted test user. Record that browser acceptance separately from isolated adapter tests.
+
+Computer allowlisting and workspace permissions are separate: even an allowlisted identity must receive an explicit workspace grant before using file, Git or terminal operations there. Hub administration roles do not bypass either check.

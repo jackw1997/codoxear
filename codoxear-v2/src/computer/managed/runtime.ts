@@ -1083,8 +1083,7 @@ export class ManagedRuntime implements Runtime {
       model_provider: null,
       lost: false,
       log_exists: !!row.stream,
-      pending_attachment: !!this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? AND actor_id=? LIMIT 1").get(row.id, actorId),
-      staged_attachments: [],
+      ...this.attachmentState(row.id, actorId),
       files: [],
       draft_updated_ts: 0,
       thinking: 0,
@@ -1362,7 +1361,7 @@ export class ManagedRuntime implements Runtime {
         // Diagnostics inspect Computer-owned durable state. They must remain
         // available after worker eviction and never open or resume a driver.
         return {
-          ...this.metadata(row),
+          ...this.metadata(row, undefined, actor),
           runtime: "oar",
           native_session_id: row.native_id,
           retained_records: evidence.records,

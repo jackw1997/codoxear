@@ -27,7 +27,7 @@ export function createNewSessionDialogController(options: {
     opening = false,
     disposed = false;
   async function open(
-    initial: { cwd?: string; likeSession?: { agent_backend?: Backend } } = {},
+    initial: { cwd?: string; statusText?: string; likeSession?: { agent_backend?: Backend; codoxear_computer_id?: string } } = {},
   ) {
     if (opening || dialog?.open || disposed) return;
     opening = true;
@@ -35,9 +35,9 @@ export function createNewSessionDialogController(options: {
       const directory = await request("/api/client/directory");
       if (disposed) return;
       const id = options.sessionState.get("selected");
-      const current = id
+      const current = initial.likeSession ?? (id
         ? options.sessionCatalog.get("sessionIndex").get(id)
-        : undefined;
+        : undefined);
       dialog = agentCreationDialog(
         directory.placements,
         async (placement: Placement, values: AgentSelection) => {
@@ -79,6 +79,7 @@ export function createNewSessionDialogController(options: {
             current?.agent_backend ??
             "pi",
           ...(initial.cwd ? { initialCwd: initial.cwd } : {}),
+          ...(initial.statusText ? { initialHint: initial.statusText } : {}),
         },
       );
     } catch (error) {

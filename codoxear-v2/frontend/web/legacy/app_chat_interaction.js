@@ -351,13 +351,14 @@ import * as CodoxearTranscriptRender from "./app_transcript_render.js";
       clearDeletedSessionClientState: (...args) => getSessionLifecycleController().clearDeletedSessionClientState(...args),
       refreshSessions, setToast, openEditSession: (sid) => getSessionEditController().openEditSession(sid),
       duplicateSession: async (session) => {
-        if (session && (session.launch_requires_reentry || session.model_provider === "codoxear_private"))
-          return setToast("Open New session and re-enter this agent's provider credentials and launch settings to duplicate it.");
         const cwd = session && session.cwd && session.cwd !== "?" ? session.cwd : "";
-        if (!cwd) return setToast("cwd unavailable");
-        return getSessionLifecycleController().spawnSessionWithCwd(cwd, null, null, "", sessionProviderChoice(session),
-          session && session.model ? session.model : "default", session && session.reasoning_effort ? session.reasoning_effort : "high",
-          sessionIsFast(session), !!(session && session.transport === "tmux"), null, sessionAgentBackend(session), session.session_id);
+        return options.newSessionDialogController.open({
+          cwd,
+          likeSession: session,
+          statusText: session && (session.launch_requires_reentry || session.model_provider === "codoxear_private")
+            ? "Create a new agent on this Computer and runtime. Re-enter the source agent's private provider credentials and launch settings; they are not copied."
+            : "Create a new agent on this Computer and runtime. Review its provider, model and launch settings before creating it.",
+        });
       },
       selectSession: (...args) => getSessionLifecycleController().selectSession(...args), setSidebarOpen,
       now: () => Date.now(), performanceNow: () => performance.now(), consoleError: (...args) => console.error(...args),
