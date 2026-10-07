@@ -1038,9 +1038,21 @@ test("account agent directory spans authorized hubs, omits restricted agents and
     [a1.id],
   );
   assert.equal(authority.agentDirectory(bob).placements.length, 1);
+  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read", "send", "interrupt"]);
+  f.store.change((s) => {
+    s.memberships.find((membership) => membership.resource === "computer" && membership.resourceId === c1.id && membership.userId === "bob")!.role = "viewer";
+  });
+  // Both roles use access='member'; explicit actions distinguish their rights.
+  assert.equal(authority.agentDirectory(bob).agents[0]?.access, "member");
+  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read"]);
+  assert.equal(authority.agentDirectory(bob).placements.length, 0);
+  f.store.change((s) => {
+    s.memberships.find((membership) => membership.resource === "computer" && membership.resourceId === c1.id && membership.userId === "bob")!.role = "operator";
+  });
   f.store.change((s) => setPolicy(s, "alice", "hub", first.id, "read_only"));
   f.store.change((s) => removeMember(s, "alice", "computer", c1.id, "bob"));
   assert.equal(authority.agentDirectory(bob).agents[0]?.access, "read_only");
+  assert.deepEqual(authority.agentDirectory(bob).agents[0]?.actions, ["read"]);
   assert.equal(authority.agentDirectory(bob).placements.length, 0);
   f.store.change((s) =>
     s.identity.requirements.push({

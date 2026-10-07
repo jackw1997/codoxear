@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { vault, type HubLogin } from "./vault.js";
+import { vault, selectionId, hubScope, type HubLogin } from "./vault.js";
 import { DeviceSignInError, deviceKeys, proveDevice } from "./device-keys.js";
 import { transportVersion } from "./transport-version.js";
 import {
@@ -16,15 +16,53 @@ const json = (value: unknown, status = 200) =>
       "Cache-Control": "no-store",
     },
   });
+class IdentitySelectionError extends Error {
+  readonly status = 403;
+  constructor() {
+    super("This Hub credential was removed or replaced");
+  }
+}
+async function assertSelected(
+  login: HubLogin,
+  generation = selectionId(login),
+) {
+  if (!(await vault.isSelectionActive(login.id, generation)))
+    throw new IdentitySelectionError();
+}
+async function verifySnapshot(snapshot: HubLogin[], failed: boolean[]) {
+  const active = await vault.activeList();
+  for (let index = 0; index < snapshot.length; index++) {
+    const original = snapshot[index]!;
+    const current = active.find((row) => row.id === original.id);
+    if (
+      current?.id === original.id &&
+      selectionId(current) === selectionId(original)
+    )
+      continue;
+    // Removing or replacing a proof invalidates its in-flight response. Other
+    // saved identities remain concurrently available.
+    if (!current && failed[index] && !(await vault.get(original.id))) continue;
+    throw new IdentitySelectionError();
+  }
+}
+const ongoing = new Set<{
+  login: HubLogin;
+  generation: string;
+  controller: AbortController;
+}>();
 const flights = new Map<string, Promise<HubLogin>>();
 async function fresh(login: HubLogin): Promise<HubLogin> {
+  const generation = selectionId(login);
+  await assertSelected(login, generation);
   if (login.expiresAt > Date.now() + 30000) return login;
-  let work = flights.get(login.id);
+  const flightKey = login.id + ":" + generation;
+  let work = flights.get(flightKey);
   if (!work) {
     work = navigator.locks
       .request("codoxear-hub-refresh:" + login.id, async () => {
         const latest = await vault.get(login.id);
         if (!latest) throw new Error("Sign in to this hub again");
+        await assertSelected(latest, generation);
         if (latest.expiresAt > Date.now() + 30000) return latest;
         const key = await deviceKeys.get(latest.origin, latest.deviceKeyId);
         if (!key || key.accountId !== latest.accountId)
@@ -35,11 +73,8 @@ async function fresh(login: HubLogin): Promise<HubLogin> {
         try {
           tokens = await proveDevice(key);
         } catch (error) {
-          if (
-            error instanceof DeviceSignInError &&
-            [401, 403].includes(error.status)
-          )
-            await vault.remove(login.id);
+          if (error instanceof DeviceSignInError && error.status === 401)
+            await vault.removeIfSelection(login.id, generation);
           throw error;
         }
         const next = {
@@ -50,44 +85,220 @@ async function fresh(login: HubLogin): Promise<HubLogin> {
         };
         if ((await vault.get(login.id))?.refreshToken !== latest.refreshToken)
           throw new Error("Hub login changed during refresh");
-        await vault.put(next);
-        return next;
+        if (!(await vault.updateTokens(next, generation)))
+          throw new IdentitySelectionError();
+        return (await vault.get(login.id))!;
       })
       .then(async (value) => await value)
-      .finally(() => flights.delete(login.id));
-    flights.set(login.id, work);
+      .finally(() => flights.delete(flightKey));
+    flights.set(flightKey, work);
   }
   return work;
 }
 async function hub(login: HubLogin, path: string, init: RequestInit = {}) {
-  login = await fresh(login);
+  const cleanup =
+    init.method === "DELETE" &&
+    /^\/api\/v1\/push\/subscriptions(?:\/|$)/.test(path);
+  const generation = selectionId(login);
+  if (!cleanup) {
+    await assertSelected(login, generation);
+    login = await fresh(login);
+    await assertSelected(login, generation);
+  }
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\r\n]/.test(path))
     throw new Error("Invalid hub path");
-  return fetch(login.origin + path, {
-    ...init,
-    credentials: "omit",
-    redirect: "error",
-    headers: {
-      ...Object.fromEntries(new Headers(init.headers)),
-      Authorization: "Bearer " + login.accessToken,
-    },
-  });
+  const controller = new AbortController(),
+    entry = { login, generation, controller };
+  if (!cleanup) ongoing.add(entry);
+  const release = () => ongoing.delete(entry);
+  try {
+    const response = await fetch(login.origin + path, {
+      ...init,
+      signal: init.signal
+        ? AbortSignal.any([init.signal, controller.signal])
+        : controller.signal,
+      credentials: "omit",
+      redirect: "error",
+      headers: {
+        ...Object.fromEntries(new Headers(init.headers)),
+        Authorization: "Bearer " + login.accessToken,
+      },
+    });
+    if (!cleanup) await assertSelected(login, generation);
+    if (!response.body) {
+      release();
+      return response;
+    }
+    const reader = response.body.getReader();
+    let streamTarget: ReadableStreamDefaultController<Uint8Array>;
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        release();
+        void reader.cancel().catch(() => {});
+        try {
+          streamTarget.error(controller.signal.reason);
+        } catch {}
+      },
+      { once: true },
+    );
+    const stream = new ReadableStream<Uint8Array>({
+      start(target) {
+        streamTarget = target;
+      },
+      async pull(target) {
+        try {
+          if (!cleanup) await assertSelected(login, generation);
+          const chunk = await reader.read();
+          if (!cleanup) await assertSelected(login, generation);
+          if (chunk.done) {
+            release();
+            target.close();
+          } else target.enqueue(chunk.value);
+        } catch (error) {
+          release();
+          controller.abort();
+          void reader.cancel().catch(() => {});
+          target.error(error);
+        }
+      },
+      cancel(reason) {
+        release();
+        controller.abort();
+        return reader.cancel(reason);
+      },
+    });
+    return new Response(stream, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  } catch (error) {
+    release();
+    controller.abort();
+    throw error;
+  }
 }
-// IDs are scoped to an authenticated hub account, never a global identity registry.
-const key = (login: HubLogin, id: string) => login.accountKey + "~" + id;
-const unique = <T>(items: T[], id: (item: T) => string) => [
-  ...new Map(items.map((item) => [id(item), item])).values(),
-];
+// Public resource IDs belong to a Hub, independent of which local credential
+// currently authorizes them. A request still uses exactly one actual principal.
+const scope = hubScope;
+const key = (login: HubLogin, id: string) => scope(login) + "~" + id;
+const sameHub = (left: HubLogin, right: HubLogin) =>
+  left.origin === right.origin && left.hubId === right.hubId;
+const mergeResources = (rows: any[], identity: (row: any) => string) => {
+  const result = new Map<string, any>();
+  for (const row of rows) {
+    const id = identity(row),
+      previous = result.get(id);
+    if (!previous)
+      result.set(id, { ...row, loginIds: [row.loginId ?? row.codoxear_login] });
+    else {
+      const loginIds = [
+        ...new Set([...previous.loginIds, row.loginId ?? row.codoxear_login]),
+      ];
+      const score = (value: any) =>
+        (value.actions ?? value.codoxear_actions ?? []).length;
+      if (score(row) > score(previous)) result.set(id, { ...row, loginIds });
+      else previous.loginIds = loginIds;
+    }
+  }
+  return [...result.values()];
+};
+async function checkedJson(login: HubLogin, path: string) {
+  const response = await hub(login, path, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    return undefined;
+  }
+  return response.json();
+}
+async function createPrincipal(anchor: HubLogin, computerId: string) {
+  for (const candidate of (await vault.list()).filter((row) =>
+    sameHub(row, anchor),
+  )) {
+    try {
+      const directory = await checkedJson(candidate, "/api/agent-directory");
+      if (
+        directory?.placements.some(
+          (placement: any) => placement.computerId === computerId,
+        )
+      )
+        return candidate;
+    } catch {}
+  }
+  return undefined;
+}
+async function agentPrincipal(
+  candidates: HubLogin[],
+  agentId: string,
+  request: Request,
+  url: URL,
+) {
+  const interrupt = /\/(?:interrupt|cancel|kill)(?:$|\/)/.test(url.pathname);
+  const workspace =
+    /\/(?:file|git)(?:\/|$)/.test(url.pathname) ||
+    /\/(?:attachments|pending_attachment)(?:\/|$)/.test(url.pathname);
+  const read =
+    ["GET", "HEAD"].includes(request.method) ||
+    /\/notifications\//.test(url.pathname);
+  const action = interrupt ? "interrupt" : read || workspace ? "read" : "send";
+  const matches: Array<{ login: HubLogin; computerId: string; rank: number }> =
+    [];
+  for (const candidate of candidates) {
+    try {
+      const proof = await checkedJson(
+        candidate,
+        "/api/agents/" + encodeURIComponent(agentId) + "/access",
+      );
+      if (!proof?.access?.actions?.includes(action)) continue;
+      if (workspace) {
+        const directory = await checkedJson(candidate, "/api/agent-directory");
+        const agent = directory?.agents.find((row: any) => row.id === agentId);
+        const workspaceId = url.searchParams.get("workspace_id");
+        if (
+          workspaceId &&
+          !(agent?.workspaceGrants ?? []).some(
+            (grant: any) =>
+              grant.workspaceId === workspaceId &&
+              (read || grant.access === "write") &&
+              (!/\/git\//.test(url.pathname) || grant.git) &&
+              (!/\/(?:upload|attachments|pending_attachment)(?:\/|$)/.test(
+                url.pathname,
+              ) ||
+                read ||
+                grant.uploads),
+          )
+        )
+          continue;
+      }
+      matches.push({
+        login: candidate,
+        computerId: proof.agent.computerId,
+        rank: proof.access.actions.length,
+      });
+    } catch {}
+  }
+  return matches.sort((left, right) => right.rank - left.rank)[0];
+}
 async function directory() {
+  const snapshot = await vault.activeList();
   const groups = await Promise.all(
-    (await vault.list()).map(async (login) => {
-      let status = 0;
+    snapshot.map(async (login) => {
+      let status = 0,
+        blocked = false;
       try {
         const res = await hub(login, "/api/agent-directory", {
           signal: AbortSignal.timeout(5000),
         });
         status = res.status;
-        if (!res.ok) throw new Error("Directory unavailable");
+        if (!res.ok) {
+          blocked =
+            (await res.json().catch(() => null))?.code ===
+            "login_method_not_allowed";
+          throw new Error("Directory unavailable");
+        }
         const d = await res.json();
         return {
           agents: d.agents.map((a: any) => ({
@@ -104,14 +315,16 @@ async function directory() {
           error: null,
         };
       } catch (e) {
+        blocked ||= e instanceof DeviceSignInError && e.code === "login_method_not_allowed";
         return {
           agents: [],
           placements: [],
           error: {
             loginId: login.id,
             name: login.name,
-            message:
-              [401, 403].includes(status) || !(await vault.get(login.id))
+            message: blocked
+              ? "This account type is blocked by the Hub owner. It remains saved for later access."
+              : status === 401 || !(await vault.get(login.id))
                 ? "Sign in to this hub again."
                 : "Hub directory unavailable. Check your connection and retry.",
           },
@@ -119,35 +332,50 @@ async function directory() {
       }
     }),
   );
+  await verifySnapshot(
+    snapshot,
+    groups.map((group) => !!group.error),
+  );
   return {
-    agents: unique(
+    agents: mergeResources(
       groups.flatMap((g) => g.agents),
       (a: any) => a.id,
     ),
-    placements: unique(
+    placements: mergeResources(
       groups.flatMap((g) => g.placements),
-      (p: any) => p.origin + ":" + p.computerId,
+      (p: any) => JSON.stringify([p.origin, p.hubId, p.computerId]),
     ),
     errors: groups.flatMap((g) => (g.error ? [g.error] : [])),
   };
 }
 async function catalog(placement: string | null) {
-  const logins = await vault.list();
+  const logins = await vault.activeList();
   const groups = await Promise.all(
     logins.map(async (login) => {
-      let status = 0;
+      let status = 0,
+        blocked = false;
       try {
         const r = await hub(login, "/workspace/api/sessions", {
           signal: AbortSignal.timeout(7000),
         });
         status = r.status;
-        if (!r.ok) throw new Error("Catalog unavailable");
+        if (!r.ok) {
+          blocked =
+            (await r.json().catch(() => null))?.code ===
+            "login_method_not_allowed";
+          throw new Error("Catalog unavailable");
+        }
         const value = await r.json();
         const dr = await hub(login, "/api/agent-directory", {
           signal: AbortSignal.timeout(5000),
         });
         status = dr.status;
-        if (!dr.ok) throw new Error("Directory unavailable");
+        if (!dr.ok) {
+          blocked =
+            (await dr.json().catch(() => null))?.code ===
+            "login_method_not_allowed";
+          throw new Error("Directory unavailable");
+        }
         const d = await dr.json();
         const failures = value.catalog_errors ?? [];
         return {
@@ -166,6 +394,8 @@ async function catalog(placement: string | null) {
                 (a: any) => a.id === s.session_id,
               )?.computerName,
               codoxear_login: login.id,
+              codoxear_actions: d.agents.find((a: any) => a.id === s.session_id)
+                ?.actions ?? ["read"],
             })),
           retainedIds: d.agents
             .filter((a: any) =>
@@ -180,9 +410,9 @@ async function catalog(placement: string | null) {
           })),
           ok: true,
         };
-      } catch {
-        const signedOut =
-          [401, 403].includes(status) || !(await vault.get(login.id));
+      } catch (error) {
+        blocked ||= error instanceof DeviceSignInError && error.code === "login_method_not_allowed";
+        const signedOut = status === 401 || !(await vault.get(login.id));
         return {
           sessions: [],
           retainedIds: [],
@@ -191,10 +421,12 @@ async function catalog(placement: string | null) {
             {
               loginId: login.id,
               name: login.name,
-              kind: signedOut ? "signed_out" : "hub",
-              message: signedOut
-                ? "Sign in to this hub again."
-                : "Hub catalog unavailable. Check your connection and retry.",
+              kind: blocked ? "policy" : signedOut ? "signed_out" : "hub",
+              message: blocked
+                ? "This account type is blocked by the Hub owner. It remains saved for later access."
+                : signedOut
+                  ? "Sign in to this hub again."
+                  : "Hub catalog unavailable. Check your connection and retry.",
             },
           ],
         };
@@ -213,10 +445,15 @@ async function catalog(placement: string | null) {
           { signal: AbortSignal.timeout(5000) },
         );
         if (r.ok) defaults = await r.json();
+        else await r.body?.cancel();
       } catch {}
   }
+  await verifySnapshot(
+    logins,
+    groups.map((group) => !group.ok),
+  );
   return {
-    sessions: unique(
+    sessions: mergeResources(
       groups.flatMap((g) => g.sessions),
       (s: any) => s.session_id,
     ),
@@ -228,7 +465,7 @@ async function catalog(placement: string | null) {
             ? "partial"
             : "unavailable"
           : "ready",
-      authenticated_hubs: logins.length,
+      authenticated_hubs: new Set(logins.map(scope)).size,
       errors: groups.flatMap((g) => g.errors),
       retained_session_ids: groups.flatMap((g) => g.retainedIds),
     },
@@ -267,15 +504,19 @@ async function relay(
       const b = JSON.parse(new TextDecoder().decode(init.body));
       if (agentId && b.session_id) b.session_id = agentId;
       if (agentId && /\/edit(?:\?|$)/.test(path) && b.dependency_session_id) {
-        const prefix = login.accountKey + "~";
-        if (!String(b.dependency_session_id).startsWith(prefix))
-          return json(
-            { error: "Dependency must belong to the same hub account" },
-            403,
-          );
-        b.dependency_session_id = String(b.dependency_session_id).slice(
-          prefix.length,
+        const dependency = String(b.dependency_session_id),
+          separator = dependency.indexOf("~");
+        const prefix = dependency.slice(0, separator);
+        const dependencyLogin = (await vault.list()).find(
+          (row) => scope(row) === prefix || row.accountKey === prefix,
         );
+        if (
+          separator < 0 ||
+          !dependencyLogin ||
+          !sameHub(dependencyLogin, login)
+        )
+          return json({ error: "Dependency must belong to the same Hub" }, 403);
+        b.dependency_session_id = dependency.slice(separator + 1);
       }
       init.body = JSON.stringify(b);
     }
@@ -309,6 +550,7 @@ async function relay(
       );
   if (response.headers.get("content-type")?.includes("application/json")) {
     const value = await response.json();
+    await assertSelected(login);
     const walk = (v: any): any =>
       typeof v === "string" &&
       (v.startsWith("/workspace/api/") || v.startsWith("/api/"))
@@ -327,11 +569,14 @@ async function relay(
       headers: output,
     });
   }
-  if (response.headers.get("content-type")?.includes("mpegurl"))
-    return new Response(rewrite(await response.text()), {
+  if (response.headers.get("content-type")?.includes("mpegurl")) {
+    const playlist = await response.text();
+    await assertSelected(login);
+    return new Response(rewrite(playlist), {
       status: response.status,
       headers: output,
     });
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -350,7 +595,11 @@ async function handle(request: Request) {
     const [id, computerId] = (url.searchParams.get("__placement") ?? "").split(
       "~",
     );
-    const login = id ? await vault.get(id) : undefined;
+    const anchor = id ? await vault.get(id) : undefined;
+    const login =
+      anchor && computerId
+        ? await createPrincipal(anchor, computerId)
+        : undefined;
     if (!login || !computerId)
       return json({ error: "Choose a computer in New session" }, 400);
     const response = await hub(
@@ -363,6 +612,7 @@ async function handle(request: Request) {
       },
     );
     const value = await response.json();
+    await assertSelected(login);
     if (response.ok) value.session_id = key(login, value.agent_id);
     return json(value, response.status);
   }
@@ -409,6 +659,8 @@ async function handle(request: Request) {
   if (management) {
     const login = await vault.get(management[1]!);
     if (!login) return json({ error: "Hub login unavailable" }, 401);
+    if (!(await vault.isActive(login.id)))
+      return json({ error: "This Hub identity is no longer saved" }, 403);
     return relay(request, url, login, management[2]! + url.search);
   }
   const match = /^\/api\/sessions\/([^/]+)(\/.*)$/.exec(path);
@@ -421,27 +673,22 @@ async function handle(request: Request) {
       return json({ items: [], cursor: null });
     return json({ error: "Select an agent or connect a hub first" }, 409);
   }
-  const accountKey = scoped.slice(0, split),
+  const resourcePrefix = scoped.slice(0, split),
     agentId = scoped.slice(split + 1);
-  let login: HubLogin | undefined;
-  let computerId: string | undefined;
-  for (const candidate of (await vault.list()).filter(
-    (l) => l.accountKey === accountKey,
-  )) {
-    try {
-      const r = await hub(candidate, "/api/agent-directory", {
-        signal: AbortSignal.timeout(5000),
-      });
-      const agent = r.ok
-        ? (await r.json()).agents.find((a: any) => a.id === agentId)
-        : undefined;
-      if (agent) {
-        login = candidate;
-        computerId = agent.computerId;
-        break;
-      }
-    } catch {}
-  }
+  const saved = await vault.list();
+  const anchor = saved.find(
+    (row) => scope(row) === resourcePrefix || row.accountKey === resourcePrefix,
+  );
+  const chosen = anchor
+    ? await agentPrincipal(
+        saved.filter((row) => sameHub(row, anchor)),
+        agentId,
+        request,
+        url,
+      )
+    : undefined;
+  const login = chosen?.login,
+    computerId = chosen?.computerId;
   if (!login)
     return json(
       { error: "No saved identity currently has access to this agent" },
@@ -479,6 +726,30 @@ self.addEventListener("install", (event) =>
   event.waitUntil(self.skipWaiting()),
 );
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "codoxear-identity-changed")
+    event.waitUntil(
+      (async () => {
+        await Promise.all(
+          [...ongoing].map(async (entry) => {
+            if (
+              !(await vault.isSelectionActive(entry.login.id, entry.generation))
+            )
+              entry.controller.abort();
+          }),
+        );
+        const sourceId =
+          event.source && "id" in event.source ? event.source.id : undefined;
+        for (const client of await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        }))
+          if (
+            client.id !== sourceId &&
+            new URL(client.url).pathname !== "/auth-callback"
+          )
+            client.postMessage({ type: "codoxear-identity-changed" });
+      })(),
+    );
   if (event.data?.type === "codoxear-transport-check")
     event.ports[0]?.postMessage({
       type: "codoxear-transport-ready",
@@ -494,6 +765,11 @@ self.addEventListener("fetch", (event) => {
   const u = new URL(event.request.url);
   if (u.origin === self.location.origin && u.pathname.startsWith("/api/"))
     event.respondWith(
-      handle(event.request).catch((e) => json({ error: String(e) }, 503)),
+      handle(event.request).catch((e) =>
+        json(
+          { error: String(e) },
+          e instanceof IdentitySelectionError ? 403 : 503,
+        ),
+      ),
     );
 });

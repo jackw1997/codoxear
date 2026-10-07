@@ -7335,6 +7335,9 @@
                     "google",
                     "feishu"
                   ]
+                },
+                "name": {
+                  "type": "string"
                 }
               },
               "required": [
@@ -7381,13 +7384,58 @@
           },
           "setupRequired": {
             "type": "boolean"
+          },
+          "organization": {
+            "type": "object",
+            "properties": {
+              "feishuTenant": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tenantBindingRequired": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "feishuTenant",
+              "tenantBindingRequired"
+            ],
+            "additionalProperties": false
+          },
+          "loginMethods": {
+            "type": "object",
+            "properties": {
+              "availableMethods": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+                }
+              },
+              "allowedMethods": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+                }
+              }
+            },
+            "required": [
+              "availableMethods",
+              "allowedMethods"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "providers",
           "registration",
           "deviceKeys",
-          "setupRequired"
+          "setupRequired",
+          "organization",
+          "loginMethods"
         ],
         "additionalProperties": false
       },
@@ -8007,6 +8055,17 @@
                     "denied"
                   ]
                 },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "send",
+                      "interrupt"
+                    ]
+                  }
+                },
                 "workspaceGrants": {
                   "$ref": "#/components/schemas/Sharedarray_a79d54c950942480"
                 }
@@ -8025,6 +8084,7 @@
                 "hubName",
                 "origin",
                 "access",
+                "actions",
                 "workspaceGrants"
               ],
               "additionalProperties": false

@@ -11,6 +11,7 @@ import {
 } from "../contracts/workspaces.js";
 import { type Store } from "../persistence/store.js";
 import { type Accounts } from "./accounts.js";
+import { checkHubOrganization } from "./hub-organization.js";
 import { type Tokens } from "./tokens.js";
 import { AuthRequirement, type IdentitySession } from "./model.js";
 import type {
@@ -58,6 +59,7 @@ export class Authority {
     const s = this.store.read(),
       h = requireValue(s.hubs.find((x) => x.id === hubId));
     forbid(hubAccess(s, session.userId, h), "Hub access required");
+    checkHubOrganization(s, hubId, session.context.method, session.context.tenant, true);
     const req = s.identity.requirements.find((x) => x.hubId === hubId)?.rule;
     if (req) this.checkAuthentication(session, req);
     return h;
@@ -141,6 +143,7 @@ export class Authority {
           hubName: h.name,
           origin: h.origin!,
           access: agentAccess(state, session.userId, a).mode,
+          actions: agentAccess(state, session.userId, a).actions,
         })),
     );
     return {

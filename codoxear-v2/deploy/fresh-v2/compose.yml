@@ -87,6 +87,7 @@ services:
     environment:
       CODOXEAR_CLIENT_HOST: 0.0.0.0
       CODOXEAR_CLIENT_PORT: "19520"
+      CODOXEAR_PUBLIC_HUBS_JSON: ${CODOXEAR_PUBLIC_HUBS_JSON:-[]}
       NODE_OPTIONS: --max-old-space-size=64
     ports: ["127.0.0.1:19520:19520", "127.0.0.1:19500:19520"]
   computer-a: &computer

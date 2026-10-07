@@ -149,3 +149,29 @@ restart attempts bounded at two. These are starting
 limits, not measured capacity. Keep build/verification serialized and separately
 capped at 2 GiB. Measure whole-stack memory and exercise fresh login, enrollment,
 real LiteLLM conversations and history before claiming deployment acceptance.
+
+## Hub-owned Google and Feishu login (R52)
+
+Configure providers separately in each private `config/hub-N.json` using its `providers` array. One Hub represents one organization, with at most one Feishu app and one verified tenant. Other teams deploy their own Hubs. Optional Google sign-in uses that Hub's Google OAuth app; authentication does not grant membership or Computer access. See [provider login](../../docs/provider-login.md).
+
+The static frontend can receive `CODOXEAR_PUBLIC_HUBS_JSON`, a public suggestion array such as `[{"name":"Home Hub","origin":"https://home.example.com"},{"name":"Work Hub","origin":"https://work.example.com"}]`. It contains no provider app secrets or setup codes. Available providers come from each Hub's authentication API.
+
+No global login container or enrollment broker is deployed. The gateway serves the static client at the preserved client origin and routes each Hub origin directly to its own Hub. Provider callbacks belong to that Hub: `https://HUB-ORIGIN/auth/CONNECTION-ID/callback`. The frontend `/auth-callback` is a separate client callback. Removing an obsolete broker route from an existing Caddyfile requires a reviewed replacement; the gateway generator never silently overwrites operator configuration.
+
+Select a Hub, sign in with one of its configured providers, and enter its private one-time setup code to initialize ownership. This claims an already deployed endpoint; it does not allocate cloud infrastructure. No old Codoxear credentials or migration are required. Add other accounts independently; all saved identities contribute access concurrently. The client deduplicates shared resources and sends each operation through one identity that actually authorizes it. The Hub owner chooses allowed provider types in Hub settings; the policy also applies to existing keys and sessions. Public-key reconnects use only the corresponding Hub and client key.
+
+To apply a private `{ "providers": [...] }` file to one Hub without reopening its catalog, run the bounded operator helper (index `0` means `config/hub-0.json`):
+
+```sh
+flock --nonblock /tmp/codoxear-v2-verification-$(id -u).lock docker run --rm --init \
+  --memory=2g --memory-swap=2g --cpus=2 --pids-limit=512 --network=none \
+  --user=1000:1000 \
+  --mount type=bind,src="$FRESH_STATE",dst=/fresh \
+  --mount type=bind,src=/absolute/private/work-providers.json,dst=/providers.json,readonly \
+  --entrypoint=node "$CODOXEAR_TOOLS_IMAGE" --import tsx \
+  deploy/fresh-v2/hub-providers.ts /fresh 0 /providers.json
+```
+
+The helper validates one Feishu application per Hub, writes only that Hub's private configuration with mode 0600, and keeps a private pre-change backup. Repeat to rotate an app secret without changing its connection/app identity. It does not alter databases, accounts, runtime attachments or LiteLLM settings. Apply the updated Hub configuration by restarting only the corresponding Hub service. Changing a configured organization tenant or replacing an app behind an existing connection ID is rejected.
+
+Configure Feishu's singular `tenant` when known. Otherwise the first owner must authenticate through Feishu and use the private setup code to bind the organization. Google cannot initialize a Feishu-enabled Hub until this binding exists. Hubs for different organizations need distinct tenant/app configuration and distinct public origins; separate ports on one hostname are suitable only for the same trusted operator.

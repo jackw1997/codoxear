@@ -4,6 +4,7 @@ import { DomainError, type State } from "../contracts/model.js";
 import { audit, id, secret } from "../domain/commands.js";
 import type { IdentitySession } from "./model.js";
 import type { Accounts } from "./accounts.js";
+import { checkHubOrganization } from "./hub-organization.js";
 
 type Enrollment = import("zod").infer<typeof DeviceKeyEnrollmentRequest>;
 type Login = import("zod").infer<typeof DeviceKeyLoginRequest>;
@@ -50,6 +51,8 @@ export class DeviceKeys {
     const state = this.accounts.store.read(), key = state.identity.deviceKeys.find((key) => key.id === input.keyId && !key.revoked);
     if (!key || !state.users.some((user) => user.id === key.userId && !user.disabled) || key.installationId !== input.installationId)
       throw rejected();
+    if (state.hubs.length === 1)
+      checkHubOrganization(state, state.hubs[0]!.id, key.context.method, key.context.tenant);
     return this.challenge({ purpose: "login", keyId: key.id, publicKey: key.publicKey,
       installationId: key.installationId, name: key.name, enrollmentSessionId: null });
   }
@@ -85,17 +88,29 @@ export class DeviceKeys {
   }
   enrollVerify(source: IdentitySession, challengeId: string, signature: string) {
     const current = this.enrollmentSession(source), row = this.consume(challengeId, "enroll", signature, current.id);
+    return this.enrollVerifiedPublicKey(current, { publicKey: row.publicKey, name: row.name, installationId: row.installationId });
+  }
+  /** Internal enrollment boundary. The caller must already have verified a
+   * signature proving possession of this exact public key. Never expose this
+   * method as an HTTP operation without that proof. */
+  enrollVerifiedPublicKey(source: IdentitySession, input: Enrollment, allowExisting = false) {
+    const current = this.enrollmentSession(source), keyId = deviceKeyId(input.publicKey);
     this.accounts.store.change((state) => {
-      if (state.identity.deviceKeys.some((key) => key.id === row.keyId))
+      const existing = state.identity.deviceKeys.find((key) => key.id === keyId);
+      if (existing && allowExisting && existing.userId === current.userId && !existing.revoked && existing.installationId === input.installationId) {
+        existing.context = current.context;
+        return;
+      }
+      if (existing)
         throw new DomainError(409, "key_in_use", "This client key is already registered");
       if (state.identity.deviceKeys.filter((key) => key.userId === current.userId && !key.revoked).length >= 50)
         throw new DomainError(409, "key_limit", "Remove an unused client key before registering another");
-      state.identity.deviceKeys.push({ id: row.keyId, userId: current.userId, publicKey: row.publicKey,
-        name: row.name, installationId: row.installationId, context: current.context,
+      state.identity.deviceKeys.push({ id: keyId, userId: current.userId, publicKey: input.publicKey,
+        name: input.name, installationId: input.installationId, context: current.context,
         createdAt: this.now(), lastUsedAt: null, revoked: false });
-      audit(state, current.userId, "identity.client-key.enroll", row.keyId);
+      audit(state, current.userId, "identity.client-key.enroll", keyId);
     });
-    return { keyId: row.keyId };
+    return { keyId };
   }
   loginVerify(challengeId: string, signature: string) {
     const row = this.consume(challengeId, "login", signature, null);
@@ -112,8 +127,28 @@ export class DeviceKeys {
       const key = state.identity.deviceKeys.find((key) => key.id === keyId && key.userId === current.userId);
       if (!key) throw new DomainError(404, "not_found", "Client key not found");
       key.revoked = true;
-      for (const session of state.identity.sessions)
-        if (session.deviceKeyId === keyId) session.revoked = true;
+      // Revocation also invalidates forked credentials and delegated permits.
+      // Retain the public-key tombstone so the same key cannot be registered
+      // again, but discard its unusable session tree and transient references.
+      const removed = new Set(state.identity.sessions.filter((row) => row.deviceKeyId === keyId).map((row) => row.id));
+      const descendants = new Map<string, string[]>();
+      for (const row of state.identity.sessions) if (row.parentId) {
+        const children = descendants.get(row.parentId) ?? [];
+        children.push(row.id); descendants.set(row.parentId, children);
+      }
+      const queue = [...removed];
+      for (let index = 0; index < queue.length; index++)
+        for (const child of descendants.get(queue[index]!) ?? []) if (!removed.has(child)) {
+          removed.add(child); queue.push(child);
+        }
+      state.identity.sessions = state.identity.sessions.filter((row) => !removed.has(row.id));
+      state.identity.refresh = state.identity.refresh.filter((row) => !removed.has(row.sessionId));
+      state.identity.codes = state.identity.codes.filter((row) => !removed.has(row.sessionId));
+      state.identity.queuePermits = state.identity.queuePermits.filter((row) => !removed.has(row.sessionId));
+      state.identity.challenges = state.identity.challenges.filter((row) => !row.linkSessionId || !removed.has(row.linkSessionId));
+      state.identity.flows = state.identity.flows.filter((row) => !row.linkSessionId || !removed.has(row.linkSessionId));
+      state.identity.deviceKeyChallenges = state.identity.deviceKeyChallenges.filter((row) =>
+        row.keyId !== keyId && (!row.enrollmentSessionId || !removed.has(row.enrollmentSessionId)));
       audit(state, current.userId, "identity.client-key.revoke", keyId);
     });
   }

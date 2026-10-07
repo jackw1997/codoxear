@@ -92,7 +92,7 @@ export async function keyRequest(
   }
   return response.json();
 }
-async function signChallenge(
+export async function signChallenge(
   privateKey: CryptoKey,
   challenge: { challengeId: string; payload: string; expiresAt: number },
   expected: {
@@ -100,6 +100,7 @@ async function signChallenge(
     purpose: string;
     keyId: string;
     installationId: string;
+    protocol?: string;
   },
 ) {
   if (
@@ -110,7 +111,7 @@ async function signChallenge(
     throw new Error("Device sign-in challenge expired");
   const payload = JSON.parse(challenge.payload);
   if (
-    payload.protocol !== "codoxear-client-key-v1" ||
+    payload.protocol !== (expected.protocol ?? "codoxear-client-key-v1") ||
     payload.issuer !== expected.origin ||
     payload.purpose !== expected.purpose ||
     payload.keyId !== expected.keyId ||
@@ -132,11 +133,7 @@ async function signChallenge(
     ),
   );
 }
-export async function enrollDevice(
-  origin: string,
-  account: { id: string; name: string },
-  accessToken: string,
-): Promise<DeviceIdentity> {
+export async function createDeviceKey() {
   const pair = await crypto.subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" },
     false,
@@ -159,6 +156,24 @@ export async function enrollDevice(
       ),
     ),
   );
+  return {
+    pair,
+    publicKey: {
+      kty: publicKey.kty!,
+      crv: publicKey.crv!,
+      x: publicKey.x!,
+      y: publicKey.y!,
+    },
+    installationId,
+    keyId,
+  };
+}
+export async function enrollDevice(
+  origin: string,
+  account: { id: string; name: string },
+  accessToken: string,
+): Promise<DeviceIdentity> {
+  const { pair, publicKey, installationId, keyId } = await createDeviceKey();
   const challenge = await keyRequest(
     origin,
     "/api/v1/auth/keys/enroll/challenge",

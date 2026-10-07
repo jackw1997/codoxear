@@ -1,8 +1,8 @@
 # Google and Feishu sign-in
 
-Codoxear supports configured Google and Feishu connections. Sign-in creates an account on that Hub; it does not grant Hub membership, access to Computers, or ownership. Access comes from an invitation or an explicit administrator grant. Returning sign-in uses the same provider identity, even when the user's email or display name changes. There is no automatic email-based account merging.
+Codoxear supports configured Google and Feishu connections. The web client selects a Hub, discovers its configured providers, signs in through that Hub, and enrolls a client-held signing key. Each Hub represents one organization. Sign-in creates a local account; it does not grant Hub membership, access to Computers, or ownership. Access comes from an invitation or an explicit administrator grant. Returning sign-in uses the same provider identity, even when the user's email or display name changes. There is no automatic email-based account merging.
 
-Add the desired entries from [`config/providers.example.json`](../config/providers.example.json) to the Hub's private configuration. Replace every placeholder with the application's real credentials. Set `CODOXEAR_HUB_CONFIG` to that JSON file before starting the Hub. The optional identity service uses `CODOXEAR_IDENTITY_CONFIG` for its own private configuration. Configure only connections you intend to offer. The browser obtains the available connections from the authentication API.
+Add the desired entries from [`config/providers.example.json`](../config/providers.example.json) to each Hub's private `providers` array. Replace placeholders with that Hub's actual app credentials and configure `CODOXEAR_HUB_CONFIG`. One Hub permits at most one Feishu app and one verified organization tenant. Google can be offered separately under the Hub's own access policy. The browser discovers providers from the Hub API. No global login service or broker configuration is required.
 
 App secrets remain on the server. Do not put them in browser storage, frontend environment variables, source control, or the public frontend bundle. Preserve each connection ID and its associated provider application; changing an application's client ID requires a new connection ID because existing identity bindings belong to the original application.
 
@@ -10,10 +10,10 @@ App secrets remain on the server. Do not put them in browser storage, frontend e
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), configure the OAuth consent screen for your audience. If the app is in testing, add the people who will test it.
 2. Create an OAuth client with application type **Web application**.
-3. Register this exact **Authorized redirect URI**, replacing the origin with the public HTTPS origin of the Hub or optional identity service that performs the exchange:
+3. Register this exact **Authorized redirect URI**, replacing the origin with the public HTTPS origin of the Hub that performs the exchange:
 
    ```text
-   https://YOUR-AUTH-ORIGIN/auth/google-main/callback
+   https://YOUR-HUB-ORIGIN/auth/google-main/callback
    ```
 
 4. Copy its client ID and client secret into the private `google-main` connection configuration. A different connection ID changes the callback path to `/auth/CONNECTION-ID/callback`.
@@ -31,7 +31,7 @@ Sources: [Google OpenID Connect guide](https://developers.google.com/identity/op
 3. In **Security Settings**, register this exact redirect URL:
 
    ```text
-   https://YOUR-AUTH-ORIGIN/auth/feishu-main/callback
+   https://YOUR-HUB-ORIGIN/auth/feishu-main/callback
    ```
 
 4. Put the App ID and App Secret in the private `feishu-main` configuration. A different connection ID changes the callback path.
@@ -40,9 +40,25 @@ Login-only user information needs no extra API scope. Codoxear does not request 
 
 Feishu uses S256 PKCE and its current v3 token endpoint, `https://accounts.feishu.cn/oauth/v3/token`, followed by authenticated `https://open.feishu.cn/open-apis/authen/v1/user_info`. Authorization codes expire after five minutes and can be exchanged only once. Accounts bind to the configured application connection, `tenant_key` and `open_id`. Feishu email and phone values are imported by administrators and are not verified ownership claims; Codoxear ignores them for sign-in and account linking.
 
-Developer-created Feishu applications are Confidential Clients and require an App Secret even when PKCE is used. Public Client registration is not open to ordinary developers. A browser or native app cannot safely contain this secret, so token exchange runs on the configured Hub or optional identity service.
+Developer-created Feishu applications are Confidential Clients and require an App Secret even when PKCE is used. Public Client registration is not open to ordinary developers. A browser or native app cannot safely contain this secret, so token exchange runs on the owning Hub.
 
 Sources: [Feishu authorization codes](https://open.feishu.cn/document/common-capabilities/sso/api/obtain-oauth-code), [current v3 token exchange](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/get-user-access-token-v3), [user information](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/authen-v1/user_info/get), and [application availability](https://open.feishu.cn/document/home/introduction-to-scope-and-authorization/availability).
+
+## One organization per Hub
+
+Each organization administrator deploys a Hub and configures that organization's Feishu application on it. End users select the Hub and sign in through its advertised providers. They never supply an App Secret. A second organization uses a second Hub and its own app rather than adding organization connections to a global login service.
+
+Connection IDs are unique and stable within a Hub. Use a new connection ID for a different OAuth app; changing its display name does not change its identity. Set the Feishu connection’s singular `tenant` to the expected organization tenant key. If omitted, only a fresh Feishu sign-in with the private initial-owner setup code can bind the Hub’s tenant. While an enabled Feishu connection remains unbound, Google cannot initialize ownership. Once bound, other tenants’ provider sessions and device keys are rejected. The persisted tenant cannot be changed through another user’s sign-in. Never derive organization membership from a display name, email domain or client-supplied tenant.
+
+Accounts bind to the Hub-local connection, provider method, verified tenant and stable subject. Equal names/emails or provider IDs across Hubs do not merge accounts. Invites and Computer grants stay on the corresponding Hub. Authentication alone grants no Hub membership or Computer execution rights.
+
+## Multiple accounts on one Hub
+
+All independently authenticated accounts saved for the same Hub contribute access simultaneously. The client shows their combined accessible Computers and agents without duplicates. For each action it chooses one currently authorized identity that grants the required capability, then dispatches the action once. It never merges accounts or combines partial proofs into a new principal. Removing one saved identity leaves other identities and keys available; cached content must still be authorized by a remaining identity.
+
+The Hub owner controls allowed sign-in methods in Hub settings: Feishu only, Google only, or both. Choices come from configured provider types so future providers can extend the list. The policy applies to existing sessions, public-key reconnects, refresh tokens and new OAuth sign-ins. A blocked provider's local key remains saved and works again when the policy permits it. Before removing the owner's current sign-in method, the owner must use another authorized owner identity that the new policy retains. Explicit identity linking can associate another provider proof with that owner account; equal email addresses never do so automatically.
+
+A fresh provider sign-in enrolls a local nonextractable P-256 key. The Hub stores its public key and verifies signed, single-use challenges for reconnection. Provider app secrets remain on the Hub; private device keys remain on the client. Signing in with another Google or Feishu account creates a separate saved account. Explicit identity linking is a different operation and never happens merely because email addresses match.
 
 ## Initial owner
 

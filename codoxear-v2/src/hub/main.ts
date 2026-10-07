@@ -2,7 +2,7 @@ import { independentAuthority } from "./independent.js";
 import { Store } from "../persistence/store.js";
 import { initializeHub, hubSetup } from "../auth/hub-setup.js";
 import {
-  ProviderConfig,
+  HubProviders,
   provider,
 } from "../auth/providers.js";
 import { existsSync } from "node:fs";
@@ -40,7 +40,7 @@ const config = z
     clients: z
       .array(z.object({ id: Id, redirectUris: z.array(z.url()) }))
       .default([]),
-    providers: z.array(ProviderConfig).default([]),
+    providers: HubProviders.default([]),
     hubId: Id,
     credential: z.string().min(32).optional(),
     database: z.string(),

@@ -19,6 +19,15 @@ import {
 } from "../shared/workspace-selection.js";
 import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
 async function startClient() {
+  let switching = false;
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type !== "codoxear-identity-changed" || switching) return;
+    switching = true;
+    conversationCache.clear();
+    clearAccountStorage();
+    history.replaceState(null, "", location.pathname + location.search);
+    location.reload();
+  });
   configureFileAccessContext(workspaceAccessContext);
   stylesheet("/agent-creation.css");
   await ensureClientTransport();
@@ -122,7 +131,10 @@ async function startClient() {
   );
   controller.renderApp();
   async function refresh() {
-    directory = await (await fetch("/api/client/directory")).json();
+    const response = await fetch("/api/client/directory");
+    if (!response.ok)
+      throw new Error("Hub identity changed; retry the directory");
+    directory = await response.json();
     updateWorkspaceSelection(directory.agents);
     conversationCache.setDirectory(directory.agents);
     const chosen =

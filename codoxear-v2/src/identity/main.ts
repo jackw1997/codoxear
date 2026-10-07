@@ -45,6 +45,7 @@ const app = await createIdentityApp({
   providers: config.providers.map((p) => provider(p)),
   secureCookies: config.secureCookies,
   clients: config.clients,
+
 });
 await app.listen({ host: config.listenHost, port: config.listenPort });
 console.log("Codoxear identity service ready");

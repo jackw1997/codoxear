@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { Store } from "../src/persistence/store.js";
 import { independentAuthority } from "../src/hub/independent.js";
+import { configureHubOrganization } from "../src/auth/hub-organization.js";
+import { provider as configuredProvider } from "../src/auth/providers.js";
 import { createHubApp } from "../src/hub/app.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
@@ -82,15 +84,22 @@ async function fixture(origin: string) {
     },
   };
 }
-test("independent hub phone/provider invitations flow through the public API without linking email", async () => {
+test("independent hub Google/Feishu invitations flow through the public API without linking email", async () => {
   const origin = "https://invitation.test",
     f = await fixture(origin);
   try {
+    const owner = f.local.authority.accounts.finish({ method: "google", connection: "personal-google", subject: "alice-google",
+      tenant: null, email: "alice@example.test", name: "Alice" }, "owner-provider-browser", f.signed.session.id);
+    const ownerToken = await f.local.authority.tokens.issue(owner.session, origin, "identity_access");
+    configureHubOrganization(f.store, f.hubId, [
+      configuredProvider({ kind: "feishu", id: "company", clientId: "fixture-app", clientSecret: "fixture-secret", tenant: "team" }),
+      configuredProvider({ kind: "google", id: "personal-google", clientId: "fixture-google-app", clientSecret: "fixture-google-secret" }),
+    ]);
     const bob = f.local.authority.accounts.finish(
       {
-        method: "phone",
-        connection: "phone",
-        subject: "+8613800138000",
+        method: "google",
+        connection: "personal-google",
+        subject: "bob-google",
         tenant: null,
         email: null,
         name: "Bob",
@@ -102,7 +111,7 @@ test("independent hub phone/provider invitations flow through the public API wit
       origin,
       "identity_access",
     );
-    const headers = { authorization: "Bearer " + f.token };
+    const headers = { authorization: "Bearer " + ownerToken };
     const create = (body: unknown, auth = headers) =>
       f.app.inject({
         method: "POST",
@@ -113,7 +122,7 @@ test("independent hub phone/provider invitations flow through the public API wit
     assert.equal(
       (
         await create({
-          target: { method: "phone", phone: "13800138000" },
+          target: { method: "google", connection: "personal-google", subject: "" },
           role: "viewer",
         })
       ).statusCode,
@@ -123,14 +132,14 @@ test("independent hub phone/provider invitations flow through the public API wit
       (
         await create({
           email: "bob@example.test",
-          target: { method: "phone", phone: "+8613800138000" },
+          target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
           role: "viewer",
         })
       ).statusCode,
       400,
     );
     const invited = await create({
-      target: { method: "phone", phone: "+8613800138000" },
+      target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
       role: "viewer",
     });
     assert.equal(invited.statusCode, 200, invited.body);
@@ -141,7 +150,7 @@ test("independent hub phone/provider invitations flow through the public API wit
         headers: { authorization: "Bearer " + credential },
         payload: { token },
       });
-    assert.equal((await accept(invited.json().token, f.token)).statusCode, 403);
+    assert.equal((await accept(invited.json().token, ownerToken)).statusCode, 403);
     assert.equal(
       (await accept(invited.json().token, bobToken)).statusCode,
       200,
@@ -154,7 +163,7 @@ test("independent hub phone/provider invitations flow through the public API wit
       (
         await create(
           {
-            target: { method: "phone", phone: "+8613800138000" },
+            target: { method: "google", connection: "personal-google", subject: "bob-google", tenant: null },
             role: "operator",
           },
           { authorization: "Bearer " + bobToken },

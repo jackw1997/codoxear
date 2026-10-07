@@ -132,6 +132,7 @@ test("Google uses discovery, state, nonce, PKCE and validates signed identity", 
   assert.notEqual(url.searchParams.get("nonce"), verifier);
   assert.equal(url.searchParams.get("redirect_uri"), callback);
   assert.equal(url.searchParams.get("scope"), "openid profile email");
+  assert.equal(url.searchParams.get("prompt"), "select_account");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.equal(
     url.searchParams.get("code_challenge"),
@@ -249,6 +250,7 @@ function feishuFixture(
       email: "same@example.test",
     },
   },
+  connection: { id?: string; name?: string; tenant?: string } = {},
 ) {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   const transport: typeof fetch = async (input, init = {}) => {
@@ -270,11 +272,20 @@ function feishuFixture(
         id: "feishu-main",
         clientId: "feishu-client",
         clientSecret: "server-feishu-secret",
+        ...connection,
       },
       { fetch: transport },
     ),
   };
 }
+
+test("Feishu organization connections expose labels and reject another tenant", async () => {
+  const team = feishuFixture(undefined, undefined, { id: "feishu-team-a", name: "Team A", tenant: "tenant-key" });
+  assert.equal(team.adapter.name, "Team A");
+  assert.equal((await team.adapter.exchange("code", verifier, callback)).connection, "feishu-team-a");
+  const other = feishuFixture(undefined, undefined, { id: "feishu-team-b", name: "Team B", tenant: "another-tenant" });
+  await assert.rejects(other.adapter.exchange("code", verifier, callback), rejected);
+});
 
 test("Feishu v3 exchanges PKCE and binds app connection, tenant and open_id without email", async () => {
   const f = feishuFixture(),

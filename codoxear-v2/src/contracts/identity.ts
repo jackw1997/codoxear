@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { WorkspaceOptions } from "./workspaces.js";
 import { DevicePublicKey } from "./device-keys.js";
+import { HubOrganization } from "./hub-organization.js";
 const Identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 export const LoginMethod = z.enum([
   "password",
@@ -104,6 +105,7 @@ export const AuthRequirement = z.object({
 });
 export type AuthRequirement = z.infer<typeof AuthRequirement>;
 export const IdentityState = z.object({
+  hubOrganizations: z.array(HubOrganization).default([]),
   deviceKeys: z.array(z.object({
     id: Identifier, userId: Identifier, publicKey: DevicePublicKey,
     name: z.string(), installationId: Identifier, context: LoginContext,

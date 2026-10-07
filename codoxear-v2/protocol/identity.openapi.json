@@ -6,6 +6,153 @@
     "description": "These routes execute inside each independent Hub. An explicitly configured shared authority can expose the same compatibility API; it is not an independent-Hub prerequisite. OAuth uses exact registered redirect URIs, issuer checking and S256 PKCE. Internal service routes are documented separately."
   },
   "paths": {
+    "/login": {
+      "get": {
+        "summary": "Static presentation asset",
+        "security": [],
+        "x-schema-status": "typed-stream-or-document",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/register": {
+      "get": {
+        "summary": "Static presentation asset",
+        "security": [],
+        "x-schema-status": "typed-stream-or-document",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hub-login.js": {
+      "get": {
+        "summary": "Static presentation asset",
+        "security": [],
+        "x-schema-status": "typed-stream-or-document",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Static presentation asset",
@@ -239,7 +386,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Sharedobject_97aa874c32e9ef57"
+                  "$ref": "#/components/schemas/Sharedobject_a2b733ef2cebf2f2"
                 }
               }
             }
@@ -873,7 +1020,23 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Sharedobject_663d9c899d945ac4"
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 256
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "token"
+                ]
               }
             }
           }
@@ -1687,6 +1850,216 @@
         }
       }
     },
+    "/api/v1/hubs/{id}/login-methods": {
+      "get": {
+        "summary": "Hub owner reads configured and allowed account types",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "IdentityCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sharedobject_1b69f223e45ce70f"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Hub owner selects allowed account types while retaining the acting proof type",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "IdentityCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "allowedMethods": {
+                    "minItems": 1,
+                    "maxItems": 80,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+                    }
+                  }
+                },
+                "required": [
+                  "allowedMethods"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sharedobject_1b69f223e45ce70f"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hubs/{id}/computers": {
       "post": {
         "summary": "Owner creates a Computer and an enrollment code",
@@ -2134,7 +2507,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Sharedobject_97aa874c32e9ef57"
+                  "$ref": "#/components/schemas/Sharedobject_a2b733ef2cebf2f2"
                 }
               }
             }
@@ -8211,7 +8584,7 @@
         "type": "object",
         "properties": {
           "providers": {
-            "$ref": "#/components/schemas/Sharedarray_0e5c9035ae5709db"
+            "$ref": "#/components/schemas/Sharedarray_690c3eadd408dfc9"
           },
           "registration": {
             "$ref": "#/components/schemas/Sharedobject_f58e875bf969da12"
@@ -8221,13 +8594,21 @@
           },
           "setupRequired": {
             "type": "boolean"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/Sharedobject_eecc17d2ef4d9d55"
+          },
+          "loginMethods": {
+            "$ref": "#/components/schemas/Sharedobject_9f9a4d855af5a237"
           }
         },
         "required": [
           "providers",
           "registration",
           "deviceKeys",
-          "setupRequired"
+          "setupRequired",
+          "organization",
+          "loginMethods"
         ],
         "additionalProperties": false
       },
@@ -8636,7 +9017,7 @@
         "type": "object",
         "properties": {
           "agents": {
-            "$ref": "#/components/schemas/Sharedarray_b7926a02c88d26d7"
+            "$ref": "#/components/schemas/Sharedarray_11733896164f3b0d"
           },
           "placements": {
             "$ref": "#/components/schemas/Sharedarray_0e7912d738b72ac1"
@@ -10278,12 +10659,12 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_97aa874c32e9ef57": {
+      "Sharedobject_a2b733ef2cebf2f2": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": {
           "agents": {
-            "$ref": "#/components/schemas/Sharedarray_0b470982a03bceb9"
+            "$ref": "#/components/schemas/Sharedarray_4bb37929eecf2f7f"
           },
           "placements": {
             "$ref": "#/components/schemas/Sharedarray_0e7912d738b72ac1"
@@ -10295,13 +10676,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedarray_0b470982a03bceb9": {
+      "Sharedarray_4bb37929eecf2f7f": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_3870f9c535fb1c3f"
+          "$ref": "#/components/schemas/Sharedobject_94581876ca132a96"
         }
       },
-      "Sharedobject_3870f9c535fb1c3f": {
+      "Sharedobject_94581876ca132a96": {
         "type": "object",
         "properties": {
           "id": {
@@ -10372,6 +10753,17 @@
               "denied"
             ]
           },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "send",
+                "interrupt"
+              ]
+            }
+          },
           "workspaceGrants": {
             "$ref": "#/components/schemas/Sharedarray_300c4867801fbe84"
           }
@@ -10390,6 +10782,7 @@
           "hubName",
           "origin",
           "access",
+          "actions",
           "workspaceGrants"
         ],
         "additionalProperties": false
@@ -10483,13 +10876,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedarray_0e5c9035ae5709db": {
+      "Sharedarray_690c3eadd408dfc9": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_75eed08876cd839d"
+          "$ref": "#/components/schemas/Sharedobject_8b37ffce377c5c12"
         }
       },
-      "Sharedobject_75eed08876cd839d": {
+      "Sharedobject_8b37ffce377c5c12": {
         "type": "object",
         "properties": {
           "id": {
@@ -10502,6 +10895,9 @@
               "google",
               "feishu"
             ]
+          },
+          "name": {
+            "type": "string"
           }
         },
         "required": [
@@ -10542,6 +10938,49 @@
         "required": [
           "enabled",
           "algorithm"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_eecc17d2ef4d9d55": {
+        "type": "object",
+        "properties": {
+          "feishuTenant": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenantBindingRequired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "feishuTenant",
+          "tenantBindingRequired"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_9f9a4d855af5a237": {
+        "type": "object",
+        "properties": {
+          "availableMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          "allowedMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        },
+        "required": [
+          "availableMethods",
+          "allowedMethods"
         ],
         "additionalProperties": false
       },
@@ -10612,20 +11051,6 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_663d9c899d945ac4": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 32,
-            "maxLength": 256
-          }
-        },
-        "required": [
-          "token"
-        ]
-      },
       "Sharedobject_ffde0ff71331bbf4": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -10639,6 +11064,31 @@
         "required": [
           "name"
         ]
+      },
+      "Sharedobject_1b69f223e45ce70f": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "availableMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          },
+          "allowedMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,79}$"
+            }
+          }
+        },
+        "required": [
+          "availableMethods",
+          "allowedMethods"
+        ],
+        "additionalProperties": false
       },
       "Sharedobject_fcaf69d17d0c418d": {
         "type": "object",
@@ -10895,6 +11345,20 @@
         ],
         "additionalProperties": false
       },
+      "Sharedobject_663d9c899d945ac4": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
       "Sharedobject_d08944457af386fc": {
         "type": "object",
         "properties": {
@@ -10988,13 +11452,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedarray_b7926a02c88d26d7": {
+      "Sharedarray_11733896164f3b0d": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_b836c00bfeac59d2"
+          "$ref": "#/components/schemas/Sharedobject_d068bc165205deeb"
         }
       },
-      "Sharedobject_b836c00bfeac59d2": {
+      "Sharedobject_d068bc165205deeb": {
         "type": "object",
         "properties": {
           "id": {
@@ -11065,6 +11529,17 @@
               "denied"
             ]
           },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "send",
+                "interrupt"
+              ]
+            }
+          },
           "workspaceGrants": {
             "$ref": "#/components/schemas/Sharedarray_a79d54c950942480"
           }
@@ -11083,6 +11558,7 @@
           "hubName",
           "origin",
           "access",
+          "actions",
           "workspaceGrants"
         ],
         "additionalProperties": false

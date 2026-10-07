@@ -1,8 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Store } from "../persistence/store.js";
 import type { IdentitySession } from "../contracts/identity.js";
-import { DomainError, requireValue, type State } from "../contracts/model.js";
+import { DomainError, Name, requireValue, type State } from "../contracts/model.js";
 import { audit, createHub, digest, id } from "../domain/commands.js";
+import { checkHubOrganization } from "./hub-organization.js";
 
 const pendingEmail = (hubId: string) => `${hubId}@setup.invalid`;
 
@@ -27,7 +28,8 @@ export function hubSetup(store: Store, hubId: string, setupToken: string | undef
   const expected = setupToken ? Buffer.from(digest(setupToken), "hex") : null;
   return {
     pending,
-    claim(session: IdentitySession, token: string) {
+    claim(session: IdentitySession, token: string, hubName?: string) {
+      const name = hubName === undefined ? undefined : Name.parse(hubName);
       if (!expected || !timingSafeEqual(expected, Buffer.from(digest(token), "hex")))
         throw new DomainError(403, "setup_rejected", "Incorrect setup code");
       store.change((state) => {
@@ -38,10 +40,18 @@ export function hubSetup(store: Store, hubId: string, setupToken: string | undef
         const identity = state.identity.identities.find((i) => i.id === session.context.identityId && i.userId === session.userId);
         if (!identity || identity.verifiedAt <= 0 || identity.method !== session.context.method || identity.tenant !== session.context.tenant ||
             !["google", "feishu"].includes(identity.method) || session.deviceKeyId ||
-            now() - session.context.authenticatedAt > 300_000 ||
+            session.context.authenticatedAt > now() || now() - session.context.authenticatedAt > 300_000 ||
             !state.users.some((u) => u.id === session.userId && !u.disabled))
           throw new DomainError(403, "provider_required", "Sign in with Google or Feishu again before setting up this Hub");
+        const organization = state.identity.hubOrganizations.find((value) => value.hubId === hubId);
+        if (organization?.feishuConnection && !organization.feishuTenant) {
+          if (identity.method !== "feishu" || !identity.tenant || identity.connection !== organization.feishuConnection)
+            throw new DomainError(403, "feishu_setup_required", "Use this Hub's Feishu app and the private setup code to bind its organization");
+          organization.feishuTenant = identity.tenant;
+        }
+        checkHubOrganization(state, hubId, identity.method, identity.tenant, identity.method === "feishu");
         hub.ownerId = session.userId;
+        if (name !== undefined) hub.name = name;
         hub.revision++;
         // These Computers were explicitly pre-provisioned for the pending owner.
         for (const computer of state.computers)

@@ -167,7 +167,7 @@ test("invitation requests reject ambiguous targets, unknown fields and invalid i
   ])
     assert.equal(InvitationRequest.safeParse(body).success, false);
 });
-test("fresh provider claims replace stale tenant/email invitation proofs without merging accounts", () => {
+test("different organizations keep distinct accounts and refreshed email claims replace obsolete invitation proofs", () => {
   const store = new Store(":memory:"),
     f = fixture();
   store.change((s) => Object.assign(s, f.s));
@@ -202,11 +202,16 @@ test("fresh provider claims replace stale tenant/email invitation proofs without
     const email = store.change((s) =>
       invite(s, "alice", "hub", f.h.id, "old@example.test", "viewer"),
     );
+    const sameTeam = accounts.finish({ ...identity, email: "updated@example.test" }, "email-update");
+    assert.equal(first.session.userId, sameTeam.session.userId);
+    assert.throws(() =>
+      store.change((s) => acceptInvite(s, sameTeam.session.userId, email.token)),
+    );
     const fresh = accounts.finish(
       { ...identity, tenant: "new-team", email: "new@example.test" },
       "second",
     );
-    assert.equal(first.session.userId, fresh.session.userId);
+    assert.notEqual(first.session.userId, fresh.session.userId);
     assert.throws(() =>
       store.change((s) => acceptInvite(s, fresh.session.userId, stale.token)),
     );

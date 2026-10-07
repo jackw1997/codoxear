@@ -1,6 +1,7 @@
 /** Exact administrative/account successes. Dispatcher results are unwrapped;
  * clients select the corresponding response schema by their request's op. */
 import { z } from "zod";
+import { HubOrganizationSummary, HubLoginMethodsSummary } from "../contracts/hub-organization.js";
 import { Agent, Action, Computer, Hub, Id, Invitation, Membership, Name, Policy, Role } from "../contracts/model.js";
 import { AuthRequirement, ExternalIdentity, LoginContext } from "../contracts/identity.js";
 import { InvitationRequest } from "../contracts/invitations.js";
@@ -18,10 +19,12 @@ export const AccountProfile = AccountSummary.extend({
   identities: z.array(ExternalIdentity.pick({ id: true, connection: true, method: true, subject: true, tenant: true }).strict()),
 }).strict();
 export const AuthOptions = z.object({
-  providers: z.array(z.object({ id: Id, method: z.enum(["google", "feishu"]) }).strict()),
+  providers: z.array(z.object({ id: Id, method: z.enum(["google", "feishu"]), name: z.string().optional() }).strict()),
   registration: z.object({ enabled: z.boolean(), method: z.literal("provider") }).strict(),
   deviceKeys: z.object({ enabled: z.literal(true), algorithm: z.literal("ES256") }).strict(),
   setupRequired: z.boolean(),
+  organization: HubOrganizationSummary,
+  loginMethods: HubLoginMethodsSummary,
 }).strict();
 export const AuthChallenge = z.object({ challengeId: Id, transaction: secret, expiresAt: timestamp }).strict();
 export const HubDirectory = z.array(Hub.extend({ origin: z.url().nullable(), access: z.enum(["allowed", "reauthentication_required"]), loginRequirement: AuthRequirement.nullable() }).strict());
@@ -44,7 +47,7 @@ export const AgentShareResult = AdminOk.extend({ access: AccessDecision }).stric
 export const AuthorizedAgent = z.object({ agent: Agent, access: AccessDecision, actorId: Id, revision: count, leaseExpiresAt: timestamp }).strict();
 export const AuthorizedAgents = z.array(Agent.extend({ access: AccessDecision, workspaceGrants: z.array(ActorWorkspaceGrant) }).strict());
 export const AgentDirectory = z.object({
-  agents: z.array(Agent.extend({ computerName: text, hubName: text, origin: z.url(), access: AccessDecision.shape.mode, workspaceGrants: z.array(ActorWorkspaceGrant) }).strict()),
+  agents: z.array(Agent.extend({ computerName: text, hubName: text, origin: z.url(), access: AccessDecision.shape.mode, actions: AccessDecision.shape.actions, workspaceGrants: z.array(ActorWorkspaceGrant) }).strict()),
   placements: z.array(z.object({ computerId: Id, computerName: text, hubId: Id, hubName: text, origin: z.url() }).strict()),
 }).strict();
 export const PairingReceipt = z.object({ code: text.min(8), computerId: Id, hubId: Id, expiresIn: z.literal(PAIRING_LIFETIME_SECONDS), expiresAt: timestamp }).strict();
@@ -112,6 +115,8 @@ export const adminDetails: Record<string, Partial<Omit<Endpoint, "method" | "pat
   "POST /api/v1/hubs/:id/computers": { response: ComputerEnrollment },
   "POST /api/v1/hubs/:id/register": { response: RegisteredHub },
   "PUT /api/v1/hubs/:id/auth-requirement": { response: AdminOk },
+  "GET /api/v1/hubs/:id/login-methods": { response: HubLoginMethodsSummary },
+  "PUT /api/v1/hubs/:id/login-methods": { response: HubLoginMethodsSummary },
   "POST /api/v1/hubs/:id/admissions": { response: Admission },
   "POST /api/v1/computers/:id/transfer": { response: SharedTransfer },
   "POST /api/v1/pairing/redeem": { response: EnrolledComputer },

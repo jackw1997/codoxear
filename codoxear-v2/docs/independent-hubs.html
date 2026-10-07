@@ -88,7 +88,7 @@
       <text x="845" y="123">Agents / files / tools</text>
       <text x="845" y="297">Computer B</text>
       <text x="845" y="323">Agents / files / tools</text>
-      <text x="480" y="210">Feishu · WeChat · Google · email / password</text>
+      <text x="480" y="210">Selected Hub account + client keys</text>
     </g>
     <g stroke="#825039" stroke-width="2" fill="none" marker-end="url(#arrow)">
       <path d="M245 171L375 111" />
@@ -114,39 +114,24 @@
   </p>
   <p>
     A client may retain several authenticated methods for a hub-local person.
-    The client considers the usable identities, combines accessible agents, and
-    checks access before displaying a cached conversation. Permissions remain
+    All saved identities contribute authorized access concurrently. The client deduplicates shared resources and
+    chooses one eligible identity for each action. Cached conversations still require current access. Permissions remain
     server decisions on every request. Identity tokens cannot be combined to
     invent ownership, or used across hubs. Matching email claims never
     automatically merge accounts. An existing identity attached to another local
     account cannot be reassigned by a login.
   </p>
-  <h2>Login and local storage</h2>
+  <h2>Choose a Hub and sign in</h2>
   <ol>
-    <li>
-      The user adds a hub URL. The hub advertises its own issuer and
-      authentication capabilities.
-    </li>
-    <li>
-      The client opens that hub's sign-in page with an exact registered callback
-      and PKCE challenge. Passwords and provider login happen with that
-      hub/provider.
-    </li>
-    <li>
-      The hub validates the provider response and issues an expiring
-      authorization code. The client verifies the callback source, origin and
-      state, and redeems the code using its verifier.
-    </li>
-    <li>
-      The client saves hub-scoped session credentials in its local credential
-      collection. It sends a credential only to its issuing hub. Refresh tokens
-      rotate; sessions and identity bindings are revocable.
-    </li>
-    <li>
-      Only a hub's accepted proofs contribute access. An existing provider login
-      is not automatically a token valid for a different hub/application.
-    </li>
+    <li>Select a saved Hub or enter its address. The client displays the Google and Feishu options configured on that Hub.</li>
+    <li>The selected Hub verifies your provider sign-in. No existing Codoxear account or password is required.</li>
+    <li>Your browser keeps a nonextractable private signing key in IndexedDB; the Hub stores the public key. Returning connections sign a one-use Hub challenge.</li>
+    <li>Initial Hub setup also requires its private one-time deployment code. Signing in alone does not grant ownership, membership or Computer access.</li>
+    <li>Save multiple independent accounts on the same Hub. All contribute access at once; shared Computers and agents appear once, and each action uses an identity authorized for it.</li>
   </ol>
+  <h2>One organization per Hub</h2>
+  <p>Each organization operates its own Hub with at most one Feishu application and one verified tenant. Its app secret stays in private Hub configuration. Other organizations deploy their own Hubs/apps. Optional Google identities remain subject to the Hub's invitations and Computer permissions.</p>
+  <p>There is no global login service or enrollment broker. The Hub-owned design supersedes the earlier R51 broker proposal. R53 removes exclusive account switching: all saved identities contribute concurrently. Provider connection, verified tenant and stable subject distinguish accounts; matching email or display name never merges them. The Hub owner permits Feishu, Google, or both in Hub settings. This also controls existing sessions and keys; blocked local identities remain saved for later re-enabling. Password and verification-code login are removed.</p>
   <p>
     The web client uses IndexedDB, with short-lived access credentials and
     rotating refresh credentials. It never stores passwords or provider secrets,
@@ -222,7 +207,7 @@
     Open Hubs &amp; computers, expand a hub you own, then select Add computer.
     Name the computer and open its Pair computer page. It includes a
     downloadable source package, an installation guide, and a copyable attach
-    command. Install Node.js 22.13+, sign in to Codex, Pi or Claude Code
+    command. Install Node.js 24, sign in to Codex, Pi or Claude Code
     locally, attach, then run Computer start. The native TypeScript runtime runs
     directly inside Computer; no Python package or local HTTP server is required.
     The guide contains the exact commands and troubleshooting checks.
@@ -268,22 +253,14 @@
     supplies <code>origin</code>, <code>hubId</code>, <code>catalog</code>,
     <code>database</code>, <code>signingKey</code>, <code>otpKey</code>, allowed
     <code>clientOrigins</code> and registered <code>clients</code>. First start
-    requires bootstrap owner credentials. Hub-local provider and delivery
-    configuration is optional. <code>npm run client</code> serves static files;
+    requires a private one-time owner setup code and configured Hub-local Google/Feishu authentication. <code>npm run client</code> serves static files;
     it does not run an account service.
   </p>
-  <p>
-    Migration exports each old hub into a separate database, preserving Computer
-    bindings, owners, memberships, agents and retention state. Shared-authority
-    sessions and transient credentials are not imported. Users sign in
-    separately to each hub after migration. Existing agent processes must remain
-    running during demo cutover. Old shared-authority mode remains explicitly
-    marked legacy for existing deployments and regression tests.
-  </p>
+  <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private setup code; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
   <h2>Invitations and selective sharing — local implementation</h2>
   <p>
     Owners can now address invitations to email, a verified phone number, or an
-    exact Feishu/WeChat/OIDC connection, subject and tenant. Provider and phone
+    exact Google/Feishu connection, subject and tenant. Provider and phone
     recipients do not need linked email. Computer owners can share one agent
     with an active hub member as Viewer or Operator independently of computer
     membership; direct revocation removes that agent’s explicit and historical
@@ -309,21 +286,21 @@
       </td>
     </tr>
     <tr>
-      <td>Live Feishu / WeChat / Google login</td>
+      <td>Live Feishu / Google login</td>
       <td>
         Hub operator registers applications/callbacks, supplies credentials, and
         completes provider-specific live acceptance tests
       </td>
       <td>
         Adapter and local identity checks cannot prove behavior with
-        unconfigured production providers. Google uses the OIDC adapter.
+        unconfigured production providers. Google uses verified OpenID Connect identity tokens.
       </td>
     </tr>
     <tr>
-      <td>Live email / SMS codes</td>
-      <td>Hub operator configures and tests delivery</td>
+      <td>Email / SMS code login — removed</td>
+      <td>Superseded by Google/Feishu-only authentication</td>
       <td>
-        No email/SMS vendor credentials or funded delivery account are supplied.
+        No mail or SMS delivery service is required by this design.
       </td>
     </tr>
     <tr>

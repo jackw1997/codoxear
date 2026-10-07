@@ -24,6 +24,8 @@ import * as oauth from "oauth4webapi";
 import { createHash } from "node:crypto";
 import { Accounts } from "./accounts.js";
 import { DeviceKeys } from "./device-keys.js";
+import { configureHubOrganization, checkHubLoginMethod, hubLoginMethods } from "./hub-organization.js";
+import { HubLoginMethodsRequest } from "../contracts/hub-organization.js";
 import { DeviceKeyEnrollmentRequest, DeviceKeyLoginRequest, DeviceKeyProof } from "../contracts/device-keys.js";
 import { Authority } from "./authority.js";
 import { type Provider } from "./providers.js";
@@ -62,7 +64,8 @@ export interface IdentityOptions {
   secureCookies?: boolean;
   clients?: Array<{ id: string; redirectUris: string[] }>;
   codeDelivery?: Array<"email" | "phone">;
-  setup?: { pending(): boolean; claim(session: IdentitySession, token: string): void };
+  setup?: { pending(): boolean; claim(session: IdentitySession, token: string, hubName?: string): void };
+
 }
 export async function createIdentityApp(options: IdentityOptions) {
   const assetsRoot = frontendAssetsRoot(options.frontendAssetsRoot);
@@ -74,6 +77,9 @@ export async function createIdentityApp(options: IdentityOptions) {
     store = a.store,
     providers = options.providers ?? [],
     app = Fastify({ bodyLimit: 65536 });
+  if (new Set(providers.map((provider) => provider.id)).size !== providers.length)
+    throw new Error("Provider connection IDs must be unique");
+  if (options.localHubId) configureHubOrganization(store, options.localHubId, providers);
   const keys = new DeviceKeys(accounts, a.tokens.issuer);
   if (options.routeObserver) app.addHook("onRoute", options.routeObserver);
   await app.register(cookie);
@@ -90,11 +96,8 @@ export async function createIdentityApp(options: IdentityOptions) {
           }),
   );
   app.addHook("onRequest", async (r) => {
-    if (
-      ["POST", "PUT", "DELETE"].includes(r.method) &&
-      r.headers.origin &&
-      new URL(r.headers.origin).origin !== a.tokens.issuer
-    )
+    if (["POST", "PUT", "DELETE"].includes(r.method) && r.headers.origin &&
+      new URL(r.headers.origin).origin !== a.tokens.issuer)
       throw new DomainError(403, "bad_origin", "Cross-origin request rejected");
   });
   app.addHook("onSend", async (r, reply, value) => {
@@ -196,18 +199,31 @@ export async function createIdentityApp(options: IdentityOptions) {
     protocol: 1,
   }));
   app.get("/.well-known/jwks.json", async () => a.tokens.jwks);
+  for (const path of ["/login", "/register"]) app.get(path, async (_r, reply) => {
+    return reply.type("text/html").send(await frontendAsset(assetsRoot, "client", "hub-login.html"));
+  });
+  app.get("/hub-login.js", async (_r, reply) => {
+    return reply.type("text/javascript").send(await frontendAsset(assetsRoot, "client", "hub-login.js"));
+  });
+  app.options("/*", async (_r, reply) => reply.code(403).send());
   app.get("/api/v1/auth/options", async () => ({
-    providers: providers.map((p) => ({ id: p.id, method: p.method })),
+    providers: providers.map((p) => ({ id: p.id, method: p.method, ...(p.name ? { name: p.name } : {}) })),
     registration: { enabled: providers.length > 0, method: "provider" },
     deviceKeys: { enabled: true, algorithm: "ES256" },
     setupRequired: options.setup?.pending() ?? false,
+    organization: (() => {
+      const organization = store.read().identity.hubOrganizations.find((value) => value.hubId === options.localHubId);
+      return { feishuTenant: organization?.feishuTenant ?? null,
+        tenantBindingRequired: !!organization?.feishuConnection && !organization.feishuTenant };
+    })(),
+    loginMethods: hubLoginMethods(store, options.localHubId, providers),
   }));
   app.post("/api/v1/auth/setup", async (r) => {
     accounts.rateLimit("setup:" + r.ip, 5, 60000);
-    const input = z.object({ token: z.string().min(32).max(256) }).strict().parse(r.body);
+    const input = z.object({ token: z.string().min(32).max(256), name: Name.optional() }).strict().parse(r.body);
     const current = await session(r);
     forbid(!!options.setup, "Hub setup is unavailable");
-    options.setup!.claim(current, input.token);
+    options.setup!.claim(current, input.token, input.name);
     return { ok: true };
   });
   app.post("/api/v1/auth/keys/enroll/challenge", async (r) => {
@@ -351,6 +367,30 @@ export async function createIdentityApp(options: IdentityOptions) {
     });
     return { ok: true };
   });
+  async function loginMethodOwner(r: FastifyRequest) {
+    const current = await session(r), hubId = Id.parse((r.params as { id: string }).id);
+    forbid(options.localHubId === hubId, "Login account types belong to this independent Hub");
+    const hub = a.context(current, hubId);
+    forbid(hub.ownerId === current.userId, "Only the Hub owner can change allowed account types");
+    return { current, hubId };
+  }
+  app.get("/api/v1/hubs/:id/login-methods", async (r) => {
+    const { hubId } = await loginMethodOwner(r);
+    return hubLoginMethods(store, hubId, providers);
+  });
+  app.put("/api/v1/hubs/:id/login-methods", async (r) => {
+    const { current, hubId } = await loginMethodOwner(r), input = HubLoginMethodsRequest.parse(r.body);
+    const { availableMethods } = hubLoginMethods(store, hubId, providers);
+    if (input.allowedMethods.some((method) => !availableMethods.includes(method as Provider["method"])))
+      throw new DomainError(400, "unsupported_login_method", "Choose only account types configured on this Hub");
+    if (!input.allowedMethods.includes(current.context.method))
+      throw new DomainError(409, "owner_login_method_required", "Sign in as the owner through a remaining account type before disabling this one");
+    store.change((state) => {
+      const organization = requireValue(state.identity.hubOrganizations.find((value) => value.hubId === hubId));
+      organization.allowedMethods = [...input.allowedMethods].sort();
+    });
+    return hubLoginMethods(store, hubId, providers);
+  });
   app.post("/api/v1/hub-token", async (r) => {
     const s = await session(r),
       { hubId } = z.object({ hubId: Id }).parse(r.body);
@@ -421,6 +461,7 @@ export async function createIdentityApp(options: IdentityOptions) {
           continue: z.string().max(4096).optional(),
         })
         .parse(r.query);
+    if (options.localHubId) checkHubLoginMethod(store.read(), options.localHubId, p.method);
     if (
       query.continue &&
       (!query.continue.startsWith("/oauth/authorize?") ||
@@ -508,6 +549,7 @@ export async function createIdentityApp(options: IdentityOptions) {
     if (q.error || !q.code)
       return reply.redirect(loginPath + "?login=cancelled");
     const p = requireValue(providers.find((x) => x.id === connection));
+    if (options.localHubId) checkHubLoginMethod(store.read(), options.localHubId, p.method);
     const verified = await p.exchange(
       q.code,
       flow.verifier,

@@ -4,7 +4,12 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { Store } from "../src/persistence/store.js";
-import { createHub, createComputer, invite } from "../src/domain/commands.js";
+import {
+  createHub,
+  createComputer,
+  invite,
+  reserveAgent,
+} from "../src/domain/commands.js";
 import { independentAuthority } from "../src/hub/independent.js";
 import { createHubApp } from "../src/hub/app.js";
 import { HubSessions } from "../src/hub/sessions.js";
@@ -33,9 +38,13 @@ const computer = store.change(
     createComputer(state, "owner", hubId, "Invitation computer", "owner")
       .computer,
 );
+const agent = store.change((state) =>
+  reserveAgent(state, "owner", computer.id, "Identity-scoped agent", "fixture"),
+);
 const providers = ["feishu", "google"].map((method) => ({
   id: method + "-fixture",
   method,
+  ...(method === "feishu" ? { tenant: "fixture-company" } : {}),
   async authorize(state) {
     return (
       origin + "/fixture-provider?" + new URLSearchParams({ state, method })
@@ -82,7 +91,18 @@ hub.get("/fixture-provider", async (request, reply) =>
   ),
 );
 let transientKeyFailure = false;
+const mutationDispatches = [];
 hub.addHook("onRequest", async (request, reply) => {
+  if (
+    request.method === "POST" &&
+    request.url === `/workspace/api/sessions/${agent.id}/send`
+  ) {
+    const token = request.headers.authorization?.slice(7);
+    const me = await local.client.request("/api/v1/me", undefined, token);
+    mutationDispatches.push(me.id);
+    return reply.send({ accountId: me.id, fixtureDispatch: true });
+  }
+
   if (transientKeyFailure && request.url === "/api/v1/auth/keys/challenge")
     return reply
       .code(503)
@@ -125,7 +145,9 @@ const setupLocal = await independentAuthority({
       method: "google",
       async authorize(state) {
         return (
-          setupOrigin + "/fixture-provider?" + new URLSearchParams({ state })
+          setupOrigin +
+          "/fixture-provider?" +
+          new URLSearchParams({ state, method: "google" })
         );
       },
       async exchange() {
@@ -136,6 +158,28 @@ const setupLocal = await independentAuthority({
           tenant: null,
           email: "initial-owner@fixture.test",
           name: "Initial owner",
+        };
+      },
+    },
+    {
+      id: "feishu-setup",
+      method: "feishu",
+      tenant: "fixture-company",
+      async authorize(state) {
+        return (
+          setupOrigin +
+          "/fixture-provider?" +
+          new URLSearchParams({ state, method: "feishu" })
+        );
+      },
+      async exchange() {
+        return {
+          method: "feishu",
+          connection: "feishu-setup",
+          subject: "verified-work-member",
+          tenant: "fixture-company",
+          email: null,
+          name: "Work member",
         };
       },
     },
@@ -155,7 +199,7 @@ const setupHub = await createHubApp({
 });
 setupHub.get("/fixture-provider", async (request, reply) =>
   reply.redirect(
-    "/auth/google-setup/callback?" +
+    `/auth/${request.query.method}-setup/callback?` +
       new URLSearchParams({
         state: request.query.state,
         code: "setup-provider-code",
@@ -228,7 +272,54 @@ async function startConnect() {
     .click();
   await panel("Connect hub").waitFor();
 }
+async function reopenConnections() {
+  const connections = page.getByRole("button", {
+    name: "Hubs & computers",
+    exact: true,
+  });
+  await connections.waitFor({ state: "attached" });
+  const bounds = await connections.boundingBox();
+  if (!bounds || bounds.x < 0 || bounds.x + bounds.width > 390)
+    await page.locator("#toggleSidebarBtn").click();
+  await connections.click();
+  await panel("Hubs & computers").waitFor();
+}
+async function acceptInvitations(tokens, identityName = "Alice") {
+  for (const token of tokens) {
+    const summary = page.locator(".connectionHub summary");
+    if (!(await summary.evaluate((node) => node.parentElement.open)))
+      await summary.click();
+    await page
+      .getByRole("button", { name: "Hub settings", exact: true })
+      .click();
+    await panel("Hub settings")
+      .getByRole("button", { name: "Accept invitation", exact: true })
+      .click();
+    const identity = (
+      await localRows("codoxear-client-identities", "credentials")
+    ).find((login) => login.identity.name === identityName);
+    await panel("Accept invitation")
+      .locator("select[name=login]")
+      .selectOption(identity.id);
+    await panel("Accept invitation").getByLabel("Invitation code").fill(token);
+    await panel("Accept invitation")
+      .getByRole("button", { name: "Accept invitation", exact: true })
+      .click();
+    await panel("Hubs & computers").waitFor();
+  }
+}
+async function directoryValue() {
+  return page.evaluate(
+    async () => await (await fetch("/api/client/directory")).json(),
+  );
+}
 async function providerConnect(method, registration = false) {
+  const existing = registration
+    ? []
+    : await localRows("codoxear-client-identities", "credentials");
+  const rotating = existing.some(
+    (login) => login.identity.method === method.toLowerCase(),
+  );
   await startConnect();
   const popupPromise = context.waitForEvent("page");
   await panel("Connect hub")
@@ -273,12 +364,17 @@ async function providerConnect(method, registration = false) {
     });
   }
   const closed = popup.waitForEvent("close");
+  const loaded = rotating ? page.waitForEvent("load") : undefined;
   await popup
     .getByRole("link", { name: "Continue with " + method, exact: true })
     .click();
   await closed;
+  if (loaded) {
+    await loaded;
+    await reopenConnections();
+  }
   await panel("Hubs & computers").waitFor();
-  await page.waitForFunction(async () => {
+  await page.waitForFunction(async (expectedMethod) => {
     const db = await new Promise((resolve) => {
       const request = indexedDB.open("codoxear-client-identities");
       request.onsuccess = () => resolve(request.result);
@@ -288,16 +384,27 @@ async function providerConnect(method, registration = false) {
         .transaction("credentials")
         .objectStore("credentials")
         .getAll();
-      request.onsuccess = () => resolve(request.result.length > 0);
+      request.onsuccess = () =>
+        resolve(
+          request.result.some(
+            (login) => login.identity.method === expectedMethod,
+          ),
+        );
     });
-  });
+  }, method.toLowerCase());
+  const summary = page.locator(".connectionHub summary");
+  if (!(await summary.evaluate((node) => node.parentElement.open)))
+    await summary.click();
+  await page
+    .getByText(method === "Google" ? "Bob" : "Alice", { exact: true })
+    .waitFor();
 }
 try {
   await mkdir("artifacts", { recursive: true });
   await page.goto(clientOrigin + "/");
   await panel("Hubs & computers").waitFor();
   await providerConnect("Feishu", true);
-  const aliceLogin = (
+  let aliceLogin = (
     await localRows("codoxear-client-identities", "credentials")
   )[0];
   const aliceKey = (await localRows("codoxear-device-identities", "keys"))[0];
@@ -438,29 +545,28 @@ try {
     (state) =>
       invite(state, "owner", "computer", computer.id, target, "viewer").token,
   );
-  for (const token of [hubInvite, computerInvite]) {
-    await page.locator(".connectionHub summary").click();
-    await page
-      .getByRole("button", { name: "Hub settings", exact: true })
-      .click();
-    await panel("Hub settings")
-      .getByRole("button", { name: "Accept invitation", exact: true })
-      .click();
-    await panel("Accept invitation").getByLabel("Invitation code").fill(token);
-    await panel("Accept invitation")
-      .getByRole("button", { name: "Accept invitation", exact: true })
-      .click();
-    await panel("Hubs & computers").waitFor();
-    // Collapse the expanded hub so the next iteration opens and reloads it.
-    const summary = page.locator(".connectionHub summary");
-    if (await summary.evaluate((node) => node.parentElement.open))
-      await summary.click();
-  }
-  await page.locator(".connectionHub summary").click();
+  await acceptInvitations([hubInvite, computerInvite]);
+  const aliceDirectory = await directoryValue();
+  assert.equal(aliceDirectory.agents[0].agentId, agent.id);
+  assert.equal(aliceDirectory.placements.length, 0);
   await page.getByRole("button", { name: /Invitation computer/ }).waitFor();
   pass(
-    "Owner invitations grant the registered account access to its specific Computer through the real interface",
+    "Owner invitations grant the registered viewer its Computer and read-only agent; operator placement is unavailable",
   );
+
+  const viewerWrite = await page.evaluate(async (scoped) => {
+    const response = await fetch(
+      "/api/sessions/" + encodeURIComponent(scoped) + "/send",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Fixture message" }),
+      },
+    );
+    return response.status;
+  }, aliceDirectory.agents[0].id);
+  assert.equal(viewerWrite, 403);
+  assert.equal(mutationDispatches.length, 0);
   await providerConnect("Google");
   const logins = await localRows("codoxear-client-identities", "credentials"),
     keys = await localRows("codoxear-device-identities", "keys");
@@ -472,13 +578,118 @@ try {
     store.read().memberships.some((member) => member.userId === bob.accountId),
     false,
   );
-  await startConnect();
-  await panel("Connect hub")
-    .getByRole("button", { name: "Continue as Alice", exact: true })
-    .click();
-  await panel("Hubs & computers").waitFor();
+  const bobEmpty = await directoryValue();
+  assert.equal(bobEmpty.agents.length, 1);
+  assert.equal(bobEmpty.agents[0].id, aliceDirectory.agents[0].id);
+  assert.deepEqual(bobEmpty.placements, []);
+  assert.equal(
+    await page.evaluate(
+      async (id) =>
+        (await fetch("/api/client/hubs/" + id + "/api/v1/me")).status,
+      aliceLogin.id,
+    ),
+    200,
+  );
   pass(
-    "Google registers another isolated account; recognized local accounts reconnect with their own key and Computer grants",
+    "Adding Google keeps the existing Feishu identity connected; the same Hub agent remains visible without duplicate entries",
+  );
+  const bobTarget = {
+    method: "google",
+    connection: "google-fixture",
+    subject: "google-verified-id",
+    tenant: null,
+  };
+  await acceptInvitations(
+    [
+      store.change(
+        (state) =>
+          invite(state, "owner", "hub", hubId, bobTarget, "operator").token,
+      ),
+      store.change(
+        (state) =>
+          invite(state, "owner", "computer", computer.id, bobTarget, "operator")
+            .token,
+      ),
+    ],
+    "Bob",
+  );
+  const bobDirectory = await directoryValue();
+  assert.equal(bobDirectory.agents.length, 1);
+  assert.equal(bobDirectory.agents[0].agentId, agent.id);
+  assert.equal(bobDirectory.agents[0].id, aliceDirectory.agents[0].id);
+  assert.equal(bobDirectory.placements.length, 1);
+  assert.ok(bobDirectory.placements[0].loginIds.includes(bob.id));
+  assert.ok(bobDirectory.agents[0].loginIds.includes(aliceLogin.id));
+  assert.ok(bobDirectory.agents[0].loginIds.includes(bob.id));
+  const operatorWrite = await page.evaluate(async (scoped) => {
+    const response = await fetch(
+      "/api/sessions/" + encodeURIComponent(scoped) + "/send",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Fixture message" }),
+      },
+    );
+    return { status: response.status, value: await response.json() };
+  }, bobDirectory.agents[0].id);
+  assert.equal(operatorWrite.status, 200);
+  assert.equal(operatorWrite.value.accountId, bob.accountId);
+  assert.deepEqual(mutationDispatches, [bob.accountId]);
+
+  await page.getByRole("button", { name: "Hub settings", exact: true }).click();
+  await panel("Hub settings")
+    .getByRole("button", { name: "Accept invitation", exact: true })
+    .click();
+  assert.equal(
+    await panel("Accept invitation")
+      .locator("select[name=login] option")
+      .count(),
+    2,
+  );
+  await panel("Accept invitation")
+    .getByRole("button", { name: "Back", exact: true })
+    .click();
+  await panel("Hub settings")
+    .getByRole("button", { name: "Back", exact: true })
+    .click();
+  pass(
+    "All saved identities contribute their available rights while each request uses one proof; shared Computer and agent entries are deduplicated",
+  );
+  const oldAliceKey = aliceLogin.deviceKeyId;
+  await providerConnect("Feishu");
+  const rotatedLogins = await localRows(
+    "codoxear-client-identities",
+    "credentials",
+  );
+  const rotatedAlice = rotatedLogins.find(
+    (login) => login.identity.name === "Alice",
+  );
+  assert.equal(rotatedLogins.length, 2);
+  assert.equal(rotatedAlice.id, aliceLogin.id);
+  assert.equal(rotatedAlice.accountKey, aliceLogin.accountKey);
+  assert.notEqual(rotatedAlice.deviceKeyId, oldAliceKey);
+  const rotatedKeys = await localRows("codoxear-device-identities", "keys");
+  assert.equal(rotatedKeys.length, 2);
+  assert.equal(
+    rotatedKeys.some((key) => key.id === oldAliceKey),
+    false,
+  );
+  assert.equal(
+    rotatedKeys.some((key) => key.id === bob.deviceKeyId),
+    true,
+  );
+  assert.equal(
+    store.read().identity.deviceKeys.find((key) => key.id === oldAliceKey)
+      .revoked,
+    true,
+  );
+  assert.equal(
+    store.read().identity.deviceKeys.filter((key) => !key.revoked).length,
+    2,
+  );
+  aliceLogin = rotatedAlice;
+  pass(
+    "Fresh OAuth reauthentication rotates only the same identity's device key, preserves the other account, and does not accumulate active keys",
   );
   const revoke = await page.evaluate(
     async ({ origin, login }) => {
@@ -504,6 +715,36 @@ try {
     .filter({ hasText: /proof|sign-in|key/i })
     .waitFor();
   pass("Revoking a client key prevents that saved account from reconnecting");
+  await page.evaluate(async () => {
+    const db = await new Promise((resolve) => {
+      const r = indexedDB.open("codoxear-client-identities");
+      r.onsuccess = () => resolve(r.result);
+    });
+    await new Promise((resolve) => {
+      const tx = db.transaction("credentials", "readwrite"),
+        store = tx.objectStore("credentials"),
+        r = store.getAll();
+      r.onsuccess = () => {
+        for (const login of r.result)
+          store.put({ ...login, expiresAt: 0 }, login.id);
+      };
+      tx.oncomplete = resolve;
+    });
+  });
+  const revokedDirectory = await directoryValue();
+  assert.equal(revokedDirectory.agents.length, 1);
+  assert.equal(revokedDirectory.placements.length, 1);
+  assert.ok(revokedDirectory.agents[0].loginIds.includes(bob.id));
+  assert.equal(revokedDirectory.errors.length, 1);
+  assert.equal(
+    (await localRows("codoxear-client-identities", "credentials")).some(
+      (login) => login.id === bob.id,
+    ),
+    true,
+  );
+  pass(
+    "Revoking one identity leaves the other independently authorized identity connected and preserves its Computer access",
+  );
   const setupContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
     }),
@@ -579,6 +820,121 @@ try {
     path: "artifacts/registration-owner-setup-mobile.png",
     fullPage: true,
   });
+  const setupSummary = setupPage.locator(".connectionHub summary");
+  if (!(await setupSummary.evaluate((node) => node.parentElement.open)))
+    await setupSummary.click();
+  const memberPopupPromise = setupContext.waitForEvent("page");
+  await setupPage
+    .getByRole("button", { name: "Add identity", exact: true })
+    .click();
+  const memberPopup = await memberPopupPromise;
+  await memberPopup.setViewportSize({ width: 390, height: 844 });
+  const memberClosed = memberPopup.waitForEvent("close");
+  await memberPopup
+    .getByRole("link", { name: "Continue with Feishu", exact: true })
+    .click();
+  await memberClosed;
+  // Popup closure completes the OAuth token exchange. Device-key enrollment
+  // and vault persistence finish afterward, then the Hub identities rerender.
+  await setupPage.getByText("Work member", { exact: true }).waitFor();
+  await setupPanel("Hubs & computers").waitFor();
+  const setupRows = () =>
+    setupPage.evaluate(async () => {
+      const db = await new Promise((resolve) => {
+        const r = indexedDB.open("codoxear-client-identities");
+        r.onsuccess = () => resolve(r.result);
+      });
+      return new Promise((resolve) => {
+        const r = db
+          .transaction("credentials")
+          .objectStore("credentials")
+          .getAll();
+        r.onsuccess = () => resolve(r.result);
+      });
+    });
+  const workLogin = (await setupRows()).find(
+    (login) => login.identity.method === "feishu",
+  );
+  assert.ok(workLogin);
+  const expireWork = () =>
+    setupPage.evaluate(async (loginId) => {
+      const db = await new Promise((resolve) => {
+        const r = indexedDB.open("codoxear-client-identities");
+        r.onsuccess = () => resolve(r.result);
+      });
+      await new Promise((resolve) => {
+        const tx = db.transaction("credentials", "readwrite"),
+          s = tx.objectStore("credentials"),
+          r = s.get(loginId);
+        r.onsuccess = () => s.put({ ...r.result, expiresAt: 0 }, loginId);
+        tx.oncomplete = resolve;
+      });
+    }, workLogin.id);
+  await expireWork();
+  await setupPage
+    .getByRole("button", { name: "Hub settings", exact: true })
+    .click();
+  await setupPanel("Hub settings")
+    .getByRole("button", { name: "Allowed sign-in types", exact: true })
+    .click();
+  await setupPanel("Allowed sign-in types")
+    .getByLabel("Feishu", { exact: true })
+    .uncheck();
+  await setupPanel("Allowed sign-in types")
+    .getByRole("button", { name: "Save allowed types", exact: true })
+    .click();
+  await setupPanel("Hubs & computers").waitFor();
+  const allowedOptions = await (
+    await fetch(setupOrigin + "/api/v1/auth/options")
+  ).json();
+  assert.deepEqual(allowedOptions.loginMethods.allowedMethods, ["google"]);
+  assert.ok(allowedOptions.loginMethods.availableMethods.includes("feishu"));
+  await expireWork();
+  const blockedDirectory = await setupPage.evaluate(
+    async () => await (await fetch("/api/client/directory")).json(),
+  );
+  assert.equal(blockedDirectory.errors.length, 1);
+  assert.equal((await setupRows()).length, 2);
+  assert.equal(
+    (await setupRows()).find((login) => login.id === workLogin.id).deviceKeyId,
+    workLogin.deviceKeyId,
+  );
+
+  if (!(await setupSummary.evaluate((node) => node.parentElement.open)))
+    await setupSummary.click();
+  await setupPage
+    .getByRole("button", { name: "Hub settings", exact: true })
+    .click();
+  await setupPanel("Hub settings")
+    .getByRole("button", { name: "Allowed sign-in types", exact: true })
+    .click();
+  await setupPanel("Allowed sign-in types")
+    .getByLabel("Feishu", { exact: true })
+    .check();
+  await setupPanel("Allowed sign-in types")
+    .getByRole("button", { name: "Save allowed types", exact: true })
+    .click();
+  await setupPanel("Hubs & computers").waitFor();
+  const bothOptions = await (
+    await fetch(setupOrigin + "/api/v1/auth/options")
+  ).json();
+  assert.equal(bothOptions.loginMethods.allowedMethods.length, 2);
+  const reallowedDirectory = await setupPage.evaluate(
+    async () => await (await fetch("/api/client/directory")).json(),
+  );
+  assert.equal(reallowedDirectory.errors.length, 0);
+  assert.equal(
+    (await setupRows()).find((login) => login.id === workLogin.id).deviceKeyId,
+    workLogin.deviceKeyId,
+  );
+  assert.ok(
+    (await setupRows()).find((login) => login.id === workLogin.id).expiresAt >
+      Date.now(),
+  );
+
+  pass(
+    "The owner configures Google-only or both; a blocked saved Feishu key is retained and resumes automatically when allowed again",
+  );
   await setupContext.close();
   pass(
     "Fresh Google registration preserves pending setup continuation; one-time owner proof claims the Hub and pre-provisioned Computer before device key enrollment",

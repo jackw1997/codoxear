@@ -10,6 +10,7 @@ const Remote = z
   );
 const Credentials = {
   id: Id,
+  name: z.string().trim().min(1).max(120).optional(),
   clientId: z.string().trim().min(1),
   clientSecret: z
     .string()
@@ -17,13 +18,23 @@ const Credentials = {
     .refine((value) => value.trim().length > 0),
 };
 export const ProviderConfig = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("google"), ...Credentials }),
-  z.object({ kind: z.literal("feishu"), ...Credentials }),
+  z.object({ kind: z.literal("google"), ...Credentials }).strict(),
+  z.object({ kind: z.literal("feishu"), ...Credentials,
+    tenant: z.string().trim().min(1).max(200).optional(),
+  }).strict(),
 ]);
 export type ProviderConfig = z.infer<typeof ProviderConfig>;
+export const HubProviders = z.array(ProviderConfig).superRefine((providers, context) => {
+  if (providers.filter((provider) => provider.kind === "feishu").length > 1)
+    context.addIssue({ code: "custom", message: "A Hub supports at most one Feishu app" });
+  if (new Set(providers.map((provider) => provider.id)).size !== providers.length)
+    context.addIssue({ code: "custom", message: "Provider connection IDs must be unique" });
+});
 export interface Provider {
   readonly id: string;
   readonly method: "google" | "feishu";
+  readonly name?: string;
+  readonly tenant?: string;
   authorize(
     state: string,
     verifier: string,
@@ -112,6 +123,7 @@ export function provider(
     };
     return {
       id: config.id,
+      ...(config.name ? { name: config.name } : {}),
       method: "google",
       authorize(state, verifier, redirectUri) {
         return guarded(async () => {
@@ -122,6 +134,7 @@ export function provider(
             redirect_uri: redirectUri,
             response_type: "code",
             scope: "openid profile email",
+            prompt: "select_account",
             state,
             nonce: await oauth.calculatePKCECodeChallenge(
               "google-nonce:" + verifier,
@@ -190,7 +203,9 @@ export function provider(
   }
   return {
     id: config.id,
+    ...(config.name ? { name: config.name } : {}),
     method: "feishu",
+    ...(config.tenant ? { tenant: config.tenant } : {}),
     authorize(state, verifier, redirectUri) {
       return guarded(async () => {
         const url = new URL(
@@ -252,6 +267,7 @@ export function provider(
               transport,
             ),
           );
+        if (config.tenant && config.tenant !== info.data.tenant_key) throw denied();
         return {
           connection: config.id,
           method: "feishu",

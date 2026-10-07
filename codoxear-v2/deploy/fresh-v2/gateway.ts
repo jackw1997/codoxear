@@ -34,8 +34,9 @@ export async function prepareFreshGateway(root: string) {
   }
   let config = "{\n  admin off\n  auto_https disable_redirects\n}\n(fresh_tls) {\n  tls {\n    dns cloudflare {env.CF_API_TOKEN}\n    resolvers 1.1.1.1 8.8.8.8\n  }\n}\n";
   config += `${guide.origin} {\n  import fresh_tls\n  handle ${guide.pathname} {\n    redir ${origins.client}/ 302\n  }\n  handle {\n    redir ${origins.client}/ 302\n  }\n}\n`;
-  for (const [address, upstream] of [[origins.client, "client:19520"], [origins.hubs[0]!, "hub-0:17430"], [origins.hubs[1]!, "hub-1:17430"]])
-    config += `${address} {\n  import fresh_tls\n  reverse_proxy ${upstream} {\n    flush_interval -1\n  }\n}\n`;
+  for (const [address, upstream] of [[origins.client, "client:19520"], [origins.hubs[0]!, "hub-0:17430"], [origins.hubs[1]!, "hub-1:17430"]]) {
+    config += `${address} {\n  import fresh_tls\n  handle {\n    reverse_proxy ${upstream} {\n      flush_interval -1\n    }\n  }\n}\n`;
+  }
   const file = join(gateway, "Caddyfile");
   try { await writeFile(file, config, { mode: 0o600, flag: "wx" }); }
   catch (error) {

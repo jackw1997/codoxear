@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Agent, Hub, Id, Name, Policy, Role } from "../contracts/model.js";
 import { DeviceKeyEnrollmentRequest, DeviceKeyLoginRequest, DeviceKeyProof, DeviceKeyChallengeResponse, DeviceKeyMetadata } from "../contracts/device-keys.js";
 import { AuthRequirement } from "../contracts/identity.js";
+import { HubLoginMethodsRequest } from "../contracts/hub-organization.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { Launch } from "../contracts/tunnel.js";
 import { DelegationAuthorityRequest, DelegationChildContextRequest, DelegationReserveRequest, DelegationContextResponse,
@@ -245,6 +246,7 @@ define("GET", "/api/agent-directory", {
         hubName: z.string(),
         origin: z.url(),
         access: AccessDecision.shape.mode,
+        actions: AccessDecision.shape.actions,
         workspaceGrants: z.array(
           z.object({
             workspaceId: Id,
@@ -664,7 +666,7 @@ define("GET", "/api/v1/me", {
 });
 define("POST", "/api/v1/auth/setup", {
   auth: "account", summary: "Claim initial Hub ownership with verified provider identity and one-time setup code",
-  body: z.object({ token: z.string().min(32).max(256) }), response: ok,
+  body: z.object({ token: z.string().min(32).max(256), name: Name.optional() }), response: ok,
   statuses: [200, 400, 401, 403, 404, 409, 429, 500],
 });
 for (const [path, body, response, auth] of [
@@ -711,6 +713,15 @@ define("PUT", "/api/v1/hubs/:id/auth-requirement", {
     "Owner changes authentication policy after proving its required context",
   body: z.object({ rule: AuthRequirement.nullable() }),
   statuses: [200, 400, 401, 403, 404, 500],
+});
+define("GET", "/api/v1/hubs/:id/login-methods", {
+  summary: "Hub owner reads configured and allowed account types",
+  statuses: [200, 400, 401, 403, 404, 500],
+});
+define("PUT", "/api/v1/hubs/:id/login-methods", {
+  summary: "Hub owner selects allowed account types while retaining the acting proof type",
+  body: HubLoginMethodsRequest,
+  statuses: [200, 400, 401, 403, 404, 409, 500],
 });
 define("POST", "/api/v1/hubs/:id/admissions", {
   summary:

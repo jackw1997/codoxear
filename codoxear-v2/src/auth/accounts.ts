@@ -1,5 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { Store } from "../persistence/store.js";
+import { checkHubOrganization } from "./hub-organization.js";
 import {
   id,
   secret,
@@ -68,6 +69,8 @@ export class Accounts {
     )
       throw fail("Session revoked");
     if (session.parentId) this.sessionById(session.parentId);
+    if (s.hubs.length === 1)
+      checkHubOrganization(s, s.hubs[0]!.id, session.context.method, session.context.tenant);
     if (session.deviceKeyId && !s.identity.deviceKeys.some(
       (key) => key.id === session.deviceKeyId && key.userId === session.userId && !key.revoked,
     )) throw fail("Client key revoked");
@@ -144,6 +147,8 @@ export class Accounts {
       const identity = s.identity.identities.find((i) => i.id === key.context.identityId && i.userId === key.userId);
       if (!identity || identity.method !== key.context.method || identity.tenant !== key.context.tenant)
         throw fail("Provider identity changed; register this client again");
+      if (s.hubs.length === 1)
+        checkHubOrganization(s, s.hubs[0]!.id, key.context.method, key.context.tenant);
       const existing = s.identity.sessions.find((session) =>
         session.deviceKeyId === key.id && session.installationId === installationId &&
         session.userId === key.userId && !session.parentId && !session.revoked && session.expiresAt > this.now());
@@ -290,9 +295,13 @@ export class Accounts {
     if (link && this.now() - link.context.authenticatedAt > 300000)
       throw fail("Linking authentication expired");
     return this.store.change((s) => {
+      if (s.hubs.length === 1)
+        checkHubOrganization(s, s.hubs[0]!.id, identity.method, identity.tenant);
       let existing = s.identity.identities.find(
         (x) =>
           x.connection === identity.connection &&
+          x.method === identity.method &&
+          x.tenant === identity.tenant &&
           x.subject === identity.subject,
       );
       if (link && existing && existing.userId !== link.userId)
@@ -335,13 +344,8 @@ export class Accounts {
           existing.id,
         );
       } else {
-        // Invitation matching uses the most recently verified provider claims.
-        // A changed email or tenant must not keep an obsolete recipient proof.
-        forbid(
-          existing.method === identity.method,
-          "Sign-in connection method changed",
-        );
-        existing.tenant = identity.tenant;
+        // Email is current proof metadata. Connection, method, tenant and
+        // subject are immutable identity coordinates, never account merge keys.
         existing.email = identity.email;
         existing.verifiedAt = this.now();
       }

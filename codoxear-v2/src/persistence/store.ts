@@ -101,7 +101,7 @@ function validateRelations(s: State): void {
     "prior grant",
   );
   unique(
-    s.identity.identities.map((i) => JSON.stringify([i.connection, i.subject])),
+    s.identity.identities.map((i) => JSON.stringify([i.connection, i.method, i.tenant, i.subject])),
     "external identity",
   );
   unique(
@@ -114,6 +114,7 @@ function validateRelations(s: State): void {
   );
   unique(s.identity.deviceKeys.map((key) => key.id), "client key");
   unique(s.identity.deviceKeyChallenges.map((challenge) => challenge.id), "client key challenge");
+  unique(s.identity.hubOrganizations.map((organization) => organization.hubId), "Hub organization");
   for (const key of s.identity.deviceKeys)
     if (!s.users.some((user) => user.id === key.userId) ||
       (!key.revoked && !s.identity.identities.some((identity) => identity.id === key.context.identityId && identity.userId === key.userId)))
@@ -162,7 +163,7 @@ function validateRelations(s: State): void {
   for (const token of [...s.identity.refresh, ...s.identity.codes])
     if (!identitySessions.has(token.sessionId))
       throw new Error("Credential needs an existing session");
-  for (const h of [...s.identity.hubs, ...s.identity.requirements])
+  for (const h of [...s.identity.hubs, ...s.identity.requirements, ...s.identity.hubOrganizations])
     if (!s.hubs.some((hub) => hub.id === h.hubId))
       throw new Error("Identity metadata needs an existing hub");
   const users = new Set(s.users.map((u) => u.id)),

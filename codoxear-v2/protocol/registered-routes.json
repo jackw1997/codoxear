@@ -583,6 +583,30 @@
   ],
   "identity": [
     {
+      "path": "/*",
+      "methods": [
+        "OPTIONS"
+      ]
+    },
+    {
+      "path": "/login",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/register",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/hub-login.js",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
       "path": "/",
       "methods": [
         "GET"
@@ -693,6 +717,13 @@
     {
       "path": "/api/v1/hubs/:id/auth-requirement",
       "methods": [
+        "PUT"
+      ]
+    },
+    {
+      "path": "/api/v1/hubs/:id/login-methods",
+      "methods": [
+        "GET",
         "PUT"
       ]
     },

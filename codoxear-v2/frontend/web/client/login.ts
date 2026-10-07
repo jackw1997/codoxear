@@ -25,8 +25,14 @@ export async function connectHub(
         "This device key is no longer available. Continue with Google or Feishu.",
       );
     const tokens = await proveDevice(key);
-    return saveLogin(origin, tokens, key);
+    return saveHubLogin(origin, tokens, key);
   }
+  const tokens = await authorizeProvider(origin);
+  return saveHubLogin(origin, tokens);
+}
+
+export async function authorizeProvider(origin: string, connection?: string) {
+  canonicalOrigin(origin);
   // Open synchronously from the user's click, then perform discovery and PKCE.
   const popup = window.open(
     "about:blank",
@@ -38,16 +44,6 @@ export async function connectHub(
     verifier = random();
   const callback = location.origin + "/auth-callback";
   try {
-    const response = await fetch(origin + "/api/v1/meta", {
-      credentials: "omit",
-      redirect: "error",
-      signal: AbortSignal.timeout(8000),
-    });
-    const meta = await response.json();
-    if (!response.ok || !meta.independent || meta.issuer !== origin)
-      throw new Error(
-        "This address is not an independent Codoxear hub, or it has not allowed this client origin",
-      );
     const challenge = btoa(
       String.fromCharCode(
         ...new Uint8Array(
@@ -109,8 +105,13 @@ export async function connectHub(
           theme: document.documentElement.dataset.theme ?? "clay",
           mode: localStorage.getItem("codoxear.ui.theme.mode") ?? "system",
         });
-      popup.location.href =
-        origin + "/login?" + new URLSearchParams({ continue: authorize });
+      popup.location.href = connection
+        ? origin +
+          "/auth/" +
+          encodeURIComponent(connection) +
+          "/start?" +
+          new URLSearchParams({ continue: authorize })
+        : origin + "/login?" + new URLSearchParams({ continue: authorize });
     });
     const res = await fetch(origin + "/oauth/token", {
       method: "POST",
@@ -128,13 +129,13 @@ export async function connectHub(
     });
     const tokens = await res.json();
     if (!res.ok) throw new Error(tokens.error ?? "Hub rejected sign-in");
-    return saveLogin(origin, tokens);
+    return tokens;
   } finally {
     popup.close();
   }
 }
 
-async function saveLogin(
+export async function saveHubLogin(
   origin: string,
   tokens: any,
   savedKey?: import("./device-keys.js").DeviceIdentity,
@@ -168,29 +169,19 @@ async function saveLogin(
     throw new Error("Hub rejected account discovery");
   if (savedKey && (savedKey.origin !== origin || savedKey.accountId !== me.id))
     throw new Error("Device identity account mismatch");
+  const providerTokens = savedKey ? undefined : tokens;
   const key = savedKey ?? (await enrollDevice(origin, me, tokens.access_token));
   if (!savedKey) {
-    const providerTokens = tokens;
     tokens = await proveDevice(key);
-    await fetch(origin + "/oauth/revoke", {
-      method: "POST",
-      credentials: "omit",
-      redirect: "error",
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + providerTokens.access_token,
-      },
-      body: JSON.stringify({ token: providerTokens.refresh_token }),
-    }).catch(() => {});
   }
   const sameAccount = (await vault.list()).filter(
     (login) => login.origin === origin && login.accountId === me.id,
   );
-  const existing = sameAccount.find((login) => login.deviceKeyId === key.id);
+  const identityKey = me.context.identityId ?? key.id;
+  const existing = sameAccount.find(login => login.identity.key === identityKey || login.deviceKeyId === key.id);
   const login: HubLogin = {
     id: existing?.id ?? crypto.randomUUID(),
-    accountKey: sameAccount[0]?.accountKey ?? crypto.randomUUID(),
+    accountKey: existing?.accountKey ?? crypto.randomUUID(),
     origin,
     hubId: meta.hubId,
     name:
@@ -205,12 +196,32 @@ async function saveLogin(
     identity: {
       name: me.name,
       method: me.context.method,
-      key: key.id,
+      key: identityKey,
       identities: me.identities,
     },
   };
   await vault.put(login);
-  return login;
+  await vault.activate(login.id);
+  if (providerTokens) {
+    // Keep fresh provider authorization alive until the replacement key and
+    // saved account are usable. Rotate only this provider identity's old key;
+    // other accounts and explicitly linked identities retain their own keys.
+    if (existing && existing.identity.key === identityKey && existing.deviceKeyId !== key.id) {
+      try {
+        const revoked = await fetch(origin + "/api/v1/me/keys/" + encodeURIComponent(existing.deviceKeyId), {
+          method: "DELETE", credentials: "omit", redirect: "error", signal: AbortSignal.timeout(10000),
+          headers: { Authorization: "Bearer " + providerTokens.access_token },
+        });
+        if (revoked.ok) await deviceKeys.remove(origin, existing.deviceKeyId);
+      } catch { /* A failed rotation leaves the prior key available for explicit revocation. */ }
+    }
+    await fetch(origin + "/oauth/revoke", {
+      method: "POST", credentials: "omit", redirect: "error", signal: AbortSignal.timeout(10000),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + providerTokens.access_token },
+      body: JSON.stringify({ token: providerTokens.refresh_token }),
+    }).catch(() => {});
+  }
+  return (await vault.get(login.id))!;
 }
 
 export function identitySettingsUrl(login: HubLogin) {

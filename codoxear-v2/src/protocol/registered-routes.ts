@@ -88,6 +88,10 @@ export const hubRegisteredEndpoints: RegisteredEndpoint[] = [
   {"path":"/workspace/api/sessions","methods":["GET"]},
 ];
 export const identityRegisteredEndpoints: RegisteredEndpoint[] = [
+  {"path":"/*","methods":["OPTIONS"]},
+  {"path":"/login","methods":["GET"]},
+  {"path":"/register","methods":["GET"]},
+  {"path":"/hub-login.js","methods":["GET"]},
   {"path":"/","methods":["GET"]},
   {"path":"/.well-known/jwks.json","methods":["GET"]},
   {"path":"/account.js","methods":["GET"]},
@@ -107,6 +111,7 @@ export const identityRegisteredEndpoints: RegisteredEndpoint[] = [
   {"path":"/api/v1/hubs","methods":["POST"]},
   {"path":"/api/v1/hubs/:id/admissions","methods":["POST"]},
   {"path":"/api/v1/hubs/:id/auth-requirement","methods":["PUT"]},
+  {"path":"/api/v1/hubs/:id/login-methods","methods":["GET","PUT"]},
   {"path":"/api/v1/hubs/:id/computers","methods":["POST"]},
   {"path":"/api/v1/hubs/:id/register","methods":["POST"]},
   {"path":"/api/v1/invitations/accept","methods":["POST"]},
