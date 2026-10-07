@@ -1,5 +1,5 @@
 /** Build reviewed independent release images without unbounded Docker builds.
- * Usage: node --import tsx scripts/build-components.ts <reviewed-sha> [tag]
+ * Usage: node --import tsx scripts/build-components.ts <reviewed-sha> [tag] [roles]
  * NODE24_IMAGE may select an approved Node 24 bookworm image/digest.
  * CODOXEAR_OPERATOR_TOOLS_IMAGE records a separate optional verification image.
  */
@@ -31,10 +31,10 @@ const repository = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 const args = process.argv.slice(2);
 const locked = args[0] === "--locked";
 if (locked) args.shift();
-const [revision, requestedTag] = args;
-if (args.length > 2 || !revision || !/^[a-f0-9]{40}$/i.test(revision))
+const [revision, requestedTag, requestedRoles] = args;
+if (args.length > 3 || !revision || !/^[a-f0-9]{40}$/i.test(revision))
   throw Error(
-    "Usage: build-components.ts <reviewed 40-character commit SHA> [tag]",
+    "Usage: build-components.ts <reviewed 40-character commit SHA> [tag] [computer,hub,identity,server,frontend]",
   );
 const commit = execFileSync(
   "git",
@@ -65,6 +65,16 @@ const limits = {
 };
 const roles = ["computer", "hub", "identity", "server", "frontend"] as const;
 type Role = (typeof roles)[number];
+const selection = requestedRoles?.split(",") ?? [...roles];
+if (
+  selection.some((role) => !roles.includes(role as Role)) ||
+  new Set(selection).size !== selection.length
+)
+  throw Error("Select unique roles from computer,hub,identity,server,frontend");
+const selectedRoles = roles.filter((role) => selection.includes(role));
+const buildsFrontend = selectedRoles.includes("frontend");
+const sourceOnlyRoles: readonly Role[] =
+  buildsFrontend && !selectedRoles.includes("computer") ? ["computer"] : [];
 let active: ReturnType<typeof spawn> | undefined;
 let interrupted: NodeJS.Signals | undefined;
 for (const signal of ["SIGINT", "SIGTERM"] as const)
@@ -195,59 +205,65 @@ async function buildRelease() {
   let container: string | undefined;
   let cleanupFailed = false;
   try {
-    for (const role of roles.filter((role) => role !== "frontend")) {
+    for (const role of roles.filter(
+      (role) =>
+        role !== "frontend" &&
+        (selectedRoles.includes(role) || sourceOnlyRoles.includes(role)),
+    )) {
       const packaged = await packageComponent(role, commit, join(output, role));
       archives.set(role, packaged.archive);
       sources[role] = packaged.release;
     }
-    const frontendArchive = join(
-      output,
-      "frontend",
-      "codoxear-frontend-source.tar.gz",
-    );
-    await mkdir(dirname(frontendArchive), { recursive: true });
-    await command("git", [
-      "-C",
-      repository,
-      "archive",
-      "--format=tar.gz",
-      "--output=" + frontendArchive,
-      commit + ":" + prefix + "frontend",
-    ]);
-    archives.set("frontend", frontendArchive);
-    sources.frontend = {
-      commit,
-      sha256: createHash("sha256")
-        .update(await readFile(frontendArchive))
-        .digest("hex"),
-    };
     const releaseAssets = join(temporary, "release-assets");
-    await mkdir(join(releaseAssets, "downloads"), { recursive: true });
-    for (const [source, destination] of [
-      ["independent-hubs.html", "guide.html"],
-      ["oar-cutover.html", "oar-cutover.html"],
-      ["progress.html", "progress.html"],
-    ]) {
-      const path = prefix + "docs/" + source;
-      if (!gitFiles.has(path)) continue;
-      await writeFile(
-        join(releaseAssets, destination!),
-        execFileSync("git", ["show", commit + ":" + path], {
-          cwd: project,
-          maxBuffer: 16 * 1024 ** 2,
-        }),
+    if (buildsFrontend) {
+      const frontendArchive = join(
+        output,
+        "frontend",
+        "codoxear-frontend-source.tar.gz",
+      );
+      await mkdir(dirname(frontendArchive), { recursive: true });
+      await command("git", [
+        "-C",
+        repository,
+        "archive",
+        "--format=tar.gz",
+        "--output=" + frontendArchive,
+        commit + ":" + prefix + "frontend",
+      ]);
+      archives.set("frontend", frontendArchive);
+      sources.frontend = {
+        commit,
+        sha256: createHash("sha256")
+          .update(await readFile(frontendArchive))
+          .digest("hex"),
+      };
+      await mkdir(join(releaseAssets, "downloads"), { recursive: true });
+      for (const [source, destination] of [
+        ["independent-hubs.html", "guide.html"],
+        ["oar-cutover.html", "oar-cutover.html"],
+        ["progress.html", "progress.html"],
+      ]) {
+        const path = prefix + "docs/" + source;
+        if (!gitFiles.has(path)) continue;
+        await writeFile(
+          join(releaseAssets, destination!),
+          execFileSync("git", ["show", commit + ":" + path], {
+            cwd: project,
+            maxBuffer: 16 * 1024 ** 2,
+          }),
+        );
+      }
+      await cp(
+        archives.get("computer")!,
+        join(releaseAssets, "downloads", "codoxear-computer-source.tar.gz"),
+      );
+      await cp(
+        join(output, "computer", "release.json"),
+        join(releaseAssets, "downloads", "release.json"),
       );
     }
-    await cp(
-      archives.get("computer")!,
-      join(releaseAssets, "downloads", "codoxear-computer-source.tar.gz"),
-    );
-    await cp(
-      join(output, "computer", "release.json"),
-      join(releaseAssets, "downloads", "release.json"),
-    );
 
-    for (const role of roles) {
+    for (const role of selectedRoles) {
       const image = `codoxear-${role}:${tag}`;
       console.log(`Building ${image} from ${commit} (2 GiB, no swap, serial)`);
       container = await command(
@@ -360,29 +376,37 @@ async function buildRelease() {
       await command("docker", ["rm", container]);
       container = undefined;
     }
-    const assetsArchive = join(output, "frontend-assets.tar.gz");
-    await command("tar", [
-      "--sort=name",
-      "--mtime=@0",
-      "--owner=0",
-      "--group=0",
-      "--numeric-owner",
-      "-czf",
-      assetsArchive,
-      "-C",
-      frontendAssets,
-      ".",
-    ]);
-    const assets = {
-      directory: frontendAssets,
-      archive: assetsArchive,
-      sha256: createHash("sha256")
-        .update(await readFile(assetsArchive))
-        .digest("hex"),
-      commit,
-    };
-    await freeze(frontendAssets);
-    await chmod(assetsArchive, 0o444);
+    let assets: {
+      directory: string;
+      archive: string;
+      sha256: string;
+      commit: string;
+    } | null = null;
+    if (buildsFrontend) {
+      const assetsArchive = join(output, "frontend-assets.tar.gz");
+      await command("tar", [
+        "--sort=name",
+        "--mtime=@0",
+        "--owner=0",
+        "--group=0",
+        "--numeric-owner",
+        "-czf",
+        assetsArchive,
+        "-C",
+        frontendAssets,
+        ".",
+      ]);
+      assets = {
+        directory: frontendAssets,
+        archive: assetsArchive,
+        sha256: createHash("sha256")
+          .update(await readFile(assetsArchive))
+          .digest("hex"),
+        commit,
+      };
+      await freeze(frontendAssets);
+      await chmod(assetsArchive, 0o444);
+    }
     await writeFile(
       join(output, "images.json"),
       JSON.stringify(
@@ -391,6 +415,8 @@ async function buildRelease() {
           tag,
           base,
           limits,
+          roles: selectedRoles,
+          sourceOnlyRoles,
           sources,
           images,
           frontendAssets: assets,
@@ -402,7 +428,7 @@ async function buildRelease() {
       ) + "\n",
     );
     console.log(
-      "Independent release images and immutable frontend assets recorded in " +
+      "Independent release artifacts recorded in " +
         join(output, "images.json"),
     );
   } finally {
@@ -452,6 +478,7 @@ if (!locked) {
       "--locked",
       commit,
       tag,
+      ...(requestedRoles ? [selectedRoles.join(",")] : []),
     ]);
   } catch (error) {
     const code = (error as { exitCode?: number }).exitCode;

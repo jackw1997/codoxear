@@ -23,6 +23,19 @@ Build reviewed, separate runtime images with the memory-bounded release builder:
 node --import tsx scripts/build-components.ts <reviewed-commit> <release-tag>
 ```
 
+An optional third argument selects comma-separated roles; omitting it builds all
+five images. For a frontend and public-report update:
+
+```sh
+node --import tsx scripts/build-components.ts <reviewed-commit> <frontend-release-tag> frontend
+```
+
+This builds only the frontend image and exports its immutable assets. The
+Computer source download is exported as a release asset without building a
+Computer image. Backend-only selections export no frontend assets and record
+`frontendAssets: null` in `images.json`. Retain the existing image tags for roles
+that are unchanged.
+
 It serializes builds under the same verification lock, limits each container to
 2 GiB with no swap, and exports only the selected component's source closure.
 Frontend, Computer, Hub, optional Identity and optional compatibility Server each
@@ -59,7 +72,7 @@ node --experimental-strip-types deploy/fresh-v2/gateway.ts "$FRESH_STATE"
 docker compose -f deploy/fresh-v2/compose.yml --profile computer --profile gateway up -d
 ```
 
-This gateway uses the host's Cloudflare-enabled `/usr/local/bin/caddy` binary
+The gateway uses a dedicated official Caddy runtime image with system CA certificates, independently of all application images. It mounts the host's Cloudflare-enabled `/usr/local/bin/caddy` binary
 read-only and reads only the root-owned `/etc/codoxear-https/cloudflare.env` secret
 file. UID 0 is confined to this gateway container so it can read that file. TLS
 state lives in new private `gateway/data` and `gateway/config` directories; no

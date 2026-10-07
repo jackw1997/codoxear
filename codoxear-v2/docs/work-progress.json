@@ -362,19 +362,24 @@
       "scope": "frontend/web, frontend/harmonyos and frontend/shared; frontend owns dependencies/build/static host; backend compiles without frontend",
       "evidence": "artifacts/package-isolation.json",
       "remaining": "Full browser regression after split is running; Hub/Computer/Identity backend package isolation remains open."
+    },
+    {
+      "id": "component-isolation",
+      "status": "verified-local",
+      "scope": "Independent frontend, Computer, Hub, optional Identity and Server packages",
+      "outcome": "Separate locks, minimal source closures, builds, pruned images and explicit frontend asset attachment. All login HTML belongs to frontend. Five clean packages and six actual mobile OAuth checks pass. Generated protocol duplication reduced by 115,141 lines (60.3%). Runtime regression: 307 tests and complete browser runner pass."
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
   "platformScope": "Linux native acceptance; macOS/device/live-provider gates remain individually tracked",
   "integration": {
-    "tests": 235,
+    "tests": 307,
     "failed": 0,
     "skipped": 0,
-    "genericBrowserChecks": 46,
     "verifierExitCode": 0,
-    "log": "/tmp/codoxear-v2-final-complete.log",
-    "scope": "Last full build/tests/browser snapshot before the startup hotfix:235 TypeScript tests and46 generic browser checks. Hotfix production build/full TypeScript check and three real-browser startup cases pass separately.",
-    "sourceCommit": "e6d1dd6df74153abd2e51e3d8bf9fe83ff289f32"
+    "log": "/tmp/codoxear-v2-final-regression.log",
+    "scope": "Full regression and complete browser runner; five separate clean package checks and six installed-package OAuth checks recorded independently.",
+    "sourceCommit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32"
   },
   "registerCounts": {
     "active": 20,
@@ -397,7 +402,7 @@
     "scope": "Earlier native/scripted preview snapshot; current fresh real-provider evidence is in fresh-oar-deployment and managed-cold-browser-binding."
   },
   "updatedAt": "2026-10-07T07:12:40.701Z",
-  "integrationStatus": "Fresh OAR stack deployed at the preserved public addresses. Real Pi/Kimi parent-child delegation across two Computers and cold recovery passed through the public browser. The 283-test full Docker suite and complete browser runner passed before the final saved-binding fix; 12 binding regressions and 21 combined search/protocol checks passed afterward. Public search/navigation acceptance has not yet run. Earlier old-catalog restoration is superseded by the requested fresh deployment; historical state remains separately archived.",
+  "integrationStatus": "Component isolation verified at 379ddba0: 307 regression tests and the complete browser runner passed. Frontend, Computer, Hub, optional Identity and optional Server each independently install, build and run; six installed-package mobile OAuth checks passed. The public Pi/Kimi and saved-history proofs remain recorded by their own snapshots. Earlier restoration requirements are superseded by the requested fresh deployment; archived histories and current private configuration are preserved.",
   "github": {
     "status": "previous publication attempt blocked; not retested on 7 October",
     "reason": "Historical attempt: authenticated connector reads succeeded but create_blob returned403 Resource not accessible by integration; shell Git credentials were absent then. Current publishing access has not been retested.",
@@ -557,12 +562,85 @@
     }
   },
   "componentPackaging": {
-    "frontend": "Independent package and static host; isolated Docker install/build/static-host checks passed",
-    "backend": "Builds without frontend; Hub/Computer/Identity still share one dependency/build/release package",
-    "gaps": [
-      "Computer source download archives entire v2 tree",
-      "Computer image contains all backend bundles",
-      "Shared behavior library ownership needs narrower enforcement"
-    ]
+    "status": "verified",
+    "runtimeCommit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+    "frontend": "Own frontend source, templates, lock, build and static host",
+    "backend": "Computer, Hub, optional Identity and optional Server export only own declared source closure, minimal lock and compiled entries",
+    "packages": [
+      {
+        "role": "frontend",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "static frontend health and built page work without any backend; account API is absent"
+        ]
+      },
+      {
+        "role": "computer",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "compiled typed API status/doctor and CLI run without attachment or peer services",
+          "own pinned OAR runtime installs and loads without starting a model session"
+        ]
+      },
+      {
+        "role": "hub",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      },
+      {
+        "role": "identity",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      },
+      {
+        "role": "server",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      }
+    ],
+    "browserChecks": [
+      "Compiled exported Hub and independently built frontend start from their installed packages",
+      "Hub browser login assets resolve only from the explicitly attached frontend artifact",
+      "Standalone frontend completes actual popup password login and PKCE exchange against the exported Hub",
+      "OAuth credential authorizes a real Hub management mutation through the frontend",
+      "Reload restores the frontend login and reads the persisted computer from the independently owned Hub database",
+      "Package browser integration completes without uncaught page errors"
+    ],
+    "fullRegression": {
+      "passed": 307,
+      "failed": 0,
+      "skipped": 0,
+      "fullBrowserRunnerExitCode": 0
+    },
+    "gaps": [],
+    "evidence": "evidence/component-isolation.json",
+    "constraints": {
+      "serialized": true,
+      "memoryMiB": 2048,
+      "swap": false
+    },
+    "schemaReduction": {
+      "beforeLines": 190879,
+      "afterLines": 75738,
+      "removedLines": 115141
+    },
+    "scope": "Component/package/source/build isolation; wider provider/platform/runtime-parity roadmap is separate",
+    "runtimeImages": {
+      "passed": 5,
+      "failed": 0,
+      "uid": 1000,
+      "evidence": "evidence/runtime-images.json"
+    }
   }
 }

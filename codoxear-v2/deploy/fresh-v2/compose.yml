@@ -11,7 +11,7 @@ x-role: &role
 services:
   gateway:
     <<: *role
-    image: ${CODOXEAR_GATEWAY_IMAGE:-debian:bookworm-slim}
+    image: ${CODOXEAR_GATEWAY_IMAGE:-caddy:2}
     profiles: [gateway]
     user: "0:0"
     command:
