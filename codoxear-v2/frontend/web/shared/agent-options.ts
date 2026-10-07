@@ -190,15 +190,6 @@ export function launchOptions(
       }
     }
   }
-  if (backend === "pi" && !input.provider && model) {
-    const provider = defaults.provider_choice || defaults.model_provider;
-    if (
-      provider &&
-      (!model.includes("/") ||
-        strings(defaults.provider_models?.[provider]).includes(model))
-    )
-      launch.model_provider = provider;
-  }
   if (input.effort) {
     if (!effortsFor(defaults, input.provider, model).includes(input.effort))
       throw new Error("Choose a supported reasoning level for this model.");
