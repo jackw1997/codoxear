@@ -2,6 +2,7 @@ name: codoxear-v2-fresh
 x-role: &role
   image: ${CODOXEAR_V2_IMAGE:-codoxear-v2-oar:local}
   init: true
+  entrypoint: []
   restart: "on-failure:2"
   cpus: 1
   pids_limit: 256

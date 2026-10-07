@@ -59,7 +59,7 @@ status=0
 docker start --attach "$container_id" || status=$?
 outcome=$(docker inspect --format '{{.State.ExitCode}} {{.State.OOMKilled}}' "$container_id")
 [[ "$status" == 0 && "$outcome" == '0 false' ]] || { echo "Refresh failed: $outcome" >&2; exit 1; }
-docker commit --change 'USER node' --change 'ENTRYPOINT []' \
+docker commit --change 'USER node' --change 'ENTRYPOINT ["docker-entrypoint.sh"]' \
   --change 'CMD ["node", "dist/server/computer/main.js", "doctor"]' \
   --change "LABEL org.codoxear.release.commit=$commit" \
   --change "LABEL org.codoxear.release.dependency-image=$base" "$container_id" "$3"
