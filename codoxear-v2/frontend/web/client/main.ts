@@ -1,5 +1,6 @@
 import { installSessionDiscovery } from "./session-discovery.js";
 import { ensureClientTransport } from "./transport-ready.js";
+import { installClientUpdates } from "./updates.js";
 import {
   createApplicationController,
   configureAppUrlResolver,
@@ -130,6 +131,7 @@ async function startClient() {
     }),
   );
   controller.renderApp();
+  installClientUpdates();
   async function refresh() {
     const response = await fetch("/api/client/directory");
     if (!response.ok)

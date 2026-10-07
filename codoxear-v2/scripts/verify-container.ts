@@ -48,55 +48,12 @@ await run(
 // This slice includes its browser test; avoid unrelated preview stacks while
 // diagnosing the managed runtime. Full product acceptance remains separate.
 if (suite === "managed") process.exit(0);
-const hub = spawn(
-  process.execPath,
-  ["--import", "tsx", "scripts/browser-server.ts"],
-  { stdio: "inherit" },
-);
-try {
-  let ready = false;
-  for (let i = 0; i < 100; i++) {
-    try {
-      ready = (await fetch("http://127.0.0.1:17430/health")).ok;
-    } catch {}
-    if (ready) break;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  if (!ready) throw new Error("Hub did not start");
-  await run(["--import", "tsx", "scripts/browser-verification.ts"]);
-} finally {
-  if (hub.exitCode === null && hub.signalCode === null) {
-    const stopped = new Promise((r) => hub.once("exit", r));
-    hub.kill("SIGTERM");
-    await stopped;
-  }
-}
+// Customer acceptance creates identities and grants through the current web UI.
+await run(["--import", "tsx", "scripts/browser-customer-journey.ts"]);
 // Private initialization and provider-only sessions exercise the independent Hub login flow.
 await run(["--import", "tsx", "scripts/browser-registration.ts"]);
-const distributed = spawn(
-  process.execPath,
-  ["--import", "tsx", "scripts/distributed-fixture.ts"],
-  { stdio: "inherit" },
-);
-try {
-  let ready = false;
-  for (let i = 0; i < 100; i++) {
-    try {
-      ready = (await fetch("http://127.0.0.1:19431/health")).ok;
-    } catch {}
-    if (ready) break;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  if (!ready) throw new Error("Independent hubs did not start");
-  await run(["--import", "tsx", "scripts/browser-distributed.ts"]);
-} finally {
-  if (distributed.exitCode === null && distributed.signalCode === null) {
-    const stopped = new Promise((r) => distributed.once("exit", r));
-    distributed.kill("SIGTERM");
-    await stopped;
-  }
-}
 await run(["scripts/render-evidence.mjs"]);
 await run(["--import", "tsx", "scripts/browser-agent-creation.ts"]);
 
 await run(["--import", "tsx", "scripts/browser-invitations.ts"]);
+await run(["--import", "tsx", "scripts/browser-client-updates.ts"]);

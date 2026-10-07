@@ -45,6 +45,18 @@ test("standalone static client serves built assets and fences filesystem and API
     assert.equal(html.headers["x-content-type-options"], "nosniff");
     assert.equal(html.headers["referrer-policy"], "no-referrer");
     assert.equal(html.headers["content-security-policy"], "frame-ancestors 'none'");
+    assert.equal(html.headers["cache-control"], "no-store");
+    const release = await get("/client-release.json");
+    assert.equal(release.status, 200);
+    assert.equal(release.headers["cache-control"], "no-store");
+    const version = JSON.parse(release.body).version;
+    assert.match(version, /^[a-f0-9]{16}$/);
+    assert.match(html.body, new RegExp("app\\.bundle\\.js\\?v=" + version));
+    assert.equal((await get("/src/main.ts")).status, 404);
+    assert.equal((await get("/app.js")).status, 404);
+    assert.equal((await get("/app_new_session.js")).status, 404);
+    for (const path of ["/pdf.mjs", "/pdf.worker.mjs"])
+      assert.equal((await get(path)).status, 200);
     const callback = await get("/auth-callback");
     assert.equal(callback.status, 200);
     assert.equal(callback.headers["cache-control"], "no-store");

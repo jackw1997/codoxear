@@ -1099,7 +1099,7 @@
 
       button:focus-visible,
       input:focus-visible,
-      textarea:focus-visible,
+      textarea:not(.monaco-editor textarea):focus-visible,
       select:focus-visible {
         outline: 2px solid var(--focus-ring);
         outline-offset: 1px;
@@ -1969,7 +1969,7 @@
       .composer .modelPickerOption.active {
         background: var(--wash);
       }
-textarea,
+textarea:not(.monaco-editor textarea),
 input[type="password"],
 input[type="text"],
 input[type="date"],
@@ -2881,7 +2881,7 @@ select {
       /* Dialog textareas are multi-line fields: the rows attribute sets the
          starting height, the user may drag them taller, and content past the
          cap scrolls inside the field. */
-      .formViewer textarea {
+      .formViewer textarea:not(.monaco-editor textarea) {
         min-height: 96px;
         max-height: min(40vh, 320px);
         line-height: 1.45;
@@ -3712,7 +3712,7 @@ select {
         input[type="search"],
         input[type="number"],
         select,
-        textarea {
+        textarea:not(.monaco-editor textarea) {
           font-size: var(--font-xl) !important;
         }
         /* The 16px entry floor above would otherwise invert a form dialog's

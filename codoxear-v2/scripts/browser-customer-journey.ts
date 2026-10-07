@@ -2,9 +2,11 @@
 import './testing/frontend-artifact.js';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../src/persistence/store.js';
 import { initializeHub, hubSetup } from '../src/auth/hub-setup.js';
@@ -19,7 +21,7 @@ assert.ok(existsSync('/.dockerenv'), 'Customer journey must run in Docker');
 const artifacts = process.env.CUSTOMER_JOURNEY_ARTIFACTS ?? '/opt/codoxear/artifacts/customer-journey';
 await mkdir(artifacts, { recursive: true });
 const scratch = await mkdtemp(join(tmpdir(), 'customer-journey-'));
-const origin = 'http://127.0.0.1:19964', clientOrigin = 'http://127.0.0.1:19965';
+const origin = 'http://127.0.0.1:19964', clientOrigin = process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ?? 'http://127.0.0.1:19965';
 const store = new Store(':memory:'), sessions = new HubSessions(':memory:'), tunnels = new Tunnels();
 // Infrastructure initialization only: no humans, Computers, grants or agents are seeded.
 const hubRecord = store.change(state => initializeHub(state, 'customer-hub', 'Customer Hub'));
@@ -51,36 +53,43 @@ hub.get('/controlled-provider/choose', async (request, reply) => {
   return reply.redirect('/auth/' + identity.connection + '/callback?' + new URLSearchParams({ state: request.query.state, code }));
 });
 await hub.listen({ host: '127.0.0.1', port: 19964 });
-const staticClient = createStaticServer();
-await new Promise(resolve => staticClient.listen(19965, '127.0.0.1', resolve));
+const staticClient = process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? undefined : createStaticServer();
+if (staticClient) await new Promise(resolve => staticClient.listen(19965, '127.0.0.1', resolve));
 // Thin deterministic managed transport only. Runtime persistence, queue, authorization,
 // files, HTTP relay, Computer service and Hub endpoints remain the production implementations.
+const managedInputs = [];
 class ControlledManagedSession {
-  id; observer; sequence = 0;
+  id; observer; sequence = 0; pendingPrompt;
+  capabilities = { images: true, steer: true };
   constructor(id) { this.id = id; }
   rawEvents(observer) { this.observer = observer; return () => { this.observer = undefined; }; }
-  async prompt(text) {
-    setTimeout(() => this.observer?.({ kind: 'frame', seq: this.sequence++, sessionId: this.id,
+  async prompt(text, options) {
+    managedInputs.push({ text, images: (options?.images ?? []).map(image => ({ mediaType: image.mediaType, filename: image.path.split('/').at(-1) })) });
+    this.pendingPrompt = setTimeout(() => this.observer?.({ kind: 'frame', seq: this.sequence++, sessionId: this.id,
       receivedAt: Date.now(), agentPath: [], body: { events: [
         { kind: 'text_delta', text: 'Managed response: ' + text },
         { kind: 'turn_ended', outcome: { kind: 'completed' } },
-      ] } }), 20);
+      ] } }), text.startsWith('DAILY_LONG') ? 15000 : 20);
     return { kind: 'accepted' };
   }
-  async abort() { return { kind: 'accepted' }; }
-  async dispose() { this.observer = undefined; }
+  async abort() { clearTimeout(this.pendingPrompt); this.observer?.({ kind: 'frame', seq: this.sequence++, sessionId: this.id, receivedAt: Date.now(), agentPath: [], body: { events: [{ kind: 'turn_ended', outcome: { kind: 'aborted' } }] } }); return { kind: 'accepted' }; }
+  async dispose() { clearTimeout(this.pendingPrompt); this.observer = undefined; }
 }
 const factory = { async open(options) { return new ControlledManagedSession(options.resume ?? randomUUID()); } };
 const services = [];
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox', '--disable-dev-shm-usage'] });
-const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-const memberContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-for (const context of [ownerContext, memberContext]) await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: clientOrigin });
+const ownerContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
+const memberContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
+for (const context of [ownerContext, memberContext]) {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: clientOrigin });
+  if (process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN) await context.grantPermissions(['local-network-access'], { origin: clientOrigin }).catch(() => {});
+}
 const ownerPage = await ownerContext.newPage(), memberPage = await memberContext.newPage();
-const checks = [], screenshots = [], failures = [], externalBootstrap = [];
+const checks = [], screenshots = [], failures = [], externalBootstrap = [], unavailable = [], browserDiagnostics = [];
+const redactDiagnostic = text => String(text).replace(/https?:\/\/[^\s"'<>]+/g, address => { try { const parsed = new URL(address); return parsed.origin + parsed.pathname; } catch { return '[URL]'; } }).slice(0, 1000);
 let stage = 'initialize owner', passed = false;
-for (const page of [ownerPage, memberPage]) { page.setDefaultTimeout(30000); page.on('pageerror', () => failures.push('Browser runtime exception')); }
+for (const page of [ownerPage, memberPage]) { page.setDefaultTimeout(30000); page.on('pageerror', () => failures.push('Browser runtime exception')); page.on('console', message => { if (message.type() === 'error' && browserDiagnostics.length < 30) browserDiagnostics.push(redactDiagnostic(message.text())); }); }
 const dialog = (page, name) => page.getByRole('dialog', { name, exact: true });
 const pass = text => { checks.push(text); console.log('PASS', text); };
 async function shot(page, name) {
@@ -118,6 +127,7 @@ async function signIn(page, method, identity) {
   stage = identity + ': discover Hub';
   await dialog(page, 'Add hub').getByRole('button', { name: 'Connect hub', exact: true }).click();
   const popupPromise = page.context().waitForEvent('page');
+  void popupPromise.catch(() => {});
   stage = identity + ': choose provider';
   await dialog(page, 'Sign in to Hub').getByRole('button', { name: 'Continue with ' + method, exact: true }).click();
   const popup = await popupPromise;
@@ -136,6 +146,24 @@ async function signIn(page, method, identity) {
   await home(page);
   await page.getByText(people[identity].name, { exact: true }).waitFor();
 }
+async function prepareWorkspaceFixtures(workspace) {
+  // Physical Computer bootstrap fixtures, never Hub/application records or grants.
+  await writeFile(join(workspace, 'fixture.md'), '# Daily fixture Markdown\n\nA pre-existing document on the Computer.\n');
+  await writeFile(join(workspace, 'fixture.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6V0AAAAASUVORK5CYII=', 'base64'));
+  const content = 'BT /F1 14 Tf 30 130 Td (Daily PDF fixture) Tj ET';
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    '<< /Length ' + Buffer.byteLength(content) + ' >>\nstream\n' + content + '\nendstream', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  let pdf = '%PDF-1.4\n', offsets = [0];
+  for (const [index, object] of objects.entries()) { offsets.push(Buffer.byteLength(pdf)); pdf += (index + 1) + ' 0 obj\n' + object + '\nendobj\n'; }
+  const xref = Buffer.byteLength(pdf);
+  pdf += 'xref\n0 6\n0000000000 65535 f \n' + offsets.slice(1).map(offset => String(offset).padStart(10, '0') + ' 00000 n \n').join('') + 'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
+  await writeFile(join(workspace, 'fixture.pdf'), pdf);
+  const git = promisify(execFile);
+  await git('git', ['-C', workspace, 'init', '-q']);
+  await git('git', ['-C', workspace, '-c', 'user.name=Daily fixture', '-c', 'user.email=fixture@controlled.test', 'add', '.']);
+  await git('git', ['-C', workspace, '-c', 'user.name=Daily fixture', '-c', 'user.email=fixture@controlled.test', 'commit', '-q', '-m', 'Physical Computer workspace fixture']);
+}
 async function createComputer(name) {
   await home(ownerPage);
   await dialog(ownerPage, 'Hubs & computers').getByRole('button', { name: 'Add computer', exact: true }).click();
@@ -148,12 +176,13 @@ async function createComputer(name) {
   const homePath = join(scratch, name.replaceAll(' ', '-')), workspace = join(homePath, 'workspace');
   await mkdir(workspace, { recursive: true });
   await writeFile(join(workspace, 'journey.txt'), 'Customer journey workspace\n');
+  if (process.env.DAILY_EXERCISE === '1') await prepareWorkspaceFixtures(workspace);
   const api = createComputerApi(homePath);
   await api.enroll({ enrollment: { identityUrl: origin, code }, runtime: 'oar', nativeHome: homePath,
     nativeStateHome: homePath, workspacePath: workspace, oarPermissionPolicy: 'locally-trusted' });
   const service = api.service(undefined, { runtime: () => new ManagedRuntime({ databasePath: join(homePath, 'managed.sqlite'), home: homePath, stateHome: homePath, workspace, factory }) });
   services.push(service); await service.start();
-  externalBootstrap.push({ computer: name, operation: 'External Computer enroll and service start using the pairing code generated in browser', runtime: 'Real ManagedRuntime with controlled ManagedFactory' });
+  externalBootstrap.push({ computer: name, operation: 'External Computer enroll and service start using the pairing code generated in browser', runtime: 'Real ManagedRuntime with controlled ManagedFactory', preparedWorkspaceFixtures: process.env.DAILY_EXERCISE === '1' ? 'Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI' : 'Pre-existing text file' });
   await pair.getByRole('button', { name: 'Done', exact: true }).click();
   stage = name + ': wait for completed pairing page';
   await dialog(ownerPage, 'Hubs & computers').waitFor({ state: 'visible' });
@@ -181,6 +210,8 @@ async function access(name, user, value, remove = false) {
   if (name === 'Computer A' && user === 'owner' && value === 'write' && !remove) {
     await ownerPage.setViewportSize({ width: 390, height: 844 });
     await shot(ownerPage, 'customer-computer-allowlist-portrait');
+    await ownerPage.setViewportSize({ width: 944, height: 560 });
+    await shot(ownerPage, 'customer-computer-allowlist-landscape');
     await ownerPage.setViewportSize({ width: 1440, height: 1000 });
   }
   await backHome(ownerPage);
@@ -231,6 +262,293 @@ async function send(page, text) {
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await page.locator('.msg.assistant:not(.typing)').filter({ hasText: 'Managed response: ' + text }).first().waitFor();
 }
+async function dailyAttempt(label, action) {
+  try { await action(); return true; }
+  catch (error) {
+    failures.push(label + ': ' + redactDiagnostic(error instanceof Error ? error.message : error));
+    console.error('FAIL', label);
+    if (label.startsWith('Daily file') && await ownerPage.locator('#fileViewer').isVisible().catch(() => false))
+      browserDiagnostics.push('File rendered text: ' + redactDiagnostic(await ownerPage.locator('#fileViewer .view-lines').allTextContents().then(values => values.join('|')).catch(() => 'unavailable')));
+    await shot(ownerPage, label.replaceAll(' ', '-').toLowerCase() + '-failure').catch(() => {});
+    for (const id of ['fileCloseBtn', 'diagCloseBtn', 'chatSearchCloseBtn', 'editCloseBtn', 'settingsCloseBtn', 'helpCloseBtn', 'queueCloseBtn', 'appConfirmCancelBtn']) {
+      if (await ownerPage.locator('#' + id).isVisible().catch(() => false)) await ownerPage.locator('#' + id).click();
+    }
+    if (await ownerPage.locator('#fileUnsavedDiscardBtn').isVisible().catch(() => false)) await ownerPage.locator('#fileUnsavedDiscardBtn').click();
+    return false;
+  }
+}
+async function dailyCustomer(workspaceA) {
+  stage = 'Daily customer: select persisted owner agent';
+  await closeConnections(ownerPage);
+  await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
+  await ownerPage.locator('.msg.assistant:not(.typing)').filter({ hasText: 'Managed response: Owner UI message' }).first().waitFor();
+  if (process.env.DAILY_EDITOR_DIAGNOSTIC_ONLY !== '1') {
+  stage = 'Daily customer: appearance settings';
+  await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
+  await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).click();
+  await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).click();
+  await shot(ownerPage, 'daily-settings-slate-dark'); await ownerPage.locator('#settingsCloseBtn').click();
+  await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
+  await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
+  assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).getAttribute('aria-checked'), 'true');
+  assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).getAttribute('aria-checked'), 'true');
+  await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Paper', exact: true }).click();
+  await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Light', exact: true }).click();
+  await ownerPage.locator('#settingsCloseBtn').click();
+  pass('Daily customer changes theme and mode through Settings, confirms persistence after reload, and restores Paper Light');
+  await dailyAttempt('Daily voice settings cancel', async () => {
+    stage = 'Daily customer: voice settings cancel';
+    await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
+    await ownerPage.locator('#voiceBaseUrlInput').waitFor({ state: 'visible' });
+    const original = await ownerPage.locator('#voiceBaseUrlInput').inputValue();
+    await ownerPage.locator('#voiceBaseUrlInput').fill('https://cancelled.invalid/v1');
+    await ownerPage.locator('#voiceSettingsCancelBtn').click();
+    await dialog(ownerPage, 'Settings').waitFor({ state: 'hidden' });
+    await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
+    await ownerPage.locator('#voiceBaseUrlInput').waitFor({ state: 'visible' });
+    assert.equal(await ownerPage.locator('#voiceBaseUrlInput').inputValue(), original);
+    await shot(ownerPage, 'daily-voice-settings-cancelled'); await ownerPage.locator('#settingsCloseBtn').click();
+    pass('Daily customer cancels a voice endpoint edit and reopening Settings retains its previous value');
+  });
+  await dailyAttempt('Daily Help', async () => {
+    stage = 'Daily customer: open Help';
+    await ownerPage.getByRole('button', { name: 'Help', exact: true }).click();
+    await dialog(ownerPage, 'Help').waitFor({ state: 'visible' });
+    await shot(ownerPage, 'daily-help'); await ownerPage.locator('#helpCloseBtn').click();
+    pass('Daily customer opens and closes the current deployed Help dialog');
+  });
+  stage = 'Daily customer: conversation copy and search';
+  await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
+  await dialog(ownerPage, 'Details').getByRole('button', { name: 'Copy conversation', exact: true }).click();
+  await ownerPage.locator('#toast').filter({ hasText: /^Copied [0-9]+ messages?/ }).waitFor();
+  const copied = await ownerPage.evaluate(() => navigator.clipboard.readText());
+  assert.ok(copied.includes('Managed response: Owner UI message'));
+  await shot(ownerPage, 'daily-copy-conversation'); await ownerPage.locator('#diagCloseBtn').click();
+  await ownerPage.getByRole('button', { name: 'Search conversation', exact: true }).click();
+  await ownerPage.locator('#chatSearchInput').fill('Owner UI message');
+  await ownerPage.locator('#chatSearchStatus').filter({ hasText: /[1-9]/ }).waitFor();
+  await shot(ownerPage, 'daily-conversation-search'); await ownerPage.locator('#chatSearchCloseBtn').click();
+  pass('Daily customer copies the actual persisted conversation and searches its message text through UI');
+  await dailyAttempt('Daily queue and interrupt', async () => {
+    stage = 'Daily customer: queue while running and interrupt';
+    await ownerPage.getByRole('textbox', { name: 'Message', exact: true }).fill('DAILY_LONG controlled slow turn');
+    await ownerPage.getByRole('button', { name: 'Send', exact: true }).click();
+    await ownerPage.locator('#interruptBtn').waitFor({ state: 'visible' });
+    await ownerPage.getByRole('textbox', { name: 'Message', exact: true }).fill('Daily queued message');
+    await ownerPage.locator('#sendBtn').click();
+    await dialog(ownerPage, 'Send options').getByRole('button', { name: 'Send after current', exact: true }).click();
+    await ownerPage.locator('#queueBtn').click();
+    await dialog(ownerPage, 'Queued messages').getByRole('textbox', { name: 'Queued message 1', exact: true }).waitFor();
+    assert.equal(await dialog(ownerPage, 'Queued messages').getByRole('textbox', { name: 'Queued message 1', exact: true }).inputValue(), 'Daily queued message');
+    await shot(ownerPage, 'daily-queued-message'); await ownerPage.locator('#queueCloseBtn').click();
+    const interrupted = ownerPage.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/interrupt') && response.ok()); void interrupted.catch(() => {});
+    await ownerPage.locator('#interruptBtn').click(); await interrupted;
+    await ownerPage.locator('.msg.assistant:not(.typing)').filter({ hasText: 'Managed response: Daily queued message' }).first().waitFor();
+    await shot(ownerPage, 'daily-interrupted-queue-completed');
+    pass('Daily customer queues a real prompt while the managed driver is running, reviews it, interrupts the active turn, and receives the queued reply');
+  });
+  }
+  await dailyAttempt('Daily file create save download', async () => {
+  stage = 'Daily customer: create edit save and download file';
+  await ownerPage.getByRole('button', { name: 'View file', exact: true }).click();
+  await ownerPage.locator('#filePickerInput').fill('daily-note.txt');
+  await ownerPage.locator('#filePickerMenu').getByRole('option').filter({ hasText: 'Create new file: daily-note.txt' }).click();
+  await ownerPage.locator('#fileViewer .monaco-editor .view-lines').first().waitFor({ state: 'visible' });
+  await ownerPage.locator('#fileViewer .monaco-editor .view-lines').first().click({ position: { x: 40, y: 10 } });
+  browserDiagnostics.push('Editor input before typing: ' + JSON.stringify(await ownerPage.evaluate(() => {
+    const active = document.activeElement;
+    return { activeTag: active?.tagName, activeClass: active?.className, activeLabel: active?.getAttribute('aria-label'),
+      inputs: [...document.querySelectorAll('#fileViewer .monaco-editor textarea, #fileViewer .native-edit-context')].map(input => { const styles = getComputedStyle(input); return { tag: input.tagName, className: input.className, label: input.getAttribute('aria-label'), readOnly: input.readOnly, valueLength: input.value?.length, width: styles.width, height: styles.height, padding: styles.padding, resize: styles.resize, position: styles.position, opacity: styles.opacity, display: styles.display }; }),
+      editContextCount: document.querySelectorAll('#fileViewer .native-edit-context').length };
+  })));
+  await ownerPage.keyboard.type('Daily customer file created and saved through UI');
+  await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Daily customer file created and saved through UI' }).waitFor();
+  const savedFile = ownerPage.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/file/write') && response.ok());
+  void savedFile.catch(() => {});
+  await ownerPage.getByRole('button', { name: 'Save file', exact: true }).click(); await savedFile;
+  await shot(ownerPage, 'daily-file-created-saved');
+  if (process.env.DAILY_EDITOR_DIAGNOSTIC_ONLY === '1') {
+    await ownerPage.locator('#fileCloseBtn').click();
+    await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
+    await ownerPage.getByRole('button', { name: 'View file', exact: true }).click();
+    await ownerPage.locator('#filePickerInput').fill('daily-note.txt');
+    await ownerPage.locator('#filePickerMenu').getByText('daily-note.txt', { exact: false }).first().click();
+    await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Daily customer file created and saved through UI' }).waitFor();
+    await shot(ownerPage, 'daily-file-reloaded-content'); await ownerPage.locator('#fileCloseBtn').click();
+    pass('Human editor line click and keyboard typing produce visible text that persists after UI save and page reload');
+    return;
+  }
+  const downloading = ownerPage.waitForEvent('download'); void downloading.catch(() => {});
+  await ownerPage.getByRole('button', { name: 'Download file', exact: true }).click();
+  const download = await downloading;
+  assert.equal(await download.failure(), null);
+  assert.equal((await readFile(await download.path(), 'utf8')).trim(), 'Daily customer file created and saved through UI');
+  await ownerPage.locator('#fileCloseBtn').click();
+  pass('Daily customer creates and saves a file through the editor and downloads its actual saved contents');
+  });
+  if (process.env.DAILY_EDITOR_DIAGNOSTIC_ONLY === '1') return;
+  await dailyAttempt('Daily runtime model change', async () => {
+    stage = 'Daily customer: model command through composer';
+    const changedModel = ownerPage.waitForResponse(response => response.request().method() === 'POST' && /\/(settings|send)(?:\?|$)/.test(new URL(response.url()).pathname) && response.ok());
+    void changedModel.catch(() => {});
+    await ownerPage.getByRole('textbox', { name: 'Message', exact: true }).fill('/model journey-model-next');
+    await ownerPage.locator('#sendBtn').click(); await changedModel;
+    await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
+    await dialog(ownerPage, 'Details').getByText('journey-model-next', { exact: false }).first().waitFor();
+    await shot(ownerPage, 'daily-model-changed'); await ownerPage.locator('#diagCloseBtn').click();
+    await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
+    await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
+    await dialog(ownerPage, 'Details').getByText('journey-model-next', { exact: false }).first().waitFor();
+    await shot(ownerPage, 'daily-model-persisted'); await ownerPage.locator('#diagCloseBtn').click();
+    pass('Daily customer changes model with a normal composer command and Details confirms its persisted value after reload');
+  });
+  await dailyAttempt('Daily attachment upload and removal', async () => {
+    stage = 'Daily customer: choose attachment and remove staged upload';
+    const choosing = ownerPage.waitForEvent('filechooser'); void choosing.catch(() => {});
+    await ownerPage.getByRole('button', { name: /^Attach file/ }).click();
+    await (await choosing).setFiles({ name: 'daily-upload.txt', mimeType: 'text/plain', buffer: Buffer.from('Daily browser file chooser upload') });
+    await ownerPage.locator('#stagedAttachments').getByText('daily-upload.txt', { exact: false }).first().waitFor();
+    await shot(ownerPage, 'daily-attachment-staged');
+    await ownerPage.getByRole('button', { name: 'Remove daily-upload.txt', exact: true }).click();
+    await ownerPage.locator('#stagedAttachments').getByText('daily-upload.txt', { exact: false }).first().waitFor({ state: 'hidden' });
+    pass('Daily customer uploads a text attachment through the real file chooser, reviews the staged upload, and removes it');
+    stage = 'Daily customer: send image and file attachments';
+    const choosingBoth = ownerPage.waitForEvent('filechooser'); void choosingBoth.catch(() => {});
+    await ownerPage.getByRole('button', { name: /^Attach file/ }).click();
+    await (await choosingBoth).setFiles([
+      { name: 'daily-sent.txt', mimeType: 'text/plain', buffer: Buffer.from('Daily customer attached text') },
+      { name: 'daily-sent.png', mimeType: 'image/png', buffer: await readFile(join(workspaceA, 'fixture.png')) },
+    ]);
+    await ownerPage.locator('#stagedAttachments').getByText('daily-sent.txt', { exact: false }).first().waitFor();
+    await ownerPage.locator('#stagedAttachments').getByText('daily-sent.png', { exact: false }).first().waitFor();
+    await shot(ownerPage, 'daily-file-and-image-ready');
+    await send(ownerPage, 'Daily message with file and image');
+    const attachmentInput = managedInputs.find(input => input.text.includes('Daily message with file and image'));
+    assert.ok(attachmentInput?.text.includes('Attached file "daily-sent.txt"'), 'File must reach the managed driver as an attached file reference');
+    assert.equal(attachmentInput?.images.length, 1, 'PNG must reach the managed driver as exactly one image input');
+    assert.equal(attachmentInput.images[0].mediaType, 'image/png');
+    await ownerPage.locator('#stagedAttachments').waitFor({ state: 'hidden' });
+    await shot(ownerPage, 'daily-file-and-image-sent');
+    pass('Daily customer chooses a text file and PNG in the real file chooser and sends their staged attachments with a message');
+  });
+  await dailyAttempt('Daily file preview formats', async () => {
+    stage = 'Daily customer: Markdown image and PDF previews';
+    for (const [name, type] of [['fixture.md', 'Markdown'], ['fixture.png', 'image'], ['fixture.pdf', 'PDF']]) {
+      await ownerPage.getByRole('button', { name: 'View file', exact: true }).click();
+      await ownerPage.locator('#filePickerInput').fill(name);
+      await ownerPage.locator('#filePickerMenu').getByText(name, { exact: false }).first().click();
+      if (type === 'Markdown') {
+        await ownerPage.getByRole('button', { name: 'Toggle markdown preview', exact: true }).click();
+        await ownerPage.locator('#fileViewer').getByRole('heading', { name: 'Daily fixture Markdown', exact: true }).waitFor();
+      } else if (type === 'image') {
+        await ownerPage.locator('#fileImage').waitFor({ state: 'visible' });
+        await ownerPage.waitForFunction(() => {
+          const image = document.querySelector('#fileImage');
+          return image instanceof HTMLImageElement && image.complete && image.naturalWidth === 1;
+        });
+      } else await ownerPage.locator('#fileViewer canvas').first().waitFor({ state: 'visible' });
+      await shot(ownerPage, 'daily-preview-' + type.toLowerCase()); await ownerPage.locator('#fileCloseBtn').click();
+    }
+    pass('Daily customer opens pre-existing Markdown, image and PDF fixtures through Files and receives their actual rendered previews');
+  });
+  await dailyAttempt('Daily Git diff', async () => {
+    stage = 'Daily customer: tracked file edit and Git diff';
+    await ownerPage.getByRole('button', { name: 'View file', exact: true }).click();
+    await ownerPage.locator('#filePickerInput').fill('journey.txt');
+    await ownerPage.locator('#filePickerMenu').getByText('journey.txt', { exact: false }).first().click();
+    await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Customer journey workspace' }).waitFor();
+    await ownerPage.getByRole('button', { name: 'Edit file', exact: true }).click();
+    await ownerPage.locator('#fileViewer .view-lines').first().click({ position: { x: 40, y: 10 } });
+    await ownerPage.keyboard.press('Control+End'); await ownerPage.keyboard.type('\nDaily customer Git change');
+    const saved = ownerPage.waitForResponse(response => response.request().method() === 'POST' && response.url().includes('/file/write') && response.ok()); void saved.catch(() => {});
+    await ownerPage.getByRole('button', { name: 'Save file', exact: true }).click(); await saved;
+    await ownerPage.getByRole('button', { name: 'Toggle Git diff', exact: true }).click();
+    await ownerPage.locator('#fileStatus').filter({ hasText: 'journey.txt - diff' }).waitFor();
+    await ownerPage.locator('#fileViewer .monaco-diff-editor').waitFor({ state: 'visible' });
+    await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Daily customer Git change' }).first().waitFor();
+    await shot(ownerPage, 'daily-git-diff'); await ownerPage.locator('#fileCloseBtn').click();
+    pass('Daily customer edits and saves a tracked file through UI and opens the actual Git comparison');
+  });
+  await dailyAttempt('Daily Hub roles', async () => {
+  stage = 'Daily customer: promote and demote Hub admin';
+  await settings(ownerPage);
+  await dialog(ownerPage, 'Hub settings').getByRole('button', { name: 'Manage Hub members', exact: true }).click();
+  const memberRow = dialog(ownerPage, 'Hub members').locator('.connectionRow').filter({ has: ownerPage.getByText('Journey Member', { exact: true }) });
+  await memberRow.getByRole('button', { name: 'Make admin', exact: true }).click();
+  await memberRow.getByRole('button', { name: 'Make member', exact: true }).waitFor();
+  await shot(ownerPage, 'daily-promoted-admin');
+  await memberPage.reload(); await home(memberPage);
+  await dialog(memberPage, 'Hubs & computers').getByText('Admin', { exact: true }).waitFor();
+  await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).waitFor();
+  await shot(memberPage, 'daily-admin-sees-computers-without-usage');
+  await memberRow.getByRole('button', { name: 'Make member', exact: true }).click();
+  await memberRow.getByRole('button', { name: 'Make admin', exact: true }).waitFor();
+  await backHome(ownerPage); await closeConnections(ownerPage); await card(ownerPage, 'Owner agent A').click();
+  pass('Owner promotes a Member to Admin through UI, Admin sees all Computers without automatic usage, and Owner restores Member role');
+  });
+  await dailyAttempt('Daily simultaneous identities', async () => {
+    stage = 'Daily customer: add second provider identity on same device';
+    await settings(ownerPage);
+    await dialog(ownerPage, 'Hub settings').getByRole('button', { name: 'Add sign-in', exact: true }).click();
+    const popupPromise = ownerContext.waitForEvent('page'); void popupPromise.catch(() => {});
+    await dialog(ownerPage, 'Sign in to Hub').getByRole('button', { name: 'Continue with Feishu', exact: true }).click();
+    const popup = await popupPromise; const closed = popup.waitForEvent('close'); void closed.catch(() => {});
+    await popup.getByRole('button', { name: 'Sign in as Journey Member', exact: true }).click(); await closed;
+    await dialog(ownerPage, 'Hubs & computers').waitFor({ state: 'visible' }); await home(ownerPage);
+    await dialog(ownerPage, 'Hubs & computers').getByText('Journey Owner', { exact: true }).first().waitFor();
+    await dialog(ownerPage, 'Hubs & computers').getByText('Journey Member', { exact: true }).waitFor();
+    assert.equal(await dialog(ownerPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).count(), 1);
+    assert.equal(await dialog(ownerPage, 'Hubs & computers').getByRole('button', { name: /Computer B/ }).count(), 1);
+    await shot(ownerPage, 'daily-two-provider-identities-one-device');
+    await closeConnections(ownerPage); await card(ownerPage, 'Owner agent A').click();
+    pass('Daily customer adds a second verified provider identity on the same device and sees deduplicated Computer resources without merging accounts');
+  });
+  await dailyAttempt('Daily create duplicate and delete', async () => {
+    stage = 'Daily customer: duplicate launch settings';
+    await card(ownerPage, 'Owner agent A').hover();
+    await card(ownerPage, 'Owner agent A').getByRole('button', { name: 'Duplicate session', exact: true }).click();
+    const copy = dialog(ownerPage, 'New agent');
+    await copy.getByLabel('Agent name', { exact: true }).fill('Daily disposable duplicate');
+    await copy.locator('[data-catalog-status]').filter({ hasText: 'Provider and model choices were read' }).waitFor();
+    await copy.getByLabel('Runtime', { exact: true }).selectOption('pi');
+    await copy.getByLabel('Provider', { exact: true }).selectOption({ label: 'Custom API' });
+    await copy.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
+    await copy.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
+    await copy.getByLabel('Custom model', { exact: true }).fill('journey-model');
+    await copy.getByRole('button', { name: 'Create agent', exact: true }).click();
+    await copy.waitFor({ state: 'hidden' }); await card(ownerPage, 'Daily disposable duplicate').waitFor();
+    await shot(ownerPage, 'daily-duplicate-created');
+    stage = 'Daily customer: cancel then confirm deletion';
+    const duplicate = card(ownerPage, 'Daily disposable duplicate');
+    await duplicate.hover(); await duplicate.getByRole('button', { name: 'Delete session', exact: true }).click();
+    await ownerPage.locator('#appConfirmCancelBtn').click(); await duplicate.waitFor();
+    await duplicate.hover(); await duplicate.getByRole('button', { name: 'Delete session', exact: true }).click();
+    await ownerPage.locator('#appConfirmConfirmBtn').click(); await duplicate.waitFor({ state: 'hidden' });
+    await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor();
+    assert.equal(await card(ownerPage, 'Daily disposable duplicate').count(), 0);
+    await shot(ownerPage, 'daily-deleted-after-reload'); await card(ownerPage, 'Owner agent A').click();
+    pass('Daily customer duplicates an agent through UI, cancels deletion once, then confirms deletion and verifies it remains absent after reload');
+  });
+  await dailyAttempt('Daily rename and snooze', async () => {
+  stage = 'Daily customer: rename priority and snooze';
+  await card(ownerPage, 'Owner agent A').hover();
+  await card(ownerPage, 'Owner agent A').getByRole('button', { name: 'Edit conversation', exact: true }).click();
+  await dialog(ownerPage, 'Edit conversation').getByLabel('Conversation name', { exact: true }).fill('Daily customer agent');
+  await ownerPage.locator('#editPriorityRange').focus();
+  await ownerPage.locator('#editPriorityRange').press('End');
+  await dialog(ownerPage, 'Edit conversation').getByRole('button', { name: '4 hours', exact: true }).click();
+  await ownerPage.locator('#editSaveBtn').click();
+  await dialog(ownerPage, 'Edit conversation').waitFor({ state: 'hidden' });
+  await card(ownerPage, 'Daily customer agent').waitFor(); await shot(ownerPage, 'daily-renamed-snoozed');
+  await ownerPage.reload(); await card(ownerPage, 'Daily customer agent').waitFor();
+  await card(ownerPage, 'Daily customer agent').hover();
+  await card(ownerPage, 'Daily customer agent').getByRole('button', { name: 'Edit conversation', exact: true }).click();
+  assert.equal(await ownerPage.locator('#editPriorityRange').inputValue(), '1');
+  await shot(ownerPage, 'daily-renamed-priority-persisted'); await ownerPage.locator('#editCloseBtn').click();
+  pass('Daily customer renames, sets priority with the keyboard, and snoozes the conversation through Edit; name and priority persist after reload');
+  });
+  for (const feature of ['Sidebar star/archive/manual drag order: no visible controls found in the exercised card', 'Native resume/import (no existing external native CLI session in this fresh managed-only Hub)', 'Live provider answers and device/mobile Safari acceptance (controlled boundary)']) unavailable.push(feature);
+}
 try {
   const init = await ownerContext.newPage();
   stage = 'initialize: open private link';
@@ -255,6 +573,8 @@ try {
   await settings(ownerPage); await shot(ownerPage, 'owner-hub-settings-role');
   await ownerPage.setViewportSize({ width: 390, height: 844 });
   await shot(ownerPage, 'customer-hub-settings-portrait');
+  await ownerPage.setViewportSize({ width: 944, height: 560 });
+  await shot(ownerPage, 'customer-hub-settings-landscape');
   await ownerPage.setViewportSize({ width: 1440, height: 1000 });
   await backHome(ownerPage);
   pass('First verified browser identity initializes ownership on an empty independent Hub');
@@ -377,7 +697,8 @@ try {
   assert.equal(await card(memberPage, 'Member agent B').count(), 0);
   await shot(memberPage, 'member-revoked');
   pass('UI revocation removes Member access to Computer B and its existing agent after reload');
-  assert.deepEqual(failures, []); passed = true;
+  if (process.env.DAILY_EXERCISE === '1') await dailyCustomer(workspaceA);
+  if (failures.length) { process.exitCode = 1; } else passed = true;
 } catch (error) {
   // Do not dump errors with private URLs, pairing/invitation codes or browser DOM.
   const detail = error instanceof Error ? error.message.replace(/https?:\/\/[^\s"'<>]+/g, '[URL]').slice(0, 2000) : 'UnknownError';
@@ -387,14 +708,15 @@ try {
     await shot(tab, 'failure-page-' + index).catch(() => {});
   process.exitCode = 1;
 } finally {
-  await writeFile(join(artifacts, 'results.json'), JSON.stringify({ passed, stage, checks, failures, screenshots,
+  await writeFile(join(artifacts, 'results.json'), JSON.stringify({ passed, stage, checks, failures, screenshots, unavailable, browserDiagnostics, clientSurface: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public deployed frontend' : 'Separate local static frontend',
     applicationActions: 'Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding',
     oauthBoundary: 'Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance',
-    runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory, no live LLM acceptance',
-    externalBootstrap, physicalBootstrapBoundary: 'Computer attachment and start are external infrastructure operations, not browser-only product support' }, null, 2));
+    runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance',
+    externalBootstrap, browserPermissionSetup: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public-origin local-network-access and clipboard permissions granted to automated browser; no application grants injected' : 'Clipboard permissions only',
+    physicalBootstrapBoundary: 'Computer attachment and start are external infrastructure operations, not browser-only product support' }, null, 2));
   await browser.close();
   for (const service of services.reverse()) await service.stop().catch(() => {});
-  await new Promise(resolve => staticClient.close(resolve));
+  if (staticClient) await new Promise(resolve => staticClient.close(resolve));
   hub.server.closeAllConnections(); await hub.close(); await authority.identity.close(); sessions.close(); store.close();
   await rm(scratch, { recursive: true, force: true });
 }

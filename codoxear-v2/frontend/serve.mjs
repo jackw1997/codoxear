@@ -86,6 +86,8 @@ export function createStaticServer() {
               context +
               "</script>",
           );
+      if (path === "/index.html" || path === "/client-release.json")
+        response.setHeader("Cache-Control", "no-store");
       if (path === "/client-callback.js")
         response.setHeader("Cache-Control", "no-store");
       else if (path === "/client-worker.js")

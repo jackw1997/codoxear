@@ -1163,6 +1163,7 @@ function syncFileButtonState() {
 
 async function showFileViewer({ path = "", mode = "", manual = false, line = null, pickerQuery = "" } = {}) {
   void manual;
+  if (!sessionState.get("selected")) return false;
   if (selectedSessionLaunchFailed()) {
     setToast("failed launch has no file browser");
     return false;

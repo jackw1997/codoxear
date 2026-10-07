@@ -13,7 +13,7 @@
     "start": "node frontend/serve.mjs",
     "computer": "node dist/server/computer/main.js",
     "dev": "node frontend/serve.mjs",
-    "test:browser": "node --import tsx scripts/browser-verification.ts",
+    "test:browser": "node --import tsx scripts/browser-customer-journey.ts",
     "verify:docker": "node --experimental-strip-types scripts/verify-docker.ts",
     "verify:managed": "node --experimental-strip-types scripts/verify-docker.ts --managed",
     "identity": "node dist/server/identity/main.js",

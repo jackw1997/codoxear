@@ -24,13 +24,14 @@ export type ManagedOutcome = {
 export interface ManagedSession {
   readonly id: string;
   readonly profile?: string;
+  readonly capabilities?: { images: boolean; steer: boolean };
   /** Worker death is a host lifecycle fact, not a fabricated native OAR record. */
   onExit?(observer: () => void): () => void;
   rawEvents(
     observer: (record: ManagedRecord) => void,
     cursor?: { sessionId: string; afterSeq: number },
   ): () => void;
-  prompt(text: string, options: { inputId: string }): Promise<ManagedOutcome>;
+  prompt(text: string, options: { inputId: string; images?: readonly { path: string; mediaType?: string }[] }): Promise<ManagedOutcome>;
   abort(): Promise<ManagedOutcome>;
   dispose(): Promise<void>;
 }

@@ -193,6 +193,7 @@ export class OarFactory implements ManagedFactory {
       return {
         id: opened.id,
         profile: profile.profile,
+        capabilities: opened.capabilities,
         onExit(observer) {
           if (ended) observer();
           else exitListeners.add(observer);

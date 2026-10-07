@@ -21,15 +21,24 @@ assert.ok(
   "Managed runtime behavioral verification runs only in Docker",
 );
 class Session implements ManagedSession {
+  capabilities = { images: true, steer: true };
   observer: ((record: ManagedRecord) => void) | undefined;
   seq = 0;
   prompts: string[] = [];
+  promptOptions: { inputId: string; images?: readonly { path: string; mediaType?: string }[] }[] = [];
   disposed = false;
   failPrompt = false;
+  completeBeforeFail = false;
+  requestOnSubscribe = false;
+  disposeWait: Promise<void> | undefined;
   exitObserver: (() => void) | undefined;
   constructor(readonly id: string) {}
   rawEvents(observer: (record: ManagedRecord) => void) {
     this.observer = observer;
+    if (this.requestOnSubscribe) observer({
+      kind: "request", direction: "toApp", seq: this.seq++, sessionId: this.id,
+      receivedAt: Date.now(), agentPath: [], body: { kind: "approval" },
+    });
     return () => {
       this.observer = undefined;
     };
@@ -50,9 +59,13 @@ class Session implements ManagedSession {
       body: { events },
     });
   }
-  async prompt(text: string): Promise<ManagedOutcome> {
+  async prompt(text: string, options: { inputId: string; images?: readonly { path: string; mediaType?: string }[] }): Promise<ManagedOutcome> {
     this.prompts.push(text);
-    if (this.failPrompt) throw Error("Transport lost after submission");
+    this.promptOptions.push(options);
+    if (this.failPrompt) {
+      if (this.completeBeforeFail) this.emit([{ kind: "text_delta", text: "Delivered" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+      throw Error("Transport lost after submission");
+    }
     return { kind: "accepted" };
   }
   async abort(): Promise<ManagedOutcome> {
@@ -60,6 +73,7 @@ class Session implements ManagedSession {
     return { kind: "accepted" };
   }
   async dispose() {
+    await this.disposeWait;
     this.disposed = true;
   }
 }
@@ -67,6 +81,7 @@ class Factory implements ManagedFactory {
   opens: ManagedOpen[] = [];
   sessions: Session[] = [];
   setupError = false;
+  nextApproval = false;
   async open(options: ManagedOpen) {
     if (this.setupError)
       throw new ManagedSetupError("Local approval setup required");
@@ -74,6 +89,7 @@ class Factory implements ManagedFactory {
     const session = new Session(
       options.resume ?? "native-" + this.opens.length,
     );
+    session.requestOnSubscribe = this.nextApproval;
     this.sessions.push(session);
     return session;
   }
@@ -190,6 +206,167 @@ test("managed state home cannot depend on the invoking working directory", () =>
   }), /paths must be absolute/);
 });
 
+for (const backend of ["pi", "codex", "cc"] as const) {
+  test(`${backend} idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal`, async () => {
+    const f = fixture();
+    try {
+      const { localId } = await f.runtime.execute({ ...create(), backend, launch: { model: "first-model", reasoning_effort: "low" } }) as { localId: string };
+      await f.runtime.sendQueued(localId, "Original task");
+      f.factory.sessions[0]!.emit([{ kind: "text_delta", text: "Completed initial work" }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+      const native = (await f.runtime.request(`/api/sessions/${localId}/state`)).thread_id;
+      await assert.rejects(f.runtime.request(`/api/sessions/${localId}/settings`, "POST", { model: "default" }), /valid model or reasoning effort/);
+      assert.equal(f.factory.opens.length, 1, "Hidden default selections never replace the owned runtime");
+      const changed = await f.runtime.request(`/api/sessions/${localId}/settings`, "POST", { model: "second-model" });
+      assert.equal(changed.accepted, true);
+      assert.equal(f.factory.opens.at(-1)!.model, "second-model");
+      assert.equal(f.factory.opens.at(-1)!.resume, native);
+      assert.equal(f.factory.sessions[0]!.disposed, true);
+      await f.runtime.sendQueued(localId, "Continue same conversation");
+      await assert.rejects(f.runtime.request(`/api/sessions/${localId}/settings`, "POST", { reasoning_effort: "high" }), /Wait until the agent is idle/);
+      assert.equal(f.factory.opens.length, 2);
+      assert.equal(f.factory.sessions[1]!.disposed, false);
+      f.factory.sessions[1]!.emit([{ kind: "turn_ended", outcome: { kind: "completed" } }]);
+      f.factory.setupError = true;
+      await assert.rejects(f.runtime.request(`/api/sessions/${localId}/settings`, "POST", { model: "refused-model" }), /previous model and reasoning effort/);
+      const restored = await f.runtime.request(`/api/sessions/${localId}/state`);
+      assert.equal(restored.model, "second-model");
+      assert.equal(restored.reasoning_effort, "low");
+      assert.equal(restored.thread_id, native);
+      assert.equal(restored.resident, false);
+      f.factory.setupError = false;
+      await f.runtime.request(`/api/sessions/${localId}/send`, "POST", { text: "/effort off" });
+      assert.equal(f.factory.opens.at(-1)!.effort, "off");
+      assert.equal(f.factory.opens.at(-1)!.resume, native);
+      assert.deepEqual(f.factory.sessions.at(-1)!.prompts, [], "Setting commands must never become model prompts");
+    } finally {
+      await f.runtime.close();
+      rmSync(f.path, { recursive: true, force: true });
+    }
+  });
+}
+
+test("managed HTTP attachments are actor scoped and delivered once as native images and accessible file references", async () => {
+  const f = fixture();
+  const http = new NativeHttpTarget(f.runtime, f.path);
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    const call = async (action: string, method: "GET" | "POST" = "GET", body?: unknown, actorId = "alice") => {
+      const response = await http.execute({
+        method, path: `/api/sessions/${localId}/${action}`, headers: { "content-type": "application/json" }, actorId,
+        body: body === undefined ? emptyBody : (async function* () { yield Buffer.from(JSON.stringify(body)); })(),
+        signal: new AbortController().signal,
+      });
+      const chunks: Buffer[] = [];
+      for await (const chunk of response.body) chunks.push(Buffer.from(chunk));
+      return { status: response.status, value: JSON.parse(Buffer.concat(chunks).toString()) };
+    };
+    const file = await call("inject_file", "POST", { filename: "guide.txt", data_b64: Buffer.from("Real attached file contents").toString("base64"), content_type: "text/plain" });
+    assert.equal(file.status, 200);
+    assert.equal(readFileSync(file.value.attachment.path, "utf8"), "Real attached file contents");
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=";
+    const image = await call("inject_image", "POST", { filename: "pixel.png", data_b64: png, content_type: "image/png" });
+    assert.equal(image.status, 200);
+    assert.equal((await call("attachments", "GET", undefined, "bob")).value.attachments.length, 0);
+    await call("attachments/delete", "POST", { id: file.value.attachment.id }, "bob");
+    assert.equal((await call("attachments")).value.attachments.length, 2);
+    const peer = await call("inject_file", "POST", { filename: "peer.txt", data_b64: Buffer.from("Private peer attachment").toString("base64") }, "bob");
+    assert.equal(peer.status, 200);
+    f.factory.sessions[0]!.capabilities.images = false;
+    const unsupported = await call("send", "POST", { text: "Read these attachments", request_id: "image-refused" });
+    assert.equal(unsupported.status, 409);
+    assert.equal(f.factory.sessions[0]!.prompts.length, 0);
+    assert.equal((await call("attachments")).value.attachments.length, 2);
+    f.factory.sessions[0]!.capabilities.images = true;
+    const sent = await call("send", "POST", { text: "Read these attachments", request_id: "native-image-input" });
+    assert.equal(sent.status, 200);
+    assert.ok(f.factory.sessions[0]!.prompts[0]!.includes(file.value.attachment.path));
+    assert.ok(!f.factory.sessions[0]!.prompts[0]!.includes(peer.value.attachment.path));
+    assert.deepEqual(f.factory.sessions[0]!.promptOptions[0]!.images, [{ path: image.value.attachment.path, mediaType: "image/png" }]);
+    assert.equal((await call("attachments")).value.attachments.length, 0);
+    assert.equal((await call("attachments", "GET", undefined, "bob")).value.attachments.length, 1);
+    await call("send", "POST", { text: "Read these attachments", request_id: "native-image-input" });
+    assert.equal(f.factory.sessions[0]!.prompts.length, 1, "A confirmed-send retry must never redeliver images or files");
+    f.factory.sessions[0]!.emit([{ kind: "turn_ended", outcome: { kind: "completed" } }]);
+    f.factory.sessions[0]!.failPrompt = true;
+    f.factory.sessions[0]!.completeBeforeFail = true;
+    assert.equal((await call("send", "POST", { text: "Peer input", request_id: "completed-before-transport-loss" }, "bob")).status, 200);
+    assert.equal((await call("attachments", "GET", undefined, "bob")).value.attachments.length, 0, "Native completed delivery consumes attachments even if its transport subsequently throws");
+  } finally {
+    http.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
+test("settings refusal preserves runtime review state raised during cold initialization", async () => {
+  const f = fixture();
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    await f.runtime.sendQueued(localId, "Original task");
+    f.factory.sessions[0]!.emit([{ kind: "turn_ended", outcome: { kind: "completed" } }]);
+    f.factory.nextApproval = true;
+    await assert.rejects(f.runtime.request(`/api/sessions/${localId}/settings`, "POST", { model: "review-required" }), /previous model and reasoning effort/);
+    const state = await f.runtime.request(`/api/sessions/${localId}/state`);
+    assert.equal(state.runtime_state, "attention");
+    assert.equal(state.commit_unknown_send, true);
+    assert.equal(state.resident, false);
+    await assert.rejects(f.runtime.sendQueued(localId, "Do not replay"), /automatic replay is blocked/);
+  } finally {
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
+test("managed sidebar edits survive restart and deleting one conversation disposes only its owned worker", async () => {
+  const f = fixture();
+  let reopened: ManagedRuntime | undefined;
+  try {
+    const { localId: first } = await f.runtime.execute(create("first")) as { localId: string };
+    const { localId: second } = await f.runtime.execute(create("second")) as { localId: string };
+    await assert.rejects(f.runtime.request(`/api/sessions/${first}/edit`, "POST", {
+      name: "Self dependent", dependency_session_id: first,
+    }), /cannot depend on itself/);
+    await f.runtime.request(`/api/sessions/${first}/edit`, "POST", {
+      name: "  Reviewed   task ", priority_offset: 0.25,
+      snooze_until: Date.now() / 1000 + 3600, dependency_session_id: second,
+    });
+    const edited = await f.runtime.request(`/api/sessions/${first}/diagnostics`);
+    assert.equal(edited.alias, "Reviewed task");
+    assert.equal(edited.priority_offset, 0.25);
+    assert.equal(edited.dependency_session_id, second);
+    assert.equal(edited.blocked, true);
+    assert.equal(edited.snoozed, true);
+    await f.runtime.request(`/api/sessions/${first}/rename`, "POST", { name: "Renamed task" });
+    assert.equal((await f.runtime.request(`/api/sessions/${first}/state`)).priority_offset, 0.25);
+    await f.runtime.sendQueued(second, "Owned work");
+    await f.runtime.request(`/api/sessions/${second}/unattended`, "POST", { enabled: true });
+    let finishDisposal!: () => void;
+    f.factory.sessions[1]!.disposeWait = new Promise<void>((done) => { finishDisposal = done; });
+    f.factory.sessions[1]!.exitObserver?.();
+    let deleteConfirmed = false;
+    const deleting = f.runtime.request(`/api/sessions/${second}/delete`, "POST").then((result) => { deleteConfirmed = true; return result; });
+    await tick();
+    assert.equal(deleteConfirmed, false, "Deletion waits for in-progress owned disposal before confirmation");
+    finishDisposal();
+    assert.deepEqual(await deleting, { ok: true, deleted: true });
+    assert.equal(f.factory.sessions[1]!.disposed, true);
+    assert.equal(f.factory.sessions[0]!.disposed, false, "Deletion preserves other owned Computers and sessions");
+    await assert.rejects(f.runtime.request(`/api/sessions/${second}/state`), /Unknown managed session/);
+    assert.equal((await f.runtime.request(`/api/sessions/${first}/state`)).dependency_session_id, null);
+    await f.runtime.close();
+    reopened = new ManagedRuntime(f.config);
+    const catalog = await reopened.request("/api/sessions");
+    assert.deepEqual(catalog.sessions.map((session: { session_id: string }) => session.session_id), [first]);
+    assert.equal(catalog.sessions[0].alias, "Renamed task");
+    assert.equal(catalog.sessions[0].priority_offset, 0.25);
+    assert.equal(f.factory.opens.length, 2, "Metadata and deletion do not launch replacement workers");
+  } finally {
+    await reopened?.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
 test("archived saved transcripts retain one binding across catalogue, state and tail after restart", async () => {
   let clock = 1000;
   const f = fixture({ now: () => clock, idleMs: 10 });
@@ -202,6 +379,7 @@ test("archived saved transcripts retain one binding across catalogue, state and 
       { kind: "turn_ended", outcome: { kind: "completed" } },
     ]);
     const original = await f.runtime.request(`/api/sessions/${localId}/messages/tail`);
+    await f.runtime.request(`/api/sessions/${localId}/read`, "POST", { actorId: "first-reader", event_id: original.events[0].message_id });
     clock += 20;
     await f.runtime.quiesceIdle();
     await f.runtime.close();
@@ -210,6 +388,10 @@ test("archived saved transcripts retain one binding across catalogue, state and 
     const state = await reopened.request(`/api/sessions/${localId}/state`);
     const catalogue = await reopened.request("/api/sessions");
     const listed = catalogue.sessions.find((item: { session_id: string }) => item.session_id === localId);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/unread`, "GET", { actorId: "first-reader" })).count, 1);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/unread`, "GET", { actorId: "second-reader" })).count, 0);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/unread`, "GET", { actorId: "first-reader" })).count, 1, "Another reader cannot consume this actor's unread state");
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/read`, "POST", { event_id: "not-a-message" }), /Unknown transcript event/);
     const diagnostics = await reopened.request(`/api/sessions/${localId}/diagnostics`);
     assert.equal(diagnostics.runtime, "oar");
     assert.equal(diagnostics.session_id, localId);

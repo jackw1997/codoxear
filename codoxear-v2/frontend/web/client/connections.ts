@@ -377,7 +377,7 @@ export function openConnections(
     const importLogin = writer ?? (c.canWrite ? login : undefined);
     const root = page.render(
       c.name,
-      `<div class="connectionForm"><dl class="connectionFact"><dt>Hub</dt><dd>${esc(login.name)}</dd><dt>Status</dt><dd>${c.online ? "Online" : "Offline"}</dd><dt>Owner</dt><dd>${esc(c.ownerName ?? "You")}</dd></dl><div class="connectionActions">${owner ? "<button data-pair>Pair computer</button><button data-access>Manage access</button>" : ""}<button data-import ${c.online && importLogin ? "" : "disabled"}>Import local session</button></div>${!owner && !importLogin ? '<p class="connectionHint">Ask a Hub owner or admin for computer allowlist access.</p>' : ""}</div>`,
+      `<div class="connectionForm"><dl class="connectionFact"><dt>Hub</dt><dd>${esc(login.name)}</dd><dt>Status</dt><dd>${c.online ? "Online" : "Offline"}</dd><dt>Owner</dt><dd>${esc(c.ownerName ?? "Unavailable")}</dd></dl><div class="connectionActions">${owner ? "<button data-pair>Pair computer</button><button data-access>Manage access</button>" : ""}<button data-import ${c.online && importLogin ? "" : "disabled"}>Import local session</button></div>${!owner && !importLogin ? '<p class="connectionHint">Ask a Hub owner or admin for computer allowlist access.</p>' : ""}</div>`,
       home,
     );
     root
@@ -736,17 +736,14 @@ async function computerAllowlistPage(
     back,
   );
   root.querySelector<HTMLButtonElement>("[data-workspaces]")!.onclick = () =>
-    void accessPage(
+    void workspacePermissionsPage(
       page,
       login,
-      "computer",
       computer.id,
-      computer.policy,
       () =>
         void computerAllowlistPage(page, login, computer, back, changed).catch(
           page.error,
         ),
-      true,
     );
   for (const button of root.querySelectorAll<HTMLButtonElement>(
     "[data-remove-allowlist]",
@@ -776,39 +773,27 @@ async function computerAllowlistPage(
   );
 }
 
-async function accessPage(
+async function workspacePermissionsPage(
   page: ConnectionPages,
   login: HubLogin,
-  kind: "hub" | "computer",
   id: string,
-  policy: string | null,
   back: () => void,
-  workspaceOnly = false,
 ) {
   const root = page.render(
-      workspaceOnly ? "Workspace permissions" : "Manage access",
-      '<p class="connectionHint" role="status">Loading access…</p>',
+      "Workspace permissions",
+      '<p class="connectionHint" role="status">Loading workspace permissions…</p>',
       back,
     ),
-    version = page.version,
-    path = "/api/resources/" + kind + "/" + id;
+    version = page.version;
   try {
-    const [members, resources] = await Promise.all([
-      api(login, path + "/members"),
-      api(login, kind === "hub" ? "/api/hubs" : "/api/v1/computers"),
+    const [members, workspace]: [any[], WorkspaceReview] = await Promise.all([
+      api(login, "/api/resources/computer/" + id + "/members"),
+      api(login, `/api/computers/${id}/workspace`),
     ]);
-    policy =
-      resources.find((resource: any) => resource.id === id)?.policy ?? null;
-    const workspace: WorkspaceReview | null =
-      kind === "computer"
-        ? await api(login, `/api/computers/${id}/workspace`).catch(() => null)
-        : null;
     if (page.version !== version || !root.isConnected) return;
     page.render(
-      workspaceOnly ? "Workspace permissions" : "Manage access",
-      workspaceOnly
-        ? '<div class="connectionStack"></div>'
-        : `<div class="connectionStack"><section class="connectionStack"><h2>Members</h2>${members.map((m: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${esc(m.name ?? m.email)}</strong><span class="connectionHint">${esc(m.role)}</span></span><button data-remove="${esc(m.userId)}">Remove access</button></div>`).join("") || '<p class="connectionHint">No invited members.</p>'}</section><form data-invite class="connectionForm connectionSection"><h2>Invite someone</h2>${invitationFields()}${field("Role", '<select name="role"><option value="viewer">Viewer</option><option value="operator">Operator</option></select>')}<div class="connectionActions"><button type="submit">Create invitation</button></div><output class="connectionCode" hidden></output></form><form data-policy class="connectionForm connectionSection"><h2>After access is removed</h2><p class="connectionHint">A hub policy takes precedence over the computer policy.</p>${field("Existing agents", `<select name="policy"><option value="">${kind === "hub" ? "Follow computer policy" : "Default (no access)"}</option><option value="retain">Retain access</option><option value="read_only">Read only</option><option value="none">No access</option></select>`)}<div class="connectionActions"><button class="primary" type="submit">Save policy</button></div><p role="status" class="connectionStatus"></p></form></div>`,
+      "Workspace permissions",
+      '<div class="connectionStack"></div>',
       back,
     );
     if (workspace) {
@@ -856,7 +841,7 @@ async function accessPage(
             { name: data.get("name"), path: data.get("path") },
             "PUT",
           );
-          await accessPage(page, login, kind, id, policy, back, workspaceOnly);
+          await workspacePermissionsPage(page, login, id, back);
         },
         page.error,
       );
@@ -871,54 +856,10 @@ async function accessPage(
             "PUT",
           )
             .then(() =>
-              accessPage(page, login, kind, id, policy, back, workspaceOnly),
+              workspacePermissionsPage(page, login, id, back),
             )
             .catch(page.error);
         };
-    }
-    for (const b of root.querySelectorAll<HTMLButtonElement>("[data-remove]"))
-      b.onclick = () => {
-        void api(
-          login,
-          path + "/members/" + b.dataset.remove,
-          undefined,
-          "DELETE",
-        )
-          .then(() => b.closest(".connectionRow")?.remove())
-          .catch(page.error);
-      };
-    if (!workspaceOnly) {
-      const invite = root.querySelector<HTMLFormElement>("[data-invite]")!;
-      wireInvitationFields(invite);
-      submit(
-        invite,
-        async (data) => {
-          const result = await api(
-            login,
-            path + "/invitations",
-            invitationBody(data),
-          );
-          const output = invite.querySelector("output")!;
-          output.hidden = false;
-          output.textContent = "Invitation code: " + result.token;
-        },
-        page.error,
-      );
-      const settings = root.querySelector<HTMLFormElement>("[data-policy]")!;
-      settings.querySelector<HTMLSelectElement>("select")!.value = policy ?? "";
-      submit(
-        settings,
-        async (data) => {
-          await api(
-            login,
-            path + "/policy",
-            { policy: data.get("policy") || null },
-            "PUT",
-          );
-          settings.querySelector("[role=status]")!.textContent = "Policy saved";
-        },
-        page.error,
-      );
     }
   } catch (e) {
     page.error(e);

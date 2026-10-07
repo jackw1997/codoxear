@@ -1,20 +1,22 @@
 import { fileURLToPath } from "node:url";
-import { build as buildVite } from "vite";
 process.chdir(fileURLToPath(new URL(".", import.meta.url)));
 await rm("dist", { recursive: true, force: true });
-await buildVite({ configFile: fileURLToPath(new URL("vite.config.ts", import.meta.url)) });
 import { build } from "esbuild";
 import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, writeFile, readdir, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 const source = resolve("web/legacy"),
   destination = resolve("dist/workspace");
 await mkdir(destination, { recursive: true });
 // Keep established rendering controllers; all new profile/storage/relay code is TypeScript.
 await cp(source, destination, {
   recursive: true,
-  filter: (path) => !path.endsWith(".map") && !path.includes("/dist/"),
+  filter: (path) => !path.endsWith(".map") && !path.includes("/dist/") &&
+    !(dirname(path) === source && /^(?:app|app_.*)\.js$/.test(basename(path))),
 });
+// Lazy PDF workers are public assets; controller modules belong only in bundles.
+for (const name of ["pdf.mjs", "pdf.worker.mjs"])
+  await cp(resolve(source, "vendor", name), resolve(destination, name));
 await build({
   entryPoints: [resolve("web/workspace/main.ts")],
   bundle: true,
@@ -72,7 +74,7 @@ await build({
 await cp(resolve("web/help/cache-design.html"), resolve("dist/identity/cache-design.html"));
 await cp(resolve("web/identity/index.html"), resolve("dist/identity/index.html"));
 // Share the established theme engine and styles verbatim across account and hub UI.
-for (const root of ["dist/web/appearance", "dist/identity/appearance"]) {
+for (const root of ["dist/client/appearance", "dist/identity/appearance"]) {
   await mkdir(root, { recursive: true });
   for (const file of ["app.css", "app_theme.js", "themes", "favicon.svg"])
     await cp(resolve(source, file), resolve(root, file), { recursive: true });
@@ -130,6 +132,7 @@ await cp(
 );
 const clientVersion = createHash("sha256")
   .update(await readFile("dist/client/dist/app.bundle.js"))
+  .update(await readFile("dist/client/client-worker.js"))
   .update(await readFile("web/client/views.css"))
   .update(await readFile("web/shared/shell.css"))
   .update(assetVersion)
@@ -150,6 +153,7 @@ await writeFile(
       "connect-src 'self' https: http://127.0.0.1:* http://localhost:*; frame-src 'self' https: http://127.0.0.1:* http://localhost:*",
     ),
 );
+await writeFile("dist/client/client-release.json", JSON.stringify({ version: clientVersion }) + "\n");
 
 await build({
   entryPoints: [resolve("web/client/hub-login.ts")],
@@ -177,3 +181,6 @@ await build({
     },
   ],
 });
+
+// Compatibility API listeners attach the same current client, never a second UI.
+await cp(resolve("dist/client"), resolve("dist/web"), { recursive: true });

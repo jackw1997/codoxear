@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve, join, basename, extname } from "node:path";
 import { Launch, type Operation } from "../../contracts/tunnel.js";
 import { DomainError } from "../../contracts/model.js";
 import type { Runtime, WorkspaceRuntime } from "../runtime.js";
@@ -18,6 +18,9 @@ import {
 import { OarFactory } from "./factory.js";
 import { readLaunchDefaults } from "../native/launch-defaults.js";
 import { readUnattendedPrompt } from "../native/workspace/unattended.js";
+import { NativeSidebar } from "../native/workspace/sidebar.js";
+import { openFile } from "../native/workspace/files.js";
+import type { Attachment } from "../native/types.js";
 
 type Unattended = {
   enabled: boolean; request: string; cooldown_minutes: number;
@@ -50,6 +53,7 @@ type Resident = {
   count: number;
   bytes: number;
   closing: boolean;
+  disposal?: Promise<void>;
   receipt: string | null;
   answer: string | null;
 };
@@ -88,6 +92,7 @@ export class ManagedRuntime implements Runtime {
   private closed = false;
   private closePromise: Promise<void> | undefined;
   private unattendedBlocker: (id: string) => boolean = () => false;
+  private readonly sidebar: NativeSidebar;
   private readonly now: () => number;
   private readonly maxResident: number;
   private readonly idleMs: number;
@@ -124,6 +129,9 @@ export class ManagedRuntime implements Runtime {
       "maxTranscriptBytes",
     );
     mkdirSync(dirname(options.databasePath), { recursive: true, mode: 0o700 });
+    const sidebarDirectory = join(this.stateHome, "managed-sidebar");
+    mkdirSync(sidebarDirectory, { recursive: true, mode: 0o700 });
+    this.sidebar = new NativeSidebar(sidebarDirectory);
     this.db = new DatabaseSync(options.databasePath);
     this.db.function("managed_casefold", { deterministic: true }, (value) =>
       String(value ?? "").toLowerCase(),
@@ -138,6 +146,9 @@ export class ManagedRuntime implements Runtime {
       CREATE TABLE IF NOT EXISTS managed_receipts(id TEXT PRIMARY KEY,local_id TEXT,kind TEXT,state TEXT,result TEXT,created INTEGER,updated INTEGER);
       CREATE TABLE IF NOT EXISTS managed_notifications(id TEXT PRIMARY KEY,local_id TEXT,kind TEXT,at INTEGER);
       CREATE TABLE IF NOT EXISTS managed_unattended(local_id TEXT PRIMARY KEY,settings TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS managed_read(local_id TEXT,actor_id TEXT,event_id TEXT,PRIMARY KEY(local_id,actor_id));
+      CREATE TABLE IF NOT EXISTS managed_capabilities(local_id TEXT PRIMARY KEY,images INTEGER,steer INTEGER);
+      CREATE TABLE IF NOT EXISTS managed_attachments(id TEXT PRIMARY KEY,local_id TEXT,actor_id TEXT,payload TEXT);
       UPDATE managed_sessions SET state='unknown' WHERE state IN ('opening','running');
       UPDATE managed_receipts SET state='unknown' WHERE state IN ('dispatching','accepted');`);
     this.factory = options.factory ?? new OarFactory();
@@ -176,6 +187,13 @@ export class ManagedRuntime implements Runtime {
   private saveUnattended(id: string, settings: Unattended) {
     this.db.prepare("INSERT INTO managed_unattended VALUES(?,?) ON CONFLICT(local_id) DO UPDATE SET settings=excluded.settings").run(id, JSON.stringify(settings));
   }
+  private attachments(id: string, actorId = "") {
+    return (this.db.prepare("SELECT payload FROM managed_attachments WHERE local_id=? AND actor_id=? ORDER BY rowid").all(id, actorId) as { payload: string }[]).map((entry) => JSON.parse(entry.payload) as Attachment);
+  }
+  private attachmentState(id: string, actorId = "") {
+    const attachments = this.attachments(id, actorId);
+    return { attachments, staged_attachments: attachments, pending_attachment: attachments.length > 0, actor_attachments: true };
+  }
   private async configureUnattended(id: string, body: Record<string, unknown>) {
     return this.serial(id, async () => {
       this.row(id);
@@ -202,7 +220,7 @@ export class ManagedRuntime implements Runtime {
     });
   }
   private unattendedReady(id: string, settings: Unattended) {
-    if (!settings.enabled || !settings.remaining_injections || settings.commit_unknown || this.unattendedBlocker(id)) return false;
+    if (!settings.enabled || !settings.remaining_injections || settings.commit_unknown || this.unattendedBlocker(id) || this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? LIMIT 1").get(id)) return false;
     if (!["idle", "archived"].includes(this.row(id).state)) return false;
     const last = this.db.prepare("SELECT role,receipt FROM managed_messages WHERE local_id=? ORDER BY at DESC,rowid DESC LIMIT 1").get(id) as { role: string; receipt: string } | undefined;
     if (last?.role !== "assistant") return false;
@@ -557,6 +575,7 @@ export class ManagedRuntime implements Runtime {
         ...(launch ? { launch } : {}),
       };
       const session = await this.factory.open(input);
+      this.db.prepare("INSERT INTO managed_capabilities VALUES(?,?,?) ON CONFLICT(local_id) DO UPDATE SET images=excluded.images,steer=excluded.steer").run(id, Number(session.capabilities?.images === true), Number(session.capabilities?.steer === true));
       if (this.closed) {
         await session.dispose();
         throw Error("Managed runtime closed during launch");
@@ -729,7 +748,7 @@ export class ManagedRuntime implements Runtime {
     // The default driver owns disposal; no approval is automatically answered.
     void this.release(id).catch(() => {});
   }
-  private async send(id: string, text: string, requestId: string) {
+  private async send(id: string, text: string, requestId: string, actorId = "", workspace?: unknown) {
     if (!text.trim() || text.length > 200_000)
       throw new DomainError(
         400,
@@ -773,6 +792,21 @@ export class ManagedRuntime implements Runtime {
         "Input exceeds bounded transcript size",
       );
     const resident = await this.open(id);
+    const attachments = this.attachments(id, actorId);
+    if (attachments.some((attachment) => JSON.stringify(attachment.workspace) !== JSON.stringify(workspace)))
+      throw new DomainError(403, "attachment_grant_changed", "Attachment access changed; remove it and upload again");
+    const images = attachments.filter((attachment) => attachment.kind === "image");
+    if (images.length && resident.session.capabilities?.images !== true)
+      throw new DomainError(409, "images_unsupported", "This runtime does not accept native image attachments");
+    const files = attachments.filter((attachment) => attachment.kind === "file");
+    const input = text + files.map((file) => `\n\nAttached file ${JSON.stringify(file.display_name)}: ${JSON.stringify(file.path)}`).join("");
+    if (Buffer.byteLength(input) > this.maxTranscriptBytes)
+      throw new DomainError(400, "not_dispatched", "Input and attachment references exceed bounded transcript size");
+    for (const attachment of attachments) {
+      const handle = await openFile(attachment.path);
+      try { if (!(await handle.stat()).isFile()) throw new DomainError(400, "invalid_attachment", "Attachment must be a regular file"); }
+      finally { await handle.close(); }
+    }
     this.receipt(requestId, id, "send");
     resident.receipt = requestId;
     resident.answer = null;
@@ -781,10 +815,11 @@ export class ManagedRuntime implements Runtime {
     // visible and are never treated as evidence of model consumption.
     this.db
       .prepare("INSERT INTO managed_messages VALUES(?,?,'user',?,?,?)")
-      .run(requestId, id, text, this.now(), requestId);
+      .run(requestId, id, input, this.now(), requestId);
     try {
-      const result = await resident.session.prompt(text, {
+      const result = await resident.session.prompt(input, {
         inputId: requestId,
+        ...(images.length ? { images: images.map((image) => ({ path: image.path, mediaType: image.content_type })) } : {}),
       });
       if (result.kind === "rejected") {
         this.result(requestId, "rejected", {
@@ -805,16 +840,21 @@ export class ManagedRuntime implements Runtime {
       const receipt = this.previousReceipt(requestId);
       if (receipt?.state === "dispatching")
         this.result(requestId, "accepted", { accepted: true });
+      for (const attachment of attachments)
+        this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
       return { ok: true, accepted: true, receiptId: requestId };
     } catch (error) {
       if (this.previousReceipt(requestId)?.state === "rejected") throw error;
-      if (this.previousReceipt(requestId)?.state === "completed")
+      if (this.previousReceipt(requestId)?.state === "completed") {
+        for (const attachment of attachments)
+          this.db.prepare("DELETE FROM managed_attachments WHERE id=?").run(attachment.id);
         return {
           ok: true,
           accepted: true,
           receiptId: requestId,
           state: "completed",
         };
+      }
       this.result(requestId, "unknown", { code: "runtime_uncertain" });
       this.state(id, "unknown");
       this.uncertain();
@@ -865,8 +905,10 @@ export class ManagedRuntime implements Runtime {
   }
   private async release(id: string) {
     const resident = this.residents.get(id);
-    if (!resident || resident.closing) return;
+    if (!resident) return;
+    if (resident.closing) return resident.disposal;
     resident.closing = true;
+    const disposal = (async () => {
     try {
       await resident.session.dispose();
     } finally {
@@ -892,6 +934,9 @@ export class ManagedRuntime implements Runtime {
           .prepare("UPDATE managed_sessions SET native_id=NULL WHERE id=?")
           .run(id);
     }
+    })();
+    resident.disposal = disposal;
+    return disposal;
   }
   async quiesceIdle() {
     if (this.closed) return;
@@ -956,8 +1001,9 @@ export class ManagedRuntime implements Runtime {
         "SELECT * FROM managed_sessions ORDER BY updated DESC LIMIT 1000",
       )
       .all() as Row[];
+    const activeIds = new Set(rows.map((row) => row.id));
     return {
-      sessions: rows.map((row) => this.metadata(row)),
+      sessions: rows.map((row) => this.metadata(row, activeIds)),
       new_session_defaults: readLaunchDefaults(this.home, this.workspace),
       recent_cwds: [...new Set(rows.map((row) => row.cwd))],
       tmux_available: false,
@@ -982,7 +1028,7 @@ export class ManagedRuntime implements Runtime {
       ],
     };
   }
-  private metadata(row: Row) {
+  private metadata(row: Row, activeIds = new Set((this.db.prepare("SELECT id FROM managed_sessions").all() as { id: string }[]).map((entry) => entry.id))) {
     return {
       session_id: row.id,
       thread_id: row.native_id ?? row.id,
@@ -991,7 +1037,6 @@ export class ManagedRuntime implements Runtime {
       transcript_state: "bound",
       log_path: `managed:${row.id}`,
       agent_backend: row.backend,
-      alias: row.name,
       cwd: row.cwd,
       model: row.model,
       reasoning_effort: row.effort,
@@ -1015,7 +1060,7 @@ export class ManagedRuntime implements Runtime {
       model_provider: null,
       lost: false,
       log_exists: !!row.stream,
-      pending_attachment: false,
+      pending_attachment: !!this.db.prepare("SELECT 1 FROM managed_attachments WHERE local_id=? LIMIT 1").get(row.id),
       staged_attachments: [],
       files: [],
       draft_updated_ts: 0,
@@ -1026,7 +1071,16 @@ export class ManagedRuntime implements Runtime {
       subagents_running: 0,
       subagent_details: [],
       unattended_enabled: this.unattended(row.id).enabled,
-      slash_commands: [],
+      slash_commands: [
+        { name: "model", description: "Change the model while idle" },
+        { name: "effort", description: "Change reasoning effort while idle" },
+      ],
+      pi_thinking_command: true,
+      runtime_settings: true,
+      supports_images: (this.db.prepare("SELECT images FROM managed_capabilities WHERE local_id=?").get(row.id) as { images: number } | undefined)?.images === 1,
+      ...this.sidebar.project(row.id, row.name, row.updated / 1000,
+        activeIds,
+        this.now() / 1000),
     };
   }
   private async candidates(backend: string, cwd: string) {
@@ -1097,7 +1151,7 @@ export class ManagedRuntime implements Runtime {
       return {
         ...this.metadata(this.row(localId)),
         queue: [],
-        attachments: [],
+        ...this.attachmentState(localId, typeof body.actorId === "string" ? body.actorId : ""),
       };
     if (operation === "send")
       return this.sendQueued(localId, String(body.text ?? ""));
@@ -1145,6 +1199,126 @@ export class ManagedRuntime implements Runtime {
     const operation = match?.[2];
     if (id) {
       const value = (body ?? {}) as Record<string, unknown>;
+      const actor = typeof value.actorId === "string" ? value.actorId : "";
+      if (operation === "attachments" && method === "GET") {
+        this.row(id);
+        return this.attachmentState(id, actor);
+      }
+      if (["inject_file", "inject_image", "attachments/delete", "attachments/clear", "pending_attachment/clear"].includes(operation ?? "") && method === "POST")
+        return this.serial(id, async () => {
+          this.row(id);
+          if (operation === "attachments/delete")
+            this.db.prepare("DELETE FROM managed_attachments WHERE local_id=? AND actor_id=? AND id=?").run(id, actor, String(value.id ?? ""));
+          else if (operation === "attachments/clear" || operation === "pending_attachment/clear")
+            this.db.prepare("DELETE FROM managed_attachments WHERE local_id=? AND actor_id=?").run(id, actor);
+          else {
+            if (typeof value.path !== "string" || !isAbsolute(value.path))
+              throw new DomainError(400, "invalid_attachment", "Attachment requires an absolute uploaded file path");
+            const file = await openFile(value.path);
+            let size: number;
+            try {
+              const stat = await file.stat();
+              if (!stat.isFile() || !stat.size || stat.size > 64 * 1024 * 1024)
+                throw new DomainError(400, "invalid_attachment", "Attachment must be a nonempty regular file no larger than 64 MiB");
+              size = stat.size;
+            } finally { await file.close(); }
+            const existing = this.attachments(id, actor);
+            if (existing.length >= 20 || existing.reduce((total, entry) => total + entry.size, size) > 64 * 1024 * 1024)
+              throw new DomainError(413, "attachment_limit", "Staged attachments are limited to 20 files and 64 MiB per person and conversation");
+            const name = basename(String(value.filename ?? value.name ?? value.path)).slice(0, 150);
+            const knownImageTypes: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+            const imageType = knownImageTypes[extname(name).toLowerCase()];
+            const image = operation === "inject_image" || String(value.content_type ?? "").startsWith("image/") || !!imageType;
+            if (image && (!imageType || (this.db.prepare("SELECT images FROM managed_capabilities WHERE local_id=?").get(id) as { images: number } | undefined)?.images !== 1))
+              throw new DomainError(409, "images_unsupported", "This runtime accepts native image attachments only when advertised, using PNG, JPEG, GIF or WebP");
+            const attachment: Attachment = {
+              id: randomUUID(), ...(actor ? { actorId: actor } : {}),
+              ...(value.workspace ? { workspace: value.workspace as NonNullable<Attachment["workspace"]> } : {}),
+              path: value.path, name, filename: name, display_name: String(value.display_name ?? name),
+              size, content_type: imageType ?? String(value.content_type ?? "application/octet-stream"),
+              created_ts: this.now() / 1000, kind: image ? "image" : "file",
+            };
+            this.db.prepare("INSERT INTO managed_attachments VALUES(?,?,?,?)").run(attachment.id, id, actor, JSON.stringify(attachment));
+            return { ok: true, attachment, ...this.attachmentState(id, actor) };
+          }
+          return { ok: true, ...this.attachmentState(id, actor) };
+        });
+      if (operation === "settings" && method === "POST")
+        return this.serial(id, async () => {
+          const before = this.row(id);
+          if (!["idle", "archived"].includes(before.state))
+            throw new DomainError(409, "not_dispatched", "Wait until the agent is idle and any uncertain outcome is reviewed before changing runtime settings");
+          const field = typeof value.model === "string" ? "model" : typeof value.reasoning_effort === "string" ? "reasoning_effort" : null;
+          const setting = field ? String(value[field]).trim() : "";
+          if (!field || !setting || setting === "default" || (typeof value.model === "string" && typeof value.reasoning_effort === "string") || setting.length > 200 || /[\r\n\0]/.test(setting))
+            throw new DomainError(400, "invalid_setting", "Choose a valid model or reasoning effort");
+          const previousLaunch = this.launchMemory.get(id);
+          // OAR's pinned adapters explicitly apply and read back model/effort
+          // overrides on cold resume. Never replace a worker during a turn.
+          await this.release(id);
+          if (previousLaunch) this.launchMemory.set(id, previousLaunch);
+          const column = field === "model" ? "model" : "effort";
+          this.db.prepare(`UPDATE managed_sessions SET ${column}=? WHERE id=?`).run(setting, id);
+          try {
+            await this.open(id);
+            if (["unknown", "attention"].includes(this.row(id).state))
+              throw new DomainError(409, "setting_refused", "Runtime initialization requires review");
+            return { ok: true, accepted: true, [field]: field === "model" ? this.row(id).model : this.row(id).effort };
+          } catch {
+            await this.release(id);
+            const state = this.row(id).state;
+            this.db.prepare("UPDATE managed_sessions SET model=?,effort=?,state=? WHERE id=?").run(before.model, before.effort, ["unknown", "attention"].includes(state) ? state : "archived", id);
+            throw new DomainError(409, "setting_refused", "The runtime could not confirm this setting. The previous model and reasoning effort have been retained");
+          }
+        });
+      if (["edit", "rename"].includes(operation ?? "") && method === "POST")
+        return this.serial(id, async () => {
+          this.row(id);
+          const result = operation === "edit"
+            ? this.sidebar.edit(id, value, new Set((await this.discover()).sessions.map((entry) => String(entry.session_id))))
+            : typeof value.name === "string"
+              ? this.sidebar.rename(id, value.name)
+              : (() => { throw new DomainError(400, "invalid_sidebar", "name required"); })();
+          this.db.prepare("UPDATE managed_sessions SET name=? WHERE id=?").run(result.alias ?? "", id);
+          return result;
+        });
+      if ((operation === "delete" && method === "POST") || (!operation && method === "DELETE"))
+        return this.serial(id, async () => {
+          this.row(id);
+          // Dispose only this owned worker before acknowledging deletion. Keep
+          // native CLI histories and private provider profiles untouched.
+          const settings = this.unattended(id);
+          settings.enabled = false;
+          this.saveUnattended(id, settings);
+          await this.release(id);
+          this.db.exec("BEGIN IMMEDIATE");
+          try {
+            this.db.prepare("DELETE FROM managed_events WHERE stream IN (SELECT id FROM managed_streams WHERE local_id=?)").run(id);
+            for (const table of ["managed_streams", "managed_messages", "managed_receipts", "managed_notifications", "managed_unattended", "managed_read", "managed_capabilities", "managed_attachments"])
+              this.db.prepare(`DELETE FROM ${table} WHERE local_id=?`).run(id);
+            this.db.prepare("DELETE FROM managed_sessions WHERE id=?").run(id);
+            this.db.exec("COMMIT");
+          } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+          this.launchMemory.delete(id);
+          return { ok: true, deleted: true };
+        });
+      if ((operation === "read" && method === "POST") || (operation === "unread" && method === "GET")) {
+        this.row(id);
+        const actor = typeof value.actorId === "string" ? value.actorId : "";
+        const events = this.db.prepare("SELECT id FROM managed_messages WHERE local_id=? ORDER BY at,rowid").all(id) as { id: string }[];
+        const latest = events.at(-1)?.id ?? null;
+        const saved = this.db.prepare("SELECT event_id FROM managed_read WHERE local_id=? AND actor_id=?").get(id, actor) as { event_id: string | null } | undefined;
+        if (operation === "read" || !saved) {
+          const eventId = operation === "read" ? value.event_id ?? latest : latest;
+          if (eventId !== null && !events.some((entry) => entry.id === eventId))
+            throw new DomainError(400, "invalid_event_id", "Unknown transcript event");
+          this.db.prepare("INSERT INTO managed_read VALUES(?,?,?) ON CONFLICT(local_id,actor_id) DO UPDATE SET event_id=excluded.event_id").run(id, actor, eventId as string | null);
+          if (operation === "read") return { ok: true, event_id: eventId };
+          return { count: 0, unread: 0, first_unread_event_id: null, last_unread_event_id: null };
+        }
+        const unread = events.slice(events.findIndex((entry) => entry.id === saved.event_id) + 1);
+        return { count: unread.length, unread: unread.length, first_unread_event_id: unread[0]?.id ?? null, last_unread_event_id: unread.at(-1)?.id ?? null };
+      }
       if (operation === "unattended" && method === "GET") {
         this.row(id);
         return this.unattended(id);
@@ -1182,9 +1356,16 @@ export class ManagedRuntime implements Runtime {
       if (operation === "search" || operation?.startsWith("messages/"))
         return this.transcript(id, operation, url);
       if (!operation || operation === "state")
-        return this.queueControl(id, "state");
-      if (operation === "send" && method === "POST")
-        return this.sendQueued(id, String(value.text ?? ""));
+        return this.queueControl(id, "state", value);
+      if (operation === "send" && method === "POST") {
+        const text = String(value.text ?? "");
+        const setting = /^\/(model|effort|thinking)\s+([^\r\n]+)$/.exec(text.trim());
+        if (setting)
+          return this.request(`/api/sessions/${id}/settings`, "POST", {
+            [setting[1] === "model" ? "model" : "reasoning_effort"]: setting[2],
+          });
+        return this.serial(id, () => this.send(id, text, typeof value.request_id === "string" ? value.request_id : randomUUID(), actor, value.workspace));
+      }
       if (operation === "interrupt" && method === "POST")
         return this.interrupt(id, randomUUID());
       if (operation === "receipts")

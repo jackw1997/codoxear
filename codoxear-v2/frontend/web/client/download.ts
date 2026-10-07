@@ -1,4 +1,4 @@
-import { vault } from "./vault.js";
+import { vault, hubScope } from "./vault.js";
 
 /** The normal Download control prepares a one-use Hub handoff and posts it to
  * the browser's download manager. Bytes never accumulate in the mounted app. */
@@ -23,11 +23,11 @@ export function createFileDownloadRuntime(options: {
         const split = selected.indexOf("~");
         if (source.origin !== location.origin || split < 1)
           throw new Error("Select a file in an authenticated Hub workspace");
-        const accountKey = selected.slice(0, split),
+        const resourcePrefix = selected.slice(0, split),
           agentId = selected.slice(split + 1);
         source.searchParams.delete("__agent");
         const logins = (await vault.list()).filter(
-          (login) => login.accountKey === accountKey,
+          (login) => hubScope(login) === resourcePrefix || login.accountKey === resourcePrefix,
         );
         let prepared: { action: string; ticket: string } | undefined;
         let failure: Error | undefined;

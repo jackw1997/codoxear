@@ -177,7 +177,19 @@
               themeReady = true;
             }
             monacoNs.editor.setTheme(themeName);
-            succeed(monacoNs);
+            // This vendored module appends its CSS link asynchronously. Its
+            // AMD callback does not mean the stylesheet is ready: painting an
+            // editor earlier exposes its IME and accessibility input surfaces.
+            const style = globalObject.document && globalObject.document.querySelector('link[rel="stylesheet"][href*="/editor/editor.main.css"]');
+            if (!style || style.sheet) {
+              succeed(monacoNs);
+              return;
+            }
+            style.addEventListener("load", () => succeed(monacoNs), { once: true });
+            style.addEventListener("error", () => fail(new Error("code editor stylesheet could not be loaded")), { once: true });
+            timerSet(() => {
+              if (!done) fail(new Error("code editor stylesheet timed out"));
+            }, timeoutMs);
           }, fail);
         };
         if (globalObject.monaco && globalObject.monaco.editor) {

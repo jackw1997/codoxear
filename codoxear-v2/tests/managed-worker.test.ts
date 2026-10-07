@@ -38,9 +38,11 @@ test("managed worker uses the injected package from an unrelated workspace", asy
               let observer;
               return {
                 id: "explicit-computer-runtime",
+                capabilities: { images: true, steer: false },
                 rawEvents(fn) { observer = fn; },
                 async prompt(text, options) {
                   if (!/^[a-f0-9-]{36}$/.test(options.inputId)) throw Error("invalid input id");
+                  if (text === "native image" && options.images?.[0]?.path !== "/uploaded/pixel.png") throw Error("image input lost");
                   observer({ kind: "frame", seq: 0, sessionId: "explicit-computer-runtime", receivedAt: 1, agentPath: [], body: { events: [{ kind: "text_delta", text }] } });
                   return { kind: "accepted" };
                 },
@@ -61,6 +63,7 @@ test("managed worker uses the injected package from an unrelated workspace", asy
       permissionPolicy: "locally-trusted",
     });
     assert.equal(session.id, "explicit-computer-runtime");
+    assert.deepEqual(session.capabilities, { images: true, steer: false });
     const events: unknown[] = [];
     session.rawEvents((record) => events.push(record));
     assert.deepEqual(
@@ -68,6 +71,8 @@ test("managed worker uses the injected package from an unrelated workspace", asy
       { kind: "accepted" },
     );
     assert.equal(events.length, 1);
+    assert.deepEqual(await session.prompt("native image", { inputId: "image-receipt", images: [{ path: "/uploaded/pixel.png", mediaType: "image/png" }] }), { kind: "accepted" });
+    assert.equal(events.length, 2);
     assert.deepEqual(await session.abort(), { kind: "accepted" });
   } finally {
     await session?.dispose();

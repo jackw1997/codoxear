@@ -57,7 +57,10 @@ async function receive(message: any) {
         sessionId: session!.id,
         afterSeq: -1,
       });
-      value = { id: session!.id };
+      value = { id: session!.id, capabilities: {
+        images: session!.capabilities?.images === true,
+        steer: session!.capabilities?.steer === true,
+      } };
     } else if (message.op === "dispose") {
       await session?.dispose();
       write({ id: message.id, value: null });
@@ -68,6 +71,7 @@ async function receive(message: any) {
         message.op === "prompt"
           ? await session.prompt(message.args.text, {
               inputId: oarInputId(message.args.inputId),
+              ...(message.args.images ? { images: message.args.images } : {}),
             })
           : message.op === "abort"
             ? await session.abort()
