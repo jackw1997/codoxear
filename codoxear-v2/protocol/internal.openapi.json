@@ -570,7 +570,7 @@
                   "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                 },
                 "target": {
-                  "$ref": "#/components/schemas/SharedUnion_1d4b99df700241c6"
+                  "$ref": "#/components/schemas/SharedUnion_bb4dcd3b8dcd883b"
                 },
                 "role": {
                   "type": "string",
@@ -759,7 +759,7 @@
                   "$ref": "#/components/schemas/Sharedobject_66da06d023443ba7"
                 },
                 {
-                  "$ref": "#/components/schemas/Sharedobject_70fea2aa5b61b69b"
+                  "$ref": "#/components/schemas/Sharedobject_fb1ca4b6fd5befa8"
                 }
               ]
             },
@@ -1514,7 +1514,7 @@
                             "$ref": "#/components/schemas/Sharedobject_66da06d023443ba7"
                           },
                           {
-                            "$ref": "#/components/schemas/Sharedobject_70fea2aa5b61b69b"
+                            "$ref": "#/components/schemas/Sharedobject_fb1ca4b6fd5befa8"
                           }
                         ]
                       }
@@ -7226,6 +7226,7 @@
                   "email",
                   "phone",
                   "feishu",
+                  "google",
                   "wechat",
                   "oidc"
                 ]
@@ -7279,6 +7280,7 @@
                     "email",
                     "phone",
                     "feishu",
+                    "google",
                     "wechat",
                     "oidc"
                   ]
@@ -7330,12 +7332,8 @@
                 "method": {
                   "type": "string",
                   "enum": [
-                    "password",
-                    "email",
-                    "phone",
-                    "feishu",
-                    "wechat",
-                    "oidc"
+                    "google",
+                    "feishu"
                   ]
                 }
               },
@@ -7346,25 +7344,50 @@
               "additionalProperties": false
             }
           },
-          "codes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "email",
-                "phone"
-              ]
-            }
+          "registration": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "method": {
+                "type": "string",
+                "const": "provider"
+              }
+            },
+            "required": [
+              "enabled",
+              "method"
+            ],
+            "additionalProperties": false
           },
-          "password": {
-            "type": "boolean",
-            "const": true
+          "deviceKeys": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "const": true
+              },
+              "algorithm": {
+                "type": "string",
+                "const": "ES256"
+              }
+            },
+            "required": [
+              "enabled",
+              "algorithm"
+            ],
+            "additionalProperties": false
+          },
+          "setupRequired": {
+            "type": "boolean"
           }
         },
         "required": [
           "providers",
-          "codes",
-          "password"
+          "registration",
+          "deviceKeys",
+          "setupRequired"
         ],
         "additionalProperties": false
       },
@@ -7461,6 +7484,7 @@
                         "email",
                         "phone",
                         "feishu",
+                        "google",
                         "wechat",
                         "oidc"
                       ]
@@ -9130,7 +9154,7 @@
                         "not": {}
                       },
                       "target": {
-                        "$ref": "#/components/schemas/SharedUnion_1d4b99df700241c6"
+                        "$ref": "#/components/schemas/SharedUnion_bb4dcd3b8dcd883b"
                       },
                       "role": {
                         "type": "string",
@@ -9360,7 +9384,7 @@
             "$ref": "#/components/schemas/Sharedobject_72e2fd11513d0a15"
           },
           {
-            "$ref": "#/components/schemas/Sharedobject_506daec0bd57955e"
+            "$ref": "#/components/schemas/Sharedobject_2071c4a74dd4a5f2"
           },
           {
             "$ref": "#/components/schemas/Sharedarray_82fd1be6fa868cbb"
@@ -10248,7 +10272,7 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_506daec0bd57955e": {
+      "Sharedobject_2071c4a74dd4a5f2": {
         "type": "object",
         "properties": {
           "id": {
@@ -10282,7 +10306,7 @@
             "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
           },
           "target": {
-            "$ref": "#/components/schemas/SharedUnion_1d4b99df700241c6"
+            "$ref": "#/components/schemas/SharedUnion_bb4dcd3b8dcd883b"
           },
           "role": {
             "type": "string",
@@ -10311,13 +10335,16 @@
         ],
         "additionalProperties": false
       },
-      "SharedUnion_1d4b99df700241c6": {
+      "SharedUnion_bb4dcd3b8dcd883b": {
         "oneOf": [
           {
             "$ref": "#/components/schemas/Sharedobject_7c4d69a28f967863"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_fee8de5fb9b44b1f"
+          },
+          {
+            "$ref": "#/components/schemas/Sharedobject_738f69e36e8ec068"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_2b4aea04df9fa337"
@@ -10364,6 +10391,45 @@
         "required": [
           "method",
           "phone"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_738f69e36e8ec068": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "const": "google"
+          },
+          "connection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "tenant": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "connection",
+          "subject",
+          "tenant"
         ],
         "additionalProperties": false
       },
@@ -10809,14 +10875,14 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_70fea2aa5b61b69b": {
+      "Sharedobject_fb1ca4b6fd5befa8": {
         "type": "object",
         "properties": {
           "email": {
             "not": {}
           },
           "target": {
-            "$ref": "#/components/schemas/SharedUnion_cfa76f497da71b69"
+            "$ref": "#/components/schemas/SharedUnion_7528bfb72db6156b"
           },
           "role": {
             "type": "string",
@@ -10845,13 +10911,16 @@
         ],
         "additionalProperties": false
       },
-      "SharedUnion_cfa76f497da71b69": {
+      "SharedUnion_7528bfb72db6156b": {
         "oneOf": [
           {
             "$ref": "#/components/schemas/Sharedobject_5dc48ed187722d4d"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_fee8de5fb9b44b1f"
+          },
+          {
+            "$ref": "#/components/schemas/Sharedobject_fed9937708199b2b"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_2313f39775898158"
@@ -10878,6 +10947,44 @@
         "required": [
           "method",
           "email"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_fed9937708199b2b": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "const": "google"
+          },
+          "connection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "tenant": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "connection",
+          "subject"
         ],
         "additionalProperties": false
       },

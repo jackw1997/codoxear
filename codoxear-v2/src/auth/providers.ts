@@ -1,40 +1,29 @@
 import * as oauth from "oauth4webapi";
 import { z } from "zod";
 import { type VerifiedIdentity } from "./accounts.js";
-import { DomainError } from "../contracts/model.js";
+import { DomainError, Id } from "../contracts/model.js";
 const Remote = z
   .url()
   .refine(
     (x) => new URL(x).protocol === "https:",
     "Provider endpoints must use HTTPS",
   );
+const Credentials = {
+  id: Id,
+  clientId: z.string().trim().min(1),
+  clientSecret: z
+    .string()
+    .min(1)
+    .refine((value) => value.trim().length > 0),
+};
 export const ProviderConfig = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("feishu"),
-    id: z.string(),
-    clientId: z.string(),
-    clientSecret: z.string(),
-  }),
-  z.object({
-    kind: z.literal("wechat"),
-    id: z.string(),
-    clientId: z.string(),
-    clientSecret: z.string(),
-    surface: z.enum(["website", "public-account", "native"]).default("website"),
-  }),
-  z.object({
-    kind: z.literal("oidc"),
-    id: z.string(),
-    clientId: z.string(),
-    clientSecret: z.string(),
-    issuer: Remote,
-    scope: z.string().default("openid profile email"),
-  }),
+  z.object({ kind: z.literal("google"), ...Credentials }),
+  z.object({ kind: z.literal("feishu"), ...Credentials }),
 ]);
 export type ProviderConfig = z.infer<typeof ProviderConfig>;
 export interface Provider {
   readonly id: string;
-  readonly method: "feishu" | "wechat" | "oidc";
+  readonly method: "google" | "feishu";
   authorize(
     state: string,
     verifier: string,
@@ -44,7 +33,12 @@ export interface Provider {
     code: string,
     verifier: string,
     redirectUri: string,
+    authorizationIssuer?: string,
   ): Promise<VerifiedIdentity>;
+}
+export interface ProviderOptions {
+  /** Transport injection for isolated verification; production uses native HTTPS fetch. */
+  fetch?: typeof fetch;
 }
 const denied = () =>
   new DomainError(
@@ -52,8 +46,20 @@ const denied = () =>
     "provider_rejected",
     "Provider authorization was rejected",
   );
-async function json(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, {
+async function guarded<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch {
+    // Provider payloads and transport errors can contain codes, tokens, or secrets.
+    throw denied();
+  }
+}
+async function json(
+  url: string,
+  options: RequestInit = {},
+  transport: typeof fetch = fetch,
+) {
+  const response = await transport(url, {
     ...options,
     redirect: "error",
     signal: AbortSignal.timeout(15000),
@@ -61,70 +67,132 @@ async function json(url: string, options: RequestInit = {}) {
   if (!response.ok) throw denied();
   return response.json();
 }
-export function provider(config: ProviderConfig): Provider {
-  if (config.kind === "oidc") {
+export function provider(
+  input: ProviderConfig,
+  options: ProviderOptions = {},
+): Provider {
+  const config = ProviderConfig.parse(input),
+    transport = options.fetch ?? fetch;
+  const http = {
+    [oauth.customFetch]: (
+      url: string,
+      init: oauth.CustomFetchOptions<
+        "GET" | "POST",
+        URLSearchParams | undefined
+      >,
+    ) =>
+      transport(url, {
+        method: init.method,
+        headers: init.headers,
+        redirect: "error",
+        ...(init.body ? { body: init.body } : {}),
+        ...(init.signal ? { signal: init.signal } : {}),
+      }),
+    signal: () => AbortSignal.timeout(15000),
+  };
+  if (config.kind === "google") {
+    const issuer = new URL("https://accounts.google.com");
     let discovered: oauth.AuthorizationServer | undefined;
-    const metadata = async () =>
-      (discovered ??= await oauth.processDiscoveryResponse(
-        new URL(config.issuer),
-        await oauth.discoveryRequest(new URL(config.issuer)),
-      ));
-    const client: oauth.Client = { client_id: config.clientId };
+    const metadata = async () => {
+      if (!discovered) {
+        const as = await oauth.processDiscoveryResponse(
+          issuer,
+          await oauth.discoveryRequest(issuer, http),
+        );
+        Remote.parse(as.authorization_endpoint);
+        Remote.parse(as.token_endpoint);
+        Remote.parse(as.jwks_uri);
+        discovered = as;
+      }
+      return discovered;
+    };
+    const client: oauth.Client = {
+      client_id: config.clientId,
+      id_token_signed_response_alg: "RS256",
+    };
     return {
       id: config.id,
-      method: "oidc",
-      async authorize(state, verifier, redirectUri) {
-        const as = await metadata(),
-          url = new URL(as.authorization_endpoint!);
-        url.search = new URLSearchParams({
-          client_id: config.clientId,
-          redirect_uri: redirectUri,
-          response_type: "code",
-          scope: config.scope,
-          state,
-          nonce: verifier,
-          code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
-          code_challenge_method: "S256",
-        }).toString();
-        return url.href;
+      method: "google",
+      authorize(state, verifier, redirectUri) {
+        return guarded(async () => {
+          const as = await metadata(),
+            url = new URL(as.authorization_endpoint!);
+          url.search = new URLSearchParams({
+            client_id: config.clientId,
+            redirect_uri: redirectUri,
+            response_type: "code",
+            scope: "openid profile email",
+            state,
+            nonce: await oauth.calculatePKCECodeChallenge(
+              "google-nonce:" + verifier,
+            ),
+            code_challenge: await oauth.calculatePKCECodeChallenge(verifier),
+            code_challenge_method: "S256",
+          }).toString();
+          return url.href;
+        });
       },
-      async exchange(code, verifier, redirectUri) {
-        const as = await metadata(),
-          response = await oauth.authorizationCodeGrantRequest(
+      exchange(code, verifier, redirectUri, authorizationIssuer) {
+        return guarded(async () => {
+          const as = await metadata();
+          // Browser-bound state was verified and consumed by the auth application.
+          // Validate Google's callback issuer before handing branded parameters to OAuth.
+          const callback = oauth.validateAuthResponse(
+            as,
+            client,
+            new URLSearchParams({
+              code,
+              ...(authorizationIssuer ? { iss: authorizationIssuer } : {}),
+            }),
+            oauth.expectNoState,
+          );
+          const response = await oauth.authorizationCodeGrantRequest(
             as,
             client,
             oauth.ClientSecretPost(config.clientSecret),
-            new URLSearchParams({ code }),
+            callback,
             redirectUri,
             verifier,
+            http,
           );
-        const token = await oauth.processAuthorizationCodeResponse(
-          as,
-          client,
-          response,
-          { requireIdToken: true, expectedNonce: verifier },
-        );
-        const claims = oauth.getValidatedIdTokenClaims(token);
-        if (!claims) throw denied();
-        return {
-          connection: config.id,
-          method: "oidc",
-          subject: claims.sub,
-          tenant: null,
-          email:
-            claims.email_verified === true && typeof claims.email === "string"
-              ? claims.email
-              : null,
-          name: typeof claims.name === "string" ? claims.name : "Member",
-        };
+          const token = await oauth.processAuthorizationCodeResponse(
+            as,
+            client,
+            response,
+            {
+              requireIdToken: true,
+              expectedNonce: await oauth.calculatePKCECodeChallenge(
+                "google-nonce:" + verifier,
+              ),
+            },
+          );
+          // Processing verifies issuer, audience, expiry, and nonce, but not the JWS signature.
+          await oauth.validateApplicationLevelSignature(as, response, http);
+          const claims = oauth.getValidatedIdTokenClaims(token);
+          if (!claims || !claims.sub) throw denied();
+          return {
+            connection: config.id,
+            method: "google",
+            subject: claims.sub,
+            tenant: null,
+            email:
+              claims.email_verified === true && typeof claims.email === "string"
+                ? claims.email
+                : null,
+            name:
+              typeof claims.name === "string" && claims.name.trim()
+                ? claims.name
+                : "Google member",
+          };
+        });
       },
     };
   }
-  if (config.kind === "feishu")
-    return {
-      id: config.id,
-      method: "feishu",
-      async authorize(state, verifier, redirectUri) {
+  return {
+    id: config.id,
+    method: "feishu",
+    authorize(state, verifier, redirectUri) {
+      return guarded(async () => {
         const url = new URL(
           "https://accounts.feishu.cn/open-apis/authen/v1/authorize",
         );
@@ -137,20 +205,24 @@ export function provider(config: ProviderConfig): Provider {
           code_challenge_method: "S256",
         }).toString();
         return url.href;
-      },
-      async exchange(code, verifier, redirectUri) {
+      });
+    },
+    exchange(code, verifier, redirectUri) {
+      return guarded(async () => {
         const token = z
           .object({
-            code: z.number().optional(),
-            access_token: z.string().optional(),
+            code: z.literal(0),
+            access_token: z.string().min(1),
           })
           .parse(
             await json(
-              "https://open.feishu.cn/open-apis/authen/v2/oauth/token",
+              "https://accounts.feishu.cn/oauth/v3/token",
               {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
                   grant_type: "authorization_code",
                   client_id: config.clientId,
                   client_secret: config.clientSecret,
@@ -159,88 +231,37 @@ export function provider(config: ProviderConfig): Provider {
                   code_verifier: verifier,
                 }),
               },
+              transport,
             ),
           );
-        if ((token.code ?? 0) !== 0 || !token.access_token) throw denied();
         const info = z
           .object({
             code: z.literal(0),
             data: z.object({
               open_id: z.string().min(1),
-              tenant_key: z.string().optional(),
+              tenant_key: z.string().min(1),
               name: z.string().optional(),
             }),
           })
           .parse(
-            await json("https://open.feishu.cn/open-apis/authen/v1/user_info", {
-              headers: { Authorization: "Bearer " + token.access_token },
-            }),
+            await json(
+              "https://open.feishu.cn/open-apis/authen/v1/user_info",
+              {
+                headers: { Authorization: "Bearer " + token.access_token },
+              },
+              transport,
+            ),
           );
         return {
           connection: config.id,
           method: "feishu",
           subject: info.data.open_id,
-          tenant: info.data.tenant_key ?? null,
+          tenant: info.data.tenant_key,
+          // Feishu contacts are administrator-imported, not proof of email ownership.
           email: null,
-          name: info.data.name ?? "Feishu member",
+          name: info.data.name?.trim() ? info.data.name : "Feishu member",
         };
-      },
-    };
-  return {
-    id: config.id,
-    method: "wechat",
-    async authorize(state, _verifier, redirectUri) {
-      if (config.surface === "native")
-        throw new DomainError(
-          409,
-          "native_sdk_required",
-          "This WeChat connection requires its native SDK authorization surface",
-        );
-      const url = new URL(
-        config.surface === "website"
-          ? "https://open.weixin.qq.com/connect/qrconnect"
-          : "https://open.weixin.qq.com/connect/oauth2/authorize",
-      );
-      url.search = new URLSearchParams({
-        appid: config.clientId,
-        redirect_uri: redirectUri,
-        response_type: "code",
-        scope:
-          config.surface === "website" ? "snsapi_login" : "snsapi_userinfo",
-        state,
-      }).toString();
-      url.hash = "wechat_redirect";
-      return url.href;
-    },
-    async exchange(code, _verifier, _redirectUri) {
-      const url = new URL("https://api.weixin.qq.com/sns/oauth2/access_token");
-      url.search = new URLSearchParams({
-        appid: config.clientId,
-        secret: config.clientSecret,
-        code,
-        grant_type: "authorization_code",
-      }).toString();
-      const token = z
-        .object({ access_token: z.string().min(1), openid: z.string().min(1) })
-        .parse(await json(url.href));
-      const userInfo = new URL("https://api.weixin.qq.com/sns/userinfo");
-      userInfo.search = new URLSearchParams({
-        access_token: token.access_token,
-        openid: token.openid,
-        lang: "en",
-      }).toString();
-      const info = z
-        .object({ openid: z.string(), nickname: z.string().optional() })
-        .parse(await json(userInfo.href));
-      if (info.openid !== token.openid) throw denied();
-      return {
-        connection: config.id,
-        method: "wechat",
-        subject: token.openid,
-        tenant: null,
-        email: null,
-        name: info.nickname ?? "WeChat member",
-      };
+      });
     },
   };
 }

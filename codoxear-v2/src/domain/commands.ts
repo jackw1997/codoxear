@@ -230,7 +230,8 @@ export function acceptInvite(s: State, actorId: string, token: string) {
             i.method === target.method &&
             (target.method === "phone"
               ? i.subject === target.phone
-              : i.connection === target.connection &&
+              : // Google and Feishu grants bind provider identities, never contact email.
+                i.connection === target.connection &&
                 i.subject === target.subject &&
                 i.tenant === target.tenant),
         );

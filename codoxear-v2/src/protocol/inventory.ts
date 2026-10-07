@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Agent, Hub, Id, Name, Policy, Role } from "../contracts/model.js";
+import { DeviceKeyEnrollmentRequest, DeviceKeyLoginRequest, DeviceKeyProof, DeviceKeyChallengeResponse, DeviceKeyMetadata } from "../contracts/device-keys.js";
 import { AuthRequirement } from "../contracts/identity.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { Launch } from "../contracts/tunnel.js";
@@ -661,39 +662,27 @@ define("GET", "/api/v1/me", {
   }),
   statuses: [200, 401, 403, 404, 500],
 });
-define("POST", "/api/v1/auth/password", {
-  auth: "public",
-  summary: "Provisioned password login at this authority",
-  body: z.object({
-    email: z.email(),
-    password: z.string().min(1).max(512),
-    installationId: Id.default("web"),
-  }),
-  response: z.object({ userId: Id }),
-  statuses: [200, 400, 401, 403, 429, 500],
+define("POST", "/api/v1/auth/setup", {
+  auth: "account", summary: "Claim initial Hub ownership with verified provider identity and one-time setup code",
+  body: z.object({ token: z.string().min(32).max(256) }), response: ok,
+  statuses: [200, 400, 401, 403, 404, 409, 429, 500],
 });
-define("POST", "/api/v1/auth/code", {
-  auth: "public",
-  summary:
-    "Deliver an expiring transaction-bound email/SMS code; linking requires a current account",
-  body: z.object({
-    method: z.enum(["email", "phone"]),
-    target: z.string().max(254),
-    link: z.boolean().default(false),
-  }),
-  statuses: [200, 400, 401, 403, 429, 500, 503],
+for (const [path, body, response, auth] of [
+  ["enroll/challenge", DeviceKeyEnrollmentRequest, DeviceKeyChallengeResponse, "account"],
+  ["enroll/verify", DeviceKeyProof, z.object({ keyId: z.string() }), "account"],
+  ["challenge", DeviceKeyLoginRequest, DeviceKeyChallengeResponse, "public"],
+  ["verify", DeviceKeyProof, authTokens, "public"],
+] as const) define("POST", "/api/v1/auth/keys/" + path, {
+  auth, summary: "Client-held key enrollment or single-use signed challenge authentication",
+  body, response, statuses: [200, 400, 401, 403, 404, 409, 429, 500],
 });
-define("POST", "/api/v1/auth/code/verify", {
-  auth: "public",
-  summary: "Verify one unused code without merging independent identities",
-  body: z.object({
-    challengeId: Id,
-    transaction: z.string().min(32).max(100),
-    code: z.string().regex(/^\d{6}$/),
-    installationId: Id.default("web"),
-  }),
-  response: z.object({ userId: Id }),
-  statuses: [200, 400, 401, 403, 404, 429, 500],
+define("GET", "/api/v1/me/keys", {
+  auth: "account", summary: "List this account's registered client public keys",
+  response: z.array(DeviceKeyMetadata), statuses: [200, 401, 403, 500],
+});
+define("DELETE", "/api/v1/me/keys/:id", {
+  auth: "account", summary: "Revoke a client key and every session derived from it",
+  response: ok, statuses: [200, 400, 401, 403, 404, 500],
 });
 define("POST", "/api/v1/hub-token", {
   summary: "Issue a five-minute token whose audience is exactly one Hub",
@@ -960,6 +949,7 @@ const publicPaths = new Set([
   "/auth/start",
   "/auth/callback",
   "/login",
+  "/register",
   "/hub-login.js",
   "/account.js",
   "/cache-design",
@@ -969,7 +959,7 @@ function entry(method: string, path: string, websocket = false): Endpoint {
   const asset =
     path.startsWith("/appearance/") ||
     path.endsWith(".js") ||
-    ["/", "/*", "/login", "/cache-design"].includes(path);
+    ["/", "/*", "/login", "/register", "/cache-design"].includes(path);
   const auth: EndpointAuth = path.startsWith("/internal/")
     ? "hub-service"
     : path.startsWith("/connect/")

@@ -11,16 +11,25 @@ import { createHubApp } from "../src/hub/app.js";
 import { NotificationInbox } from "../src/hub/notifications.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
-import { createHub, createComputer, passwordHash, reserveAgent } from "../src/domain/commands.js";
+import { createHub, createComputer, reserveAgent } from "../src/domain/commands.js";
 assert.ok(existsSync("/.dockerenv"), "Docker only");
 const callback = "codoxear-v2://oauth/callback";
 async function hub(origin: string) {
   const store = new Store(":memory:");
-  store.change(s => s.users.push({id:"alice",name:"Alice",email:"alice@native.invalid",passwordHash:passwordHash("native-test-password"),disabled:false}));
+  store.change(s => {
+    s.users.push({id:"alice",name:"Alice",email:"alice@native.invalid",passwordHash:"",disabled:false});
+    s.identity.identities.push({
+      id: "alice-google", userId: "alice", connection: "google-test", method: "google",
+      subject: "google-alice", tenant: null, email: null, verifiedAt: Date.now(),
+    });
+  });
   const created = store.change(s => createComputer(s,"alice",createHub(s,"alice","Native fixture").id,"Computer","alice"));
   store.change(s => {const agent=reserveAgent(s,"alice",created.computer.id,"Native tap","pi");agent.state="ready";agent.localId="native-session";});
   const local = await independentAuthority({origin,store,hubId:created.computer.hubId,otpKey:"native-test-key".repeat(4),clients:[{id:"codoxear-harmony",redirectUris:[callback]}],secureCookies:false});
-  const signed = local.authority.accounts.password("alice@native.invalid","native-test-password","browser");
+  const signed = local.authority.accounts.finish({
+    connection: "google-test", method: "google", subject: "google-alice",
+    tenant: null, email: null, name: "Alice",
+  }, "browser");
   const sessions = new HubSessions(":memory:");
   const inbox = new NotificationInbox(":memory:",created.computer.hubId,async()=>{}, {testMessage:true, supports: p=>p==="harmony",async send(){return "sent";}});
   const app = await createHubApp({origin,authority:local.client,localIdentity:local.identity,sessions,tunnels:new Tunnels(),notifications:inbox,secureCookies:false,webRoot:"/no-assets"});

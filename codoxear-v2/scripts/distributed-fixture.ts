@@ -10,7 +10,6 @@ import { Tokens, signingKey } from "../src/identity/tokens.js";
 import { Authority } from "../src/identity/authority.js";
 import {
   createHub,
-  passwordHash,
   invite,
   acceptInvite,
   secret,
@@ -27,8 +26,19 @@ store.change((s) => {
       id: name,
       name: name === "alice" ? "Alice" : "Bob",
       email: name + "@example.test",
-      passwordHash: passwordHash("browser-test-password"),
+      passwordHash: "",
       disabled: false,
+    });
+  for (const name of ["alice", "bob"])
+    s.identity.identities.push({
+      id: "fixture-google-" + name,
+      userId: name,
+      connection: "fixture-google",
+      method: "google",
+      subject: name,
+      tenant: null,
+      email: null,
+      verifiedAt: Date.now(),
     });
 });
 const key = await signingKey(keyPath),
@@ -38,18 +48,54 @@ const key = await signingKey(keyPath),
     },
   }),
   authority = new Authority(store, accounts, new Tokens(issuer, key)),
-  session = accounts.password(
-    "alice@example.test",
-    "browser-test-password",
-    "setup",
-  ).session;
+  aliceLogin = accounts.finish(
+    {
+      connection: "fixture-google",
+      method: "google",
+      subject: "alice",
+      tenant: null,
+      email: null,
+      name: "Alice",
+    },
+    "fixture-alice",
+  ),
+  bobLogin = accounts.finish(
+    {
+      connection: "fixture-google",
+      method: "google",
+      subject: "bob",
+      tenant: null,
+      email: null,
+      name: "Bob",
+    },
+    "fixture-bob",
+  ),
+  session = aliceLogin.session;
+// Test-only browser credentials stay private; no production authentication bypass.
+await writeFile(
+  "artifacts/distributed-sessions.json",
+  JSON.stringify({ alice: aliceLogin.credential, bob: bobLogin.credential }),
+  { mode: 0o600 },
+);
 const hubs = store.change((s) => {
   const home = createHub(s, "alice", "Home hub"),
     work = createHub(s, "alice", "Work hub");
   acceptInvite(
     s,
     "bob",
-    invite(s, "alice", "hub", home.id, "bob@example.test", "operator").token,
+    invite(
+      s,
+      "alice",
+      "hub",
+      home.id,
+      {
+        method: "google",
+        connection: "fixture-google",
+        subject: "bob",
+        tenant: null,
+      },
+      "operator",
+    ).token,
   );
   return [home, work];
 });
@@ -82,7 +128,6 @@ await writeFile(
     issuer,
     database,
     signingKey: keyPath,
-    otpKey: secret(),
     listenPort: 19420,
     secureCookies: false,
   }),

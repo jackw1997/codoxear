@@ -68,6 +68,9 @@ export class Accounts {
     )
       throw fail("Session revoked");
     if (session.parentId) this.sessionById(session.parentId);
+    if (session.deviceKeyId && !s.identity.deviceKeys.some(
+      (key) => key.id === session.deviceKeyId && key.userId === session.userId && !key.revoked,
+    )) throw fail("Client key revoked");
     return session;
   }
   forkSession(sessionId: string, installationId: string) {
@@ -80,6 +83,7 @@ export class Accounts {
         installationId,
       );
       created.session.parentId = source.id;
+      if (source.deviceKeyId) created.session.deviceKeyId = source.deviceKeyId;
       return created.session;
     });
   }
@@ -132,6 +136,40 @@ export class Accounts {
         installationId,
       ),
     );
+  }
+  deviceKey(keyId: string, installationId: string) {
+    return this.store.change((s) => {
+      const key = s.identity.deviceKeys.find((x) => x.id === keyId && !x.revoked);
+      if (!key || !s.users.some((u) => u.id === key.userId && !u.disabled)) throw fail();
+      const identity = s.identity.identities.find((i) => i.id === key.context.identityId && i.userId === key.userId);
+      if (!identity || identity.method !== key.context.method || identity.tenant !== key.context.tenant)
+        throw fail("Provider identity changed; register this client again");
+      const existing = s.identity.sessions.find((session) =>
+        session.deviceKeyId === key.id && session.installationId === installationId &&
+        session.userId === key.userId && !session.parentId && !session.revoked && session.expiresAt > this.now());
+      let issued: { credential: string; session: IdentitySession };
+      if (existing) {
+        const credential = secret();
+        existing.credentialHash = digest(credential);
+        existing.expiresAt = this.now() + 30 * 86400000;
+        // A client proof cannot make the original provider proof fresher.
+        existing.context = key.context;
+        issued = { credential, session: existing };
+        audit(s, key.userId, "identity.login", existing.id);
+      } else {
+        issued = this.issue(s, key.userId, key.context, installationId);
+      }
+      issued.session.deviceKeyId = key.id;
+      key.lastUsedAt = this.now();
+      // Every signed proof starts a new family. Earlier families belong to
+      // independent proofs, so their replay is rejected without revoking this
+      // newly proved session. Ordinary rotation keeps same-family replay checks.
+      s.identity.refresh = s.identity.refresh.filter((refresh) => refresh.sessionId !== issued.session.id);
+      const refreshToken = secret();
+      s.identity.refresh.push({ tokenHash: digest(refreshToken), familyId: id(), sessionId: issued.session.id,
+        used: false, expiresAt: issued.session.expiresAt });
+      return { ...issued, refreshToken };
+    });
   }
   rateLimit(key: string, max: number, window: number) {
     const limited = this.store.change((s) => {
@@ -336,6 +374,8 @@ export class Accounts {
       s.identity.identities = s.identity.identities.filter(
         (x) => x.id !== identity.id,
       );
+      for (const key of s.identity.deviceKeys)
+        if (key.context.identityId === identity.id) key.revoked = true;
       for (const active of s.identity.sessions)
         if (active.context.identityId === identity.id) active.revoked = true;
       audit(s, session.userId, "identity.unlink", identity.id);

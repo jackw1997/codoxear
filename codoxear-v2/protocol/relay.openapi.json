@@ -24196,6 +24196,7 @@
                   "email",
                   "phone",
                   "feishu",
+                  "google",
                   "wechat",
                   "oidc"
                 ]
@@ -24249,6 +24250,7 @@
                     "email",
                     "phone",
                     "feishu",
+                    "google",
                     "wechat",
                     "oidc"
                   ]
@@ -24300,12 +24302,8 @@
                 "method": {
                   "type": "string",
                   "enum": [
-                    "password",
-                    "email",
-                    "phone",
-                    "feishu",
-                    "wechat",
-                    "oidc"
+                    "google",
+                    "feishu"
                   ]
                 }
               },
@@ -24316,25 +24314,50 @@
               "additionalProperties": false
             }
           },
-          "codes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "email",
-                "phone"
-              ]
-            }
+          "registration": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "method": {
+                "type": "string",
+                "const": "provider"
+              }
+            },
+            "required": [
+              "enabled",
+              "method"
+            ],
+            "additionalProperties": false
           },
-          "password": {
-            "type": "boolean",
-            "const": true
+          "deviceKeys": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "const": true
+              },
+              "algorithm": {
+                "type": "string",
+                "const": "ES256"
+              }
+            },
+            "required": [
+              "enabled",
+              "algorithm"
+            ],
+            "additionalProperties": false
+          },
+          "setupRequired": {
+            "type": "boolean"
           }
         },
         "required": [
           "providers",
-          "codes",
-          "password"
+          "registration",
+          "deviceKeys",
+          "setupRequired"
         ],
         "additionalProperties": false
       },
@@ -24431,6 +24454,7 @@
                         "email",
                         "phone",
                         "feishu",
+                        "google",
                         "wechat",
                         "oidc"
                       ]
@@ -26130,7 +26154,7 @@
                         "not": {}
                       },
                       "target": {
-                        "$ref": "#/components/schemas/SharedUnion_1d4b99df700241c6"
+                        "$ref": "#/components/schemas/SharedUnion_bb4dcd3b8dcd883b"
                       },
                       "role": {
                         "type": "string",
@@ -26519,7 +26543,7 @@
                 "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
               },
               "target": {
-                "$ref": "#/components/schemas/SharedUnion_1d4b99df700241c6"
+                "$ref": "#/components/schemas/SharedUnion_bb4dcd3b8dcd883b"
               },
               "role": {
                 "type": "string",
@@ -29309,13 +29333,16 @@
         ],
         "additionalProperties": false
       },
-      "SharedUnion_1d4b99df700241c6": {
+      "SharedUnion_bb4dcd3b8dcd883b": {
         "oneOf": [
           {
             "$ref": "#/components/schemas/Sharedobject_7c4d69a28f967863"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_fee8de5fb9b44b1f"
+          },
+          {
+            "$ref": "#/components/schemas/Sharedobject_738f69e36e8ec068"
           },
           {
             "$ref": "#/components/schemas/Sharedobject_2b4aea04df9fa337"
@@ -29362,6 +29389,45 @@
         "required": [
           "method",
           "phone"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_738f69e36e8ec068": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "const": "google"
+          },
+          "connection": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "tenant": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "method",
+          "connection",
+          "subject",
+          "tenant"
         ],
         "additionalProperties": false
       },

@@ -14,7 +14,6 @@ import { Authority } from "../src/identity/authority.js";
 import { Tokens, signingKey } from "../src/identity/tokens.js";
 import { createIdentityApp } from "../src/identity/app.js";
 import {
-  passwordHash,
   secret,
   createHub,
   createComputer,
@@ -24,22 +23,28 @@ async function fixture() {
   const store = new Store(":memory:"),
     issuer = "https://identity.test",
     callback = "https://app.test/auth/callback";
-  store.change((s) =>
+  store.change((s) => {
     s.users.push({
       id: "alice",
       email: "alice@example.test",
       name: "Alice",
-      passwordHash: passwordHash("test-password"),
+      passwordHash: "",
       disabled: false,
-    }),
-  );
+    });
+    s.identity.identities.push({
+      id: "alice-google", userId: "alice", connection: "google-test",
+      method: "google", subject: "google-alice", tenant: null,
+      email: "alice@example.test", verifiedAt: Date.now(),
+    });
+  });
   const accounts = new Accounts(store, secret(), { async send() {} }),
     authority = new Authority(
       store,
       accounts,
       new Tokens(issuer, await signingKey()),
     ),
-    owner = accounts.password("alice@example.test", "test-password", "web"),
+    owner = accounts.finish({ connection: "google-test", method: "google", subject: "google-alice",
+      tenant: null, email: "alice@example.test", name: "Alice" }, "web"),
     hub = store.change((s) => createHub(s, "alice", "Home"));
   const registration = authority.registerHub(
     owner.session,

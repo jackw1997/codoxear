@@ -35,3 +35,10 @@ The root [AGENTS.md](../AGENTS.md) remains binding for testing and product behav
 - Do not commit secrets or private runtime state. Deliver reviewed committed snapshots; keep configuration and credentials external. Preserve running agents during changes.
 
 Root instructions about `codoxear/util.py`, Python module locations, `pip install`, `pipx`, `scripts/deploy.sh`, the global password gate and restarting `codoxear-server.service` describe the legacy product. They do not prescribe v2 implementation or authorize using the legacy deploy command for v2. Use the v2 entry points and isolated verification configuration. This clarification preserves the root Docker, safety, design and behavioral-testing rules.
+
+## Provider-only client identity (7 October 2026)
+
+- Google and Feishu are the only registration/sign-in providers. No password, email-code or SMS login endpoints or migration fallback. The owner explicitly waived account migration.
+- Private P-256 device keys remain on the client; Hubs store public keys and verify single-use, origin/purpose-bound challenges. Never upload private keys or treat a client profile/email as authentication. Keep each account and Hub scoped independently.
+- New Hubs require a random one-time setup code plus a fresh verified provider sign-in to assign the first owner. Public registration alone never grants Hub membership or Computer access. No automatic first-visitor ownership.
+- Provider app secrets remain in private backend configuration. Actual provider login acceptance requires configured real apps; controlled-provider browser tests are reported separately.

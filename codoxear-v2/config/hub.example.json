@@ -6,15 +6,19 @@
   "catalog": "./state/hub-catalog.sqlite",
   "database": "./state/hub-sessions.sqlite",
   "signingKey": "./state/hub-signing-key.json",
-  "otpKey": "REPLACE_WITH_A_RANDOM_SECRET_OF_AT_LEAST_32_CHARACTERS",
-  "clientOrigins": ["https://client.example.com"],
+  "clientOrigins": [
+    "https://client.example.com"
+  ],
   "clients": [
     {
       "id": "codoxear-web",
-      "redirectUris": ["https://client.example.com/auth-callback"]
+      "redirectUris": [
+        "https://client.example.com/auth-callback"
+      ]
     }
   ],
   "listenHost": "127.0.0.1",
   "listenPort": 17430,
-  "secureCookies": true
+  "secureCookies": true,
+  "setupToken": "REPLACE_WITH_A_RANDOM_ONE_TIME_SETUP_CODE_OF_AT_LEAST_32_CHARACTERS"
 }

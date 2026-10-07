@@ -5,13 +5,12 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { Store } from "../../src/persistence/store.js";
-import { createHub, createComputer, id, passwordHash, passwordMatches, digest } from "../../src/domain/commands.js";
-import { canCreate } from "../../src/domain/policy.js";
+import { createComputer, digest } from "../../src/domain/commands.js";
+import { initializeHub } from "../../src/auth/hub-setup.js";
 import { Attachment } from "../../src/computer/config.js";
 
 const Config = z.object({ independent: z.literal(true), hubId: z.string().min(1), name: z.string(), origin: z.url(),
   catalog: z.literal("/state/catalog.sqlite"), database: z.literal("/state/sessions.sqlite"), signingKey: z.literal("/state/key.json") });
-const Owner = z.object({ email: z.email(), password: z.string().min(12) });
 const Receipt = z.object({ version: z.literal(1), status: z.literal("complete"), hubs: z.array(z.object({ hubId: z.string(), ownerId: z.string() })).length(2),
   computers: z.array(z.object({ name: z.enum(["computer-a", "computer-b"]), computerId: z.string() })).length(2) })
   .refine(receipt => new Set(receipt.computers.map(c => c.name)).size === 2 && new Set(receipt.computers.map(c => c.computerId)).size === 2);
@@ -30,7 +29,6 @@ export async function provisionFreshState(root: string) {
   if (!existsSync("/.dockerenv")) throw Error("Fresh provisioning requires Docker isolation");
   const configs = await Promise.all([0, 1].map(async i => Config.parse(await json(join(root, `config/hub-${i}.json`)))));
   if (configs[0]!.hubId === configs[1]!.hubId) throw Error("Fresh Hubs must have independent identities");
-  const owner = Owner.parse(await json(join(root, "private/owner.json")));
   const receiptFile = join(root, "provision-receipt.json");
   if (existsSync(receiptFile)) {
     let receipt: z.infer<typeof Receipt>;
@@ -41,14 +39,15 @@ export async function provisionFreshState(root: string) {
       const store = new Store(join(root, `hub-${i}/catalog.sqlite`));
       try {
         const state = store.read(), recorded = receipt.hubs[i]!;
+        const hub = state.hubs.find(h => h.id === recorded.hubId);
         const user = state.users.find(u => u.id === recorded.ownerId);
-        if (recorded.hubId !== configs[i]!.hubId || !state.hubs.some(h => h.id === recorded.hubId && h.ownerId === recorded.ownerId) ||
-          !user || user.email !== owner.email || !passwordMatches(owner.password, user.passwordHash))
+        if (recorded.hubId !== configs[i]!.hubId || !hub ||
+          !user || user.passwordHash !== "")
           throw Error("Provision receipt does not match the current Hub state");
         if (i === 0) for (const entry of receipt.computers) {
           const attachment = Attachment.parse(await json(join(root, entry.name, "computer/attachment.json")));
           const computer = state.computers.find(c => c.id === entry.computerId);
-          if (!computer || computer.hubId !== recorded.hubId || !canCreate(state, recorded.ownerId, computer) || attachment.computerId !== computer.id ||
+          if (!computer || computer.hubId !== recorded.hubId || computer.ownerId !== hub!.ownerId || attachment.computerId !== computer.id ||
             attachment.hubId !== recorded.hubId || attachment.hubUrl !== configs[0]!.origin ||
             computer.credentialHash !== digest(attachment.credential) || attachment.runtime !== "oar" ||
             attachment.oarMaxResident !== 1 || attachment.oarPermissionPolicy !== "locally-trusted" ||
@@ -70,12 +69,14 @@ export async function provisionFreshState(root: string) {
   for (let i = 0; i < 2; i++) {
     const config = configs[i]!, store = new Store(join(root, `hub-${i}/catalog.sqlite`));
     try {
-      const ownerId = id();
+      let ownerId = "";
       const attachments = store.change(state => {
-        state.users.push({ id: ownerId, email: owner.email, name: "Owner", passwordHash: passwordHash(owner.password), disabled: false });
-        const hub = createHub(state, ownerId, config.name); hub.id = config.hubId;
+        const hub = initializeHub(state, config.hubId, config.name);
+        ownerId = hub.ownerId;
         if (i !== 0) return [];
-        return (["computer-a", "computer-b"] as const).map(name => {
+        const pending = state.users.find(u => u.id === ownerId)!;
+        pending.disabled = false;
+        const entries = (["computer-a", "computer-b"] as const).map(name => {
           const admitted = createComputer(state, ownerId, hub.id, name === "computer-a" ? "Computer A" : "Computer B", ownerId);
           computers.push({ name, computerId: admitted.computer.id });
           return { name, attachment: Attachment.parse({ version: 1, hubUrl: config.origin, hubId: hub.id,
@@ -83,6 +84,8 @@ export async function provisionFreshState(root: string) {
             runtime: "oar", oarPermissionPolicy: "locally-trusted", oarMaxResident: 1,
             nativeHome: "/home/node", nativeStateHome: "/home/node/computer", workspacePath: "/home/node/workspace" }) };
         });
+        pending.disabled = true;
+        return entries;
       });
       for (const entry of attachments) await durable(join(root, entry.name, "computer/attachment.json"), entry.attachment, true);
       hubs.push({ hubId: config.hubId, ownerId });

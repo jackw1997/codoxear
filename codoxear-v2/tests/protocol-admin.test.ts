@@ -67,7 +67,7 @@ async function fixture(independent: boolean) {
     };
     local = { authority, identity, client: new AuthorityClient(identityOrigin, created.hub.id, registration.credential, transport) };
   }
-  const signed = Object.fromEntries(["alice", "bob"].map(id => [id, local.authority.accounts.password(id + "@admin.invalid", "fixture-password", "fixture-" + id)]));
+  const signed = Object.fromEntries(["alice", "bob"].map(id => [id, local.authority.accounts.finish({method:"google",connection:"google-fixture",subject:id,tenant:null,email:id+"@admin.invalid",name:id}, "fixture-"+id, local.authority.accounts.password(id+"@admin.invalid","fixture-password","seed").session.id)]));
   const identityTokens: Record<string, string> = {}, hubTokens: Record<string, string> = {};
   for (const id of ["alice", "bob"]) { identityTokens[id] = await local.authority.tokens.issue(signed[id]!.session, identityOrigin, "identity_access"); hubTokens[id] = (await local.authority.hubToken(signed[id]!.session, created.hub.id)).accessToken; }
   const tunnels = new Tunnels(), sessions = new HubSessions(":memory:");
@@ -131,13 +131,14 @@ test("independent Hub administrative and account responses conform to exact regi
     const directory = await f.request("identity", "POST", "/api/v1/me/agents", "/api/v1/me/agents");
     assert.ok(directory.agents.some((agent: any) => agent.id === f.created.agent.id)); assert.equal(f.store.read().agents.length, before);
     await f.request("identity", "POST", "/api/v1/hub-token", "/api/v1/hub-token", { hubId: f.created.hub.id });
-    await f.request("identity", "PUT", `/api/v1/hubs/${f.created.hub.id}/auth-requirement`, "/api/v1/hubs/:id/auth-requirement", { rule: { method: "password", maxAgeSeconds: 3600 } });
+    await f.request("identity", "PUT", `/api/v1/hubs/${f.created.hub.id}/auth-requirement`, "/api/v1/hubs/:id/auth-requirement", { rule: { method: "google", maxAgeSeconds: 3600 } });
     const enrollment = await f.request("identity", "POST", `/api/v1/hubs/${f.created.hub.id}/computers`, "/api/v1/hubs/:id/computers", { name: "Enrollment" });
     await f.request("identity", "POST", "/api/v1/pairing/redeem", "/api/v1/pairing/redeem", { code: enrollment.enrollment.code });
-    const challenge = await f.request("identity", "POST", "/api/v1/auth/code", "/api/v1/auth/code", { method: "email", target: "linked@admin.invalid", link: true });
-    await f.request("identity", "POST", "/api/v1/auth/code/verify", "/api/v1/auth/code/verify", { challengeId: challenge.challengeId, transaction: challenge.transaction, code: f.delivered.at(-1), installationId: "linked-email" });
-    const profile = await f.request("identity", "GET", "/api/v1/me", "/api/v1/me"); assert.equal(profile.identities.length, 1);
-    await f.request("identity", "DELETE", `/api/v1/me/identities/${profile.identities[0].id}`, "/api/v1/me/identities/:id");
+    f.local.authority.accounts.finish({method:"feishu",connection:"feishu-fixture",subject:"linked",tenant:"fixture",email:null,name:"Alice"}, "linked-provider", f.signed.alice!.session.id);
+    const profile = await f.request("identity", "GET", "/api/v1/me", "/api/v1/me"); assert.equal(profile.identities.length, 2);
+    const linked = profile.identities.find((identity: any) => identity.method === "feishu");
+    await f.request("identity", "DELETE", `/api/v1/me/identities/${linked.id}`, "/api/v1/me/identities/:id");
+    await f.request("identity", "GET", "/api/v1/me/keys", "/api/v1/me/keys");
     const invitation = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "viewer" });
     await f.request("hub", "POST", "/api/invitations/accept", "/api/invitations/accept", { token: invitation.token }, "bob");
     const another = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "operator" });

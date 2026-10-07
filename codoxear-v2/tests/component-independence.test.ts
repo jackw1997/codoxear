@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
+import { Store } from "../src/persistence/store.js";
+import { Accounts } from "../src/auth/accounts.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 
 assert.ok(existsSync("/.dockerenv"), "Run component acceptance in Docker");
@@ -68,26 +70,32 @@ test("two independent hub processes own separate accounts and survive sibling sh
       const config = join(home, `hub-${i}.json`);
       await writeFile(config, JSON.stringify({
         origin, hubId: `hub-${i}`, independent: true,
-        database: join(home, `hub-${i}.sqlite`), otpKey: "fixture-otp-key-".repeat(4),
+        database: join(home, `hub-${i}.sqlite`), setupToken: "fixture-setup-code-".repeat(4),
         listenPort: Number(new URL(origin).port), secureCookies: false,
       }));
       const child = start("src/hub/main.ts", {
         CODOXEAR_HUB_CONFIG: config,
         CODOXEAR_IDENTITY_CONFIG: "",
-        CODOXEAR_BOOTSTRAP_EMAIL: `owner-${i}@example.test`,
-        CODOXEAR_BOOTSTRAP_PASSWORD: `fixture-password-${i}`,
       });
       children.push(child);
       await ready(origin, child);
     }
+    const credentials: string[] = [];
     for (let i = 0; i < 2; i++) {
-      const login = (email: string, password: string) => fetch(origins[i]! + "/api/v1/auth/password", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }),
-      });
-      const own = await login(`owner-${i}@example.test`, `fixture-password-${i}`);
-      assert.equal(own.status, 200, await own.text());
-      const sibling = await login(`owner-${1-i}@example.test`, `fixture-password-${1-i}`);
-      assert.equal(sibling.status, 401);
+      const store = new Store(join(home, `hub-${i}.sqlite.catalog`));
+      try {
+        const accounts = new Accounts(store, "fixture-secret".repeat(4), {async send(){throw new Error("disabled");}});
+        credentials.push(accounts.finish({method:"google",connection:"google-fixture",subject:"same-person",tenant:null,email:null,name:"Fixture"}, "fixture").credential);
+      } finally { store.close(); }
+    }
+    for (let i = 0; i < 2; i++) {
+      const me = (credential: string) => fetch(origins[i]! + "/api/v1/me", {headers:{cookie:`codoxear_identity_hub-${i}=${credential}`}});
+      assert.equal((await me(credentials[i]!)).status, 200);
+      assert.equal((await me(credentials[1-i]!)).status, 401);
+      assert.equal((await fetch(origins[i]!+"/api/v1/auth/password",{method:"POST",headers:{"content-type":"application/json"},body:"{}"})).status,404);
+      const options = await (await fetch(origins[i]!+"/api/v1/auth/options")).json();
+      assert.equal(options.setupRequired,true);
+      assert.equal(options.password,undefined);
     }
     await stop(children[0]!.child);
     assert.equal((await fetch(origins[1]! + "/health")).status, 200);

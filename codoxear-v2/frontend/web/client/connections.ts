@@ -7,6 +7,8 @@ import { attachCommand, computerSetup } from "./computer-setup.js";
 import { delegationSection, bindDelegation } from "./delegation.js";
 import { vault, type HubLogin } from "./vault.js";
 import { connectHub, identitySettingsUrl } from "./login.js";
+import { deviceKeys } from "./device-keys.js";
+import { canonicalOrigin } from "../../shared/context.js";
 import { ConnectionPages, esc, icon, field, submit, message } from "./views.js";
 import {
   workspaceAccessFields,
@@ -166,11 +168,36 @@ export function openConnections(
     submit(
       root.querySelector("form")!,
       async (data) => {
-        root.querySelector("[role=status]")!.textContent =
-          "Complete sign-in in the hub window.";
-        await connectHub(String(data.get("origin")));
-        await changed();
-        home();
+        let origin: string;
+        try {
+          origin = canonicalOrigin(
+            String(data.get("origin")).trim().replace(/\/$/, ""),
+          );
+        } catch {
+          throw new Error(
+            "Enter a complete HTTPS hub address, such as https://hub.example.com.",
+          );
+        }
+        const keys = (await deviceKeys.list()).filter(
+          (key) => key.origin === origin,
+        );
+        const choice = page.render(
+          "Connect hub",
+          `<p class="connectionHint">${esc(origin)}</p><p class="connectionHint">Choose an account saved on this device, or register and sign in with Google or Feishu.</p><div class="connectionStack">${keys.map((key) => `<button data-device-key="${esc(key.id)}">Continue as ${esc(key.accountName)}</button>`).join("")}<button class="primary" data-provider>Continue with Google or Feishu</button></div><p class="connectionHint">Computer access appears after sign-in and requires an owner invitation.</p>`,
+          addHub,
+        );
+        const connect = (keyId?: string) => {
+          void connectHub(origin, keyId)
+            .then(changed)
+            .then(home)
+            .catch(page.error);
+        };
+        choice.querySelector<HTMLButtonElement>("[data-provider]")!.onclick =
+          () => connect();
+        for (const button of choice.querySelectorAll<HTMLButtonElement>(
+          "[data-device-key]",
+        ))
+          button.onclick = () => connect(button.dataset.deviceKey);
       },
       (e) => {
         root.querySelector("[role=status]")!.textContent = "";
@@ -356,7 +383,7 @@ export function openConnections(
         const login = group.logins.find((l) => l.id === b.dataset.forget)!;
         const view = page.render(
           "Disconnect hub",
-          `<div class="connectionForm"><p>Remove the saved ${esc(login.identity.method)} sign-in for ${esc(login.name)} from this device?</p><p class="connectionHint">Your hub, computers and agents will remain available.</p><div class="connectionActions"><button data-cancel>Cancel</button><button class="primary" data-confirm>Disconnect</button></div></div>`,
+          `<div class="connectionForm"><p>Remove the saved ${esc(login.identity.method)} sign-in for ${esc(login.name)} from this device?</p><p class="connectionHint">Your device sign-in key remains available for reconnecting. Revoke it in Sign-in methods to remove its access.</p><div class="connectionActions"><button data-cancel>Cancel</button><button class="primary" data-confirm>Disconnect</button></div></div>`,
           () => settings(group, hub),
         );
         view.querySelector<HTMLButtonElement>("[data-cancel]")!.onclick = () =>

@@ -65,7 +65,7 @@ try {
         ...(role === "hub" ? { origin, hubId: "image-smoke-hub" } : { issuer: origin }),
         database,
         signingKey: join(temporary, "key.json"),
-        otpKey: randomBytes(32).toString("hex"),
+        setupToken: randomBytes(32).toString("hex"),
         listenPort: port,
         secureCookies: false,
       }), { mode: 0o600 });

@@ -1,11 +1,15 @@
 import { vault, type HubLogin } from "./vault.js";
+import { deviceKeys, enrollDevice, proveDevice } from "./device-keys.js";
 import { canonicalOrigin } from "../../shared/context.js";
 const random = () =>
   btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
-export async function connectHub(value: string): Promise<HubLogin> {
+export async function connectHub(
+  value: string,
+  deviceKeyId?: string,
+): Promise<HubLogin> {
   let origin: string;
   try {
     origin = canonicalOrigin(value.trim().replace(/\/$/, ""));
@@ -13,6 +17,15 @@ export async function connectHub(value: string): Promise<HubLogin> {
     throw new Error(
       "Enter a complete HTTPS hub address, such as https://hub.example.com.",
     );
+  }
+  if (deviceKeyId) {
+    const key = await deviceKeys.get(origin, deviceKeyId);
+    if (!key)
+      throw new Error(
+        "This device key is no longer available. Continue with Google or Feishu.",
+      );
+    const tokens = await proveDevice(key);
+    return saveLogin(origin, tokens, key);
   }
   // Open synchronously from the user's click, then perform discovery and PKCE.
   const popup = window.open(
@@ -84,8 +97,7 @@ export async function connectHub(value: string): Promise<HubLogin> {
           : done(new Error("Hub sign-in rejected"));
       }
       addEventListener("message", message);
-      popup.location.href =
-        origin +
+      const authorize =
         "/oauth/authorize?" +
         new URLSearchParams({
           client_id: "codoxear-web",
@@ -97,6 +109,8 @@ export async function connectHub(value: string): Promise<HubLogin> {
           theme: document.documentElement.dataset.theme ?? "clay",
           mode: localStorage.getItem("codoxear.ui.theme.mode") ?? "system",
         });
+      popup.location.href =
+        origin + "/login?" + new URLSearchParams({ continue: authorize });
     });
     const res = await fetch(origin + "/oauth/token", {
       method: "POST",
@@ -114,47 +128,89 @@ export async function connectHub(value: string): Promise<HubLogin> {
     });
     const tokens = await res.json();
     if (!res.ok) throw new Error(tokens.error ?? "Hub rejected sign-in");
-    const userRes = await fetch(origin + "/api/v1/me", {
-      credentials: "omit",
-      headers: { Authorization: "Bearer " + tokens.access_token },
-    });
-    const me = await userRes.json();
-    if (!userRes.ok) throw new Error(me.error);
-    const hubsRes = await fetch(origin + "/api/v1/me/hubs", {
-      credentials: "omit",
-      headers: { Authorization: "Bearer " + tokens.access_token },
-    });
-    const hubs = await hubsRes.json();
-    const sameAccount = (await vault.list()).filter(
-      (l) => l.origin === origin && l.accountId === me.id,
-    );
-    const identityKey = me.context.identityId ?? "password";
-    const existing = sameAccount.find((l) => l.identity.key === identityKey);
-    const login: HubLogin = {
-      id: existing?.id ?? crypto.randomUUID(),
-      accountKey: sameAccount[0]?.accountKey ?? crypto.randomUUID(),
-      origin,
-      hubId: meta.hubId,
-      name:
-        hubs.find((h: any) => h.id === meta.hubId)?.name ??
-        new URL(origin).host,
-      accountId: me.id,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: Date.now() + tokens.expires_in * 1000,
-      pushSession: crypto.randomUUID(),
-      identity: {
-        name: me.name,
-        method: me.context.method,
-        key: identityKey,
-        identities: me.identities,
-      },
-    };
-    await vault.put(login);
-    return login;
+    return saveLogin(origin, tokens);
   } finally {
     popup.close();
   }
+}
+
+async function saveLogin(
+  origin: string,
+  tokens: any,
+  savedKey?: import("./device-keys.js").DeviceIdentity,
+): Promise<HubLogin> {
+  const headers = { Authorization: "Bearer " + tokens.access_token };
+  const [userRes, metaRes, hubsRes] = await Promise.all([
+    fetch(origin + "/api/v1/me", {
+      credentials: "omit",
+      redirect: "error",
+      headers,
+    }),
+    fetch(origin + "/api/v1/meta", { credentials: "omit", redirect: "error" }),
+    fetch(origin + "/api/v1/me/hubs", {
+      credentials: "omit",
+      redirect: "error",
+      headers,
+    }),
+  ]);
+  const [me, meta, hubs] = await Promise.all([
+    userRes.json(),
+    metaRes.json(),
+    hubsRes.json(),
+  ]);
+  if (
+    !userRes.ok ||
+    !metaRes.ok ||
+    !hubsRes.ok ||
+    meta.issuer !== origin ||
+    !meta.independent
+  )
+    throw new Error("Hub rejected account discovery");
+  if (savedKey && (savedKey.origin !== origin || savedKey.accountId !== me.id))
+    throw new Error("Device identity account mismatch");
+  const key = savedKey ?? (await enrollDevice(origin, me, tokens.access_token));
+  if (!savedKey) {
+    const providerTokens = tokens;
+    tokens = await proveDevice(key);
+    await fetch(origin + "/oauth/revoke", {
+      method: "POST",
+      credentials: "omit",
+      redirect: "error",
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + providerTokens.access_token,
+      },
+      body: JSON.stringify({ token: providerTokens.refresh_token }),
+    }).catch(() => {});
+  }
+  const sameAccount = (await vault.list()).filter(
+    (login) => login.origin === origin && login.accountId === me.id,
+  );
+  const existing = sameAccount.find((login) => login.deviceKeyId === key.id);
+  const login: HubLogin = {
+    id: existing?.id ?? crypto.randomUUID(),
+    accountKey: sameAccount[0]?.accountKey ?? crypto.randomUUID(),
+    origin,
+    hubId: meta.hubId,
+    name:
+      hubs.find((hub: any) => hub.id === meta.hubId)?.name ??
+      new URL(origin).host,
+    accountId: me.id,
+    deviceKeyId: key.id,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+    expiresAt: Date.now() + tokens.expires_in * 1000,
+    pushSession: crypto.randomUUID(),
+    identity: {
+      name: me.name,
+      method: me.context.method,
+      key: key.id,
+      identities: me.identities,
+    },
+  };
+  await vault.put(login);
+  return login;
 }
 
 export function identitySettingsUrl(login: HubLogin) {

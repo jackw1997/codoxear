@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { generateFreshState } from "../deploy/fresh-v2/bootstrap.js";
 import { provisionFreshState } from "../deploy/fresh-v2/provision.js";
 import { Store } from "../src/persistence/store.js";
-import { passwordMatches, digest } from "../src/domain/commands.js";
+import { digest } from "../src/domain/commands.js";
 import { canCreate } from "../src/domain/policy.js";
 import { prepareFreshGateway } from "../deploy/fresh-v2/gateway.js";
 assert.ok(existsSync("/.dockerenv"), "Fresh deployment tests run only in Docker");
@@ -21,7 +21,7 @@ test("fresh generation preserves origins and provider defaults without importing
     const bytes = JSON.stringify(launch);
     await writeFile(join(source, "pi-litellm-launch.json"), bytes);
     await writeFile(join(source, "old-catalog.sqlite"), "old history must stay separate");
-    await generateFreshState(target, undefined, source);
+    await generateFreshState(target, source);
     assert.equal(await readFile(join(target, "private/pi-litellm-launch.json"), "utf8"), bytes);
     const ids = [];
     for (let i = 0; i < 2; i++) {
@@ -39,7 +39,7 @@ test("fresh generation preserves origins and provider defaults without importing
       assert.equal(settings.defaultModel, launch.model);
       assert.equal(settings.defaultThinkingLevel, "high");
     }
-    assert.equal((await stat(join(target, "private/owner.json"))).mode & 0o777, 0o600);
+    assert.equal((await stat(join(target, "private/setup.json"))).mode & 0o777, 0o600);
     assert.equal(existsSync(join(target, "old-catalog.sqlite")), false);
     await prepareFreshGateway(target);
     const gatewayFile = join(target, "gateway/Caddyfile");
@@ -55,27 +55,28 @@ test("fresh generation preserves origins and provider defaults without importing
     await writeFile(gatewayFile, "operator-edited configuration");
     await assert.rejects(prepareFreshGateway(target), /refusing to overwrite/);
     assert.equal(await readFile(gatewayFile, "utf8"), "operator-edited configuration");
-    await assert.rejects(generateFreshState(target, undefined, source), /already exists/);
+    await assert.rejects(generateFreshState(target, source), /already exists/);
     assert.equal(await readFile(join(source, "pi-litellm-launch.json"), "utf8"), bytes);
     assert.deepEqual(await provisionFreshState(target), { alreadyProvisioned: false });
     const receiptBytes = await readFile(join(target, "provision-receipt.json"), "utf8");
     const receipt = JSON.parse(receiptBytes);
-    const owner = JSON.parse(await readFile(join(target, "private/owner.json"), "utf8"));
+    const owner = JSON.parse(await readFile(join(target, "private/setup.json"), "utf8"));
     const store = new Store(join(target, "hub-0/catalog.sqlite"));
     try {
       const state = store.read();
       assert.equal(state.users.length, 1);
-      assert.equal(passwordMatches(owner.password, state.users[0]!.passwordHash), true);
+      assert.equal(state.users[0]!.passwordHash, "");
+      assert.equal(state.users[0]!.disabled, true);
       assert.equal(state.computers.length, 2);
       for (const name of ["computer-a", "computer-b"]) {
         const attachment = JSON.parse(await readFile(join(target, name, "computer/attachment.json"), "utf8"));
         const computer = state.computers.find(c => c.id === attachment.computerId)!;
         assert.equal(attachment.hubId, receipt.hubs[0].hubId);
         assert.equal(computer.credentialHash, digest(attachment.credential));
-        assert.equal(canCreate(state, state.users[0]!.id, computer), true);
+        assert.equal(canCreate(state, state.users[0]!.id, computer), false);
         assert.equal(attachment.oarMaxResident, 1);
         assert.equal(attachment.runtime, "oar");
-        assert.equal(JSON.stringify(attachment).includes(owner.password), false);
+        assert.equal(JSON.stringify(attachment).includes(owner.hubs[0].setupToken), false);
       }
     } finally { store.close(); }
     assert.deepEqual(await provisionFreshState(target), { alreadyProvisioned: true });

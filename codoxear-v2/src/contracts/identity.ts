@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { WorkspaceOptions } from "./workspaces.js";
+import { DevicePublicKey } from "./device-keys.js";
 const Identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
 export const LoginMethod = z.enum([
   "password",
   "email",
   "phone",
   "feishu",
+  "google",
   "wechat",
   "oidc",
 ]);
@@ -36,6 +38,7 @@ export const IdentitySession = z.object({
   revoked: z.boolean(),
   installationId: Identifier,
   parentId: Identifier.optional(),
+  deviceKeyId: Identifier.optional(),
 });
 export type IdentitySession = z.infer<typeof IdentitySession>;
 export const OtpChallenge = z.object({
@@ -101,6 +104,17 @@ export const AuthRequirement = z.object({
 });
 export type AuthRequirement = z.infer<typeof AuthRequirement>;
 export const IdentityState = z.object({
+  deviceKeys: z.array(z.object({
+    id: Identifier, userId: Identifier, publicKey: DevicePublicKey,
+    name: z.string(), installationId: Identifier, context: LoginContext,
+    createdAt: z.number(), lastUsedAt: z.number().nullable(), revoked: z.boolean(),
+  })).default([]),
+  deviceKeyChallenges: z.array(z.object({
+    id: Identifier, purpose: z.enum(["enroll", "login"]), issuer: z.url(),
+    keyId: Identifier, publicKey: DevicePublicKey, payload: z.string(),
+    installationId: Identifier, name: z.string(),
+    enrollmentSessionId: Identifier.nullable(), expiresAt: z.number(), used: z.boolean(),
+  })).default([]),
   workspaceGrants: z.array(z.object({
     computerId: Identifier, userId: Identifier, ...WorkspaceOptions.shape,
     access: z.enum(["read", "write"]), binding: z.number().int().positive(), ownerRevision: z.number().int().nonnegative(),

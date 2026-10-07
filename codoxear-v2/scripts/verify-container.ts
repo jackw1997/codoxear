@@ -33,18 +33,15 @@ if (suite !== "full" && suite !== "managed")
   throw new Error("Unknown verification suite: " + suite);
 const files = (await readdir("tests"))
   .filter((name) => name.endsWith(".test.ts"))
-  .filter((name) => suite === "full" || /^(managed-|delegation|fresh-deployment)/.test(name))
+  .filter(
+    (name) =>
+      suite === "full" || /^(managed-|delegation|fresh-deployment)/.test(name),
+  )
   .sort()
   .map((name) => "tests/" + name);
 if (!files.length) throw new Error("No verification tests selected");
 await run(
-  [
-    "--import",
-    "tsx",
-    "--test",
-    "--test-concurrency=1",
-    ...files,
-  ],
+  ["--import", "tsx", "--test", "--test-concurrency=1", ...files],
   true,
   suite === "managed" ? "artifacts/managed-tests.tap" : "artifacts/tests.tap",
 );
@@ -74,7 +71,8 @@ try {
     await stopped;
   }
 }
-await run(["--import", "tsx", "scripts/browser-identity.ts"]);
+// Google/Feishu registration and device keys replace deprecated central password/code auth acceptance.
+await run(["--import", "tsx", "scripts/browser-registration.ts"]);
 const distributed = spawn(
   process.execPath,
   ["--import", "tsx", "scripts/distributed-fixture.ts"],

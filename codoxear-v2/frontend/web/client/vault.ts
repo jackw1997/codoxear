@@ -7,6 +7,7 @@ export interface HubLogin {
   hubId: string;
   name: string;
   accountId: string;
+  deviceKeyId: string;
   accessToken: string;
   refreshToken: string;
   expiresAt: number;

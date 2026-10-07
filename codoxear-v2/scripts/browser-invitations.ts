@@ -142,16 +142,16 @@ try {
     "owner-browser",
   );
   ownerSession = owner.session.id;
-  const phone = local.authority.accounts.finish(
+  const google = local.authority.accounts.finish(
     {
-      method: "phone",
-      connection: "phone",
-      subject: "+8613800138000",
+      method: "google",
+      connection: "google",
+      subject: "verified-google-id",
       tenant: null,
-      email: null,
-      name: "Phone member",
+      email: "member@google.fixture",
+      name: "Google member",
     },
-    "phone-browser",
+    "google-browser",
   );
   const colleague = local.authority.accounts.finish(
     {
@@ -166,7 +166,7 @@ try {
   );
   for (const [id, signed] of [
     ["alice", owner],
-    ["phone", phone],
+    ["google", google],
     ["feishu", colleague],
   ]) {
     tokens[id] = await local.authority.tokens.issue(
@@ -210,8 +210,11 @@ try {
   await dialog()
     .getByRole("button", { name: "Manage hub access", exact: true })
     .click();
-  await dialog().getByLabel("Invite by", { exact: true }).selectOption("phone");
-  await dialog().getByLabel("Phone number").fill("+8613800138000");
+  await dialog()
+    .getByLabel("Invite by", { exact: true })
+    .selectOption("google");
+  await dialog().getByLabel("Sign-in connection").fill("google");
+  await dialog().getByLabel("Identity ID").fill("verified-google-id");
   assert.equal(
     await dialog().getByLabel("Email", { exact: true }).isVisible(),
     false,
@@ -223,7 +226,7 @@ try {
     .locator("output")
     .filter({ hasText: "Invitation code:" })
     .waitFor();
-  const phoneCode = (await dialog().locator("output").textContent()).split(
+  const googleCode = (await dialog().locator("output").textContent()).split(
     ": ",
   )[1];
   await dialog()
@@ -249,7 +252,7 @@ try {
     ": ",
   )[1];
   checks.push(
-    "Owner creates phone and tenant-specific Feishu invitations using the actual mobile Manage access form",
+    "Owner creates Google and tenant-specific Feishu invitations using the actual mobile Manage access form",
   );
   async function acceptAs(id, code) {
     await page.evaluate((id) => window.signAs(id), id);
@@ -262,13 +265,33 @@ try {
       .getByRole("button", { name: "Accept invitation", exact: true })
       .click();
   }
-  await acceptAs("phone", feishuCode);
+  assert.equal(
+    store
+      .read()
+      .memberships.some((member) =>
+        [google.session.userId, colleague.session.userId].includes(
+          member.userId,
+        ),
+      ),
+    false,
+  );
+  await acceptAs("google", "invalid-invitation-code");
+  await dialog()
+    .getByRole("alert")
+    .filter({ hasText: "Invalid request" })
+    .waitFor();
+  checks.push(
+    "No provider account gains access before accepting an invitation; malformed codes display an error",
+  );
+  await acceptAs("google", feishuCode);
   await dialog()
     .getByRole("alert")
     .filter({ hasText: "different verified identity" })
     .waitFor();
-  checks.push("An unrelated phone identity cannot redeem a Feishu invitation");
-  await dialog().getByLabel("Invitation code", { exact: true }).fill(phoneCode);
+  checks.push("An unrelated Google identity cannot redeem a Feishu invitation");
+  await dialog()
+    .getByLabel("Invitation code", { exact: true })
+    .fill(googleCode);
   await dialog()
     .getByRole("button", { name: "Accept invitation", exact: true })
     .click();
@@ -279,7 +302,7 @@ try {
     store
       .read()
       .memberships.some(
-        (m) => m.userId === phone.session.userId && m.role === "viewer",
+        (m) => m.userId === google.session.userId && m.role === "viewer",
       ),
   );
   await acceptAs("feishu", feishuCode);
@@ -294,9 +317,9 @@ try {
       ),
   );
   checks.push(
-    "Phone and Feishu users accept through the actual invitation screen without linked email",
+    "Google and Feishu users accept through the actual invitation screen with verified provider identities",
   );
-  await acceptAs("phone", phoneCode);
+  await acceptAs("google", googleCode);
   await dialog()
     .getByRole("alert")
     .filter({ hasText: "already used" })
@@ -310,10 +333,10 @@ try {
   const form = dialog()
     .locator("form")
     .filter({
-      has: page.getByRole("heading", { name: "Phone member", exact: true }),
+      has: page.getByRole("heading", { name: "Google member", exact: true }),
     });
   await form
-    .getByLabel("Shared access for Phone member")
+    .getByLabel("Shared access for Google member")
     .selectOption("viewer");
   await form.getByRole("button", { name: "Save agent access" }).click();
   await form
@@ -325,10 +348,10 @@ try {
   });
   recipient.on("pageerror", (e) => errors.push(e.message));
   await recipient.goto(origin);
-  await recipient.evaluate(() => window.signAs("phone"));
+  await recipient.evaluate(() => window.signAs("google"));
   const snapshot = () =>
     recipient.evaluate(async () =>
-      (await fetch("/api/client/hubs/phone/api/agent-directory")).json(),
+      (await fetch("/api/client/hubs/google/api/agent-directory")).json(),
     );
   let directory = await snapshot();
   assert.deepEqual(
@@ -341,7 +364,7 @@ try {
     recipient.evaluate(
       async (id) =>
         (
-          await fetch(`/api/client/hubs/phone/api/agents/${id}/send`, {
+          await fetch(`/api/client/hubs/google/api/agents/${id}/send`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ text: "hello" }),
@@ -351,7 +374,7 @@ try {
     );
   assert.equal(await trySend(), 403);
   await form
-    .getByLabel("Shared access for Phone member")
+    .getByLabel("Shared access for Google member")
     .selectOption("operator");
   const upgraded = page.waitForResponse(
     (r) =>
@@ -368,7 +391,7 @@ try {
     .waitFor();
   await page.screenshot({ path: "artifacts/agent-sharing-mobile.png" });
   await form
-    .getByLabel("Shared access for Phone member")
+    .getByLabel("Shared access for Google member")
     .selectOption("viewer");
   const downgraded = page.waitForResponse(
     (r) =>
@@ -383,7 +406,7 @@ try {
     .filter({ hasText: "Shared agent viewer" })
     .waitFor();
   assert.equal(await trySend(), 403);
-  await form.getByLabel("Shared access for Phone member").selectOption("");
+  await form.getByLabel("Shared access for Google member").selectOption("");
   const saved = page.waitForResponse(
     (r) =>
       r.request().method() === "PUT" &&

@@ -613,14 +613,8 @@ test("independent hubs authenticate, authorize and revoke without any remote aut
 test("hub-local PKCE login issues client credentials and rejects replay and unregistered clients", async () => {
   const f = await fixture("https://hub.test");
   try {
-    const login = await f.app.inject({
-      method: "POST",
-      url: "/api/v1/auth/password",
-      payload: { email: "alice@example.test", password: "test-password" },
-    });
-    assert.equal(login.statusCode, 200, login.body);
-    const cookie = login.cookies.map((c) => c.name + "=" + c.value).join("; ");
-    assert.match(cookie, new RegExp("codoxear_identity_" + f.hubId));
+    const verified = f.local.authority.accounts.finish({method:"google",connection:"google-fixture",subject:"alice",tenant:null,email:null,name:"Alice"}, "fixture", f.signed.session.id);
+    const cookie = "codoxear_identity_" + f.hubId + "=" + verified.credential;
     const verifier = "v".repeat(43),
       challenge = createHash("sha256").update(verifier).digest("base64url");
     const q = new URLSearchParams({

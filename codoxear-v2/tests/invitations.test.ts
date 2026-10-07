@@ -64,14 +64,14 @@ test("phone invitation requires the current verified phone and remains single-us
   assert.equal(s.memberships[0]!.role, "viewer");
   assert.throws(() => acceptInvite(s, "bob", token));
 });
-for (const method of ["feishu", "wechat", "oidc"] as const)
+for (const method of ["google", "feishu", "wechat", "oidc"] as const)
   test(`${method} invitations bind connection, subject, tenant and method`, () => {
     const { s, h } = fixture();
     const target: InvitationTarget = {
       method,
       connection: "enterprise",
       subject: "recipient-id",
-      tenant: "team-a",
+      tenant: method === "google" ? null : "team-a",
     };
     const { token } = invite(s, "alice", "hub", h.id, target, "operator");
     const identity = {

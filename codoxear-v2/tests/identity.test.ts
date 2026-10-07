@@ -46,6 +46,65 @@ function fixture() {
   );
   return { store, accounts, delivered, advance: (ms: number) => (now += ms) };
 }
+// Controlled provider fixture for HTTP session tests; production uses verified adapters.
+function fixtureGoogle(store: Store, users = ["alice"]) {
+  store.change((state) => {
+    for (const userId of users)
+      state.identity.identities.push({
+        id: "google-" + userId,
+        userId,
+        connection: "test-google",
+        method: "google",
+        subject: userId,
+        tenant: null,
+        email: null,
+        verifiedAt: Date.now(),
+      });
+  });
+  return {
+    id: "test-google",
+    method: "google" as const,
+    async authorize(state: string, _verifier: string, redirectUri: string) {
+      const url = new URL("https://provider.example.test/authorize");
+      url.search = new URLSearchParams({
+        state,
+        redirect_uri: redirectUri,
+      }).toString();
+      return url.href;
+    },
+    async exchange(code: string) {
+      assert.ok(users.includes(code), "Unknown controlled provider user");
+      return {
+        connection: "test-google",
+        method: "google" as const,
+        subject: code,
+        tenant: null,
+        email: null,
+        name: code,
+      };
+    },
+  };
+}
+async function providerCookie(
+  app: Awaited<ReturnType<typeof createIdentityApp>>,
+  userId: string,
+) {
+  const start = await app.inject({ url: "/auth/test-google/start" });
+  assert.equal(start.statusCode, 302);
+  const state = new URL(start.headers.location!).searchParams.get("state")!;
+  const browser = start.cookies.find(
+    (cookie) => cookie.name === "codoxear_identity_oauth",
+  )!;
+  const callback = await app.inject({
+    url:
+      "/auth/test-google/callback?" +
+      new URLSearchParams({ state, code: userId }),
+    cookies: { [browser.name]: browser.value },
+  });
+  assert.equal(callback.statusCode, 302);
+  return callback.cookies.find((cookie) => cookie.name === "codoxear_identity")!
+    .value;
+}
 test("single-use OTP is transaction bound, attempt limited and expires", async () => {
   const f = fixture();
   try {
@@ -537,15 +596,11 @@ test("authorization code validates exact redirect and PKCE and cannot be redeeme
     app = await createIdentityApp({
       authority: a,
       secureCookies: false,
+      providers: [fixtureGoogle(f.store)],
       clients: [{ id: "native", redirectUris: ["https://app.test/return"] }],
     });
   try {
-    const login = await app.inject({
-        method: "POST",
-        url: "/api/v1/auth/password",
-        payload: { email: "alice@example.test", password: "test-password" },
-      }),
-      cookie = login.cookies[0]!.value,
+    const cookie = await providerCookie(app, "alice"),
       verifier = "v".repeat(43);
     const query = {
       client_id: "native",
@@ -689,7 +744,7 @@ test("local import and computer-wide files/settings require the computer owner, 
     f.store.close();
   }
 });
-test("OTP account linking fails without an existing authenticated browser", async () => {
+test("provider account linking fails without an existing authenticated browser", async () => {
   const f = fixture(),
     authority = new Authority(
       f.store,
@@ -699,13 +754,11 @@ test("OTP account linking fails without an existing authenticated browser", asyn
     app = await createIdentityApp({
       authority,
       secureCookies: false,
-      codeDelivery: ["email"],
+      providers: [fixtureGoogle(f.store)],
     });
   try {
     const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/auth/code",
-      payload: { method: "email", target: "link@example.test", link: true },
+      url: "/auth/test-google/start?link=1",
     });
     assert.equal(response.statusCode, 401);
     assert.equal(f.delivered.length, 0);
@@ -849,8 +902,12 @@ test("workspace grants are separate from agent roles and end on revocation, owne
     assert.deepEqual((read() as { workspace: unknown }).workspace, {
       id: "default",
       access: "read",
-      paths: ["."], git: false, uploads: false, transcode: false,
-      binding: c.binding, ownerRevision: c.revision,
+      paths: ["."],
+      git: false,
+      uploads: false,
+      transcode: false,
+      binding: c.binding,
+      ownerRevision: c.revision,
       grantRevision: f.store.read().identity.workspaceGrants[0]!.grantRevision,
     });
     assert.throws(() =>
@@ -869,7 +926,18 @@ test("workspace grants are separate from agent roles and end on revocation, owne
           workspace: unknown;
         }
       ).workspace,
-      { id: "default", access: "write", paths: ["."], git: false, uploads: false, transcode: false, binding: c.binding, ownerRevision: c.revision, grantRevision: f.store.read().identity.workspaceGrants[0]!.grantRevision },
+      {
+        id: "default",
+        access: "write",
+        paths: ["."],
+        git: false,
+        uploads: false,
+        transcode: false,
+        binding: c.binding,
+        ownerRevision: c.revision,
+        grantRevision:
+          f.store.read().identity.workspaceGrants[0]!.grantRevision,
+      },
     );
     f.store.change((s) => {
       setPolicy(s, "alice", "hub", h.id, "retain");
@@ -1013,18 +1081,13 @@ test("settings Computer creation requires the hub owner and returns only one-tim
       invite(s, "alice", "hub", h.id, "bob@example.test", "operator").token,
     ),
   );
-  const app = await createIdentityApp({ authority });
+  const app = await createIdentityApp({
+    authority,
+    providers: [fixtureGoogle(f.store, ["alice", "bob"])],
+  });
   try {
-    const login = async (email: string) =>
-      (
-        await app.inject({
-          method: "POST",
-          url: "/api/v1/auth/password",
-          payload: { email, password: "test-password" },
-        })
-      ).cookies[0]!.value;
-    const owner = await login("alice@example.test"),
-      member = await login("bob@example.test");
+    const owner = await providerCookie(app, "alice"),
+      member = await providerCookie(app, "bob");
     const url = `/api/v1/hubs/${h.id}/computers`;
     assert.equal(
       (

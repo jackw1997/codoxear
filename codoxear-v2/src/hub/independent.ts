@@ -15,7 +15,8 @@ export async function independentAuthority(options: {
   hubId: string;
   store: Store;
   signingKey?: string;
-  otpKey: string;
+  otpKey?: string;
+  setup?: IdentityOptions["setup"];
   delivery?: ConstructorParameters<typeof Accounts>[2] | undefined;
   providers?: IdentityOptions["providers"];
   clients?: IdentityOptions["clients"];
@@ -42,7 +43,7 @@ export async function independentAuthority(options: {
   });
   const accounts = new Accounts(
     store,
-    options.otpKey,
+    options.otpKey ?? secret(),
     options.delivery ?? {
       async send() {
         throw new Error("Email/SMS delivery is not configured on this hub");
@@ -56,6 +57,7 @@ export async function independentAuthority(options: {
   );
   const identity = await createIdentityApp({
     authority,
+    ...(options.setup ? { setup: options.setup } : {}),
     frontendAssetsRoot: options.frontendAssetsRoot,
     localHubId: hubId,
     cookieName: "codoxear_identity_" + hubId,

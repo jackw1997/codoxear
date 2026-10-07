@@ -112,6 +112,12 @@ function validateRelations(s: State): void {
     s.identity.sessions.map((i) => i.id),
     "identity session",
   );
+  unique(s.identity.deviceKeys.map((key) => key.id), "client key");
+  unique(s.identity.deviceKeyChallenges.map((challenge) => challenge.id), "client key challenge");
+  for (const key of s.identity.deviceKeys)
+    if (!s.users.some((user) => user.id === key.userId) ||
+      (!key.revoked && !s.identity.identities.some((identity) => identity.id === key.context.identityId && identity.userId === key.userId)))
+      throw new Error("Client key needs an existing user and provider identity");
   unique(
     s.identity.sessions.map((i) => i.credentialHash),
     "identity credential",
@@ -141,6 +147,8 @@ function validateRelations(s: State): void {
   for (const session of s.identity.sessions) {
     if (!s.users.some((u) => u.id === session.userId))
       throw new Error("Session needs an existing user");
+    if (session.deviceKeyId && !s.identity.deviceKeys.some((key) => key.id === session.deviceKeyId && key.userId === session.userId))
+      throw new Error("Client session needs an existing client key");
     const visited = new Set<string>([session.id]);
     let parent = session.parentId;
     while (parent) {

@@ -20,9 +20,8 @@ const Launch = z.object({ model: z.string().min(1), reasoning_effort: z.string()
 const secret = () => randomBytes(32).toString("base64url");
 const writePrivate = (file: string, value: unknown) => writeFile(file, JSON.stringify(value, null, 2) + "\n", { mode: 0o600, flag: "wx" });
 
-export async function generateFreshState(target: string, ownerEmail = "owner@codoxear.local", preserved = join(homedir(), ".local/share/codoxear-v2/next")) {
+export async function generateFreshState(target: string, preserved = join(homedir(), ".local/share/codoxear-v2/next")) {
   if (!isAbsolute(target)) throw Error("Fresh state directory must be absolute");
-  if (!z.email().safeParse(ownerEmail).success) throw Error("A valid fresh owner email is required");
   let origins: z.infer<typeof Origins>, launch: z.infer<typeof Launch>;
   try {
     origins = Origins.parse(JSON.parse(await readFile(join(preserved, "public-origins.json"), "utf8")));
@@ -35,9 +34,8 @@ export async function generateFreshState(target: string, ownerEmail = "owner@cod
   for (const child of ["config", "hub-0", "hub-1", "private", ...["computer-a", "computer-b"].flatMap(name =>
     [name, `${name}/computer`, `${name}/workspace`, `${name}/.pi`, `${name}/.pi/agent`])])
     await mkdir(join(directory, child), { mode: 0o700 });
-  const password = secret();
-  await writeFile(join(directory, "owner.env"), `CODOXEAR_BOOTSTRAP_EMAIL=${ownerEmail}\nCODOXEAR_BOOTSTRAP_PASSWORD=${password}\n`, { mode: 0o600, flag: "wx" });
-  await writePrivate(join(directory, "private/owner.json"), { email: ownerEmail, password });
+  const setupTokens = [secret(), secret()];
+  await writePrivate(join(directory, "private/setup.json"), { hubs: origins.hubs.map((origin, i) => ({ origin, setupToken: setupTokens[i] })) });
   // Retain the launch object verbatim, including the endpoint, key, model and effort.
   await writeFile(join(directory, "private/pi-litellm-launch.json"), await readFile(join(preserved, "pi-litellm-launch.json")), { mode: 0o600, flag: "wx" });
   await writePrivate(join(directory, "private/public-origins.json"), origins);
@@ -60,7 +58,7 @@ export async function generateFreshState(target: string, ownerEmail = "owner@cod
   for (let i = 0; i < 2; i++) await writePrivate(join(directory, `config/hub-${i}.json`), {
     independent: true, hubId: randomUUID(), name: `Hub ${i + 1}`, origin: origins.hubs[i],
     catalog: "/state/catalog.sqlite", database: "/state/sessions.sqlite", signingKey: "/state/key.json",
-    otpKey: secret(), listenHost: "0.0.0.0", listenPort: 17430, secureCookies: true,
+    setupToken: setupTokens[i], providers: [], listenHost: "0.0.0.0", listenPort: 17430, secureCookies: true,
     clientOrigins: [origins.client], clients: [{ id: "codoxear-web", redirectUris: [origins.client + "/auth-callback"] }],
   });
   // Generated gateway fragment uses preserved origins without copying certificates.
@@ -72,10 +70,10 @@ export async function generateFreshState(target: string, ownerEmail = "owner@cod
   await chmod(directory, 0o700);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const [target, email, ...extra] = process.argv.slice(2);
+  const [target, ...extra] = process.argv.slice(2);
   const run = async () => {
     if (!target || extra.length) throw Error("Invalid arguments");
-    await generateFreshState(target, email);
+    await generateFreshState(target);
     console.log("Fresh private deployment generated. Credentials and launch settings remain private. No old accounts or history imported.");
   };
   run().catch(() => { console.error("Fresh deployment generation failed; check inputs and that the destination is new. Private values were not printed."); process.exitCode = 1; });

@@ -35,12 +35,21 @@ const pass = (name) => {
   console.log("PASS", name);
 };
 async function login(page, name) {
+  const sessions = JSON.parse(
+    await readFile("artifacts/distributed-sessions.json", "utf8"),
+  );
+  assert.ok(sessions[name], "Fixture supplied a private authenticated session");
+  await page.context().addCookies([
+    {
+      name: "codoxear_identity",
+      value: sessions[name],
+      url: "http://127.0.0.1:19420",
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
   await page.goto("http://127.0.0.1:19420/?settings=1");
-  await page.getByLabel("Email", { exact: true }).fill(name + "@example.test");
-  await page
-    .getByLabel("Password", { exact: true })
-    .fill("browser-test-password");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("heading", { name: "Your hubs" }).waitFor();
 }
 async function openHub(page, name) {
@@ -102,7 +111,7 @@ try {
     .waitFor();
   await alice.getByLabel("Message", { exact: true }).fill("Unsent home draft");
   pass(
-    "Central login, PKCE hub cookie exchange, single-use enrollment and relayed conversation",
+    "Fixture authenticated session, PKCE hub cookie exchange, single-use enrollment and relayed conversation",
   );
   await openHub(alice, "Work hub");
   await computer(alice, "Work computer");
@@ -143,6 +152,19 @@ try {
   await openHub(bob, "Home hub");
   await bob.getByText("No computers available.").waitFor();
   pass("Second account sees only its invited hub and no ungranted computers");
+  await alice.goto("http://127.0.0.1:19420/?reauth=1&settings=1");
+  await alice.getByRole("heading", { name: "Sign in to Codoxear" }).waitFor();
+  await alice
+    .getByText("No sign-in provider is configured. Contact the administrator.")
+    .waitFor();
+  assert.equal(await alice.locator('input[type="password"]').count(), 0);
+  assert.equal(
+    await alice.getByRole("button", { name: "Send code", exact: true }).count(),
+    0,
+  );
+  pass(
+    "Optional authority sign-in has no password/code fallback and reports missing provider configuration",
+  );
   assert.deepEqual(errors, []);
   pass("No uncaught browser errors in the separate-service flow");
 } catch (e) {

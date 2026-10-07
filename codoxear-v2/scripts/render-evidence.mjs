@@ -26,9 +26,9 @@ for (const [file, title, limit] of [
     "Separate processes and databases; synthetic agent runtime.",
   ],
   [
-    "identity-browser-results.json",
-    "Account portal and provider continuation",
-    "OTP delivery and provider identity are fixtures, not live Feishu/WeChat/email/SMS.",
+    "registration-results.json",
+    "Google/Feishu registration and client-held signing keys",
+    "Real browser, Hub, PKCE and signing proofs; controlled Google/Feishu identities, not live provider application acceptance.",
   ],
   [
     "real-runtime-results.json",
@@ -69,7 +69,7 @@ const pictures = [
   ["04-independent-hub.png", "An independently deployed hub"],
   ["05-real-pi-browser.png", "The imported session of an actual Pi process"],
   ["06-workspace.png", "The established workspace through the hub"],
-  ["07-account-methods.png", "Explicitly linked account login methods"],
+  ["registration-mobile.png", "Provider-only registration at mobile browser width"],
   [
     "08-workspace-read-only.png",
     "Full workspace after a live read-only downgrade",

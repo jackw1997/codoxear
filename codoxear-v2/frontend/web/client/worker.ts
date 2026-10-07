@@ -1,7 +1,12 @@
 /// <reference lib="webworker" />
 import { vault, type HubLogin } from "./vault.js";
+import { DeviceSignInError, deviceKeys, proveDevice } from "./device-keys.js";
 import { transportVersion } from "./transport-version.js";
-import { disconnectPush, installPushEvents, notificationSubscription } from "./push.js";
+import {
+  disconnectPush,
+  installPushEvents,
+  notificationSubscription,
+} from "./push.js";
 declare const self: ServiceWorkerGlobalScope;
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), {
@@ -21,22 +26,22 @@ async function fresh(login: HubLogin): Promise<HubLogin> {
         const latest = await vault.get(login.id);
         if (!latest) throw new Error("Sign in to this hub again");
         if (latest.expiresAt > Date.now() + 30000) return latest;
-        const res = await fetch(login.origin + "/oauth/token", {
-          signal: AbortSignal.timeout(8000),
-          method: "POST",
-          credentials: "omit",
-          redirect: "error",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + latest.accessToken },
-          body: JSON.stringify({
-            grant_type: "refresh_token",
-            refresh_token: latest.refreshToken,
-          }),
-        });
-        if (!res.ok) {
-          if ([400, 401].includes(res.status)) await vault.remove(login.id);
-          throw new Error("Hub login expired");
+        const key = await deviceKeys.get(latest.origin, latest.deviceKeyId);
+        if (!key || key.accountId !== latest.accountId)
+          throw new Error(
+            "Sign in with Google or Feishu to create a device key",
+          );
+        let tokens;
+        try {
+          tokens = await proveDevice(key);
+        } catch (error) {
+          if (
+            error instanceof DeviceSignInError &&
+            [401, 403].includes(error.status)
+          )
+            await vault.remove(login.id);
+          throw error;
         }
-        const tokens = await res.json();
         const next = {
           ...latest,
           accessToken: tokens.access_token,
@@ -102,7 +107,14 @@ async function directory() {
         return {
           agents: [],
           placements: [],
-          error: { loginId: login.id, name: login.name, message: [401, 403].includes(status) || !(await vault.get(login.id)) ? "Sign in to this hub again." : "Hub directory unavailable. Check your connection and retry." },
+          error: {
+            loginId: login.id,
+            name: login.name,
+            message:
+              [401, 403].includes(status) || !(await vault.get(login.id))
+                ? "Sign in to this hub again."
+                : "Hub directory unavailable. Check your connection and retry.",
+          },
         };
       }
     }),
@@ -121,38 +133,74 @@ async function directory() {
 }
 async function catalog(placement: string | null) {
   const logins = await vault.list();
-  const groups = await Promise.all(logins.map(async (login) => {
-    let status = 0;
-    try {
-      const r = await hub(login, "/workspace/api/sessions", {
-        signal: AbortSignal.timeout(7000),
-      });
-      status = r.status;
-      if (!r.ok) throw new Error("Catalog unavailable");
-      const value = await r.json();
-      const dr = await hub(login, "/api/agent-directory", { signal: AbortSignal.timeout(5000) });
-      status = dr.status;
-      if (!dr.ok) throw new Error("Directory unavailable");
-      const d = await dr.json();
-      const failures = value.catalog_errors ?? [];
-      return {
-        sessions: (value.sessions ?? []).filter((s: any) => d.agents.some((a: any) => a.id === s.session_id)).map((s: any) => ({
-          ...s,
-          session_id: key(login, s.session_id),
-          dependency_session_id: s.dependency_session_id ? key(login, s.dependency_session_id) : null,
-          codoxear_hub: login.name,
-          codoxear_computer: d.agents.find((a: any) => a.id === s.session_id)?.computerName,
-          codoxear_login: login.id,
-        })),
-        retainedIds: d.agents.filter((a: any) => failures.some((f: any) => f.computerId === a.computerId)).map((a: any) => key(login, a.id)),
-        errors: failures.map((f: any) => ({ loginId: login.id, name: f.computerName, kind: "computer", message: "Computer is unreachable. Reconnect it and retry." })),
-        ok: true,
-      };
-    } catch {
-      const signedOut = [401, 403].includes(status) || !(await vault.get(login.id));
-      return { sessions: [], retainedIds: [], ok: false, errors: [{ loginId: login.id, name: login.name, kind: signedOut ? "signed_out" : "hub", message: signedOut ? "Sign in to this hub again." : "Hub catalog unavailable. Check your connection and retry." }] };
-    }
-  }));
+  const groups = await Promise.all(
+    logins.map(async (login) => {
+      let status = 0;
+      try {
+        const r = await hub(login, "/workspace/api/sessions", {
+          signal: AbortSignal.timeout(7000),
+        });
+        status = r.status;
+        if (!r.ok) throw new Error("Catalog unavailable");
+        const value = await r.json();
+        const dr = await hub(login, "/api/agent-directory", {
+          signal: AbortSignal.timeout(5000),
+        });
+        status = dr.status;
+        if (!dr.ok) throw new Error("Directory unavailable");
+        const d = await dr.json();
+        const failures = value.catalog_errors ?? [];
+        return {
+          sessions: (value.sessions ?? [])
+            .filter((s: any) =>
+              d.agents.some((a: any) => a.id === s.session_id),
+            )
+            .map((s: any) => ({
+              ...s,
+              session_id: key(login, s.session_id),
+              dependency_session_id: s.dependency_session_id
+                ? key(login, s.dependency_session_id)
+                : null,
+              codoxear_hub: login.name,
+              codoxear_computer: d.agents.find(
+                (a: any) => a.id === s.session_id,
+              )?.computerName,
+              codoxear_login: login.id,
+            })),
+          retainedIds: d.agents
+            .filter((a: any) =>
+              failures.some((f: any) => f.computerId === a.computerId),
+            )
+            .map((a: any) => key(login, a.id)),
+          errors: failures.map((f: any) => ({
+            loginId: login.id,
+            name: f.computerName,
+            kind: "computer",
+            message: "Computer is unreachable. Reconnect it and retry.",
+          })),
+          ok: true,
+        };
+      } catch {
+        const signedOut =
+          [401, 403].includes(status) || !(await vault.get(login.id));
+        return {
+          sessions: [],
+          retainedIds: [],
+          ok: false,
+          errors: [
+            {
+              loginId: login.id,
+              name: login.name,
+              kind: signedOut ? "signed_out" : "hub",
+              message: signedOut
+                ? "Sign in to this hub again."
+                : "Hub catalog unavailable. Check your connection and retry.",
+            },
+          ],
+        };
+      }
+    }),
+  );
   let defaults: any = {};
   if (placement) {
     const [id, computerId] = placement.split("~"),
@@ -168,9 +216,18 @@ async function catalog(placement: string | null) {
       } catch {}
   }
   return {
-    sessions: unique(groups.flatMap((g) => g.sessions), (s: any) => s.session_id),
+    sessions: unique(
+      groups.flatMap((g) => g.sessions),
+      (s: any) => s.session_id,
+    ),
     catalog_status: {
-      state: !logins.length ? "signed_out" : groups.some((g) => g.errors.length) ? (groups.some((g) => g.ok) ? "partial" : "unavailable") : "ready",
+      state: !logins.length
+        ? "signed_out"
+        : groups.some((g) => g.errors.length)
+          ? groups.some((g) => g.ok)
+            ? "partial"
+            : "unavailable"
+          : "ready",
       authenticated_hubs: logins.length,
       errors: groups.flatMap((g) => g.errors),
       retained_session_ids: groups.flatMap((g) => g.retainedIds),
@@ -317,10 +374,16 @@ async function handle(request: Request) {
           method: "POST",
           credentials: "omit",
           signal: AbortSignal.timeout(5000),
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + login.accessToken },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + login.accessToken,
+          },
           body: JSON.stringify({ token: login.refreshToken }),
         }).catch(() => {});
       }),
+    );
+    await Promise.all(
+      (await vault.list()).map((login) => vault.remove(login.id)),
     );
     return json({ ok: true });
   }
@@ -329,7 +392,17 @@ async function handle(request: Request) {
     const login = await vault.get(decodeURIComponent(disconnect[1]!));
     if (!login) return json({ ok: true });
     await disconnectPush(login, hub, self);
-    await fetch(login.origin + "/oauth/revoke", { method: "POST", credentials: "omit", signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", Authorization: "Bearer " + login.accessToken }, body: JSON.stringify({ token: login.refreshToken }) }).catch(() => {});
+    await fetch(login.origin + "/oauth/revoke", {
+      method: "POST",
+      credentials: "omit",
+      signal: AbortSignal.timeout(5000),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + login.accessToken,
+      },
+      body: JSON.stringify({ token: login.refreshToken }),
+    }).catch(() => {});
+    await vault.remove(login.id);
     return json({ ok: true });
   }
   const management = /^\/api\/client\/hubs\/([^/]+)(\/.*)$/.exec(path);
@@ -359,7 +432,9 @@ async function handle(request: Request) {
       const r = await hub(candidate, "/api/agent-directory", {
         signal: AbortSignal.timeout(5000),
       });
-      const agent = r.ok ? (await r.json()).agents.find((a: any) => a.id === agentId) : undefined;
+      const agent = r.ok
+        ? (await r.json()).agents.find((a: any) => a.id === agentId)
+        : undefined;
       if (agent) {
         login = candidate;
         computerId = agent.computerId;
@@ -372,8 +447,18 @@ async function handle(request: Request) {
       { error: "No saved identity currently has access to this agent" },
       403,
     );
-  if ((path === "/api/notifications/subscription" || path === "/api/notifications/subscription/toggle") && computerId)
-    return notificationSubscription(request, login, computerId, hub, self.location.origin);
+  if (
+    (path === "/api/notifications/subscription" ||
+      path === "/api/notifications/subscription/toggle") &&
+    computerId
+  )
+    return notificationSubscription(
+      request,
+      login,
+      computerId,
+      hub,
+      self.location.origin,
+    );
   url.searchParams.delete("__agent");
   if (!match) url.searchParams.set("__agent", agentId);
   return relay(

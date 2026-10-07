@@ -12,7 +12,7 @@ export const InvitationTarget = z.discriminatedUnion("method", [
         .regex(/^\+[1-9][0-9]{7,14}$/),
     })
     .strict(),
-  ...(["feishu", "wechat", "oidc"] as const).map((method) =>
+  ...(["google", "feishu", "wechat", "oidc"] as const).map((method) =>
     z
       .object({
         method: z.literal(method),

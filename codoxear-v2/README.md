@@ -2,12 +2,14 @@
 
 Codoxear v2 keeps the web frontend and backend independently installable and buildable. The browser source is in `frontend/web/`; HarmonyOS source is in `frontend/harmonyos/`. The frontend uses its own `frontend/package.json` and lockfile. The backend uses the root package. The browser calls backend APIs through its own DTOs and does not import backend `src/` implementation modules. No Python or original `codoxear/` package is required.
 
-The supported deployment target for this migration is Linux with Node.js 22.13 or later and a packaged PTY native binary. Secure workspace access uses Linux file descriptors; macOS acceptance and its secure file adapter remain pending. Install Pi, Codex or Claude Code separately on each Computer and complete the CLI's local authentication and workspace trust setup.
+The supported deployment target for this migration is Linux with Node.js 24 or later and a packaged PTY native binary. Secure workspace access uses Linux file descriptors; macOS acceptance and its secure file adapter remain pending. Install Pi, Codex or Claude Code separately on each Computer and complete the CLI's local authentication and workspace trust setup.
 
 ```sh
 npm ci
 npm run build:backend
-npm run computer -- attach --hub https://your-hub.example --code YOURCODE --workspace /absolute/workspace
+npm run computer -- attach --hub https://your-hub.example --code YOURCODE \
+  --workspace /absolute/workspace --runtime oar \
+  --oar-permission-policy locally-trusted --oar-max-resident 1
 npm run computer -- start
 ```
 
@@ -19,7 +21,11 @@ To start a terminal session or complete native CLI setup through the same runtim
 
 For an independent-Hub move, stop the Computer connection service and run `npm run computer -- transfer --hub https://destination.example --code OWNER_CODE`. The destination owner issues the code. Durable checkpoints revoke the source binding before admitting the destination; repeating the same transfer recovers lost replies. Native CLI sessions stay alive and are imported explicitly at the destination. A pending transfer blocks connection startup until it is finished.
 
-Run the static browser host with `npm run client`. Run a hub with `CODOXEAR_HUB_CONFIG=/absolute/hub.json npm run hub`; see `config/hub.example.json`. An independent hub owns its accounts, database, signing key and permissions. First start requires the bootstrap credentials documented by its startup error. The optional identity service is for installations deliberately using a separate authority.
+Run the static browser host with `npm run client`. Run a Hub with `CODOXEAR_HUB_CONFIG=/absolute/hub.json npm run hub`; see [`config/hub.example.json`](config/hub.example.json). Each independent Hub owns its accounts, database, signing key and permissions. Configure Google or Feishu using real application credentials and register the exact provider callback before sign-in; see [provider setup](docs/provider-login.md). No password, email-code or phone-code login is offered.
+
+A new Hub requires a private random `setupToken` of at least 32 characters. Generate it with `openssl rand -hex 32` and store it only in the private Hub configuration. First sign in with a configured provider, then enter that setup code to claim ownership. The code requires a fresh verified provider sign-in and can claim ownership only once. Public registration alone grants no membership or Computer access. After setup, invite other registered provider identities and grant the required Computer access separately.
+
+For the prepared two-Hub deployment, [fresh setup instructions](deploy/fresh-v2/README.md) explain the generated `private/setup.json` and preprovisioned Computers. The optional identity service is for installations deliberately using a separate authority.
 
 File and Git operations belong to the Computer; authorization belongs to the hub. The browser connects to selected hubs using public HTTP/WebSocket protocols. Shared contracts, authentication libraries and presentation helpers do not require another component process or database.
 
@@ -35,4 +41,4 @@ Git is required for Git features. Media and voice features may require their con
 
 The independent browser client requires **trusted HTTPS**, because browsers reject its connection worker under an invalid certificate even after a user accepts the page warning. A self-signed fixture certificate and browser certificate exception establish isolated test behavior only.
 
-The updated native preview uses the existing trusted gateway: [client](https://codoxear.gzeek.com:8445/), [guide](https://codoxear.gzeek.com:8444/guide), and [readable progress](https://codoxear.gzeek.com:8445/progress.html). The gateway certificate and configuration remain unchanged. The loopback router in `scripts/demo-trusted-forward.ts` forwards new traffic to the native preview and configured legacy Computer connections to their original Hubs. Existing CLI processes remain running; the new native preview has a separate session catalog and browser users may need to sign in again. Opaque legacy OAuth refresh bodies use the default route. The optional `deploy/install-preview-https.sh` creates a separate trusted gateway when one is needed; it is unnecessary for this endpoint reuse.
+The public deployment addresses are [client](https://codoxear.gzeek.com:8445/), [guide](https://codoxear.gzeek.com:8444/guide), and [readable progress](https://codoxear.gzeek.com:8445/progress.html). Fresh deployments preserve those origins and the existing configured LiteLLM endpoint, key and model. They do not import old accounts or session catalogs. Provider application credentials are external configuration; a real Google or Feishu sign-in remains unavailable until an administrator supplies them. See the progress report for the deployed version and observed acceptance.

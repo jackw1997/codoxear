@@ -105,7 +105,7 @@ async function startClient() {
       panel.innerHTML =
         loginHeading(
           "Connect to your agents",
-          "Hub credentials removed from this device.",
+          "Hub connections removed from this device.",
         ) +
         '<p class="connectionHint">Connect a hub to pick up where you left off.</p>';
       button.className = "primary";

@@ -9,9 +9,8 @@ import { createIdentityApp } from "../auth/app.js";
 import {
   ProviderConfig,
   provider,
-  deliveryGateway,
 } from "../auth/providers.js";
-import { id, passwordHash } from "../domain/commands.js";
+import { secret } from "../domain/commands.js";
 const file = process.env.CODOXEAR_IDENTITY_CONFIG;
 if (!file)
   throw new Error(
@@ -22,50 +21,19 @@ const config = z
     issuer: z.url(),
     database: z.string(),
     signingKey: z.string(),
-    otpKey: z.string().min(32),
     listenHost: z.string().default("127.0.0.1"),
     listenPort: z.number().default(17420),
     secureCookies: z.boolean().default(true),
     frontendAssetsRoot: z.string().optional(),
     providers: z.array(ProviderConfig).default([]),
-    delivery: z
-      .object({
-        endpoint: z.url(),
-        credential: z.string(),
-        methods: z.array(z.enum(["email", "phone"])),
-      })
-      .optional(),
     clients: z
       .array(z.object({ id: z.string(), redirectUris: z.array(z.url()) }))
       .default([]),
   })
   .parse(JSON.parse(await readFile(resolve(file), "utf8")));
 const store = new Store(resolve(config.database));
-if (!store.read().users.length) {
-  const email = process.env.CODOXEAR_BOOTSTRAP_EMAIL,
-    password = process.env.CODOXEAR_BOOTSTRAP_PASSWORD;
-  if (!email || !password || password.length < 12)
-    throw new Error(
-      "First start requires bootstrap email and a password of at least 12 characters",
-    );
-  store.change((s) =>
-    s.users.push({
-      id: id(),
-      name: process.env.CODOXEAR_BOOTSTRAP_NAME ?? "Owner",
-      email: z.email().parse(email.toLowerCase()),
-      passwordHash: passwordHash(password),
-      disabled: false,
-    }),
-  );
-}
-const delivery = config.delivery
-  ? deliveryGateway(config.delivery.endpoint, config.delivery.credential)
-  : {
-      async send() {
-        throw new Error("Delivery not configured");
-      },
-    };
-const accounts = new Accounts(store, config.otpKey, delivery),
+// Accounts are created only by verified Google/Feishu sign-in.
+const accounts = new Accounts(store, secret(), { async send() { throw new Error("Code login is disabled"); } }),
   tokens = new Tokens(
     config.issuer,
     await signingKey(resolve(config.signingKey)),
@@ -74,10 +42,9 @@ const accounts = new Accounts(store, config.otpKey, delivery),
 const app = await createIdentityApp({
   authority,
   frontendAssetsRoot: config.frontendAssetsRoot,
-  providers: config.providers.map(provider),
+  providers: config.providers.map((p) => provider(p)),
   secureCookies: config.secureCookies,
   clients: config.clients,
-  codeDelivery: config.delivery?.methods ?? [],
 });
 await app.listen({ host: config.listenHost, port: config.listenPort });
 console.log("Codoxear identity service ready");

@@ -1,11 +1,9 @@
 /** Shared by the independent client and the transitional management page. */
 export const invitationFields = () => `
 <label class="connectionField"><span>Invite by</span><select name="inviteMethod" aria-label="Invite by">
-  <option value="email">Email</option><option value="phone">Phone</option>
-  <option value="feishu">Feishu</option><option value="wechat">WeChat</option><option value="oidc">Other sign-in provider</option>
+  <option value="google">Google</option><option value="feishu">Feishu</option><option value="email">Email (verified Google address)</option>
 </select></label>
-<div data-invite-target="email"><label class="connectionField"><span>Email</span><input name="email" type="email" autocomplete="email" required></label></div>
-<div data-invite-target="phone" hidden><label class="connectionField"><span>Phone number</span><input name="phone" type="tel" autocomplete="tel" placeholder="+8613800138000" pattern="\\+[1-9][0-9]{7,14}" required disabled></label><p class="connectionHint">Use the full international number, including +country code.</p></div>
+<div data-invite-target="email" hidden><label class="connectionField"><span>Email</span><input name="email" type="email" autocomplete="email" required disabled></label><p class="connectionHint">Use the address verified by the recipient’s Google account.</p></div>
 <div data-invite-target="provider" hidden>
   <p class="connectionHint">Ask the recipient for the invitation details shown in their hub’s Sign-in methods. Display names do not identify an account.</p>
   <label class="connectionField"><span>Sign-in connection</span><input name="connection" maxlength="200" required disabled></label>
@@ -16,9 +14,7 @@ export const invitationFields = () => `
 export function wireInvitationFields(form: HTMLFormElement) {
   const method = form.elements.namedItem("inviteMethod") as HTMLSelectElement;
   const update = () => {
-    const active = ["email", "phone"].includes(method.value)
-      ? method.value
-      : "provider";
+    const active = method.value === "email" ? "email" : "provider";
     for (const group of form.querySelectorAll<HTMLElement>(
       "[data-invite-target]",
     )) {
@@ -43,14 +39,12 @@ export function invitationBody(data: FormData) {
     target:
       method === "email"
         ? { method, email: value("email") }
-        : method === "phone"
-          ? { method, phone: value("phone") }
-          : {
-              method,
-              connection: value("connection"),
-              subject: value("subject"),
-              tenant: value("tenant") || null,
-            },
+        : {
+            method,
+            connection: value("connection"),
+            subject: value("subject"),
+            tenant: value("tenant") || null,
+          },
     role: value("role"),
   };
 }

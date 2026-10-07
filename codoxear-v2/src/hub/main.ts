@@ -1,10 +1,9 @@
 import { independentAuthority } from "./independent.js";
 import { Store } from "../persistence/store.js";
-import { id, passwordHash, createHub } from "../domain/commands.js";
+import { initializeHub, hubSetup } from "../auth/hub-setup.js";
 import {
   ProviderConfig,
   provider,
-  deliveryGateway,
 } from "../auth/providers.js";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -35,20 +34,13 @@ const config = z
     independent: z.boolean().default(true),
     catalog: z.string().optional(),
     signingKey: z.string().optional(),
-    otpKey: z.string().min(32).optional(),
+    setupToken: z.string().min(32).optional(),
     name: z.string().default("My hub"),
     clientOrigins: z.array(z.url()).default([]),
     clients: z
       .array(z.object({ id: Id, redirectUris: z.array(z.url()) }))
       .default([]),
     providers: z.array(ProviderConfig).default([]),
-    delivery: z
-      .object({
-        endpoint: z.url(),
-        credential: z.string(),
-        methods: z.array(z.enum(["email", "phone"])),
-      })
-      .optional(),
     hubId: Id,
     credential: z.string().min(32).optional(),
     database: z.string(),
@@ -67,41 +59,19 @@ if (config.development && !existsSync("/.dockerenv"))
 let catalog: Store | undefined;
 let local: Awaited<ReturnType<typeof independentAuthority>> | undefined;
 if (config.independent) {
-  if (!config.otpKey)
-    throw new Error("Independent hub requires its own otpKey");
   catalog = new Store(resolve(config.catalog ?? config.database + ".catalog"));
   if (!catalog.read().hubs.length) {
-    const email = process.env.CODOXEAR_BOOTSTRAP_EMAIL,
-      password = process.env.CODOXEAR_BOOTSTRAP_PASSWORD;
-    if (!email || !password || password.length < 12)
-      throw new Error(
-        "First hub start requires bootstrap email and password (12+ characters)",
-      );
-    catalog.change((s) => {
-      const ownerId = id();
-      s.users.push({
-        id: ownerId,
-        email: z.email().parse(email),
-        name: "Owner",
-        passwordHash: passwordHash(password),
-        disabled: false,
-      });
-      const hub = createHub(s, ownerId, config.name);
-      hub.id = config.hubId;
-    });
+    if (!config.setupToken) throw new Error("First Hub start requires a private setupToken (32+ random characters)");
+    catalog.change((s) => initializeHub(s, config.hubId, config.name));
   }
   local = await independentAuthority({
     origin: config.origin,
     hubId: config.hubId,
     store: catalog,
     signingKey: resolve(config.signingKey ?? config.database + ".key.json"),
-    otpKey: config.otpKey,
-    providers: config.providers.map(provider),
+    setup: hubSetup(catalog, config.hubId, config.setupToken),
+    providers: config.providers.map((p) => provider(p)),
     clients: config.clients,
-    codeDelivery: config.delivery?.methods,
-    delivery: config.delivery
-      ? deliveryGateway(config.delivery.endpoint, config.delivery.credential)
-      : undefined,
     frontendAssetsRoot: config.frontendAssetsRoot,
     secureCookies: config.secureCookies,
   });

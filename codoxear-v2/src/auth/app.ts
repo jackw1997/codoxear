@@ -23,6 +23,8 @@ import { z } from "zod";
 import * as oauth from "oauth4webapi";
 import { createHash } from "node:crypto";
 import { Accounts } from "./accounts.js";
+import { DeviceKeys } from "./device-keys.js";
+import { DeviceKeyEnrollmentRequest, DeviceKeyLoginRequest, DeviceKeyProof } from "../contracts/device-keys.js";
 import { Authority } from "./authority.js";
 import { type Provider } from "./providers.js";
 import { AuthRequirement, type IdentitySession } from "./model.js";
@@ -60,6 +62,7 @@ export interface IdentityOptions {
   secureCookies?: boolean;
   clients?: Array<{ id: string; redirectUris: string[] }>;
   codeDelivery?: Array<"email" | "phone">;
+  setup?: { pending(): boolean; claim(session: IdentitySession, token: string): void };
 }
 export async function createIdentityApp(options: IdentityOptions) {
   const assetsRoot = frontendAssetsRoot(options.frontendAssetsRoot);
@@ -71,6 +74,7 @@ export async function createIdentityApp(options: IdentityOptions) {
     store = a.store,
     providers = options.providers ?? [],
     app = Fastify({ bodyLimit: 65536 });
+  const keys = new DeviceKeys(accounts, a.tokens.issuer);
   if (options.routeObserver) app.addHook("onRoute", options.routeObserver);
   await app.register(cookie);
   app.setErrorHandler((e, _r, reply) =>
@@ -194,62 +198,48 @@ export async function createIdentityApp(options: IdentityOptions) {
   app.get("/.well-known/jwks.json", async () => a.tokens.jwks);
   app.get("/api/v1/auth/options", async () => ({
     providers: providers.map((p) => ({ id: p.id, method: p.method })),
-    codes: options.codeDelivery ?? [],
-    password: true,
+    registration: { enabled: providers.length > 0, method: "provider" },
+    deviceKeys: { enabled: true, algorithm: "ES256" },
+    setupRequired: options.setup?.pending() ?? false,
   }));
-  app.post("/api/v1/auth/password", async (r, reply) => {
-    accounts.rateLimit("login:" + r.ip, 10, 60000);
-    const b = z
-      .object({
-        email: z.email(),
-        password: z.string().min(1).max(512),
-        installationId: Id.default("web"),
-      })
-      .parse(r.body);
-    return setSession(
-      reply,
-      accounts.password(b.email, b.password, b.installationId),
-    );
+  app.post("/api/v1/auth/setup", async (r) => {
+    accounts.rateLimit("setup:" + r.ip, 5, 60000);
+    const input = z.object({ token: z.string().min(32).max(256) }).strict().parse(r.body);
+    const current = await session(r);
+    forbid(!!options.setup, "Hub setup is unavailable");
+    options.setup!.claim(current, input.token);
+    return { ok: true };
   });
-  app.post("/api/v1/auth/code", async (r) => {
-    accounts.rateLimit("challenge:" + r.ip, 10, 60000);
-    const b = z
-      .object({
-        method: z.enum(["email", "phone"]),
-        target: z.string().max(254),
-        link: z.boolean().default(false),
-      })
-      .parse(r.body);
-    forbid(
-      options.codeDelivery?.includes(b.method) ?? false,
-      "This delivery provider is not configured",
-    );
-    if (b.link) accounts.session(r.cookies[cookieName] ?? "");
-    return accounts.challenge(
-      b.method,
-      b.target,
-      b.link ? r.cookies[cookieName] : undefined,
-    );
+  app.post("/api/v1/auth/keys/enroll/challenge", async (r) => {
+    accounts.rateLimit("key-enroll:" + r.ip, 10, 60000);
+    return keys.enrollChallenge(await session(r), DeviceKeyEnrollmentRequest.parse(r.body));
   });
-  app.post("/api/v1/auth/code/verify", async (r, reply) => {
-    accounts.rateLimit("verify:" + r.ip, 30, 60000);
-    const b = z
-      .object({
-        challengeId: Id,
-        transaction: z.string().min(32).max(100),
-        code: z.string().regex(/^\d{6}$/),
-        installationId: Id.default("web"),
-      })
-      .parse(r.body);
-    return setSession(
-      reply,
-      accounts.verifyChallenge(
-        b.challengeId,
-        b.transaction,
-        b.code,
-        b.installationId,
-      ),
-    );
+  app.post("/api/v1/auth/keys/enroll/verify", async (r) => {
+    accounts.rateLimit("key-enroll-verify:" + r.ip, 20, 60000);
+    const input = DeviceKeyProof.parse(r.body);
+    return keys.enrollVerify(await session(r), input.challengeId, input.signature);
+  });
+  app.post("/api/v1/auth/keys/challenge", async (r) => {
+    accounts.rateLimit("key-login:" + r.ip, 10, 60000);
+    const input = DeviceKeyLoginRequest.parse(r.body);
+    accounts.rateLimit("key-login:" + input.keyId, 20, 60000);
+    return keys.loginChallenge(input);
+  });
+  app.post("/api/v1/auth/keys/verify", async (r) => {
+    accounts.rateLimit("key-login-verify:" + r.ip, 20, 60000);
+    const input = DeviceKeyProof.parse(r.body);
+    const value = keys.loginVerify(input.challengeId, input.signature);
+    return {
+      access_token: await a.tokens.issue(value.session, a.tokens.issuer, "identity_access"),
+      refresh_token: value.refreshToken,
+      token_type: "Bearer",
+      expires_in: 300,
+    };
+  });
+  app.get("/api/v1/me/keys", async (r) => keys.list(await session(r)));
+  app.delete("/api/v1/me/keys/:id", async (r) => {
+    keys.revoke(await session(r), Id.parse((r.params as { id: string }).id));
+    return { ok: true };
   });
   for (const path of ["/api/v1/auth/logout", "/workspace/api/logout"])
     app.post(path, async (r, reply) => {
@@ -492,6 +482,7 @@ export async function createIdentityApp(options: IdentityOptions) {
           state: z.string(),
           code: z.string().optional(),
           error: z.string().optional(),
+          iss: z.string().max(2048).optional(),
         })
         .parse(r.query);
     const flow = store.change((s) => {
@@ -521,11 +512,14 @@ export async function createIdentityApp(options: IdentityOptions) {
       q.code,
       flow.verifier,
       a.tokens.issuer + "/auth/" + connection + "/callback",
+      q.iss,
     );
     setSession(
       reply,
       accounts.finish(verified, "web", flow.linkSessionId ?? undefined),
     );
+    if (options.setup?.pending())
+      return reply.redirect(loginPath + (flow.continuePath ? "?continue=" + encodeURIComponent(flow.continuePath) : ""));
     return reply.redirect(flow.continuePath ?? loginPath);
   });
   // Identity authorization endpoint for native clients and each registered hub's BFF.
@@ -558,6 +552,12 @@ export async function createIdentityApp(options: IdentityOptions) {
         loginPath + "?continue=" + encodeURIComponent(r.url),
       );
     }
+    const currentIdentity = store.read().identity.identities.find((identity) =>
+      identity.id === s.context.identityId && identity.userId === s.userId && identity.verifiedAt > 0);
+    if (s.deviceKeyId || !currentIdentity || !["google", "feishu"].includes(currentIdentity.method) ||
+      currentIdentity.method !== s.context.method || currentIdentity.tenant !== s.context.tenant ||
+      Date.now() - s.context.authenticatedAt > 300000)
+      return reply.redirect(loginPath + "?reauth=1&continue=" + encodeURIComponent(r.url));
     if (registered) {
       try {
         a.context(s, registered.hubId);

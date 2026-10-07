@@ -462,7 +462,8 @@ export async function createHubApp(o: HubOptions) {
           allowed &&
           (!!r.headers.authorization ||
             r.url === "/api/v1/downloads/consume" ||
-            /^\/oauth\/(token|revoke)$/.test(r.url)))
+            /^\/oauth\/(token|revoke)$/.test(r.url) ||
+            /^\/api\/v1\/auth\/keys\/(challenge|verify)$/.test(r.url)))
       )
     )
       throw new DomainError(
@@ -1837,7 +1838,7 @@ export async function createHubApp(o: HubOptions) {
         },
       });
     }
-    app.get("/login", async (r, reply) => {
+    for (const loginPath of ["/login", "/register"]) app.get(loginPath, async (r, reply) => {
       return reply
         .header("Cache-Control", "no-store")
         .type("text/html")

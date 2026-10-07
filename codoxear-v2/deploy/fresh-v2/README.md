@@ -5,17 +5,27 @@ enrolled Computers on the same Hub for delegation. Existing state stays archived
 public origins and LiteLLM launch settings carry forward. No demo processes,
 scripted provider or old catalogs are used.
 
-Generate a **new** private directory; the default fresh local owner is `owner@codoxear.local`:
+Generate a **new** private directory:
 
 ```sh
 node --import tsx deploy/fresh-v2/bootstrap.ts /absolute/private/fresh-state
 ```
 
 The generator reads `~/.local/share/codoxear-v2/next/public-origins.json` and
-`pi-litellm-launch.json`, creates random Hub IDs/OTP keys and a fresh owner password,
-and saves credentials privately. It refuses an existing destination. An optional
-second argument chooses another owner email; old accounts are not copied. A generation failure may leave
-an incomplete new directory; inspect it privately and choose another empty path.
+`pi-litellm-launch.json`, creates random Hub IDs and separate private setup codes,
+and saves the codes in `private/setup.json` as `{ "hubs": [{ "origin": "...", "setupToken": "..." }] }`.
+Each generated `config/hub-N.json` contains its matching `setupToken` and an empty
+`providers` array. Configure Google and/or Feishu with your real application
+credentials and registered callback URLs before users can sign in; see
+[provider setup](../../docs/provider-login.md). No provider application or
+credentials are invented by the generator.
+
+The CLI accepts only the destination directory; there is no owner-email or
+password argument. The library function is `generateFreshState(target, preserved?)`,
+where its optional second argument selects the directory containing preserved
+origins and launch settings. It refuses an existing destination and imports no
+old accounts. A generation failure may leave an incomplete new directory; inspect
+it privately and choose another empty path.
 
 Build reviewed, separate runtime images with the memory-bounded release builder:
 
@@ -90,23 +100,37 @@ fresh static client). Retain the existing gateway and trusted TLS configuration;
 the generated `Caddyfile.fragment` is an optional reviewed replacement fragment
 with a guide redirect. Public client, guide and Hub origins are preserved. This
 document does not authorize changing other gateway sites. A network-disabled
-provisioning container creates each independent owner/catalog and two Computer
-credentials through the domain commands before either Hub starts. Their databases and signing keys remain separate. Each resident Hub mounts only
-its own JSON configuration file; sibling Hub OTP/configuration secrets are not mounted. Hubs receive no bootstrap password
-environment. Computers receive only their own attachment and LiteLLM settings;
-the owner credential is not mounted into them.
+provisioning container creates each independent catalog with a reserved, disabled
+pending owner and provisions two Computer credentials through the domain commands
+before either Hub starts. Their databases and signing keys remain separate. Each resident Hub mounts only
+its own JSON configuration file; sibling Hub configuration secrets are not mounted. Hubs receive no bootstrap
+password environment. Computers receive only their own attachment and LiteLLM
+settings; setup codes and provider App Secrets are not mounted into them.
 
 Provisioning writes a durable pending receipt before the first catalog mutation
 and a complete receipt after all catalogs/attachments exist. A later invocation
-validates the receipt, ownership, password and credential hashes and performs no
-reset. Existing catalog/Computer state without a receipt, or an incomplete
+validates the receipt, catalog ownership and Computer credential hashes and
+performs no reset. Ownership may have moved from the disabled pending owner to
+the provider-authenticated setup owner without invalidating the receipt. Existing catalog/Computer state without a receipt, or an incomplete
 receipt, fails closed and needs private operator inspection. Do not delete the
 receipt or retry against partially initialized state. Provisioning exits before
 the resident stack starts, so its 256 MiB ceiling does not add to resident usage.
 
-Sign into the first fresh Hub from the preserved public client address using
-`private/owner.json`. Computer A and Computer B are already admitted to that same
-Hub under the owner, who has target creation authority on both. Each attachment
+At the preserved public client address, add or select the first Hub and sign in
+with its configured Google or Feishu connection. First verified sign-in creates
+your Hub account. Enter that Hub's private setup code from `private/setup.json`
+to claim ownership. The correct code plus a verified provider sign-in within the
+last five minutes assigns the Hub and its preprovisioned Computers to that
+account. Public sign-in alone never claims ownership or grants membership.
+Ownership persists in the catalog; repeating setup is rejected even when the
+configuration still contains the original code. Keep the private code secret.
+
+Computer A and Computer B are already attached to the first Hub. After setup,
+the owner has target creation authority on both. The second Hub has its own
+provider configuration and independent setup code; repeat sign-in and setup
+there if needed. Invite other registered provider identities and grant Computer
+access separately. There is no password or verification-code fallback.
+Each attachment
 uses OAR, the explicitly reviewed locally trusted policy and one resident managed
 runtime. OAR does not implement interactive native permission prompts. The second
 Hub remains independently available. Public Hub HTTPS and the existing

@@ -18,8 +18,10 @@ export const AccountProfile = AccountSummary.extend({
   identities: z.array(ExternalIdentity.pick({ id: true, connection: true, method: true, subject: true, tenant: true }).strict()),
 }).strict();
 export const AuthOptions = z.object({
-  providers: z.array(z.object({ id: Id, method: z.enum(["password", "email", "phone", "feishu", "wechat", "oidc"]) }).strict()),
-  codes: z.array(z.enum(["email", "phone"])), password: z.literal(true),
+  providers: z.array(z.object({ id: Id, method: z.enum(["google", "feishu"]) }).strict()),
+  registration: z.object({ enabled: z.boolean(), method: z.literal("provider") }).strict(),
+  deviceKeys: z.object({ enabled: z.literal(true), algorithm: z.literal("ES256") }).strict(),
+  setupRequired: z.boolean(),
 }).strict();
 export const AuthChallenge = z.object({ challengeId: Id, transaction: secret, expiresAt: timestamp }).strict();
 export const HubDirectory = z.array(Hub.extend({ origin: z.url().nullable(), access: z.enum(["allowed", "reauthentication_required"]), loginRequirement: AuthRequirement.nullable() }).strict());
@@ -101,7 +103,6 @@ export const adminDetails: Record<string, Partial<Omit<Endpoint, "method" | "pat
   "GET /health": { response: AdminHealth },
   "GET /oauth/authorize": { statuses: [302, 400, 401, 403, 500] },
   "GET /api/v1/auth/options": { response: AuthOptions },
-  "POST /api/v1/auth/code": { response: AuthChallenge },
   "GET /api/v1/me": { response: AccountProfile },
   "DELETE /api/v1/me/identities/:id": { response: AdminOk },
   "POST /api/v1/me/agents": { body: undefined, response: AgentDirectory, summary: "Read the current account's authorized agent directory; this POST does not create an agent." },

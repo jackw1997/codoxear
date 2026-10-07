@@ -74,32 +74,6 @@ function accountPortal() {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  async function codeForm(form: HTMLFormElement, link: boolean) {
-    const values = new FormData(form),
-      challenge = await api("/api/v1/auth/code", {
-        method: values.get("method"),
-        target: values.get("target"),
-        link,
-      });
-    const panel = document.createElement("form");
-    panel.innerHTML =
-      '<label>Verification code<input name="code" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code"></label><button>Verify code</button>';
-    form.replaceWith(panel);
-    panel.onsubmit = act(async () => {
-      await api("/api/v1/auth/code/verify", {
-        challengeId: challenge.challengeId,
-        transaction: challenge.transaction,
-        code: new FormData(panel).get("code"),
-      });
-      reauthenticate = false;
-      await render();
-    });
-    status.textContent = "Code sent. It expires in five minutes.";
-  }
-  const otp = (methods: string[]) =>
-    '<label>Method<select name="method">' +
-    methods.map((m) => "<option>" + esc(m) + "</option>").join("") +
-    '</select></label><label>Email or +country phone<input name="target" required></label><button>Send code</button>';
   async function render() {
     let me: any;
     try {
@@ -108,13 +82,18 @@ function accountPortal() {
       if ((e as { status: number }).status !== 401) throw e;
     }
     const options = await api("/api/v1/auth/options");
+    const providers = options.providers.filter((p: any) =>
+      ["google", "feishu"].includes(p.method),
+    );
+    const providerLabel = (method: string) =>
+      method === "google" ? "Google" : "Feishu";
     if (!me || reauthenticate) {
       main.className = "account-login";
       main.innerHTML =
         '<div class="account-brand">' +
         brand +
-        '</div><h1>Sign in to Codoxear</h1><p class="directory-hint">Your agents, wherever you work.</p><form id="password"><label>Email<input name="email" type="email" required autocomplete="username"></label><label>Password<input name="password" type="password" required autocomplete="current-password"></label><button class="primary">Sign in</button></form>' +
-        options.providers
+        '</div><h1>Sign in to Codoxear</h1><p class="directory-hint">Your first sign-in creates your account. Your agents, wherever you work.</p>' +
+        providers
           .map(
             (p: any) =>
               '<p><a href="/auth/' +
@@ -127,26 +106,13 @@ function accountPortal() {
                   )
                 : "") +
               '">Sign in with ' +
-              esc(p.method) +
+              esc(providerLabel(p.method)) +
               "</a></p>",
           )
           .join("") +
-        (options.codes.length
-          ? '<form id="otp">' + otp(options.codes) + "</form>"
-          : "");
-      document.querySelector<HTMLFormElement>("#password")!.onsubmit = act(
-        async (e) => {
-          const f = new FormData(e.target as HTMLFormElement);
-          await api("/api/v1/auth/password", {
-            email: f.get("email"),
-            password: f.get("password"),
-          });
-          reauthenticate = false;
-          await render();
-        },
-      );
-      const form = document.querySelector<HTMLFormElement>("#otp");
-      if (form) form.onsubmit = act(() => codeForm(form, false));
+        (providers.length
+          ? ""
+          : "<p>No sign-in provider is configured. Contact the administrator.</p>");
       return;
     }
     if (resume()) return;
@@ -212,15 +178,7 @@ function accountPortal() {
                 '<details><summary>Required sign-in method</summary><form class="requirement" data-hub="' +
                 esc(h.id) +
                 '"><p>Sign in with the proposed method first. The current owner must satisfy the new rule before it can be saved.</p><label>Required method<select name="method" aria-label="Required method">' +
-                [
-                  "any",
-                  "email",
-                  "phone",
-                  "feishu",
-                  "wechat",
-                  "oidc",
-                  "password",
-                ]
+                ["any", ...new Set(providers.map((p: any) => p.method))]
                   .map(
                     (m) =>
                       '<option value="' +
@@ -309,23 +267,18 @@ function accountPortal() {
         )
         .join("") +
       "</div><p>Linking requires a sign-in within the last five minutes and verification of the new identity. Matching email addresses never merge accounts.</p>" +
-      options.providers
+      providers
         .map(
           (p: any) =>
             '<p><a href="/auth/' +
             encodeURIComponent(p.id) +
             '/start?link=1">Link ' +
-            esc(p.method) +
+            esc(providerLabel(p.method)) +
             " (" +
             esc(p.id) +
             ")</a></p>",
         )
-        .join("") +
-      (options.codes.length
-        ? '<details><summary>Link an email or phone number</summary><form id="link-code">' +
-          otp(options.codes) +
-          "</form></details>"
-        : "");
+        .join("");
     for (const form of document.querySelectorAll<HTMLFormElement>(
       "form.add-computer",
     )) {
@@ -452,8 +405,6 @@ function accountPortal() {
         status.textContent =
           "Computer moved. Open the target hub for a new enrollment code, then detach and re-enroll locally.";
       });
-    const linkForm = document.querySelector<HTMLFormElement>("#link-code");
-    if (linkForm) linkForm.onsubmit = act(() => codeForm(linkForm, true));
   }
   void render().catch((e) => (status.textContent = e.message));
 }

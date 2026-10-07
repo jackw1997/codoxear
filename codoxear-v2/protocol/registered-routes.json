@@ -526,6 +526,12 @@
       ]
     },
     {
+      "path": "/register",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
       "path": "/oauth/*",
       "methods": [
         "DELETE",
@@ -607,18 +613,6 @@
       ]
     },
     {
-      "path": "/api/v1/auth/code",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
-      "path": "/api/v1/auth/code/verify",
-      "methods": [
-        "POST"
-      ]
-    },
-    {
       "path": "/api/v1/auth/logout",
       "methods": [
         "POST"
@@ -631,9 +625,45 @@
       ]
     },
     {
-      "path": "/api/v1/auth/password",
+      "path": "/api/v1/auth/keys/enroll/challenge",
       "methods": [
         "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/auth/keys/enroll/verify",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/auth/keys/challenge",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/auth/keys/verify",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/auth/setup",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/api/v1/me/keys",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/api/v1/me/keys/:id",
+      "methods": [
+        "DELETE"
       ]
     },
     {
