@@ -14,4 +14,6 @@ This package provides the retained catalog server compatibility API. It has no C
 
 Build its own container with `docker build -t codoxear-server .`. Mount private configuration, persistent data and any explicitly requested assets at runtime. Container configuration is external to the source archive.
 
+The image runs as UID 1000 and defaults `CODOXEAR_V2_DATABASE` to `/home/node/.local/share/codoxear-v2/server/catalog.sqlite`. Mount persistent state at `/home/node/.local/share/codoxear-v2/server`, owned by UID 1000. To use another state location, set `CODOXEAR_V2_DATABASE` to an absolute writable path and mount its parent directory. Bootstrap credentials remain external environment configuration.
+
 For optional browser compatibility routes, set `CODOXEAR_FRONTEND_ASSETS_ROOT` to an absolute path containing a separately built frontend asset bundle (`web/`, `workspace/`, `identity/`, `client/`). Mount it read only in the backend container. Without that explicit integration, the backend starts independently and provides its API; browser assets remain the frontend package's responsibility.

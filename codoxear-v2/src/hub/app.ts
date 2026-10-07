@@ -1838,7 +1838,6 @@ export async function createHubApp(o: HubOptions) {
       });
     }
     app.get("/login", async (r, reply) => {
-      frontendModuleRoot(assetsRoot, "client");
       return reply
         .header("Cache-Control", "no-store")
         .type("text/html")
@@ -1846,9 +1845,7 @@ export async function createHubApp(o: HubOptions) {
           "Content-Security-Policy",
           "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'",
         )
-        .send(
-          '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Codoxear login</title><link rel="stylesheet" href="/appearance/app.css"><link rel="stylesheet" href="/appearance/connections.css"></head><body><main class="connectionLoginWrap"><section class="connectionLogin" id="hubLogin" aria-label="Hub sign-in"><h1>Codoxear login</h1><p class="connectionHint" role="status">Loading sign-in…</p></section></main><script src="/hub-login.js" type="module"></script></body></html>',
-        );
+        .send(await frontendAsset(assetsRoot, "client", "hub-login.html"));
     });
   }
   if (o.localIdentity)

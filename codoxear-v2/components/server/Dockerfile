@@ -10,5 +10,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
+ENV HOME=/home/node \
+    CODOXEAR_V2_DATABASE=/home/node/.local/share/codoxear-v2/server/catalog.sqlite
 USER node
 CMD ["node", "dist/server/server/main.js"]

@@ -70,6 +70,7 @@ await build({
   outfile: resolve("dist/identity/account.js"),
 });
 await cp(resolve("web/help/cache-design.html"), resolve("dist/identity/cache-design.html"));
+await cp(resolve("web/identity/index.html"), resolve("dist/identity/index.html"));
 // Share the established theme engine and styles verbatim across account and hub UI.
 for (const root of ["dist/web/appearance", "dist/identity/appearance"]) {
   await mkdir(root, { recursive: true });
@@ -157,6 +158,7 @@ await build({
   target: "es2022",
   outfile: resolve("dist/client/hub-login.js"),
 });
+await cp(resolve("web/client/hub-login.html"), resolve("dist/client/hub-login.html"));
 
 await build({
   entryPoints: [resolve("web/client/callback.ts")],

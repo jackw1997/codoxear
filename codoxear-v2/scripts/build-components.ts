@@ -319,7 +319,9 @@ async function buildRelease() {
           ? "HOME=/home/node CODOXEAR_COMPUTER_HOME=/home/node/.local/share/codoxear-v2/computer PI_BIN=/usr/local/bin/pi CODEX_BIN=/usr/local/bin/codex CLAUDE_BIN=/usr/local/bin/claude NODE_OPTIONS=--max-old-space-size=384"
           : role === "frontend"
             ? "HOME=/home/node CODOXEAR_CLIENT_HOST=0.0.0.0 CODOXEAR_CLIENT_PORT=19520 NODE_OPTIONS=--max-old-space-size=384"
-            : "HOME=/home/node NODE_OPTIONS=--max-old-space-size=384";
+            : role === "server"
+              ? "HOME=/home/node CODOXEAR_V2_DATABASE=/home/node/.local/share/codoxear-v2/server/catalog.sqlite NODE_OPTIONS=--max-old-space-size=384"
+              : "HOME=/home/node NODE_OPTIONS=--max-old-space-size=384";
       const entry =
         role === "frontend"
           ? ["node", "serve.mjs"]

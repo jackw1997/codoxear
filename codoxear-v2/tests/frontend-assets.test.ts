@@ -111,6 +111,10 @@ test("separate absolute frontend artifact supplies UI assets and fences traversa
     "<html><head></head><body>Workspace artifact</body></html>",
   );
   await writeFile(
+    join(root, "identity/index.html"),
+    "<html>External identity shell</html>",
+  );
+  await writeFile(
     join(root, "identity/account.js"),
     "globalThis.accountArtifact = true;",
   );
@@ -121,6 +125,10 @@ test("separate absolute frontend artifact supplies UI assets and fences traversa
   await writeFile(
     join(root, "identity/cache-design.html"),
     "<html>External guide</html>",
+  );
+  await writeFile(
+    join(root, "client/hub-login.html"),
+    "<html>External Hub login shell</html>",
   );
   await writeFile(
     join(root, "client/hub-login.js"),
@@ -140,7 +148,9 @@ test("separate absolute frontend artifact supplies UI assets and fences traversa
         "<!doctype html><html><head></head><body>External artifact</body></html>",
       );
     }
-    assert.equal((await apps.identity.inject("/")).statusCode, 200);
+    const identityPage = await apps.identity.inject("/");
+    assert.equal(identityPage.statusCode, 200);
+    assert.equal(identityPage.body, "<html>External identity shell</html>");
     assert.equal(
       (await apps.identity.inject("/account.js")).body,
       "globalThis.accountArtifact = true;",
@@ -157,7 +167,9 @@ test("separate absolute frontend artifact supplies UI assets and fences traversa
       (await apps.hub.inject("/hub-login.js")).body,
       "globalThis.loginArtifact = true;",
     );
-    assert.equal((await apps.hub.inject("/login")).statusCode, 200);
+    const hubLogin = await apps.hub.inject("/login");
+    assert.equal(hubLogin.statusCode, 200);
+    assert.equal(hubLogin.body, "<html>External Hub login shell</html>");
     const context = {
       issuer: "https://artifact.test",
       accountId: "owner",

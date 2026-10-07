@@ -5,7 +5,7 @@ import ts from "typescript";
 
 // Build-time architectural check, separate from behavioral acceptance tests.
 const root = resolve(import.meta.dirname, "..");
-const skippedDirectories = new Set(["node_modules", "dist", "artifacts", ".data", ".git", "test-results"]);
+const skippedDirectories = new Set(["node_modules", "dist", "artifacts", "releases", ".data", ".git", "test-results"]);
 
 export interface ComponentManifest {
   readonly role: string;
@@ -29,7 +29,10 @@ function importSpecifiers(file: string, sourceText: string): string[] {
   function visit(node: ts.Node): void {
     let specifier: ts.Expression | undefined;
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) specifier = node.moduleSpecifier;
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) specifier = node.arguments[0];
+    if (ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === "require"))) specifier = node.arguments[0];
+    if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) specifier = node.argument.literal;
     if (specifier && ts.isStringLiteralLike(specifier)) found.push(specifier.text);
     ts.forEachChild(node, visit);
   }
@@ -109,6 +112,10 @@ export function auditComponentBoundaries(
       for (const edge of outgoing.get(file) ?? []) {
         if (edge.target === undefined) {
           violations.push(`${manifest.role}: cannot resolve source import from ${file}: ${edge.specifier}`);
+          continue;
+        }
+        if (sourceOwner(file) !== manifest.role && sourceOwner(edge.target) === manifest.role) {
+          violations.push(`${manifest.role}: shared library cannot import its component: ${file} → ${edge.target}`);
           continue;
         }
         pending.push(edge.target);

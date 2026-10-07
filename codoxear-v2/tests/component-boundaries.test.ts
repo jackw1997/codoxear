@@ -74,3 +74,39 @@ test("Hub and Identity may use their declared auth/domain/presentation libraries
   }, manifests);
   assert.deepEqual(violations, []);
 });
+
+for (const [kind, statement] of [
+  ["type import", "type Hidden = import('../hub/api.js').Hidden;"],
+  ["CommonJS require", "const hidden = require('../hub/api.js');"],
+  ["dynamic import", "const hidden = import('../hub/api.js');"],
+] as const) {
+  test(`closure follows ${kind} edges into peer components`, () => {
+    const violations = audit({
+      "src/computer/main.ts": "import '../protocol/facade.js';",
+      "src/protocol/facade.ts": statement,
+      "src/hub/api.ts": "export interface Hidden {}",
+    }, peerManifests.filter((manifest) => manifest.role !== "identity"));
+    assert(violations.some((value) => value.includes("component hub src/hub/api.ts")));
+  });
+}
+
+test("shared libraries reject backedges into their consuming component even when already visited", () => {
+  const violations = audit({
+    "src/computer/main.ts": "import '../protocol/facade.js';",
+    "src/protocol/facade.ts": "export * from '../computer/main.js';",
+  });
+  assert.deepEqual(violations, [
+    "computer: shared library cannot import its component: src/protocol/facade.ts → src/computer/main.ts",
+  ]);
+});
+
+test("AST extraction ignores import-like strings and comments", () => {
+  const violations = audit({
+    "src/computer/main.ts": `
+      // require('../hub/api.js');
+      const example = "type Hidden = import('../hub/api.js').Hidden;";
+      const documentation = "require('../hub/api.js')";
+    `,
+  });
+  assert.deepEqual(violations, []);
+});

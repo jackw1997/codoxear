@@ -12,9 +12,7 @@ import { registerBrowserGateway } from "./browser-gateway.js";
 import {
   frontendAsset,
   frontendAssetsRoot,
-  frontendModuleRoot,
 } from "../presentation/frontend-assets.js";
-import { portal } from "./portal.js";
 import Fastify, {
   type FastifyRequest,
   type FastifyReply,
@@ -1124,8 +1122,9 @@ export async function createIdentityApp(options: IdentityOptions) {
   );
   app.get("/auth/start", async (_r, reply) => reply.redirect("/"));
   app.get("/", async (_r, reply) => {
-    frontendModuleRoot(assetsRoot, "identity");
-    return reply.type("text/html").send(portal);
+    return reply
+      .type("text/html")
+      .send(await frontendAsset(assetsRoot, "identity", "index.html"));
   });
   return app;
 }
