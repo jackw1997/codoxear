@@ -26,6 +26,9 @@ jobs:
       - name: Build and verify the self-contained v2 application
         working-directory: codoxear-v2
         run: node --experimental-strip-types scripts/verify-docker.ts codoxear-v2-ci
+      - name: Verify frontend and backend build without peer sources
+        working-directory: codoxear-v2
+        run: node --experimental-strip-types scripts/verify-isolation.ts "$GITHUB_SHA"
       - name: Preserve verification evidence
         if: always()
         uses: actions/upload-artifact@v4

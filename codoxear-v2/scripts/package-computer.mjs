@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 // Export only committed sources; never archive local credentials or runtime data.
@@ -14,7 +14,7 @@ execFileSync(
   ["cat-file", "-e", commit + ":codoxear-v2/src/computer/main.ts"],
   { cwd: repository },
 );
-const directory = resolve("dist/client/downloads");
+const directory = resolve("frontend/dist/client/downloads");
 await mkdir(directory, { recursive: true });
 execFileSync(
   "git",
@@ -36,4 +36,7 @@ await writeFile(
     sha256: createHash("sha256").update(await readFile(resolve(directory, "codoxear-computer-source.tar.gz"))).digest("hex"),
   }) + "\n",
 );
+// The combined backend-hosted preview can also expose this public artifact.
+await mkdir(resolve("dist/client/downloads"), { recursive: true });
+await cp(directory, resolve("dist/client/downloads"), { recursive: true });
 console.log("Packaged Computer source", commit);
