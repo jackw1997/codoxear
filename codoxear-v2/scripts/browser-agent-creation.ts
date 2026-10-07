@@ -309,12 +309,15 @@ try {
       options.every((label) => !/Configured|Runtime default/.test(label)),
     );
   }
-  assert.equal(
-    await dialog()
-      .getByLabel("Provider", { exact: true })
-      .locator('option[value=""]')
-      .isDisabled(),
-    true,
+  const providerPlaceholder = dialog()
+    .getByLabel("Provider", { exact: true })
+    .locator('option[value=""]');
+  assert.deepEqual(
+    await providerPlaceholder.evaluate((option) => ({
+      disabled: option.disabled,
+      nativeDisabled: option.matches(":disabled"),
+    })),
+    { disabled: true, nativeDisabled: true },
   );
   pass(
     "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",

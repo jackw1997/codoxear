@@ -144,14 +144,17 @@ const defaults = z.object({
   model: nullableText,
   model_provider: nullableText.optional(),
   provider_choice: nullableText.optional(),
+  preferred_auth_method: nullableText.optional(),
+  reasoning_effort: nullableText.optional(),
   provider_choices: z.array(text),
   models: z.array(text),
   reasoning_efforts: z.array(text),
   supports_fast: z.boolean(),
   provider_models: z.record(text, z.array(text)).optional(),
+  reasoning_efforts_by_model: z.record(text, z.array(text)).optional(),
 });
 export const LaunchDefaults = z.object({
-  default_backend: NativeBackend,
+  default_backend: NativeBackend.optional(),
   provider_launch: z.literal(true),
   backends: z.object({ pi: defaults, codex: defaults, cc: defaults }),
 });

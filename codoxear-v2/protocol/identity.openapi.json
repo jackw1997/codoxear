@@ -5313,11 +5313,10 @@
             "const": true
           },
           "backends": {
-            "$ref": "#/components/schemas/Sharedobject_4ad30c1eebe28ab3"
+            "$ref": "#/components/schemas/Sharedobject_da56e7d96ff3eb19"
           }
         },
         "required": [
-          "default_backend",
           "provider_launch",
           "backends"
         ],
@@ -5944,7 +5943,7 @@
             }
           },
           "new_session_defaults": {
-            "$ref": "#/components/schemas/SharedUnion_d05bbab1b77d8c54"
+            "$ref": "#/components/schemas/SharedUnion_e3d29b79babfbd38"
           },
           "recent_cwds": {
             "type": "array",
@@ -5970,7 +5969,7 @@
         "type": "object",
         "properties": {
           "sessions": {
-            "$ref": "#/components/schemas/Sharedarray_617c67ff262bebfa"
+            "$ref": "#/components/schemas/Sharedarray_2dbdcddb2b921421"
           },
           "catalog_errors": {
             "$ref": "#/components/schemas/Sharedarray_a7d280e3b619d410"
@@ -10811,13 +10810,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedarray_617c67ff262bebfa": {
+      "Sharedarray_2dbdcddb2b921421": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_6f6df75e43e1fd3d"
+          "$ref": "#/components/schemas/Sharedobject_293baffa87d43762"
         }
       },
-      "Sharedobject_6f6df75e43e1fd3d": {
+      "Sharedobject_293baffa87d43762": {
         "type": "object",
         "properties": {
           "version": {
@@ -11071,7 +11070,7 @@
             "$ref": "#/components/schemas/Sharedobject_0152a3b261ae052b"
           },
           "codoxear_launch_defaults": {
-            "$ref": "#/components/schemas/SharedUnion_d05bbab1b77d8c54"
+            "$ref": "#/components/schemas/SharedUnion_e3d29b79babfbd38"
           },
           "codoxear_computer_id": {
             "type": "string",
@@ -11468,10 +11467,10 @@
         ],
         "additionalProperties": false
       },
-      "SharedUnion_d05bbab1b77d8c54": {
+      "SharedUnion_e3d29b79babfbd38": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/Sharedobject_2458833816a256e0"
+            "$ref": "#/components/schemas/Sharedobject_c5fa879a3cf55fd9"
           },
           {
             "type": "object",
@@ -11480,7 +11479,7 @@
           }
         ]
       },
-      "Sharedobject_2458833816a256e0": {
+      "Sharedobject_c5fa879a3cf55fd9": {
         "type": "object",
         "properties": {
           "default_backend": {
@@ -11496,27 +11495,26 @@
             "const": true
           },
           "backends": {
-            "$ref": "#/components/schemas/Sharedobject_4ad30c1eebe28ab3"
+            "$ref": "#/components/schemas/Sharedobject_da56e7d96ff3eb19"
           }
         },
         "required": [
-          "default_backend",
           "provider_launch",
           "backends"
         ],
         "additionalProperties": false
       },
-      "Sharedobject_4ad30c1eebe28ab3": {
+      "Sharedobject_da56e7d96ff3eb19": {
         "type": "object",
         "properties": {
           "pi": {
-            "$ref": "#/components/schemas/Sharedobject_8c6f8a3324d3dff3"
+            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
           },
           "codex": {
-            "$ref": "#/components/schemas/Sharedobject_8c6f8a3324d3dff3"
+            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
           },
           "cc": {
-            "$ref": "#/components/schemas/Sharedobject_8c6f8a3324d3dff3"
+            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
           }
         },
         "required": [
@@ -11526,7 +11524,7 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_8c6f8a3324d3dff3": {
+      "Sharedobject_a2832537bd31817e": {
         "type": "object",
         "properties": {
           "model": {
@@ -11542,6 +11540,18 @@
             ]
           },
           "provider_choice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preferred_auth_method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reasoning_effort": {
             "type": [
               "string",
               "null"
@@ -11569,6 +11579,18 @@
             "type": "boolean"
           },
           "provider_models": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "reasoning_efforts_by_model": {
             "type": "object",
             "propertyNames": {
               "type": "string"
