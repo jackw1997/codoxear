@@ -3,6 +3,28 @@ import { randomUUID } from "node:crypto";
 import type { Runtime } from "../../src/computer/runtime.js";
 import type { Operation } from "../../src/contracts/tunnel.js";
 
+const fixtureBackendDefaults = () => ({
+  model: "fixture-model",
+  model_provider: "local",
+  provider_choice: "local",
+  provider_choices: ["local"],
+  models: ["fixture-model"],
+  provider_models: { local: ["fixture-model"] },
+  reasoning_effort: "off",
+  reasoning_efforts: ["off"],
+  supports_fast: false,
+});
+
+const fixtureLaunchDefaults = () => ({
+  default_backend: "pi" as const,
+  provider_launch: true as const,
+  backends: {
+    pi: fixtureBackendDefaults(),
+    codex: fixtureBackendDefaults(),
+    cc: fixtureBackendDefaults(),
+  },
+});
+
 // Explicit synthetic runtime for isolated UI/transport tests. It never claims
 // to run a model or a native CLI. Production setup must select a real adapter.
 export class FixtureRuntime implements Runtime {
@@ -31,7 +53,7 @@ export class FixtureRuntime implements Runtime {
           .prepare("SELECT id AS session_id FROM agents")
           .all()
           .map((s) => ({ ...s, agent_backend: "fixture" })),
-        new_session_defaults: {},
+        new_session_defaults: fixtureLaunchDefaults(),
         recent_cwds: [],
         tmux_available: false,
       };

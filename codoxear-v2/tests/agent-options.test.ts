@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   defaultsFor,
   modelsFor,
+  providersFor,
   effortsFor,
   launchOptions,
   type BackendDefaults,
@@ -22,29 +23,42 @@ const pi: BackendDefaults = {
 const empty = { provider: "", model: "", effort: "", fast: false, cwd: "" };
 test("provider/model catalogs preserve namespaces and constrain reasoning to the selected model", () => {
   assert.deepEqual(modelsFor(pi, "b"), ["same-name", "b-only"]);
-  assert.deepEqual(modelsFor(pi, ""), ["same-name", "a-only"]);
+  assert.deepEqual(modelsFor(pi, ""), []);
   assert.deepEqual(modelsFor(pi, "missing"), []);
   assert.deepEqual(effortsFor(pi, "a", "same-name"), ["off"]);
   assert.deepEqual(effortsFor(pi, "b", "same-name"), ["low", "high"]);
   assert.deepEqual(effortsFor(pi, "", ""), ["off"]);
-  assert.deepEqual(defaultsFor({}, "cc").reasoning_efforts, [
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-    "auto",
+  assert.equal(defaultsFor({}, "cc").reasoning_efforts, undefined);
+  assert.deepEqual(providersFor(pi, "pi"), ["a", "b", "__custom_api__"]);
+  assert.deepEqual(providersFor({}, "codex"), ["__custom_api__"]);
+  assert.deepEqual(providersFor({ model_provider: "anthropic" }, "cc"), [
+    "anthropic",
+    "__custom_api__",
   ]);
 });
-test("configured defaults omit overrides; alternate Pi providers require a model", () => {
-  assert.deepEqual(launchOptions("pi", pi, empty), {});
-  assert.deepEqual(launchOptions("pi", pi, { ...empty, provider: "a" }), {
-    model_provider: "a",
-    model: "same-name",
-  });
+test("provider, model and supported reasoning must be explicit", () => {
+  assert.throws(() => launchOptions("pi", pi, empty), /Choose a provider/);
   assert.throws(
-    () => launchOptions("pi", pi, { ...empty, provider: "b" }),
+    () => launchOptions("pi", pi, { ...empty, provider: "a" }),
     /Choose a model/,
+  );
+  assert.deepEqual(
+    launchOptions("pi", pi, {
+      ...empty,
+      provider: "a",
+      model: "same-name",
+      effort: "off",
+    }),
+    {
+      model_provider: "a",
+      model: "same-name",
+      reasoning_effort: "off",
+    },
+  );
+  assert.throws(
+    () =>
+      launchOptions("pi", pi, { ...empty, provider: "b", model: "same-name" }),
+    /Choose a reasoning level/,
   );
   assert.throws(
     () =>
@@ -86,29 +100,43 @@ test("Codex auth and Fast settings map to CLI options; unsupported Fast never le
     launchOptions("codex", codex, {
       ...empty,
       provider: "chatgpt",
+      model: "selected-model",
       fast: true,
     }),
     {
+      model: "selected-model",
       model_provider: "openai",
       preferred_auth_method: "chatgpt",
       service_tier: "fast",
     },
   );
   assert.deepEqual(
-    launchOptions("codex", codex, { ...empty, provider: "openai-api" }),
-    { model_provider: "openai", preferred_auth_method: "apikey" },
+    launchOptions("codex", codex, {
+      ...empty,
+      provider: "openai-api",
+      model: "selected-model",
+    }),
+    {
+      model: "selected-model",
+      model_provider: "openai",
+      preferred_auth_method: "apikey",
+    },
   );
   assert.deepEqual(
-    launchOptions("codex", codex, { ...empty, provider: "gateway" }),
-    { model_provider: "gateway", preferred_auth_method: "apikey" },
+    launchOptions("codex", codex, {
+      ...empty,
+      provider: "gateway",
+      model: "selected-model",
+    }),
+    { model: "selected-model", model_provider: "gateway" },
   );
   assert.deepEqual(
     launchOptions(
       "cc",
-      {},
+      { provider_choices: ["gateway"] },
       { ...empty, provider: "gateway", model: "claude-custom", fast: true },
     ),
-    { model: "claude-custom", service_tier: "fast" },
+    { model: "claude-custom", model_provider: "gateway", service_tier: "fast" },
   );
 });
 
@@ -184,15 +212,15 @@ for (const backend of ["pi", "codex", "cc"] as const) {
             apiKey: "test-key",
           },
         ),
-      /model ID/,
+      /Choose a model/,
     );
   });
 }
-test("Pi preset keys and compatibility options are forwarded", () => {
+test("Configured Pi provider keys and compatibility options are forwarded", () => {
   assert.deepEqual(
     launchOptions(
       "pi",
-      {},
+      { provider_choices: ["deepseek"] },
       {
         ...empty,
         provider: "deepseek",
@@ -221,4 +249,47 @@ test("Pi preset keys and compatibility options are forwarded", () => {
   );
   assert.equal(launch.provider_config?.api, "anthropic-messages");
   assert.equal(launch.provider_config?.image_support, true);
+});
+
+test("configured identities remain precise and empty catalogs cannot synthesize provider/model defaults", () => {
+  const configured = {
+    model_provider: "litellm",
+    model: "gateway-model",
+    provider_models: { other: ["other-model"] },
+  };
+  assert.deepEqual(providersFor(configured, "codex"), [
+    "other",
+    "litellm",
+    "__custom_api__",
+  ]);
+  assert.deepEqual(modelsFor(configured, "litellm"), ["gateway-model"]);
+  assert.deepEqual(modelsFor(configured, "other"), ["other-model"]);
+  for (const backend of ["pi", "codex", "cc"] as const) {
+    assert.throws(
+      () =>
+        launchOptions(
+          backend,
+          {},
+          { ...empty, provider: "zai", model: "arbitrary" },
+        ),
+      /configured/,
+    );
+    assert.throws(
+      () =>
+        launchOptions(backend, configured, {
+          ...empty,
+          provider: "litellm",
+          model: "default",
+        }),
+      /Choose a model/,
+    );
+    assert.deepEqual(
+      launchOptions(backend, configured, {
+        ...empty,
+        provider: "litellm",
+        model: "gateway-model",
+      }),
+      { model: "gateway-model", model_provider: "litellm" },
+    );
+  }
 });

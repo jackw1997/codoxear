@@ -17,6 +17,7 @@ const catalogs = {
         pi: {
           provider_choice: "local",
           model: "pi-default",
+          reasoning_effort: "off",
           provider_choices: ["local", "anthropic"],
           models: ["pi-default", "pi-reasoner"],
           provider_models: {
@@ -32,6 +33,7 @@ const catalogs = {
         codex: {
           provider_choice: "chatgpt",
           model: "codex-model",
+          reasoning_effort: "high",
           provider_choices: ["chatgpt", "openai-api"],
           models: ["codex-model", "codex-small"],
           reasoning_efforts: ["low", "medium", "high"],
@@ -42,7 +44,11 @@ const catalogs = {
           supports_fast: true,
         },
         cc: {
+          provider_choice: "anthropic",
+          provider_choices: ["anthropic"],
+          model_provider: "anthropic",
           model: "sonnet",
+          reasoning_effort: "high",
           models: ["sonnet", "opus", "haiku"],
           reasoning_efforts: ["low", "medium", "high"],
           supports_fast: false,
@@ -282,6 +288,37 @@ try {
       .allTextContents(),
     ["Pi", "Codex", "Claude Code"],
   );
+  assert.equal(
+    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    "local",
+  );
+  assert.equal(
+    await dialog().getByLabel("Model", { exact: true }).inputValue(),
+    "pi-default",
+  );
+  assert.equal(
+    await dialog().getByLabel("Reasoning", { exact: true }).inputValue(),
+    "off",
+  );
+  for (const field of ["Provider", "Model", "Reasoning"]) {
+    const options = await dialog()
+      .getByLabel(field, { exact: true })
+      .locator("option")
+      .allTextContents();
+    assert.ok(
+      options.every((label) => !/Configured|Runtime default/.test(label)),
+    );
+  }
+  assert.equal(
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .locator('option[value=""]')
+      .isDisabled(),
+    true,
+  );
+  pass(
+    "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",
+  );
   await dialog().getByLabel("Agent name").fill("Phone agent");
   await dialog()
     .getByLabel("Provider", { exact: true })
@@ -302,7 +339,7 @@ try {
       .getByLabel("Reasoning", { exact: true })
       .locator("option")
       .allTextContents(),
-    ["Runtime default", "Low", "High"],
+    ["Choose a reasoning level", "Low", "High"],
   );
   await dialog().getByLabel("Reasoning", { exact: true }).selectOption("high");
   assert.equal(await dialog().getByLabel("Fast mode").isVisible(), false);
@@ -340,6 +377,18 @@ try {
       .count(),
     0,
   );
+  const beforeMissingEffort = received.length;
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  assert.equal(received.length, beforeMissingEffort);
+  assert.equal(
+    await dialog()
+      .getByLabel("Reasoning", { exact: true })
+      .evaluate((el) => el.validity.valueMissing),
+    true,
+  );
+  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("low");
   await dialog().getByText("Fast mode", { exact: true }).click();
   assert.equal(await dialog().getByLabel("Fast mode").isChecked(), true);
   assert.deepEqual((await submit()).body, {
@@ -348,6 +397,7 @@ try {
     model_provider: "openai",
     preferred_auth_method: "chatgpt",
     model: "codex-small",
+    reasoning_effort: "low",
     service_tier: "fast",
     create_in_tmux: false,
   });
@@ -357,7 +407,7 @@ try {
   await dialog().getByLabel("Runtime", { exact: true }).selectOption("cc");
   assert.equal(
     await dialog().getByLabel("Provider", { exact: true }).inputValue(),
-    "",
+    "anthropic",
   );
   assert.equal(await dialog().getByLabel("Fast mode").isVisible(), true);
   await dialog()
@@ -394,6 +444,7 @@ try {
   assert.deepEqual((await submit()).body, {
     name: "Phone agent",
     agent_backend: "cc",
+    model_provider: "anthropic",
     model: "claude-custom",
     reasoning_effort: "medium",
     create_in_tmux: false,
@@ -419,6 +470,7 @@ try {
     await dialog()
       .getByLabel("Custom model", { exact: true })
       .fill("PrivateModel");
+    await dialog().getByLabel("Reasoning", { exact: true }).selectOption("low");
     assert.equal(
       await dialog()
         .getByLabel("API key", { exact: true })
@@ -464,7 +516,15 @@ try {
     assert.equal(request.service_tier, runtime === "cc" ? "fast" : undefined);
     assert.equal(request.model_provider, undefined);
     await dialog().getByText("Advanced", { exact: true }).click();
-    await dialog().getByLabel("Provider", { exact: true }).selectOption("");
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .selectOption(
+        runtime === "pi"
+          ? "local"
+          : runtime === "codex"
+            ? "chatgpt"
+            : "anthropic",
+      );
     assert.equal(
       await dialog().getByLabel("API key", { exact: true }).inputValue(),
       "",
@@ -529,7 +589,38 @@ try {
       .getByLabel("Provider", { exact: true })
       .locator("option")
       .allTextContents(),
-    ["Configured on computer", "work-provider", "DeepSeek", "Custom API"],
+    ["Choose a provider", "work-provider", "Custom API"],
+  );
+  assert.equal(
+    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    "",
+  );
+  const beforeUnknown = received.length;
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  assert.equal(received.length, beforeUnknown);
+  assert.equal(
+    await dialog()
+      .getByLabel("Provider", { exact: true })
+      .evaluate((el) => el.validity.valueMissing),
+    true,
+  );
+  await dialog()
+    .getByLabel("Provider", { exact: true })
+    .selectOption("work-provider");
+  await dialog()
+    .getByRole("button", { name: "Create agent", exact: true })
+    .click();
+  assert.equal(received.length, beforeUnknown);
+  assert.equal(
+    await dialog()
+      .getByLabel("Model", { exact: true })
+      .evaluate((el) => el.validity.valueMissing),
+    true,
+  );
+  pass(
+    "Unknown configured provider or model stays unselected and cannot create an agent with empty launch values",
   );
   delayLaptop = true;
   await dialog()
@@ -638,6 +729,11 @@ try {
   assert.deepEqual((await pendingSubmit).body, {
     name: "Default config",
     backend: "pi",
+    launch: {
+      model_provider: "local",
+      model: "pi-default",
+      reasoning_effort: "off",
+    },
   });
   delayLaunch = false;
   pass(
@@ -646,6 +742,11 @@ try {
   assert.deepEqual((await submit()).body, {
     name: "Default config",
     backend: "pi",
+    launch: {
+      model_provider: "local",
+      model: "pi-default",
+      reasoning_effort: "off",
+    },
   });
   await page.setViewportSize({ width: 390, height: 844 });
   for (const runtime of ["pi", "codex", "cc"]) {
@@ -686,9 +787,10 @@ try {
     true,
   );
   pass(
-    "Account/workspace form submits configured defaults without overrides; all three runtime forms fit 390px and cancel restores focus",
+    "Account/workspace form submits the actual configured provider, model and reasoning; all three runtime forms fit 390px and cancel restores focus",
   );
   await page.getByRole("button", { name: "New agent", exact: true }).click();
+  await ready();
   const resume = page.locator("dialog.agent-creation");
   await resume.getByLabel("Agent name").fill("Continue saved work");
   await resume.getByLabel("Runtime", { exact: true }).selectOption("codex");

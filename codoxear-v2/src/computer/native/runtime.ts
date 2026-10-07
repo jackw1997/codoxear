@@ -15,7 +15,7 @@ import { DomainError } from "../../contracts/model.js";
 import { Launch, type Operation } from "../../contracts/tunnel.js";
 import type { Notification } from "../../protocol/notifications.js";
 import type { Runtime } from "../runtime.js";
-import { backendHomes } from "./homes.js";
+import { readLaunchDefaults } from "./launch-defaults.js";
 import { ensureStateDirectory, socketPath } from "./paths.js";
 import { backendCommand } from "./backend.js";
 import { readTranscript, scanLogs } from "./logs.js";
@@ -474,83 +474,7 @@ export class NativeRuntime implements Runtime {
     };
   }
   private defaults() {
-    const homes = backendHomes(this.home);
-    const codex: any = {
-      model: null,
-      model_provider: null,
-      provider_choice: null,
-      provider_choices: ["chatgpt", "openai-api"],
-      models: [],
-      reasoning_efforts: ["minimal", "low", "medium", "high", "xhigh", "max"],
-      supports_fast: true,
-    };
-    try {
-      const text = readFileSync(join(homes.codex, "config.toml"), "utf8");
-      codex.model = /^model\s*=\s*"([^"]+)"/m.exec(text)?.[1] ?? null;
-      codex.model_provider =
-        /^model_provider\s*=\s*"([^"]+)"/m.exec(text)?.[1] ?? null;
-      if (codex.model) codex.models = [codex.model];
-    } catch {}
-    const pi: any = {
-      model: null,
-      model_provider: null,
-      provider_choice: null,
-      provider_choices: [
-        "anthropic",
-        "openai",
-        "google",
-        "openrouter",
-        "deepseek",
-      ],
-      models: [],
-      provider_models: {},
-      reasoning_efforts: [
-        "off",
-        "minimal",
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max",
-      ],
-      supports_fast: false,
-    };
-    try {
-      const settings = JSON.parse(
-        readFileSync(join(homes.pi, "settings.json"), "utf8"),
-      );
-      pi.model = settings.defaultModel ?? null;
-      pi.model_provider = settings.defaultProvider ?? null;
-      pi.provider_choice = pi.model_provider;
-    } catch {}
-    try {
-      const config = JSON.parse(
-        readFileSync(join(homes.pi, "models.json"), "utf8"),
-      );
-      for (const [provider, value] of Object.entries(
-        config.providers ?? {},
-      ) as Array<[string, any]>) {
-        pi.provider_models[provider] = (value.models ?? []).map(
-          (m: any) => m.id,
-        );
-        pi.provider_choices.push(provider);
-      }
-    } catch {}
-    return {
-      default_backend: "pi",
-      provider_launch: true,
-      backends: {
-        codex,
-        pi,
-        cc: {
-          model: null,
-          models: ["sonnet", "opus", "haiku"],
-          provider_choices: ["__custom_api__"],
-          reasoning_efforts: ["low", "medium", "high", "xhigh", "max", "auto"],
-          supports_fast: true,
-        },
-      },
-    };
+    return readLaunchDefaults(this.home, this.workspace);
   }
   async execute(operation: Operation): Promise<unknown> {
     if (operation.op === "delegation-install")

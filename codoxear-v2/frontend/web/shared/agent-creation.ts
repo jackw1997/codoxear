@@ -53,13 +53,6 @@ const escape = (value: unknown) =>
   );
 const labels: Record<string, string> = {
   __custom_api__: "Custom API",
-  deepseek: "DeepSeek",
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-  openrouter: "OpenRouter",
-  chatgpt: "ChatGPT",
-  "openai-api": "OpenAI API",
   xhigh: "Extra high",
   max: "Maximum",
   ultra: "Ultra",
@@ -81,7 +74,7 @@ export function agentCreationDialog(
   const previousFocus = document.activeElement as HTMLElement | null;
   dialog.className = "account-dialog agent-creation";
   dialog.setAttribute("aria-label", "New agent");
-  dialog.innerHTML = `<form><header><h2>New agent</h2><button type="button" aria-label="Close">×</button></header><div class="agent-creation-body"><label>Agent name<input name="name" required maxlength="120" placeholder="What are you working on?" autofocus></label><label>Computer &amp; hub<select name="placement" aria-label="Computer &amp; hub">${placements.map((p, i) => `<option value="${i}">${escape(p.computerName)} · ${escape(p.hubName)}</option>`).join("")}</select></label><label>Runtime<select name="backend" aria-label="Runtime"><option value="pi">Pi</option><option value="codex">Codex</option><option value="cc">Claude Code</option></select></label><label>Start<select name="start" aria-label="Start"><option value="new">New session</option><option value="resume">Resume saved session</option></select></label><div data-resume hidden><label>Session working directory<input name="resumeCwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Absolute directory on this computer"></label><label>Saved sessions<select name="resumeCandidate" aria-label="Saved sessions"><option value="">Enter a session ID below</option></select></label><button type="button" data-find-resume>Find saved sessions</button><p class="directory-hint" data-resume-status role="status"></p><label>Session ID<input name="resumeSessionId" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Backend session ID"></label><p class="directory-hint">Continue a saved session on the selected computer and runtime. Enter its backend session ID and original working directory. Private API keys and environment variables must be entered again when needed. Complete runtime setup and trust this directory in the CLI beforehand. A session already running cannot be resumed here.</p></div><p class="directory-hint" data-catalog-status role="status"></p><div class="agent-runtime-fields"><label>Provider<select name="provider" aria-label="Provider"></select></label><div data-provider-config hidden><label data-api-url>API URL<input name="apiUrl" type="url" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="https://your-provider.example/v1"></label><label>API key<input name="apiKey" type="password" maxlength="8192" autocomplete="off" spellcheck="false" placeholder="Provider API key"></label><label data-api-kind hidden>API compatibility<select name="api" aria-label="API compatibility"><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses</option><option value="anthropic-messages">Anthropic Messages</option></select></label><label data-image-support class="checkField" hidden><input name="imageSupport" type="checkbox"><span>Image support</span></label><p class="directory-hint" data-provider-hint></p></div><label>Model<select name="model" aria-label="Model"></select></label><label data-custom hidden>Custom model<input name="customModel" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Model ID"></label><details><summary>More</summary><label data-effort>Reasoning<select name="effort" aria-label="Reasoning"></select></label><div data-fast hidden><label class="checkField"><input name="fast" type="checkbox"><span>Fast mode</span></label></div><label>Working directory<input name="cwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Computer’s workspace"></label><details><summary>Advanced</summary><label data-command hidden>Claude command override<input name="command" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="claude or /path/to/claude"></label><fieldset><legend>Environment variables</legend><div data-env-rows></div><button type="button" data-add-env>Add variable</button></fieldset></details></details></div><p class="directory-error" role="alert"></p>${placements.length ? "" : '<p class="directory-hint">Add a computer in Hubs &amp; computers to create an agent.</p>'}</div><footer><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Create agent</button></footer></form>`;
+  dialog.innerHTML = `<form><header><h2>New agent</h2><button type="button" aria-label="Close">×</button></header><div class="agent-creation-body"><label>Agent name<input name="name" required maxlength="120" placeholder="What are you working on?" autofocus></label><label>Computer &amp; hub<select name="placement" aria-label="Computer &amp; hub">${placements.map((p, i) => `<option value="${i}">${escape(p.computerName)} · ${escape(p.hubName)}</option>`).join("")}</select></label><label>Runtime<select name="backend" aria-label="Runtime"><option value="pi">Pi</option><option value="codex">Codex</option><option value="cc">Claude Code</option></select></label><label>Start<select name="start" aria-label="Start"><option value="new">New session</option><option value="resume">Resume saved session</option></select></label><div data-resume hidden><label>Session working directory<input name="resumeCwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Absolute directory on this computer"></label><label>Saved sessions<select name="resumeCandidate" aria-label="Saved sessions"><option value="">Enter a session ID below</option></select></label><button type="button" data-find-resume>Find saved sessions</button><p class="directory-hint" data-resume-status role="status"></p><label>Session ID<input name="resumeSessionId" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Backend session ID"></label><p class="directory-hint">Continue a saved session on the selected computer and runtime. Enter its backend session ID and original working directory. Private API keys and environment variables must be entered again when needed. Complete runtime setup and trust this directory in the CLI beforehand. A session already running cannot be resumed here.</p></div><p class="directory-hint" data-catalog-status role="status"></p><div class="agent-runtime-fields"><label>Provider<select name="provider" aria-label="Provider"></select></label><div data-provider-config hidden><label data-api-url>API URL<input name="apiUrl" type="url" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="https://your-provider.example/v1"></label><label>API key<input name="apiKey" type="password" maxlength="8192" autocomplete="off" spellcheck="false" placeholder="Provider API key"></label><label data-api-kind hidden>API compatibility<select name="api" aria-label="API compatibility"><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses</option><option value="anthropic-messages">Anthropic Messages</option></select></label><label data-image-support class="checkField" hidden><input name="imageSupport" type="checkbox"><span>Image support</span></label><p class="directory-hint" data-provider-hint></p></div><label>Model<select name="model" aria-label="Model"></select></label><label data-custom hidden>Custom model<input name="customModel" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Model ID"></label><label data-effort>Reasoning<select name="effort" aria-label="Reasoning"></select></label><details><summary>More</summary><div data-fast hidden><label class="checkField"><input name="fast" type="checkbox"><span>Fast mode</span></label></div><label>Working directory<input name="cwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Computer’s workspace"></label><details><summary>Advanced</summary><label data-command hidden>Claude command override<input name="command" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="claude or /path/to/claude"></label><fieldset><legend>Environment variables</legend><div data-env-rows></div><button type="button" data-add-env>Add variable</button></fieldset></details></details></div><p class="directory-error" role="alert"></p>${placements.length ? "" : '<p class="directory-hint">Add a computer in Hubs &amp; computers to create an agent.</p>'}</div><footer><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Create agent</button></footer></form>`;
   const select = (name: string) =>
     dialog.querySelector<HTMLSelectElement>(`select[name=${name}]`)!;
   const input = (name: string) =>
@@ -92,14 +85,17 @@ export function agentCreationDialog(
   const alert = dialog.querySelector<HTMLElement>("[role=alert]")!;
   alert.id = "agent-creation-error";
   alert.setAttribute("aria-atomic", "true");
-  let invalidField: HTMLInputElement | undefined;
+  let invalidField: HTMLInputElement | HTMLSelectElement | undefined;
   const clearError = () => {
     alert.textContent = "";
     invalidField?.removeAttribute("aria-invalid");
     invalidField?.removeAttribute("aria-describedby");
     invalidField = undefined;
   };
-  const fieldError = (field: HTMLInputElement, message: string) => {
+  const fieldError = (
+    field: HTMLInputElement | HTMLSelectElement,
+    message: string,
+  ) => {
     invalidField = field;
     field.setAttribute("aria-invalid", "true");
     field.setAttribute("aria-describedby", alert.id);
@@ -123,7 +119,7 @@ export function agentCreationDialog(
     first: string,
     custom = false,
   ) => {
-    node.innerHTML = `<option value="">${escape(first)}</option>${choices
+    node.innerHTML = `<option value="" disabled>${escape(first)}</option>${choices
       .filter((v) => v !== "default")
       .map(
         (v) =>
@@ -224,8 +220,19 @@ export function agentCreationDialog(
       select("provider").value,
       selectedModel(),
     );
-    setOptions(select("effort"), efforts, "Runtime default");
+    setOptions(select("effort"), efforts, "Choose a reasoning level");
+    select("effort").value = "";
+    const configured = defaults().reasoning_effort;
+    const sameConfiguredModel =
+      select("provider").value ===
+        (defaults().provider_choice ?? defaults().model_provider) &&
+      selectedModel() === defaults().model;
     if (efforts.includes(prior)) select("effort").value = prior;
+    else if (sameConfiguredModel && configured && efforts.includes(configured))
+      select("effort").value = configured;
+    else if (efforts.length === 1 && efforts[0] === "off")
+      select("effort").value = "off";
+    select("effort").required = !!efforts.length;
     dialog.querySelector<HTMLElement>("[data-effort]")!.hidden =
       !efforts.length;
     dialog.querySelector<HTMLElement>("[data-fast]")!.hidden =
@@ -242,15 +249,9 @@ export function agentCreationDialog(
   const updateModel = () => {
     updateApiHint();
     const provider = select("provider").value;
-    const providerChanged =
-      provider &&
-      provider !== (defaults().provider_choice ?? defaults().model_provider);
     const customApi = provider === "__custom_api__";
-    const needsModel = customApi || (backend() === "pi" && !!providerChanged);
-    const keyVisible =
-      customApi || provider === "deepseek" || provider === "openai-api";
     dialog.querySelector<HTMLElement>("[data-provider-config]")!.hidden =
-      !keyVisible;
+      !customApi;
     dialog.querySelector<HTMLElement>("[data-api-url]")!.hidden = !customApi;
     dialog.querySelector<HTMLElement>("[data-api-kind]")!.hidden = !(
       customApi && backend() === "pi"
@@ -259,7 +260,7 @@ export function agentCreationDialog(
       customApi && backend() === "pi"
     );
     input("apiUrl").required = customApi;
-    input("apiKey").required = customApi || provider === "deepseek";
+    input("apiKey").required = customApi;
     dialog.querySelector<HTMLElement>("[data-provider-hint]")!.textContent =
       customApi
         ? backend() === "cc"
@@ -267,21 +268,24 @@ export function agentCreationDialog(
           : backend() === "codex"
             ? "Use an OpenAI Responses compatible endpoint."
             : "Choose the API supported by your endpoint."
-        : provider === "deepseek"
-          ? "Enter your DeepSeek API key."
-          : "An empty key uses credentials configured on this computer.";
+        : "";
     setOptions(
       select("model"),
       modelsFor(defaults(), provider),
-      needsModel
-        ? "Choose a model"
-        : defaults().model
-          ? `Configured default (${defaults().model})`
-          : "Configured default",
+      "Choose a model",
       true,
     );
+    select("model").value = "";
+    const configuredProvider =
+      defaults().provider_choice ?? defaults().model_provider;
     if (customApi) select("model").value = "__custom__";
-    select("model").required = needsModel;
+    else if (
+      provider === configuredProvider &&
+      defaults().model &&
+      modelsFor(defaults(), provider).includes(defaults().model!)
+    )
+      select("model").value = defaults().model!;
+    select("model").required = true;
     input("customModel").value = "";
     input("customModel").required = customApi;
     dialog.querySelector<HTMLElement>("[data-custom]")!.hidden = !customApi;
@@ -303,8 +307,13 @@ export function agentCreationDialog(
     setOptions(
       select("provider"),
       providersFor(defaults(), backend()),
-      "Configured on computer",
+      "Choose a provider",
     );
+    select("provider").value = "";
+    select("provider").required = true;
+    const configured = defaults().provider_choice ?? defaults().model_provider;
+    if (configured && providersFor(defaults(), backend()).includes(configured))
+      select("provider").value = configured;
     input("fast").checked = false;
     updateModel();
   };
@@ -327,12 +336,11 @@ export function agentCreationDialog(
       if (request !== pending || pending.signal.aborted) return;
       catalog = loaded;
       status.textContent = placement
-        ? "Choose a provider or use the computer’s existing configuration."
+        ? "Provider and model choices were read from this computer’s configuration."
         : "";
     } catch (error) {
       if (request !== pending || pending.signal.aborted) return;
       status.textContent = `Computer choices could not be loaded. ${error instanceof Error ? error.message : "Try another computer."}`;
-      // Keep configured-default creation available to operators who cannot inspect owner-only config.
     } finally {
       if (request === pending && !pending.signal.aborted) {
         loading = false;
@@ -391,6 +399,10 @@ export function agentCreationDialog(
     try {
       if (!input("name").value.trim())
         fieldError(input("name"), "Enter an agent name.");
+      if (!select("provider").value)
+        fieldError(select("provider"), "Choose a provider.");
+      if (!select("model").value)
+        fieldError(select("model"), "Choose a model.");
       if (select("model").value === "__custom__" && !selectedModel().trim())
         fieldError(input("customModel"), "Enter a custom model ID.");
       if (resuming()) {

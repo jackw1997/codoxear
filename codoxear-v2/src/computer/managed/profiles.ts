@@ -14,6 +14,7 @@ import { scanLogs } from "../native/logs.js";
 import { Launch } from "../../contracts/tunnel.js";
 import { atomicJson } from "../../persistence/files.js";
 import { backendHomes } from "../native/homes.js";
+import { readLaunchDefaults } from "../native/launch-defaults.js";
 import { ManagedSetupError, type ManagedOpen } from "./driver.js";
 
 /** Credentials are Computer-local, never part of the Hub catalogue or receipts. */
@@ -126,12 +127,19 @@ export async function prepareProfile(input: ManagedOpen) {
   }
   if (
     launch.service_tier ||
-    launch.preferred_auth_method ||
     launch.command ||
     launch.worktree_branch
   )
     throw new ManagedSetupError(
-      "This OAR adapter cannot honor service tier, auth-method, command, or worktree overrides yet",
+      "This OAR adapter cannot honor service tier, command, or worktree overrides yet",
+    );
+  const configured = input.backend === "pi" ? undefined
+    : readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
+  if (launch.preferred_auth_method &&
+      (input.backend !== "codex" ||
+       launch.preferred_auth_method !== configured?.preferred_auth_method))
+    throw new ManagedSetupError(
+      "The selected authentication method must match the Codex configuration on this Computer",
     );
   let model = input.model === "default" ? undefined : input.model;
   if (
@@ -215,10 +223,10 @@ export async function prepareProfile(input: ManagedOpen) {
     if (
       launch.model_provider &&
       input.backend !== "pi" &&
-      launch.model_provider !== "openai"
+      launch.model_provider !== configured?.model_provider
     )
       throw new ManagedSetupError(
-        "Named provider override is not supported by this OAR runtime; supply a private endpoint instead",
+        "The selected provider must match this runtime's configuration on the Computer, or use a private endpoint",
       );
     if (provider) {
       const key =

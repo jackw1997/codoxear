@@ -89,10 +89,12 @@ try {
   });
   const initialProvider = await dialog.getByLabel("Provider", { exact: true }).inputValue();
   const initialModel = await dialog.getByLabel("Model", { exact: true }).inputValue();
-  assert.equal(initialModel, "", "Fresh creation should inherit Computer model settings");
-  assert.equal(initialProvider, "", "Fresh creation should inherit Computer provider settings");
+  assert.equal(initialModel, launch.model, "Creation must select the actual configured model");
+  assert.equal(initialProvider, "litellm", "Creation must select the actual configured provider");
   assert.equal(await dialog.getByLabel("Provider", { exact: true }).locator('option[value="litellm"]').count(), 1);
-  assert.equal(await dialog.getByLabel("Model", { exact: true }).locator('option:checked').innerText(), `Configured default (${launch.model})`);
+  assert.equal(await dialog.getByLabel("Model", { exact: true }).locator('option:checked').innerText(), launch.model);
+  assert.equal(await dialog.getByLabel("Reasoning", { exact: true }).inputValue(), "off");
+  pass("Creation shows the saved litellm provider, kimi-k3 model and off reasoning as explicit selections");
   for (const backend of ["pi", "codex", "cc"]) {
     await dialog.getByLabel("Runtime", { exact: true }).selectOption(backend);
     await dialog.getByLabel("Provider", { exact: true }).selectOption({ label: "Custom API" });
@@ -103,15 +105,7 @@ try {
   }
   await dialog.getByLabel("Runtime", { exact: true }).selectOption("pi");
   await dialog.getByLabel("Provider", { exact: true }).selectOption(initialProvider);
-  const explicitConfiguredModel = process.env.FRESH_EXPLICIT_CONFIGURED_MODEL === "1";
-  await dialog.getByLabel("Model", { exact: true }).selectOption(
-    explicitConfiguredModel ? launch.model : initialModel,
-  );
-  if (explicitConfiguredModel) {
-    assert.equal(await dialog.getByLabel("Provider", { exact: true }).inputValue(), "");
-    assert.equal(await dialog.getByLabel("Model", { exact: true }).inputValue(), launch.model);
-    pass("Pi creation selects an explicit model while inheriting the Computer provider");
-  }
+  await dialog.getByLabel("Model", { exact: true }).selectOption(initialModel);
   await dialog.getByLabel("Agent name", { exact: true }).fill(name);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await submit.isVisible());

@@ -66,6 +66,26 @@ test("managed OAR executable pins honor native CLI configuration", async () => {
     assert.equal(result.env.OAR_CLAUDE_BIN, "/configured/claude");
   } finally { await rm(home, { recursive: true, force: true }); }
 });
+test("explicit managed provider and authentication selections must match saved runtime configuration", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-selection-"));
+  try {
+    await mkdir(join(home, ".codex"), { recursive: true });
+    await writeFile(join(home, ".codex", "config.toml"), 'model = "configured-model"\nmodel_provider = "gateway"\n');
+    const input = { home, stateHome: home, cwd: home, backend: "codex" as const, model: "configured-model" };
+    assert.equal((await prepareProfile({ ...input, launch: { model_provider: "gateway" } })).model, "configured-model");
+    await assert.rejects(prepareProfile({ ...input, launch: { model_provider: "other" } }), /must match/);
+    await writeFile(join(home, ".codex", "config.toml"), 'model = "configured-model"\nmodel_provider = "openai"\n');
+    await writeFile(join(home, ".codex", "auth.json"), JSON.stringify({ auth_mode: "chatgpt", tokens: { access_token: "fixture-token" } }));
+    const selected = await prepareProfile({ ...input, launch: { model_provider: "openai", preferred_auth_method: "chatgpt" } });
+    assert.equal(selected.model, "configured-model");
+    await assert.rejects(prepareProfile({ ...input, launch: { model_provider: "openai", preferred_auth_method: "apikey" } }), /authentication method must match/);
+    await mkdir(join(home, ".claude"), { recursive: true });
+    await writeFile(join(home, ".claude", "settings.json"), JSON.stringify({ model: "private-claude", env: { ANTHROPIC_BASE_URL: "https://configured-provider.example", ANTHROPIC_API_KEY: "fixture-key" } }));
+    const claude = { ...input, backend: "cc" as const, model: "private-claude" };
+    assert.equal((await prepareProfile({ ...claude, launch: { model_provider: "configured-provider.example" } })).model, "private-claude");
+    await assert.rejects(prepareProfile({ ...claude, launch: { model_provider: "other" } }), /must match/);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
 test("private Pi delegation extension loads from its installed entry", async () => {
   const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
   try {

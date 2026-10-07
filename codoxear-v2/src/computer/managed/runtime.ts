@@ -16,6 +16,7 @@ import {
   type ManagedOpen,
 } from "./driver.js";
 import { OarFactory } from "./factory.js";
+import { readLaunchDefaults } from "../native/launch-defaults.js";
 
 type LaunchOptions = ReturnType<typeof Launch.parse>;
 type Row = {
@@ -862,41 +863,7 @@ export class ManagedRuntime implements Runtime {
       .all() as Row[];
     return {
       sessions: rows.map((row) => this.metadata(row)),
-      new_session_defaults: {
-        default_backend: "pi",
-        provider_launch: true,
-        backends: {
-          pi: {
-            model: null,
-            models: [],
-            provider_choices: ["__custom_api__"],
-            reasoning_efforts: [
-              "off",
-              "minimal",
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-              "max",
-            ],
-            supports_fast: false,
-          },
-          codex: {
-            model: null,
-            models: [],
-            provider_choices: ["__custom_api__"],
-            reasoning_efforts: ["low", "medium", "high", "xhigh"],
-            supports_fast: false,
-          },
-          cc: {
-            model: null,
-            models: [],
-            provider_choices: ["__custom_api__"],
-            reasoning_efforts: ["low", "medium", "high", "max"],
-            supports_fast: false,
-          },
-        },
-      },
+      new_session_defaults: readLaunchDefaults(this.home, this.workspace),
       recent_cwds: [...new Set(rows.map((row) => row.cwd))],
       tmux_available: false,
       runtime_driver: "oar",

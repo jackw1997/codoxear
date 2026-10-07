@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { computerPackagePaths } from "../package-paths.js";
 import { DomainError } from "../../contracts/model.js";
 import { backendHomes } from "./homes.js";
+import { readLaunchDefaults } from "./launch-defaults.js";
 import { stateDirectory } from "./paths.js";
 import type { BrokerLaunch } from "./types.js";
 const reserved = new Set([
@@ -90,14 +91,15 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
   if (launch.model && launch.model !== "default")
     args.push(backend === "pi" ? "--model" : "--model", launch.model);
   if (launch.model_provider) {
-    if (backend === "cc")
+    if (backend === "cc" &&
+        launch.model_provider !== readLaunchDefaults(home, cwd, env).backends.cc.model_provider)
       throw new DomainError(
         400,
         "not_dispatched",
-        "Claude Code does not support model_provider",
+        "The selected provider must match Claude Code configuration on this Computer",
       );
     if (backend === "pi") args.push("--provider", launch.model_provider);
-    else
+    else if (backend === "codex")
       args.push(
         "-c",
         `model_provider=${JSON.stringify(launch.model_provider)}`,

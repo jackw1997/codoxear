@@ -24,6 +24,7 @@ export type BackendDefaults = {
   model_providers?: string[];
   models?: string[];
   provider_models?: Record<string, string[]>;
+  reasoning_effort?: string | null;
   reasoning_efforts?: string[];
   reasoning_efforts_by_model?: Record<string, string[]>;
   supports_fast?: boolean;
@@ -48,55 +49,40 @@ export function defaultsFor(
   catalog: Catalog,
   backend: Backend,
 ): BackendDefaults {
-  return {
-    reasoning_efforts:
-      backend === "pi"
-        ? ["off", "minimal", "low", "medium", "high", "xhigh", "max"]
-        : backend === "cc"
-          ? ["low", "medium", "high", "xhigh", "max", "auto"]
-          : ["minimal", "low", "medium", "high", "xhigh", "max"],
-    ...catalog.new_session_defaults?.backends?.[backend],
-  };
+  return catalog.new_session_defaults?.backends?.[backend] ?? {};
 }
-export function providersFor(defaults: BackendDefaults, backend: Backend) {
-  if (backend === "cc") return ["__custom_api__"];
+export function providersFor(defaults: BackendDefaults, _backend: Backend) {
   return [
     ...new Set([
-      ...strings(
-        defaults.provider_choices ??
-          defaults.model_providers ??
-          Object.keys(defaults.provider_models ?? {}),
-      ),
-      ...(backend === "pi" ? ["deepseek"] : ["chatgpt", "openai-api"]),
+      ...strings(defaults.provider_choices),
+      ...strings(defaults.model_providers),
+      ...Object.keys(defaults.provider_models ?? {}),
+      ...strings([defaults.provider_choice ?? defaults.model_provider]),
       "__custom_api__",
     ]),
-  ];
+  ].filter((provider) => provider !== "default");
 }
 export function modelsFor(defaults: BackendDefaults, provider: string) {
-  if (provider === "__custom_api__") return [];
-  if (provider === "deepseek")
-    return strings(defaults.provider_models?.deepseek).length
-      ? strings(defaults.provider_models?.deepseek)
-      : ["deepseek-v4-pro", "deepseek-flash"];
-  const effectiveProvider =
-    provider || defaults.provider_choice || defaults.model_provider || "";
-  if (effectiveProvider && defaults.provider_models) {
-    if (Object.hasOwn(defaults.provider_models, effectiveProvider))
-      return strings(defaults.provider_models[effectiveProvider]);
-    if (
-      provider &&
-      provider !== (defaults.provider_choice ?? defaults.model_provider)
-    )
-      return [];
-  }
-  return strings(defaults.models).filter((m) => m !== "default");
+  if (!provider || provider === "__custom_api__") return [];
+  const configuredProvider =
+    defaults.provider_choice ?? defaults.model_provider;
+  const scoped = defaults.provider_models?.[provider];
+  if (scoped || defaults.provider_models)
+    return strings([
+      ...strings(scoped),
+      ...(provider === configuredProvider ? [defaults.model] : []),
+    ]).filter((model) => model !== "default");
+  if (provider !== configuredProvider) return [];
+  return strings([...strings(defaults.models), defaults.model]).filter(
+    (model) => model !== "default",
+  );
 }
 export function effortsFor(
   defaults: BackendDefaults,
   provider: string,
   model: string,
 ) {
-  if (provider === "__custom_api__") return backendEfforts(defaults);
+  if (provider === "__custom_api__") return strings(defaults.reasoning_efforts);
   const selectedProvider =
     provider || defaults.provider_choice || defaults.model_provider || "";
   const selectedModel = model || defaults.model || "";
@@ -106,12 +92,7 @@ export function effortsFor(
     : selectedModel;
   return strings(map[key] ?? map[selectedModel] ?? defaults.reasoning_efforts);
 }
-const backendEfforts = (defaults: BackendDefaults) =>
-  strings(defaults.reasoning_efforts).length
-    ? strings(defaults.reasoning_efforts)
-    : ["low", "medium", "high"];
-
-/** Empty selections deliberately defer to the selected Computer's CLI config. */
+/** Launch values are exactly the values selected in the form. */
 export function launchOptions(
   backend: Backend,
   defaults: BackendDefaults,
@@ -131,7 +112,9 @@ export function launchOptions(
 ): LaunchOptions {
   const launch: LaunchOptions = {};
   const model = input.model.trim();
-  if (model) launch.model = model;
+  if (!input.provider) throw new Error("Choose a provider.");
+  if (!model || model === "default") throw new Error("Choose a model.");
+  launch.model = model;
   if (input.provider === "__custom_api__") {
     let url: URL;
     try {
@@ -149,7 +132,6 @@ export function launchOptions(
         "Enter a valid HTTP or HTTPS API URL without embedded credentials.",
       );
     if (!input.apiKey?.trim()) throw new Error("Enter an API key.");
-    if (!model) throw new Error("Enter a model ID for your provider.");
     launch.provider_config = {
       base_url: url.href.replace(/\/$/, ""),
       api_key: input.apiKey.trim(),
@@ -160,19 +142,11 @@ export function launchOptions(
           }
         : {}),
     };
-  } else if (input.provider && backend !== "cc") {
-    if (input.provider === "deepseek" && !input.apiKey?.trim())
-      throw new Error("Enter a DeepSeek API key.");
+  } else {
     if (input.apiKey?.trim())
       launch.provider_config = { api_key: input.apiKey.trim() };
     if (!providersFor(defaults, backend).includes(input.provider))
       throw new Error("Choose a provider configured on this computer.");
-    if (
-      backend === "pi" &&
-      !model &&
-      input.provider !== (defaults.provider_choice ?? defaults.model_provider)
-    )
-      throw new Error("Choose a model for this provider.");
     if (
       backend === "codex" &&
       ["chatgpt", "openai-api"].includes(input.provider)
@@ -182,14 +156,11 @@ export function launchOptions(
         input.provider === "chatgpt" ? "chatgpt" : "apikey";
     } else {
       launch.model_provider = input.provider;
-      if (backend === "codex") launch.preferred_auth_method = "apikey";
-      if (backend === "pi" && !model) {
-        if (defaults.model && defaults.model !== "default")
-          launch.model = defaults.model;
-        else delete launch.model_provider;
-      }
     }
   }
+  const supportedEfforts = effortsFor(defaults, input.provider, model);
+  if (supportedEfforts.length && !input.effort)
+    throw new Error("Choose a reasoning level for this model.");
   if (input.effort) {
     if (!effortsFor(defaults, input.provider, model).includes(input.effort))
       throw new Error("Choose a supported reasoning level for this model.");
