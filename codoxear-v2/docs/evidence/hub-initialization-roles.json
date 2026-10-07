@@ -298,9 +298,34 @@
     }
   },
   "live": {
-    "status": "Deployment verification recorded separately after build",
-    "google": "App credentials not supplied",
-    "feishu": "Existing team application retained; real verified account exists from prior sign-in. New owner initialization awaits user sign-in."
+    "at": "2026-10-07T17:24:58.258Z",
+    "client": {
+      "passed": true,
+      "at": "2026-10-07T17:24:11.326Z",
+      "origin": "https://codoxear.gzeek.com:8444",
+      "hubOrigin": "https://codoxear.gzeek.com:8447",
+      "checks": [
+        "Fresh client offers an empty Add Hub URL field with no preset Hub or setup code",
+        "Manually entered Hub advertises a separate allowed Feishu OAuth button without device-key or setup-code controls",
+        "Client stays within390px and creates no device signing-key database"
+      ],
+      "providerAuthorization": "Not performed; provider button was only inspected",
+      "deploymentMembership": "Unchanged"
+    },
+    "hub": {
+      "passed": true,
+      "at": "2026-10-07T17:24:16.398Z",
+      "origin": "https://codoxear.gzeek.com:8447",
+      "checks": [
+        "Public HTTPS Hub advertises its sole configured Feishu app",
+        "Private initialization link opens Hub-owned provider login in mobile browser",
+        "Provider handoff uses Hub callback and PKCE without exposing secret"
+      ],
+      "providerLogin": "Not performed: intercepted at provider handoff; actual user authorization still required"
+    },
+    "ownerInitialization": "Private link generated, expires after24h; not consumed by probes. User must complete provider sign-in.",
+    "google": "Supported and tested with controlled OAuth; no real Google app credentials supplied.",
+    "feishu": "Configured team app retained. Verified identity from earlier real login retained. Public initialization and PKCE handoff pass; owner callback requires user sign-in."
   },
   "removed": [
     "Human device signing keys and enrollment/challenge routes",
@@ -312,5 +337,34 @@
     "Owner/Admin/Member management hierarchy",
     "Every user needs explicit Computer allowlist including owners/admins",
     "All signed identities contribute concurrently without merging accounts or duplicating dispatch"
-  ]
+  ],
+  "deployment": {
+    "source": "9d154cb599ac366dc624aecf9639d16923884a5b",
+    "images": {
+      "hub": "codoxear-hub:9d154cb5",
+      "identity": "codoxear-identity:9d154cb5",
+      "frontend": "codoxear-frontend:9d154cb5"
+    },
+    "runtimeSmoke": {
+      "roles": [
+        "hub",
+        "identity",
+        "frontend"
+      ],
+      "passed": true,
+      "uid": 1000,
+      "independentPackages": true
+    },
+    "frontend": "https://codoxear.gzeek.com:8444/",
+    "hub": "https://codoxear.gzeek.com:8447",
+    "preserved": [
+      "Home frontend8445",
+      "Home Hub8446",
+      "Computer A",
+      "Computer B",
+      "LiteLLM settings"
+    ],
+    "restarts": 0,
+    "oomKilled": false
+  }
 }
