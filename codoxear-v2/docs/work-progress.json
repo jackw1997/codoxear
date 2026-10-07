@@ -641,6 +641,12 @@
       "failed": 0,
       "uid": 1000,
       "evidence": "evidence/runtime-images.json"
+    },
+    "liveDeployment": {
+      "passed": true,
+      "managedChecks": 8,
+      "savedHistoryChecks": 4,
+      "evidence": "evidence/isolated-live-deployment.json"
     }
   }
 }

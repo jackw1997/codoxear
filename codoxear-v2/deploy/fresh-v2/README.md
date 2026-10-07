@@ -91,8 +91,8 @@ the generated `Caddyfile.fragment` is an optional reviewed replacement fragment
 with a guide redirect. Public client, guide and Hub origins are preserved. This
 document does not authorize changing other gateway sites. A network-disabled
 provisioning container creates each independent owner/catalog and two Computer
-credentials through the domain commands before either Hub starts. Their new
-databases and signing keys remain separate. Hubs receive no bootstrap password
+credentials through the domain commands before either Hub starts. Their databases and signing keys remain separate. Each resident Hub mounts only
+its own JSON configuration file; sibling Hub OTP/configuration secrets are not mounted. Hubs receive no bootstrap password
 environment. Computers receive only their own attachment and LiteLLM settings;
 the owner credential is not mounted into them.
 

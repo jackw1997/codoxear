@@ -57,7 +57,7 @@ services:
       CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
       NODE_OPTIONS: --max-old-space-size=128
     volumes:
-      - ${FRESH_STATE}/config:/config:ro
+      - ${FRESH_STATE}/config/hub-0.json:/config/hub-0.json:ro
       - ${FRESH_STATE}/hub-0:/state
       - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
     ports: ["127.0.0.1:19530:17430"]
@@ -74,7 +74,7 @@ services:
       CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
       NODE_OPTIONS: --max-old-space-size=128
     volumes:
-      - ${FRESH_STATE}/config:/config:ro
+      - ${FRESH_STATE}/config/hub-1.json:/config/hub-1.json:ro
       - ${FRESH_STATE}/hub-1:/state
       - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
     ports: ["127.0.0.1:19531:17430"]
