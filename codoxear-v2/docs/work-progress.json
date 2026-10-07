@@ -346,12 +346,15 @@
     },
     {
       "id": "managed-transcript-search-navigation",
-      "status": "regression-verified",
+      "status": "verified-live",
       "model": "GPT-6.1-Sol and root integration",
       "scope": "Bounded saved-message search, wildcard user counts and previous/next navigation without waking workers",
-      "evidence": "/tmp/codoxear-v2-final-search-tests.log",
+      "evidence": [
+        "/tmp/codoxear-v2-final-search-tests.log",
+        "artifacts/fresh-search/results.json"
+      ],
       "checks": 21,
-      "outcome": "Managed runtime and protocol conformance checks passed; read-only neighbor route and typed contract included"
+      "outcome": "Twenty-one managed runtime/protocol checks passed. Public authenticated browser verifies saved history, literal search/match navigation, wildcard user count, next-message relay and valid-HTTPS release report; zero uncaught page errors."
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",

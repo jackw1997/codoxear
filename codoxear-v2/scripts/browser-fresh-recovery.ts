@@ -154,23 +154,29 @@ try {
     step = "managed neighbor";
     // Exercise the browser's authenticated Hub relay using the exact URL from
     // its successful search. Neither tokens nor full transcript bodies are logged.
-    const relayHeaders = await response.request().allHeaders();
-    const relayUrl = new URL(response.url());
-    relayUrl.search = new URLSearchParams({ q: "*", role: "user", limit: "200" }).toString();
-    const counted = await context.request.get(relayUrl.href, { headers: relayHeaders });
-    assert.equal(counted.status(), 200);
-    const all = await counted.json();
-    assert.ok(all.total >= 2 && all.matches.every(match => match.role === "user"));
-    const anchor = all.matches.slice().sort((a, b) => a.ts - b.ts)[0];
-    relayUrl.pathname = relayUrl.pathname.replace(/\/search$/, "/messages/neighbor");
-    relayUrl.search = new URLSearchParams({ role: "user", direction: "next", cursor: anchor.history_cursor }).toString();
-    const next = await context.request.get(relayUrl.href, { headers: relayHeaders });
-    assert.equal(next.status(), 200);
-    const neighbor = await next.json();
-    assert.equal(neighbor.transcript_state, "bound");
-    assert.equal(neighbor.neighbor.role, "user");
-    assert.equal(neighbor.neighbor.same_log, true);
-    assert.notEqual(neighbor.neighbor.message_id, anchor.message_id);
+    // Fetch inside the page so its service worker applies the authenticated
+    // Hub mapping; APIRequestContext bypasses that client-owned transport.
+    const neighbors = await page.evaluate(async address => {
+      const url = new URL(address);
+      url.search = new URLSearchParams({ q: "*", role: "user", limit: "200" }).toString();
+      const counted = await fetch(url);
+      const all = await counted.json();
+      if (counted.status !== 200) return { countStatus: counted.status };
+      const anchor = all.matches.slice().sort((a, b) => a.ts - b.ts)[0];
+      url.pathname = url.pathname.replace(/\/search$/, "/messages/neighbor");
+      url.search = new URLSearchParams({ role: "user", direction: "next", cursor: anchor.history_cursor }).toString();
+      const next = await fetch(url);
+      const body = await next.json();
+      return { countStatus: counted.status, total: all.total, userOnly: all.matches.every(match => match.role === "user"),
+        neighborStatus: next.status, sameLog: body.neighbor?.same_log, different: body.neighbor?.message_id !== anchor.message_id,
+        role: body.neighbor?.role, transcriptState: body.transcript_state };
+    }, response.url());
+    assert.equal(neighbors.countStatus, 200);
+    assert.ok(neighbors.total >= 2 && neighbors.userOnly);
+    assert.equal(neighbors.neighborStatus, 200);
+    assert.ok(neighbors.sameLog && neighbors.different);
+    assert.equal(neighbors.transcriptState, "bound");
+    assert.equal(neighbors.role, "user");
     pass("Authenticated public relay counts user turns and returns the next saved user message");
     const report = await page.request.get(client + "/oar-cutover.html");
     assert.equal(report.status(), 200);
