@@ -9,12 +9,22 @@ x-role: &role
   environment:
     NODE_OPTIONS: --max-old-space-size=128
 services:
+  provision:
+    <<: *role
+    command: [node, --import, tsx, deploy/fresh-v2/provision.ts, /fresh]
+    restart: "no"
+    network_mode: none
+    mem_limit: 256m
+    memswap_limit: 256m
+    volumes:
+      - ${FRESH_STATE:?Set FRESH_STATE}:/fresh
   hub-0:
     <<: *role
     command: [node, dist/server/hub/main.js]
     mem_limit: 256m
     memswap_limit: 256m
-    env_file: ${FRESH_STATE:?Set FRESH_STATE}/owner.env
+    depends_on:
+      provision: { condition: service_completed_successfully }
     environment:
       CODOXEAR_HUB_CONFIG: /config/hub-0.json
       NODE_OPTIONS: --max-old-space-size=128
@@ -27,7 +37,8 @@ services:
     command: [node, dist/server/hub/main.js]
     mem_limit: 256m
     memswap_limit: 256m
-    env_file: ${FRESH_STATE:?Set FRESH_STATE}/owner.env
+    depends_on:
+      provision: { condition: service_completed_successfully }
     environment:
       CODOXEAR_HUB_CONFIG: /config/hub-1.json
       NODE_OPTIONS: --max-old-space-size=128
@@ -48,6 +59,9 @@ services:
   computer-a: &computer
     <<: *role
     profiles: [computer]
+    depends_on:
+      provision: { condition: service_completed_successfully }
+      hub-0: { condition: service_started }
     command: [node, dist/server/computer/main.js, start]
     mem_limit: 1g
     memswap_limit: 1g

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, mkdir, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prepareProfile } from "../src/computer/managed/profiles.js";
@@ -10,6 +11,37 @@ assert.ok(
   existsSync("/.dockerenv"),
   "Provider/runtime verification runs only in Docker",
 );
+test("managed Pi retains native settings in an isolated profile without delegation", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
+  try {
+    const native = join(home, ".pi", "agent");
+    await mkdir(native, { recursive: true });
+    await writeFile(join(native, "settings.json"), JSON.stringify({ theme: "dark", proxy: "https://proxy.invalid" }));
+    await writeFile(join(native, "auth.json"), JSON.stringify({ openai: { type: "api_key", key: "native-test-key" } }));
+    const result = await prepareProfile({ home, stateHome: home, cwd: home, backend: "pi" });
+    assert.notEqual(result.env.OAR_PI_AGENT_DIR, native);
+    assert.deepEqual(JSON.parse(await readFile(join(result.env.OAR_PI_AGENT_DIR!, "settings.json"), "utf8")), { theme: "dark", proxy: "https://proxy.invalid" });
+    assert.equal(JSON.parse(await readFile(join(result.env.OAR_PI_AGENT_DIR!, "auth.json"), "utf8")).openai.key, "native-test-key");
+    await writeFile(join(result.env.OAR_PI_AGENT_DIR!, "settings.json"), "{}");
+    assert.equal(JSON.parse(await readFile(join(native, "settings.json"), "utf8")).theme, "dark");
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
+test("managed OAR executable pins honor native CLI configuration", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
+  try {
+    const result = await prepareProfile({ home, stateHome: home, cwd: home, backend: "codex", launch: { env_vars: { CODEX_BIN: "/configured/codex", CLAUDE_BIN: "/configured/claude" } } });
+    assert.equal(result.env.OAR_CODEX_BIN, "/configured/codex");
+    assert.equal(result.env.OAR_CLAUDE_BIN, "/configured/claude");
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
+test("private Pi delegation extension loads from its installed entry", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
+  try {
+    const result = await prepareProfile({ home, stateHome: home, cwd: home, backend: "pi", delegation: { descriptor: join(home, "unused-descriptor.json") } });
+    const extension = await import(pathToFileURL(join(result.env.OAR_PI_AGENT_DIR!, "extensions", "codoxear-delegation.ts")).href);
+    assert.equal(typeof extension.default, "function");
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
 test("Pi private providers have separate homes and survive cold reopen without duplicating provider prefixes", async () => {
   const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
   try {

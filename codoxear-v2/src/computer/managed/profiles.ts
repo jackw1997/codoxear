@@ -61,8 +61,11 @@ export async function prepareProfile(input: ManagedOpen) {
   env.HOME = input.home;
   env.CODEX_HOME = homes.codex;
   env.OAR_PI_AGENT_DIR = homes.pi;
+  // OAR probes its own executable pins, while the native adapter uses *_BIN.
+  if (env.CODEX_BIN) env.OAR_CODEX_BIN = env.CODEX_BIN;
+  if (env.CLAUDE_BIN) env.OAR_CLAUDE_BIN = env.CLAUDE_BIN;
   if (homes.claudeConfigDir) env.CLAUDE_CONFIG_DIR = homes.claudeConfigDir;
-  if (input.backend === "pi" && input.delegation) {
+  if (input.backend === "pi") {
     // Every managed Pi gets a private agent directory, retaining the user's
     // native provider/settings/auth configuration without editing originals.
     const agentDir = join(directory, "pi");
@@ -102,6 +105,9 @@ export async function prepareProfile(input: ManagedOpen) {
     }
     env.OAR_PI_AGENT_DIR = agentDir;
     env.PI_CODING_AGENT_DIR = agentDir;
+  }
+  if (input.backend === "pi" && input.delegation) {
+    const agentDir = env.OAR_PI_AGENT_DIR!;
     env.CODOXEAR_DELEGATION_DESCRIPTOR = input.delegation.descriptor;
     const extensionDir = join(agentDir, "extensions");
     await mkdir(extensionDir, { recursive: true, mode: 0o700 });
@@ -119,12 +125,12 @@ export async function prepareProfile(input: ManagedOpen) {
       throw new ManagedSetupError(
         "Pi delegation extension is missing from the Computer package",
       );
-    await copyFile(
-      source,
-      join(
-        extensionDir,
-        "codoxear-delegation" + (source.endsWith(".ts") ? ".ts" : ".js"),
-      ),
+    // Keep bundled relative imports anchored at their installed location.
+    // Copying a split tsup entry into the profile can orphan its shared chunks.
+    await writeFile(
+      join(extensionDir, "codoxear-delegation.ts"),
+      `export { default } from ${JSON.stringify(source)};\n`,
+      { mode: 0o600 },
     );
   }
   if (

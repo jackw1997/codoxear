@@ -93,8 +93,11 @@ async function receive(message: any) {
   } catch {
     write({
       id: message.id,
+      ...(message.op === "open" ? { setup: true } : {}),
       error:
-        "Managed runtime operation failed; inspect the local runtime configuration and durable receipt",
+        message.op === "open"
+          ? "Managed runtime initialization failed; verify the local model, effort, provider and resume configuration"
+          : "Managed runtime operation failed; inspect the local runtime configuration and durable receipt",
     });
   }
 }

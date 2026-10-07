@@ -25,7 +25,7 @@ must be available before starting. Deploy only with authorized Docker access:
 ```sh
 export FRESH_STATE=/absolute/private/fresh-state
 export CODOXEAR_V2_IMAGE=codoxear-v2-oar:local
-docker compose -f deploy/fresh-v2/compose.yml up -d hub-0 hub-1 client
+docker compose -f deploy/fresh-v2/compose.yml --profile computer up -d
 ```
 
 The image runs as UID 1000. Private directories must be owned by that deployment
@@ -34,29 +34,27 @@ existing TLS gateway: 19520 client, 19530/19531 Hubs, and 19500 guide (served by
 fresh static client). Retain the existing gateway and trusted TLS configuration;
 the generated `Caddyfile.fragment` is an optional reviewed replacement fragment
 with a guide redirect. Public client, guide and Hub origins are preserved. This
-document does not authorize changing other gateway sites. The independent Hubs
-each bootstrap their own owner from `owner.env`; their databases and signing keys
-are new and remain separate. Remove bootstrap environment from ongoing Hub
-service configuration after successful first startup.
+document does not authorize changing other gateway sites. A network-disabled
+provisioning container creates each independent owner/catalog and two Computer
+credentials through the domain commands before either Hub starts. Their new
+databases and signing keys remain separate. Hubs receive no bootstrap password
+environment. Computers receive only their own attachment and LiteLLM settings;
+the owner credential is not mounted into them.
 
-Sign into the fresh Hub from the preserved public client address using
-`private/owner.json`. Create a Computer in that Hub; the interface returns an
-eight-character attach code. Enroll through the native CLI using the chosen
-public Hub origin and that code (prompted so it stays out of shell history):
+Provisioning writes a durable pending receipt before the first catalog mutation
+and a complete receipt after all catalogs/attachments exist. A later invocation
+validates the receipt, ownership, password and credential hashes and performs no
+reset. Existing catalog/Computer state without a receipt, or an incomplete
+receipt, fails closed and needs private operator inspection. Do not delete the
+receipt or retry against partially initialized state. Provisioning exits before
+the resident stack starts, so its 256 MiB ceiling does not add to resident usage.
 
-```sh
-docker compose -f deploy/fresh-v2/compose.yml run --rm computer-a \
-  node dist/server/computer/main.js attach --workspace /home/node/workspace \
-  --runtime oar --oar-permission-policy locally-trusted --oar-max-resident 1
-```
-
-The locally trusted policy is explicit because OAR does not implement interactive
-native permission prompts. Review that policy before enrollment. A Computer has
-one active Hub. Before starting, repeat enrollment using `computer-b` and a
-separate Computer/code created in the **same** Hub. Each uses its own state and
-one resident managed runtime; grant the initiating principal target creation
-authority before exercising delegation. The second Hub remains independently
-available. Public Hub HTTPS and the existing
+Sign into the first fresh Hub from the preserved public client address using
+`private/owner.json`. Computer A and Computer B are already admitted to that same
+Hub under the owner, who has target creation authority on both. Each attachment
+uses OAR, the explicitly reviewed locally trusted policy and one resident managed
+runtime. OAR does not implement interactive native permission prompts. The second
+Hub remains independently available. Public Hub HTTPS and the existing
 LiteLLM endpoint must be reachable from the Computer. No proxy workaround is
 installed. Computer-local `.pi/agent/models.json` and `settings.json` offer the
 preserved LiteLLM model/provider by default; credentials stay off the Hubs. Pi
@@ -65,12 +63,6 @@ settings; actual context/output capacity still needs provider verification.
 The endpoint/key/model/effort are also retained exactly in the private launch file. This file is
 mounted privately at `/private/pi-litellm-launch.json`, and the native terminal
 CLI also accepts it with `run --backend pi --launch /private/pi-litellm-launch.json`.
-
-After both enrollments, start both Computers:
-
-```sh
-docker compose -f deploy/fresh-v2/compose.yml --profile computer up -d computer-a computer-b
-```
 
 The configured resident memory ceilings total 2688 MiB: two Hubs at 256 MiB,
 client at 128 MiB and two Computers at 1024 MiB each, with swap disabled and
