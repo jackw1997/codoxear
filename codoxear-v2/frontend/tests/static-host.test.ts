@@ -55,8 +55,11 @@ test("standalone static client serves built assets and fences filesystem and API
     assert.equal((await get("/src/main.ts")).status, 404);
     assert.equal((await get("/app.js")).status, 404);
     assert.equal((await get("/app_new_session.js")).status, 404);
-    for (const path of ["/pdf.mjs", "/pdf.worker.mjs"])
-      assert.equal((await get(path)).status, 200);
+    for (const path of ["/pdf.mjs", "/pdf.worker.mjs"]) {
+      const module = await get(path);
+      assert.equal(module.status, 200);
+      assert.match(module.headers["content-type"]!, /^text\/javascript/);
+    }
     const callback = await get("/auth-callback");
     assert.equal(callback.status, 200);
     assert.equal(callback.headers["cache-control"], "no-store");

@@ -52,8 +52,8 @@ if (suite === "managed") process.exit(0);
 await run(["--import", "tsx", "scripts/browser-customer-journey.ts"]);
 // Private initialization and provider-only sessions exercise the independent Hub login flow.
 await run(["--import", "tsx", "scripts/browser-registration.ts"]);
-await run(["scripts/render-evidence.mjs"]);
 await run(["--import", "tsx", "scripts/browser-agent-creation.ts"]);
 
 await run(["--import", "tsx", "scripts/browser-invitations.ts"]);
 await run(["--import", "tsx", "scripts/browser-client-updates.ts"]);
+await run(["scripts/render-evidence.mjs"]);
