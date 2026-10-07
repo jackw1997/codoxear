@@ -23655,6 +23655,107 @@
         ],
         "additionalProperties": false
       },
+      "MessageNeighborQuery": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "previous",
+              "next"
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Session-prefixed numeric history cursor; the Computer rejects another session's identity."
+          }
+        },
+        "required": [
+          "direction",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "MessageNeighbor": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "neighbor": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "assistant"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "ts": {
+                    "type": "number"
+                  },
+                  "message_id": {
+                    "type": "string"
+                  },
+                  "history_cursor": {
+                    "type": "string"
+                  },
+                  "before_byte": {
+                    "type": "string"
+                  },
+                  "same_log": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                },
+                "required": [
+                  "role",
+                  "text",
+                  "ts",
+                  "message_id",
+                  "history_cursor",
+                  "before_byte",
+                  "same_log"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transcript_state": {
+            "type": "string",
+            "const": "bound"
+          },
+          "thread_id": {
+            "type": "string"
+          },
+          "log_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "neighbor",
+          "transcript_state",
+          "thread_id",
+          "log_path"
+        ],
+        "additionalProperties": false
+      },
       "AdminOk": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

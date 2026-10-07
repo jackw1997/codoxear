@@ -395,6 +395,71 @@ test("live transcript cursor changes for deltas updating an existing assistant m
     rmSync(f.path, { recursive: true, force: true });
   }
 });
+
+test("managed saved transcript search is literal, case insensitive, paginated and opens matching windows without a worker", async () => {
+  let clock = 1000;
+  const f = fixture({ now: () => clock, idleMs: 10 });
+  let reopened: ManagedRuntime | undefined;
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    for (const text of ["First ПрИвЕт %_needle", "Second привет %_needle"]) {
+      await f.runtime.sendQueued(localId, "unmatched prompt");
+      f.factory.sessions[0]!.emit([{ kind: "text_delta", text }, { kind: "turn_ended", outcome: { kind: "completed" } }]);
+      clock++;
+    }
+    clock += 20;
+    await f.runtime.quiesceIdle();
+    await f.runtime.close();
+    reopened = new ManagedRuntime(f.config);
+    const query = encodeURIComponent("ПРИВЕТ %_needle");
+    const latest = await reopened.request(`/api/sessions/${localId}/search?q=${query}&limit=1`);
+    assert.equal(latest.total, 2);
+    assert.equal(latest.match_count, 2);
+    assert.equal(latest.matches.length, 1);
+    assert.equal(latest.matches[0].text, "Second привет %_needle");
+    assert.equal(latest.matches[0].before_byte, latest.matches[0].history_cursor);
+    assert.equal(latest.has_older, true);
+    const older = await reopened.request(`/api/sessions/${localId}/search?q=${query}&limit=1&before=${encodeURIComponent(latest.matches[0].before_byte)}`);
+    assert.equal(older.total, 2);
+    assert.equal(older.matches[0].text, "First ПрИвЕт %_needle");
+    assert.equal(older.has_older, false);
+    const window = await reopened.request(`/api/sessions/${localId}/messages/window?cursor=${encodeURIComponent(older.matches[0].history_cursor)}&before=0&after=0`);
+    assert.deepEqual(window.events.map((event: { text: string }) => event.text), [older.matches[0].text]);
+    for (const result of [latest, older, window]) {
+      assert.equal(result.transcript_state, "bound");
+      assert.equal(result.thread_id, "native-1");
+    }
+    const users = await reopened.request(`/api/sessions/${localId}/search?q=*&role=user&limit=1`);
+    assert.equal(users.total, 2, "User turn count excludes assistant messages");
+    assert.equal(users.matches.length, 1);
+    assert.equal(users.matches[0].role, "user");
+    const assistants = await reopened.request(`/api/sessions/${localId}/search?q=*&role=assistant&limit=1`);
+    assert.equal(assistants.total, 2);
+    assert.equal(assistants.matches[0].role, "assistant");
+    assert.equal((await reopened.request(`/api/sessions/${localId}/search?q=*&limit=1`)).total, 4);
+    const previous = await reopened.request(`/api/sessions/${localId}/messages/neighbor?role=user&direction=previous&cursor=${encodeURIComponent(users.matches[0].history_cursor)}`);
+    assert.equal(previous.neighbor.role, "user");
+    assert.equal(previous.neighbor.same_log, true);
+    assert.notEqual(previous.neighbor.message_id, users.matches[0].message_id);
+    const next = await reopened.request(`/api/sessions/${localId}/messages/neighbor?role=user&direction=next&cursor=${encodeURIComponent(previous.neighbor.history_cursor)}`);
+    assert.equal(next.neighbor.message_id, users.matches[0].message_id);
+    const userWindow = await reopened.request(`/api/sessions/${localId}/messages/window?cursor=${encodeURIComponent(previous.neighbor.history_cursor)}&before=0&after=0`);
+    assert.equal(userWindow.events[0].message_id, previous.neighbor.message_id);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/messages/neighbor?role=user&direction=previous&cursor=${encodeURIComponent(previous.neighbor.history_cursor)}`)).neighbor, null);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/messages/neighbor?role=user&direction=next&cursor=${encodeURIComponent(next.neighbor.history_cursor)}`)).neighbor, null);
+    assert.equal((await reopened.request(`/api/sessions/${localId}/state`)).resident, false);
+    assert.equal(f.factory.opens.length, 1);
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/search?q=x&limit=Infinity`), /limit must/);
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/search?q=${"x".repeat(2001)}`), /query must/);
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/search?q=x&before=managed-other:2`), /another session/);
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/search?q=*&role=system`), /role must/);
+    await assert.rejects(reopened.request(`/api/sessions/${localId}/messages/neighbor?role=user&direction=previous&cursor=managed-other:2`), /another session/);
+  } finally {
+    await reopened?.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
 test("an empty evicted Pi conversation opens fresh rather than resuming an unwritten native file", async () => {
   let clock = 1000;
   const f = fixture({ now: () => clock, idleMs: 10 });

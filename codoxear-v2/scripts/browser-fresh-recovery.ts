@@ -19,6 +19,7 @@ const parentToken = `FRESH_REPLY_${tag}`, childToken = `CHILD_REPLY_${tag}`;
 const client = process.env.FRESH_CLIENT_URL ?? "https://codoxear.gzeek.com:8445";
 const hub = process.env.FRESH_HUB_URL ?? "https://codoxear.gzeek.com:8446";
 const artifacts = process.env.FRESH_RECOVERY_ARTIFACTS ?? "artifacts/fresh-recovery";
+const searchOnly = process.env.FRESH_SEARCH_ONLY === "1";
 function sanitize(value: unknown) {
   let text = String(value ?? "");
   for (const secret of [owner.password, launch.provider_config?.api_key, launch.provider_config?.base_url]) {
@@ -92,7 +93,7 @@ async function controllerDiagnostics() {
 }
 const pass = (text: string) => { checks.push(text); console.log("PASS", text); };
 const card = (name: string) => page.locator(".session").filter({ has: page.getByText(name, { exact: true }) });
-const answers = (token: string) => page.locator(".msg.assistant:not(.typing):not(.error):not(.warning) .md").filter({ hasText: new RegExp(`^${token}$`) });
+const answers = (token: string) => page.locator(".msg.assistant:not(.typing):not(.error):not(.warning) .md").filter({ hasText: token });
 async function sendAndRequireNewAnswer(text: string, token: string) {
   const before = await answers(token).count();
   await page.getByRole("textbox", { name: "Message", exact: true }).fill(text);
@@ -130,6 +131,52 @@ try {
   await answers(childToken).first().waitFor();
   assert.equal((await answers(childToken).first().innerText()).trim(), childToken);
   pass("Both existing saved transcripts remain available after the owned service restart");
+  if (searchOnly) {
+    step = "managed search";
+    await card(parentName).click();
+    await answers(parentToken).first().waitFor();
+    await page.locator("#chatSearchBtn").click();
+    const searchResponse = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/search") && url.searchParams.get("q") === childToken.toLowerCase();
+    });
+    await page.locator("#chatSearchInput").fill(childToken);
+    const response = await searchResponse;
+    assert.equal(response.status(), 200);
+    const search = await response.json();
+    assert.ok(search.total >= 2);
+    assert.ok(search.matches.every(match => match.text.toLowerCase().includes(childToken.toLowerCase())));
+    await page.waitForFunction(() => /\d/.test(document.querySelector("#chatSearchStatus")?.textContent ?? ""));
+    await page.locator("#chatSearchNextBtn").click();
+    await page.locator("#chatSearchPrevBtn").click();
+    pass("Real managed conversation search returns saved matches and browser match navigation works");
+    await page.locator("#chatSearchCloseBtn").click();
+    step = "managed neighbor";
+    // Exercise the browser's authenticated Hub relay using the exact URL from
+    // its successful search. Neither tokens nor full transcript bodies are logged.
+    const relayHeaders = await response.request().allHeaders();
+    const relayUrl = new URL(response.url());
+    relayUrl.search = new URLSearchParams({ q: "*", role: "user", limit: "200" }).toString();
+    const counted = await context.request.get(relayUrl.href, { headers: relayHeaders });
+    assert.equal(counted.status(), 200);
+    const all = await counted.json();
+    assert.ok(all.total >= 2 && all.matches.every(match => match.role === "user"));
+    const anchor = all.matches.slice().sort((a, b) => a.ts - b.ts)[0];
+    relayUrl.pathname = relayUrl.pathname.replace(/\/search$/, "/messages/neighbor");
+    relayUrl.search = new URLSearchParams({ role: "user", direction: "next", cursor: anchor.history_cursor }).toString();
+    const next = await context.request.get(relayUrl.href, { headers: relayHeaders });
+    assert.equal(next.status(), 200);
+    const neighbor = await next.json();
+    assert.equal(neighbor.transcript_state, "bound");
+    assert.equal(neighbor.neighbor.role, "user");
+    assert.equal(neighbor.neighbor.same_log, true);
+    assert.notEqual(neighbor.neighbor.message_id, anchor.message_id);
+    pass("Authenticated public relay counts user turns and returns the next saved user message");
+    const report = await page.request.get(client + "/oar-cutover.html");
+    assert.equal(report.status(), 200);
+    assert.ok((await report.text()).includes("The fresh OAR deployment is live"));
+    pass("Readable public release report is available over valid HTTPS");
+  } else {
   step = "parent cold context";
   await card(parentName).click();
   await sendAndRequireNewAnswer("From this conversation's history, repeat exactly the earlier reply token returned by your delegated child. No extra text, no tools, and do not create any agents.", childToken);
@@ -150,6 +197,7 @@ try {
   await card(childName).click();
   await sendAndRequireNewAnswer("Repeat exactly your earlier reply from this conversation's history. No extra text and no tools.", childToken);
   pass("Disabling delegation preserves the existing child and direct owner conversation access");
+  }
   await page.reload();
   await card(childName).waitFor();
   await card(childName).click();

@@ -112,6 +112,9 @@ export class ManagedRuntime implements Runtime {
     );
     mkdirSync(dirname(options.databasePath), { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(options.databasePath);
+    this.db.function("managed_casefold", { deterministic: true }, (value) =>
+      String(value ?? "").toLowerCase(),
+    );
     chmodSync(options.databasePath, 0o600);
     this.db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
       CREATE TABLE IF NOT EXISTS managed_sessions(id TEXT PRIMARY KEY,agent TEXT UNIQUE,backend TEXT,name TEXT,cwd TEXT,native_id TEXT,model TEXT,effort TEXT,state TEXT,created INTEGER,updated INTEGER,reentry INTEGER,stream TEXT,profile TEXT);
@@ -1088,7 +1091,7 @@ export class ManagedRuntime implements Runtime {
           session_id: id,
         };
       }
-      if (operation?.startsWith("messages/"))
+      if (operation === "search" || operation?.startsWith("messages/"))
         return this.transcript(id, operation, url);
       if (!operation || operation === "state")
         return this.queueControl(id, "state");
@@ -1133,6 +1136,7 @@ export class ManagedRuntime implements Runtime {
   }
   private transcript(id: string, action: string, url: URL) {
     const row = this.row(id);
+    if (action === "messages/neighbor") return this.neighbor(row, url);
     if (
       !new Set([
         "messages/tail",
@@ -1140,6 +1144,7 @@ export class ManagedRuntime implements Runtime {
         "messages/window",
         "messages/live",
         "messages/export",
+        "search",
       ]).has(action)
     )
       throw new DomainError(
@@ -1164,6 +1169,28 @@ export class ManagedRuntime implements Runtime {
       1,
       Math.min(200, Number(url.searchParams.get("limit") ?? 80) || 80),
     );
+    const search = action === "search";
+    const query = url.searchParams.get("q") ?? url.searchParams.get("query") ?? "";
+    const role = search ? url.searchParams.get("role") : null;
+    if (role !== null && role !== "user" && role !== "assistant")
+      throw new DomainError(400, "invalid_role", "Search role must be user or assistant");
+    if (search && (query.length > 2000 || query.includes("\0")))
+      throw new DomainError(400, "invalid_query", "Search query must be at most 2000 characters without NUL");
+    if (search && url.searchParams.has("limit")) {
+      const requested = Number(url.searchParams.get("limit"));
+      if (!Number.isSafeInteger(requested) || requested < 1 || requested > 200)
+        throw new DomainError(400, "invalid_limit", "Search limit must be an integer between 1 and 200");
+    }
+    const searchFilter = search
+      ? `${role ? "AND role=? " : ""}${query === "*" ? "" : "AND instr(managed_casefold(text),?)>0"}`
+      : "";
+    const searchParameters = [
+      ...(role ? [role] : []),
+      ...(search && query !== "*" ? [query.toLowerCase()] : []),
+    ];
+    const searchTotal = search
+      ? (this.db.prepare(`SELECT count(*) AS count FROM managed_messages WHERE local_id=? ${searchFilter}`).get(id, ...searchParameters) as { count: number }).count
+      : 0;
     // Live cursors track durable OAR ingress, not only message count: a text
     // delta can update the same assistant message many times.
     const revision = this.db
@@ -1188,12 +1215,18 @@ export class ManagedRuntime implements Runtime {
         0,
         Math.min(100, Number(url.searchParams.get("after") ?? 30) || 0),
       );
-      const condition = window
+      const condition = search
+        ? `${searchFilter}${position !== null ? " AND rowid<?" : ""}`
+        : window
         ? "AND rowid>=? AND rowid<=?"
         : action === "messages/history" && position !== null
           ? "AND rowid<?"
           : "";
-      const parameters = window
+      const parameters = search
+        ? position !== null
+          ? [id, ...searchParameters, position, limit]
+          : [id, ...searchParameters, limit]
+        : window
         ? [id, position! - before, position! + after, limit]
         : condition
           ? [id, position, limit]
@@ -1215,14 +1248,15 @@ export class ManagedRuntime implements Runtime {
       ts: Number(message.at) / 1000,
       message_id: message.id,
       history_cursor: `${id}:${message.position}`,
+      ...(search ? { before_byte: `${id}:${message.position}` } : {}),
     }));
     const earliest = Number(selected[0]?.position ?? 0);
     const older = earliest
       ? !!this.db
           .prepare(
-            "SELECT 1 FROM managed_messages WHERE local_id=? AND rowid<? LIMIT 1",
+            `SELECT 1 FROM managed_messages WHERE local_id=? AND rowid<? ${searchFilter} LIMIT 1`,
           )
-          .get(id, earliest)
+          .get(id, earliest, ...searchParameters)
       : false;
     const last = this.db
       .prepare(
@@ -1236,6 +1270,7 @@ export class ManagedRuntime implements Runtime {
         : undefined;
     return {
       events,
+      ...(search ? { matches: events, total: searchTotal, match_count: searchTotal } : {}),
       event_count: events.length,
       transcript_state: "bound",
       thread_id: row.native_id ?? row.id,
@@ -1255,6 +1290,37 @@ export class ManagedRuntime implements Runtime {
       busy: row.state === "running",
       queue_len: 0,
       truncated: action === "messages/export" && older,
+    };
+  }
+  private neighbor(row: Row, url: URL) {
+    const cursor = url.searchParams.get("cursor") ?? "";
+    if (!cursor.startsWith(row.id + ":"))
+      throw new DomainError(409, "invalid_cursor", "Cursor belongs to another session");
+    const suffix = cursor.slice(row.id.length + 1);
+    const position = Number(suffix);
+    if (!/^\d+$/.test(suffix) || !Number.isSafeInteger(position))
+      throw new DomainError(400, "invalid_cursor", "A valid history cursor is required");
+    const direction = url.searchParams.get("direction");
+    if (direction !== "previous" && direction !== "next")
+      throw new DomainError(400, "invalid_direction", "Neighbor direction must be previous or next");
+    const role = url.searchParams.get("role");
+    if (role !== null && role !== "user" && role !== "assistant")
+      throw new DomainError(400, "invalid_role", "Neighbor role must be user or assistant");
+    const selected = this.db.prepare(`SELECT id,role,
+      CASE WHEN length(CAST(text AS BLOB))+256<=${this.maxTranscriptBytes} THEN text ELSE NULL END AS text,
+      at,rowid AS position FROM managed_messages WHERE local_id=? ${role ? "AND role=?" : ""}
+      AND rowid${direction === "previous" ? "<" : ">"}? ORDER BY rowid ${direction === "previous" ? "DESC" : "ASC"} LIMIT 1`)
+      .get(row.id, ...(role ? [role] : []), position) as { id: string; role: string; text: string | null; at: number; position: number } | undefined;
+    if (selected?.text === null)
+      throw new DomainError(413, "transcript_limit", "Neighbor message exceeds the bounded response size");
+    return {
+      neighbor: selected ? {
+        role: selected.role, text: selected.text, ts: selected.at / 1000,
+        message_id: selected.id, history_cursor: `${row.id}:${selected.position}`,
+        before_byte: `${row.id}:${selected.position}`, same_log: true,
+      } : null,
+      transcript_state: "bound", thread_id: row.native_id ?? row.id,
+      log_path: `managed:${row.id}`,
     };
   }
 }

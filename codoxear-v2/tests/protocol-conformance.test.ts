@@ -105,6 +105,8 @@ test("documented relay methods preserve capability distinctions and deny method/
   for(const endpoint of relayEndpointInventory()){const sample=endpoint.path.replace("{localId}","broker-"+"a".repeat(32)).replace("{filename}","segment-000.ts");assert.equal(classifyRoute(endpoint.method,sample).action,endpoint.action);const documented=relay.paths["/api/v1/computers/{computerId}"+endpoint.path][endpoint.method.toLowerCase()];assert.equal(documented["x-required-route-capability"],endpoint.action);}
   for(const [method,path]of [["DELETE","/api/sessions/broker-local/file/read"],["PUT","/api/sessions/broker-local/send"],["POST","/api/sessions/broker-local/git/diff"],["GET","/api/sessions/broker-local/file/write"],["GET","/api/sessions/broker-local/../../settings/voice"]]as const)assert.throws(()=>classifyRoute(method,path),e=>e instanceof DomainError&&[400,403].includes(e.status));
   assert.equal(classifyRoute("POST","/api/sessions/broker-local/draft").action,"read");assert.equal(classifyRoute("POST","/api/sessions/broker-local/delete").action,"session.delete");assert.equal(classifyRoute("GET","/api/sessions/broker-local/git/diff").action,"files.read");
+  assert.equal(classifyRoute("GET","/api/sessions/broker-local/messages/neighbor").action,"read");
+  assert.throws(()=>classifyRoute("POST","/api/sessions/broker-local/messages/neighbor"),e=>e instanceof DomainError&&e.status===403);
 });
 test("Computer tunnel rejects unsupported majors through the actual WebSocket upgrade interface",async()=>{
   const f=await protocolFixture();try {

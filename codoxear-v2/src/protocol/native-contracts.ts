@@ -469,6 +469,18 @@ const pathQuery = z
 const pathBody = pathQuery;
 const finiteQuery = text.describe("Finite number encoded as a query string.");
 const empty = z.object({});
+export const MessageNeighborQuery = z.object({
+  role: z.enum(["user", "assistant"]).optional(),
+  direction: z.enum(["previous", "next"]),
+  cursor: text.min(1).describe("Session-prefixed numeric history cursor; the Computer rejects another session's identity."),
+});
+export const MessageNeighbor = z.object({
+  neighbor: z.object({ role: z.enum(["user", "assistant"]), text,
+    ts: z.number(), message_id: text, history_cursor: text, before_byte: text,
+    same_log: z.literal(true),
+  }).nullable(),
+  transcript_state: z.literal("bound"), thread_id: text, log_path: text,
+});
 export type NativeDetail = {
   body?: z.ZodType;
   query?: z.ZodType;
@@ -485,6 +497,8 @@ export type NativeDetail = {
 export function nativeDetail(method: string, path: string): NativeDetail {
   const action = path.replace(/^\/api\/sessions\/\{localId\}\//, "");
   const post = method === "POST";
+  if (action === "messages/neighbor") return { query: MessageNeighborQuery, response: MessageNeighbor,
+    statuses: [200, 400, 401, 403, 404, 409, 413, 500, 503] };
   if (["live", "messages/live"].includes(action))
     return {
       contentType: "text/event-stream",
@@ -514,6 +528,7 @@ export function nativeDetail(method: string, path: string): NativeDetail {
         limit: finiteQuery.optional(),
         q: text.optional(),
         query: text.optional(),
+        ...(action === "search" ? { role: z.enum(["user", "assistant"]).optional() } : {}),
       }),
     };
   if (action === "tail") return { response: z.object({ tail: text }) };
@@ -854,4 +869,6 @@ export const nativeSchemas = {
   SendAck,
   InterruptAck,
   Messages,
+  MessageNeighborQuery,
+  MessageNeighbor,
 };

@@ -293,14 +293,17 @@
     },
     {
       "id": "fresh-oar-deployment",
-      "status": "implemented-unverified",
+      "status": "deployed-verified",
       "model": "GPT-6.1-Sol",
       "scope": "Fresh independent Hub/Client/Computer deployment; retain public addresses and Computer-local LiteLLM configuration; old state archived separately",
-      "outcome": "Replaced restoration plan with fresh deployment assets, bounded Node24 image builder and focused managed Docker verification. No old catalog or account import is required.",
+      "outcome": "Fresh independent stack runs on retained trusted HTTPS endpoints. Real LiteLLM/Kimi Pi conversation, reload, same-Hub Pi parent/child across two Computers, service restart/cold context and direct child access after disabling delegation passed through the public browser.",
       "limitations": [
-        "Real OAR dependency lock is not resolved",
-        "Fresh image build, runtime tests and deployment have not run",
-        "Tool environment still refuses systemd bus access; no permission policy has been changed"
+        "Full managed feature parity and Codex/Claude parent-tool installation remain outside this accepted slice.",
+        "Physical mobile/Safari/macOS acceptance is separate."
+      ],
+      "evidence": [
+        "artifacts/fresh-managed/results.json",
+        "artifacts/fresh-recovery/results.json"
       ]
     },
     {
@@ -324,6 +327,21 @@
         "Local deterministic Responses/Anthropic endpoints, not live provider model quality.",
         "This slice verifies text and interruption; native tool execution and cold resume for these leaves remain separate."
       ]
+    },
+    {
+      "id": "managed-cold-browser-binding",
+      "status": "verified-live",
+      "outcome": "Fixed stable saved transcript binding in managed catalogue/state/tail/live projections; archived histories load without starting a worker. Twelve managed runtime regression tests pass. Public recovery verifies parent/child history after service restart, context recall, disabling delegation and continued direct child conversation.",
+      "evidence": "artifacts/fresh-recovery/results.json"
+    },
+    {
+      "id": "managed-transcript-search-navigation",
+      "status": "regression-verified",
+      "model": "GPT-6.1-Sol and root integration",
+      "scope": "Bounded saved-message search, wildcard user counts and previous/next navigation without waking workers",
+      "evidence": "/tmp/codoxear-v2-final-search-tests.log",
+      "checks": 21,
+      "outcome": "Managed runtime and protocol conformance checks passed; read-only neighbor route and typed contract included"
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
@@ -424,7 +442,7 @@
   },
   "memoryControl": {
     "targetGiB": 8,
-    "status": "Docker access restored; serial builds and verification enforce2GiB memory with zero swap",
+    "status": "Fresh memory-bounded stack running; real two-Computer delegation and idle cleanup verified",
     "knownOwnedContainers": [
       "codoxear-v2-cache-demo",
       "codoxear-v2-auth-runtime",
@@ -435,28 +453,31 @@
       "codoxear-v2-trusted-preview"
     ],
     "cleanupExecuted": false,
-    "activeCollaborators": 2,
+    "activeCollaborators": 0,
     "testConcurrency": 1,
     "verificationMemoryGiB": 2,
     "verificationCpuLimit": 2,
     "verificationPidLimit": 512,
     "staticTypecheck": "passed",
     "shellSyntax": "passed for all 21 verification wrappers",
-    "behavioralVerification": "40 focused tests and native OAR Pi lifecycle acceptance passed; current release verification ongoing",
+    "behavioralVerification": "283-test full suite and full browser runner passed before final saved-binding fix;12 managed regression tests and public cold recovery pass after that fix",
     "buildMemoryCapped": true,
-    "collaboratorNote": "Continuation completed with two GPT-6.1-Sol agents; no additional runtime stack started.",
+    "collaboratorNote": "GPT-6.1-Sol implementation agents with coordinator-owned serial Docker execution",
     "managedDefaults": {
       "residentWorkers": 2,
       "idleMs": 60000,
       "workerHeapMiB": 384
     },
     "productionEnvelope": {
-      "prepared": true,
-      "applied": false,
-      "aggregateComputerGiB": 2,
-      "perComputerMiB": 1536,
-      "source": "deploy/codoxear-v2-computers.slice",
-      "limitation": "Native detached process cleanup and actual memory footprint require Docker/cgroup acceptance"
+      "applied": true,
+      "source": "deploy/fresh-v2/compose.yml",
+      "totalResidentLimitMiB": 2880,
+      "perComputerMiB": 1024,
+      "residentWorkersPerComputer": 1,
+      "hubMiB": 256,
+      "clientMiB": 128,
+      "gatewayMiB": 192,
+      "swapMiB": 0
     },
     "cleanupReport": "docs/oar-cutover.html",
     "configurationPreserved": {
@@ -465,7 +486,7 @@
       "consistentDatabaseBackups": 10,
       "privateBackupOutsideGit": true,
       "stagedForNextDeployment": true,
-      "liveProviderReverified": false
+      "liveProviderReverified": true
     },
     "cleanupStatus": "No running Docker containers at start of7October continuation; temporary verification containers cleaned after execution",
     "nativeFixture": {
@@ -473,25 +494,31 @@
       "quiescedCgroupMiB": 168.0859375,
       "ownedDescendantsAfterQuiescence": 0,
       "scope": "Actual Pi SDK with local deterministic HTTP provider; sampled cgroup memory, not measured peak"
-    }
+    },
+    "publicStackSamplesMiB": {
+      "initialIdle": 187.66,
+      "afterRealParentChildDelegation": 488.24,
+      "afterServiceRestart": 185.59
+    },
+    "sampleLimitation": "Docker-reported samples, not peaks/P99 or capacity guarantees"
   },
   "oarImplementation": {
-    "status": "Native Pi lifecycle verified locally; public deployment in progress",
+    "status": "Deployed real Pi/Kimi and same-Hub cross-Computer delegation slice",
     "staticTypecheck": "passed",
     "componentBoundaries": "passed",
     "authoredBehaviorTests": 36,
     "behaviorTestsRun": 282,
     "commitAttempt": "Reviewed v2 snapshots saved with isolated Git index; unrelated workingtree and regular index preserved",
     "remaining": [
-      "Docker native/provider/browser/OOM acceptance",
-      "legacy Pi hot-install and Codex/Claude parent tool registration",
-      "full managed feature parity and reviewed uncertainty recovery",
-      "memory-bounded deployment and public cutover"
+      "Codex/Claude parent tool registration and existing terminal Pi hot-install",
+      "Full managed feature parity including attachments/tool/reasoning controls and reviewed uncertainty recovery",
+      "Broader fault/OOM workload and physical-platform acceptance"
     ],
     "behaviorTestResults": {
-      "passed": 281,
-      "failed": 1,
-      "detail": "Protocol inventory missing delegation endpoints; correction in progress"
+      "fullSuitePassed": 283,
+      "fullSuiteFailed": 0,
+      "fullBrowserRunnerExitCode": 0,
+      "finalBindingRegressionPassed": 12
     }
   }
 }

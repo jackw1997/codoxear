@@ -13,6 +13,7 @@ const reads = new Set([
   "messages/live",
   "messages/history",
   "messages/window",
+  "messages/neighbor",
   "messages/export",
   "search",
   "tail",

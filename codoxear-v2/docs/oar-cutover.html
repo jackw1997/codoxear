@@ -9,7 +9,8 @@
 <li>Pi, Codex and Claude creation forms expose provider URL, API key and model controls, including at phone width.</li>
 <li>A new managed Pi uses the preserved LiteLLM/Kimi configuration and returns a real model reply. Its transcript survives browser reload.</li>
 <li>A Pi/Kimi parent on Computer A uses the delegation tool to create and message a Pi/Kimi child on Computer B. The child's actual reply appears in the browser.</li>
-<li>All 283 Docker tests and the complete browser verification runner pass. Component import checks keep the TypeScript backend inside v2.</li>
+<li>The full 283-test Docker suite and complete browser runner passed before the final saved-transcript fix. That fix passed 12 managed-runtime regression checks and the public recovery checks. Saved-message search and previous/next navigation subsequently passed 21 combined runtime/protocol checks. Component import checks keep the TypeScript backend inside v2.</li>
+<li>After restarting both Computers and their Hub, saved parent/child histories load. The parent recalls its child's earlier answer from native context. Disabling delegation leaves the existing child available to its owner.</li>
 <li>Separate real OAR/runtime checks cover Pi tool execution, idle unloading, cold history resume and interruption; actual Codex and Claude CLIs cover provider routing, text, interruption and process cleanup against controlled local APIs.</li></ul>
 <h2>Memory observations</h2>
 <table><tr><th>Public stack sample</th><th>Docker-reported memory</th></tr><tr><td>Idle services before model workers</td><td>About 188 MiB</td></tr><tr><td>Parent and child after real delegation</td><td>About 488 MiB</td></tr><tr><td>Idle after service restart</td><td>About 186 MiB</td></tr></table>
