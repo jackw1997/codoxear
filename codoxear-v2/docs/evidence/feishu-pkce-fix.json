@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-07T16:02:36.639Z",
+  "runtimeCommit": "af31e995bc90b5b05f8ac03a4eb422ada37a63bf",
+  "observedFailure": {
+    "service": "Work Hub",
+    "stage": "token",
+    "httpStatus": 400,
+    "providerCode": 20049,
+    "attempts": 2,
+    "meaning": "PKCE code challenge failed"
+  },
+  "diagnosis": "Live logs identify an upstream v3 PKCE rejection. The previous optional-code parser correction did not resolve this failure.",
+  "sources": [
+    "https://github.com/larksuite/oapi-sdk-go/issues/230",
+    "https://github.com/larksuite/lark-openapi-mcp/blob/main/src/auth/provider/oauth.ts"
+  ],
+  "change": {
+    "tokenEndpoint": "https://open.feishu.cn/open-apis/authen/v2/oauth/token",
+    "encoding": "JSON",
+    "pkce": "S256 retained",
+    "callbackUnchanged": true,
+    "retryOrFallback": false
+  },
+  "verification": {
+    "typecheck": true,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "method": "Docker source overlay over previously built dependency image; real adapter called through pending-Hub callback and setup/client continuation with controlled provider responses",
+    "checks": [
+      "Valid S256 challenge/verifier reaches v2 with JSON and the original redirect URI",
+      "No duplicate token exchange on 20049 or callback replay",
+      "Successful token responses with or without code accepted; explicit errors, wrong tenants and malformed identities rejected",
+      "Existing Hub provider policies remain enforced"
+    ],
+    "limits": {
+      "memoryBytes": 2147483648,
+      "swapBytes": 0,
+      "cpus": 2,
+      "pids": 512
+    },
+    "packages": {
+      "roles": [
+        "hub",
+        "identity"
+      ],
+      "independentBuild": true,
+      "prunedRuntimeSmoke": true,
+      "uid": 1000
+    }
+  },
+  "realUserSignIn": "Requires a new authorization attempt after deployment; no real user success claimed",
+  "deployment": {
+    "updatedRole": "Work Hub",
+    "image": "codoxear-hub:af31e995",
+    "origin": "https://codoxear.gzeek.com:8447",
+    "client": "https://codoxear.gzeek.com:8444/",
+    "preserved": [
+      "Home Hub",
+      "both Computers and their sessions",
+      "both frontend containers"
+    ]
+  }
+}
