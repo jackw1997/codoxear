@@ -356,6 +356,7 @@ if (!locked) {
       browserImage,
       "/installed",
     );
+    let browserFailure: unknown;
     try {
       for (const role of ["frontend", "hub"])
         await run("docker", [
@@ -369,21 +370,39 @@ if (!locked) {
         browserContainer + ":/tmp/package-browser-oauth.ts",
       ]);
       await start(browserContainer, "installed package browser OAuth");
-      const evidence = join(temporary, "browser-oauth.json");
-      await run("docker", [
-        "cp",
-        browserContainer + ":/tmp/package-browser-oauth.json",
-        evidence,
-      ]);
-      browser = JSON.parse(await readFile(evidence, "utf8"));
-      if (!(browser as { passed?: boolean }).passed)
-        throw Error("Installed package browser OAuth evidence failed");
-      checks.push(
-        "independently installed frontend and Hub complete browser OAuth using their own compiled artifacts",
-      );
+    } catch (error) {
+      browserFailure = error;
     } finally {
-      await cleanup(browserContainer);
+      // A failed harness writes observations too. Retrieve them before removing
+      // the container, while retaining its original startup/harness failure.
+      try {
+        const evidence = join(temporary, "browser-oauth.json");
+        await run("docker", [
+          "cp",
+          browserContainer + ":/tmp/package-browser-oauth.json",
+          evidence,
+        ]);
+        browser = JSON.parse(await readFile(evidence, "utf8"));
+      } catch (error) {
+        browser = {
+          passed: false,
+          evidenceError: error instanceof Error ? error.message : String(error),
+        };
+        if (browserFailure === undefined) browserFailure = error;
+      }
+      try {
+        await cleanup(browserContainer);
+      } catch (error) {
+        if (browserFailure === undefined) browserFailure = error;
+        else console.error("Browser container cleanup also failed:", error);
+      }
     }
+    if (browserFailure !== undefined) throw browserFailure;
+    if (!(browser as { passed?: boolean }).passed)
+      throw Error("Installed package browser OAuth evidence failed");
+    checks.push(
+      "independently installed frontend and Hub complete browser OAuth using their own compiled artifacts",
+    );
     passed = true;
     phase = "complete";
   } catch (error) {

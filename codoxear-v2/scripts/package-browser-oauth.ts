@@ -129,6 +129,10 @@ try {
   await page.getByRole("button", { name: "Done", exact: true }).click();
   pass("OAuth credential authorizes a real Hub management mutation through the frontend");
   await page.reload();
+  const sidebarToggle = page.getByRole("button", { name: "Toggle sidebar", exact: true });
+  await sidebarToggle.waitFor({ state: "visible" });
+  if (!(await page.evaluate(() => document.body.classList.contains("sidebar-open"))))
+    await sidebarToggle.click();
   await page.getByRole("button", { name: "Hubs & computers", exact: true }).click();
   const summary = page.locator("summary").filter({ hasText: "Installed package Hub" });
   await summary.waitFor();
