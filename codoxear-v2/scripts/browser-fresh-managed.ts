@@ -103,7 +103,15 @@ try {
   }
   await dialog.getByLabel("Runtime", { exact: true }).selectOption("pi");
   await dialog.getByLabel("Provider", { exact: true }).selectOption(initialProvider);
-  await dialog.getByLabel("Model", { exact: true }).selectOption(initialModel);
+  const explicitConfiguredModel = process.env.FRESH_EXPLICIT_CONFIGURED_MODEL === "1";
+  await dialog.getByLabel("Model", { exact: true }).selectOption(
+    explicitConfiguredModel ? launch.model : initialModel,
+  );
+  if (explicitConfiguredModel) {
+    assert.equal(await dialog.getByLabel("Provider", { exact: true }).inputValue(), "");
+    assert.equal(await dialog.getByLabel("Model", { exact: true }).inputValue(), launch.model);
+    pass("Pi creation selects an explicit model while inheriting the Computer provider");
+  }
   await dialog.getByLabel("Agent name", { exact: true }).fill(name);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await submit.isVisible());

@@ -77,6 +77,44 @@ test("configured defaults omit overrides; alternate Pi providers require a model
     },
   );
 });
+test("explicit Pi models retain the configured provider while qualified models retain their namespace", () => {
+  const defaults: BackendDefaults = {
+    model_provider: "litellm",
+    model: "kimi-k3",
+    provider_choices: ["litellm", "openrouter"],
+    provider_models: {
+      litellm: ["kimi-k3", "vendor/model"],
+      openrouter: ["other-model"],
+    },
+  };
+  assert.deepEqual(launchOptions("pi", defaults, empty), {});
+  assert.deepEqual(
+    launchOptions("pi", defaults, { ...empty, model: "kimi-k3" }),
+    { model: "kimi-k3", model_provider: "litellm" },
+  );
+  assert.deepEqual(
+    launchOptions("pi", defaults, { ...empty, model: "vendor/model" }),
+    { model: "vendor/model", model_provider: "litellm" },
+  );
+  for (const model of ["litellm/kimi-k3", "openrouter/other-model"]) {
+    assert.deepEqual(
+      launchOptions("pi", defaults, { ...empty, model }),
+      { model },
+    );
+  }
+  assert.deepEqual(
+    launchOptions("pi", defaults, {
+      ...empty,
+      provider: "openrouter",
+      model: "other-model",
+    }),
+    { model: "other-model", model_provider: "openrouter" },
+  );
+  assert.deepEqual(
+    launchOptions("pi", {}, { ...empty, model: "kimi-k3" }),
+    { model: "kimi-k3" },
+  );
+});
 test("Codex auth and Fast settings map to CLI options; unsupported Fast never leaks", () => {
   const codex = {
     provider_choices: ["chatgpt", "openai-api", "gateway"],

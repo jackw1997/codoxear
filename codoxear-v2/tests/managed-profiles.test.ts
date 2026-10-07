@@ -11,6 +11,38 @@ assert.ok(
   existsSync("/.dockerenv"),
   "Provider/runtime verification runs only in Docker",
 );
+test("Pi explicit models inherit the configured provider, including cold reopen", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
+  try {
+    const native = join(home, ".pi", "agent");
+    await mkdir(native, { recursive: true });
+    await writeFile(join(native, "settings.json"), JSON.stringify({ defaultProvider: "litellm", defaultModel: "kimi-k3" }));
+    await writeFile(join(native, "models.json"), JSON.stringify({ providers: { litellm: { models: [{ id: "moonshot/kimi-k3" }] } } }));
+    const input = { home, stateHome: home, cwd: home, backend: "pi" as const };
+    for (const [model, expected] of [
+      ["kimi-k3", "litellm/kimi-k3"],
+      ["litellm/kimi-k3", "litellm/kimi-k3"],
+      ["openrouter/other-model", "openrouter/other-model"],
+      ["moonshot/kimi-k3", "litellm/moonshot/kimi-k3"],
+    ] as const) {
+      const result = await prepareProfile({ ...input, model });
+      assert.equal(result.model, expected);
+      const reopened = await prepareProfile({ ...input, model, profile: result.profile });
+      assert.equal(reopened.model, expected);
+    }
+    assert.equal((await prepareProfile(input)).model, undefined);
+    assert.equal((await prepareProfile({ ...input, model: "kimi-k3", launch: { model_provider: "other" } })).model, "other/kimi-k3");
+    await writeFile(join(home, ".pi", "settings.json"), JSON.stringify({ defaultProvider: "project" }));
+    assert.equal((await prepareProfile({ ...input, model: "kimi-k3" })).model, "project/kimi-k3");
+    assert.equal(JSON.parse(await readFile(join(native, "settings.json"), "utf8")).defaultProvider, "litellm");
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
+test("Pi bare models without a configured provider produce an actionable setup error", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
+  try {
+    await assert.rejects(prepareProfile({ home, stateHome: home, cwd: home, backend: "pi", model: "kimi-k3" }), /Choose a Pi provider/);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
 test("managed Pi retains native settings in an isolated profile without delegation", async () => {
   const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
   try {

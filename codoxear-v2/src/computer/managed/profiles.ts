@@ -204,13 +204,14 @@ export async function prepareProfile(input: ManagedOpen) {
       env.ANTHROPIC_MODEL = model;
     }
   } else {
-    if (
-      input.backend === "pi" &&
-      model &&
-      launch.model_provider &&
-      !model.startsWith(`${launch.model_provider}/`)
-    )
-      model = `${launch.model_provider}/${model}`;
+    if (input.backend === "pi" && model) {
+      if (launch.model_provider) {
+        if (!model.startsWith(`${launch.model_provider}/`))
+          model = `${launch.model_provider}/${model}`;
+      } else {
+        model = await configuredPiModel(model, env.OAR_PI_AGENT_DIR!, input.cwd);
+      }
+    }
     if (
       launch.model_provider &&
       input.backend !== "pi" &&
@@ -240,4 +241,39 @@ export async function prepareProfile(input: ManagedOpen) {
     }
   }
   return { profile, env, model };
+}
+
+/** OAR accepts provider/model, while native Pi settings store them separately. */
+async function configuredPiModel(model: string, agentDir: string, cwd: string) {
+  async function config(path: string): Promise<Record<string, any>> {
+    try {
+      const value: unknown = JSON.parse(await readFile(path, "utf8"));
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw new Error("Invalid configuration");
+      return value as Record<string, any>;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+      throw new ManagedSetupError("Cannot read Pi configuration on the Computer");
+    }
+  }
+  const settings = {
+    ...await config(join(agentDir, "settings.json")),
+    ...await config(join(cwd, ".pi", "settings.json")),
+  };
+  const provider = typeof settings.defaultProvider === "string"
+    ? settings.defaultProvider.trim() : "";
+  if (!model.includes("/")) {
+    if (!provider)
+      throw new ManagedSetupError(
+        "Choose a Pi provider for this model, or configure a default provider on the Computer",
+      );
+    return `${provider}/${model}`;
+  }
+  if (!provider || model.startsWith(`${provider}/`)) return model;
+  // Private providers can themselves expose model IDs containing slashes.
+  const models = (await config(join(agentDir, "models.json"))).providers?.[provider]?.models;
+  const isRawModel = settings.defaultModel === model ||
+    (Array.isArray(models) && models.some((item: unknown) =>
+      !!item && typeof item === "object" && "id" in item && item.id === model));
+  return isRawModel ? `${provider}/${model}` : model;
 }
