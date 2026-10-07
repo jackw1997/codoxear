@@ -1,5 +1,5 @@
 {
-  "request": "Finish pending requirements with subagents; current conversation wins over historical implementation prescriptions",
+  "request": "Finish the TypeScript/OAR refactor with subagents and deploy a fresh v2 instance, retaining public addresses and real LiteLLM/Kimi settings; current instructions supersede old preview restoration.",
   "baselineCommit": "3c2e2fc455d59f3c90ab171d3e8967c097d1064d",
   "requirements": "requirements-reconciliation.md",
   "steps": [
@@ -237,59 +237,69 @@
     },
     {
       "id": "session-catalog-recovery",
-      "status": "prepared; deployment blocked",
+      "status": "superseded; old-catalog restoration abandoned for fresh deployment",
       "model": "GPT-6.1-Sol and root",
       "scope": "Restore visibility of original sessions after trusted-endpoint cutover",
       "outcome": "Original Hub catalogs retain19 agents across6 Computers. Prepared routing preserves original and new authorities, and browser refresh/revoke carries an existing signing-key routing hint. Router subagent reported6 passing Docker checks; browser baseline captures2 newer agents. Static typecheck passes.",
       "limitations": [
-        "Not deployed. Current execution environment denies Docker socket access; final browser recovery and production build remain outstanding. The public router still defaults to the fresh native catalog."
-      ]
+        "Historical limitation at this milestone: Not deployed. Current execution environment denies Docker socket access; final browser recovery and production build remain outstanding. The public router still defaults to the fresh native catalog."
+      ],
+      "historicalStatus": "prepared; deployment blocked",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
     },
     {
       "id": "structured-runtime-review",
-      "status": "architecture agreed; implementation pending",
+      "status": "historical milestone; superseded by verified fresh OAR release",
       "model": "GPT-6.1-Sol and root",
       "scope": "Replace terminal automation for new managed sessions",
       "outcome": "Reviewed Raft/OAR source and finalized OAR integration behind a Computer-local interface. Same-Hub cross-Computer delegation uses Codoxear routing, durable identities and Computer-owned tools. Cross-Hub delegation is deferred. R45 supersedes earlier direct-driver-first and optional-future-OAR prescriptions.",
       "limitations": [
-        "No OAR-managed replacement or distributed delegation is implemented/deployed. Permission, provider, native-session and two-Computer fault acceptance remain required. See docs/runtime-lifecycle.html."
-      ]
+        "Historical limitation at this milestone: No OAR-managed replacement or distributed delegation is implemented/deployed. Permission, provider, native-session and two-Computer fault acceptance remain required. See docs/runtime-lifecycle.html."
+      ],
+      "historicalStatus": "architecture agreed; implementation pending",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
     },
     {
       "id": "memory-and-container-cleanup",
-      "status": "prepared; cleanup blocked",
+      "status": "historical milestone; superseded by verified fresh OAR release",
       "model": "root; GPT-6.1-Sol source audit",
       "scope": "8 GiB resource budget and authorized cleanup of owned demo/test containers",
       "outcome": "Prepared shared verification lock, serial test files, 2 GiB container memory limit, two CPUs and 512 processes. Full static TypeScript and shell syntax checks pass. No collaborator remains active in the current tree. See runtime-lifecycle.html for app-server and OAR design findings.",
       "limitations": [
-        "Docker socket denied by current execution restrictions; no container stopped and no replacement launched. Keep container filesystems and host data.",
-        "The memory cap applies to verification containers, not Docker image builds or the whole host. Actual resource and behavior verification remain outstanding.",
-        "Lazy runtime open/resume, safe idle disposal and bounded active managed drivers are proposed, not implemented."
-      ]
+        "Historical limitation at this milestone: Docker socket denied by current execution restrictions; no container stopped and no replacement launched. Keep container filesystems and host data.",
+        "Historical limitation at this milestone: The memory cap applies to verification containers, not Docker image builds or the whole host. Actual resource and behavior verification remain outstanding.",
+        "Historical limitation at this milestone: Lazy runtime open/resume, safe idle disposal and bounded active managed drivers are proposed, not implemented."
+      ],
+      "historicalStatus": "prepared; cleanup blocked",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
     },
     {
       "id": "oar-first-implementation",
-      "status": "implemented-unverified",
+      "status": "historical milestone; superseded by verified fresh OAR release",
       "model": "Two GPT-6.1-Sol agents plus coordinator",
       "outcome": "Computer managed-runtime controller, isolated worker/provider profiles and same-Hub durable delegation API wired into services; explicit Pi tool registration/client building blocks. Public origins and private LiteLLM launch settings staged; ten consistent database backups saved outside Git.",
       "limitations": [
-        "No OAR/native/browser tests executed: Docker socket denied, npm DNS unavailable, installed Node22 rather than required24.",
-        "OAR dependency lockfile missing; no deployment or cleanup performed.",
-        "Agent grant delivery/installation and inherited chained spawning, full browser feature parity, reviewed uncertainty recovery and native subprocess OOM cleanup remain incomplete."
+        "Historical limitation at this milestone: No OAR/native/browser tests executed: Docker socket denied, npm DNS unavailable, installed Node22 rather than required24.",
+        "Historical limitation at this milestone: OAR dependency lockfile missing; no deployment or cleanup performed.",
+        "Historical limitation at this milestone: Agent grant delivery/installation and inherited chained spawning, full browser feature parity, reviewed uncertainty recovery and native subprocess OOM cleanup remain incomplete."
       ],
-      "report": "oar-cutover.html"
+      "report": "oar-cutover.html",
+      "historicalStatus": "implemented-unverified",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
     },
     {
       "id": "oar-private-tool-wiring",
-      "status": "implemented-unverified",
+      "status": "historical milestone; superseded by verified fresh OAR release",
       "model": "Two GPT-6.1-Sol agents plus coordinator",
       "outcome": "Private Computer grant delivery, confirmed managed Pi tool registration, same-Hub inherited grants, atomic scope replacement and subtree revocation, allowed-target discovery, runtime/model/effort selection, bounded child-answer reads, and browser grant/expiry controls implemented. Added read-only OAR installation diagnostics.",
       "limitations": [
-        "Docker socket access and npm DNS remain blocked after user RAM cleanup; no native/browser/runtime tests executed.",
-        "Managed Pi can delegate; running legacy Pi hot-install and Codex/Claude parent tool registration remain unsupported. Codex and Claude child leaves are supported in source only.",
-        "OAR dependency lockfile, Node24/runtime installation, full managed feature parity and OOM/process-tree acceptance remain pending."
+        "Historical limitation at this milestone: Docker socket access and npm DNS remain blocked after user RAM cleanup; no native/browser/runtime tests executed.",
+        "Historical limitation at this milestone: Managed Pi can delegate; running legacy Pi hot-install and Codex/Claude parent tool registration remain unsupported. Codex and Claude child leaves are supported in source only.",
+        "Historical limitation at this milestone: OAR dependency lockfile, Node24/runtime installation, full managed feature parity and OOM/process-tree acceptance remain pending."
       ],
-      "report": "oar-cutover.html"
+      "report": "oar-cutover.html",
+      "historicalStatus": "implemented-unverified",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
     },
     {
       "id": "fresh-oar-deployment",
@@ -360,7 +370,8 @@
     "active": 20,
     "completed": 6,
     "resolvedConstraints": 1,
-    "note": "Rows overlap. Intentional safe compatibility exclusions are resolved constraints rather than unfinished features."
+    "note": "Rows overlap. Intentional safe compatibility exclusions are resolved constraints rather than unfinished features.",
+    "scope": "Historical requirement-register counts; these are not live collaborator counts or final release acceptance totals."
   },
   "preview": "https://codoxear.gzeek.com:8445/",
   "previewVerification": {
@@ -371,13 +382,15 @@
     "browserHarness": "Real Chrome130 mobile browser at390×844; ignoreHTTPSErrors:false and no SPKI exception.",
     "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
     "publicTLS": "Client and both Hubs pass certificate validation with rejectUnauthorized:true and authorize successfully. Certificate issuer YE2; expiry 2027-01-02 08:27:03 GMT. Existing root-managed Caddy/certificate configuration was reused unchanged.",
-    "publicTrustedTLS": true
+    "publicTrustedTLS": true,
+    "historicalEvidence": true,
+    "scope": "Earlier native/scripted preview snapshot; current fresh real-provider evidence is in fresh-oar-deployment and managed-cold-browser-binding."
   },
-  "updatedAt": "2026-10-06T17:05:20.423Z",
-  "integrationStatus": "Trusted8445 browser acceptance remains historical evidence for the deployed build. A later user report exposed missing original catalog visibility. Recovery is prepared and not deployed because current Docker access is denied. Structured runtime lifecycle research is complete; its driver implementation remains proposed.",
+  "updatedAt": "2026-10-07T07:12:40.701Z",
+  "integrationStatus": "Fresh OAR stack deployed at the preserved public addresses. Real Pi/Kimi parent-child delegation across two Computers and cold recovery passed through the public browser. The 283-test full Docker suite and complete browser runner passed before the final saved-binding fix; 12 binding regressions and 21 combined search/protocol checks passed afterward. Public search/navigation acceptance has not yet run. Earlier old-catalog restoration is superseded by the requested fresh deployment; historical state remains separately archived.",
   "github": {
-    "status": "blocked",
-    "reason": "Authenticated GitHub connector reads succeed but create_blob returns403 Resource not accessible by integration. No shell Git credentials are configured.",
+    "status": "previous publication attempt blocked; not retested on 7 October",
+    "reason": "Historical attempt: authenticated connector reads succeeded but create_blob returned403 Resource not accessible by integration; shell Git credentials were absent then. Current publishing access has not been retested.",
     "localBranch": "v2/typescript-architecture-pr",
     "published": false
   },
@@ -394,21 +407,23 @@
     "certificateExpires": "2027-01-02T08:27:03Z",
     "routerChecks": "5/5",
     "preservedContainerProcesses": "96/96 tracked processes in six existing containers: same PIDs and start ticks",
-    "rootInstallerRequired": false
+    "rootInstallerRequired": false,
+    "historicalEvidence": true
   },
   "sessionCatalogRecovery": {
-    "status": "prepared; deployment and final browser recovery blocked by current Docker socket access",
+    "status": "historical; old-catalog restoration superseded by requested fresh deployment",
     "originalAgents": 19,
     "originalComputers": 6,
     "nativeBaselineAgents": 2,
     "routerDockerChecks": 6,
     "routerEvidence": "GPT-6.1-Sol subagent completed six behavioral checks before environment permission change; current baseline browser capture succeeded",
     "staticTypecheck": "passed",
-    "recoveryBrowser": "not run",
-    "deployed": false
+    "recoveryBrowser": "Old-catalog restoration browser acceptance not run; distinct fresh OAR cold recovery has passed",
+    "deployed": false,
+    "historicalEvidence": true
   },
   "runtimeLifecycleReview": {
-    "status": "first managed controller and same-Hub delegation API implemented; static-checked, not runtime-verified or deployed",
+    "status": "OAR-managed Pi and same-Hub cross-Computer delegation deployed and native/public-browser verified; broader parity remains pending",
     "raftCommit": "05f7d8fd77d2535f993d5d90b85118438bc18216",
     "oarCommit": "07a9c946aabf17e65bf6126f48dd42a4f21cb964",
     "recommendation": "OAR behind a thin Computer-local Codoxear runtime interface for new managed sessions; Computer-owned delegation tools route through a shared Hub; preserve existing terminal sessions and add explicit native extensions for required gaps",
@@ -424,7 +439,7 @@
       ]
     },
     "distributedDelegation": {
-      "status": "Private grant delivery, managed Pi tool registration path, inherited same-Hub authorization and bounded childanswer reads implemented; native/backend/browser acceptance not run; legacyPi and Codex/Claude delegation-parent installation remain unsupported.",
+      "status": "Private grant delivery, managed Pi tools and real same-Hub parent-child execution passed native and public-browser acceptance, including cold history recovery and revocation. Existing terminal Pi hot-install and Codex/Claude parent tool installation remain unsupported.",
       "sameHub": "Computer A -> Hub -> Computer B; destination create permission and delegated principal required",
       "crossHub": "Explicitly deferred by user to later versions; reject cross-Hub subagent targets in this version; no federation/grant implementation now",
       "runtimeBoundary": "OAR/native adapter runs locally at destination; Codoxear owns routing, durable parentage, launch deduplication and result delivery",
@@ -443,17 +458,6 @@
   "memoryControl": {
     "targetGiB": 8,
     "status": "Fresh memory-bounded stack running; real two-Computer delegation and idle cleanup verified",
-    "knownOwnedContainers": [
-      "codoxear-v2-cache-demo",
-      "codoxear-v2-auth-runtime",
-      "codoxear-v2-resume-demo",
-      "codoxear-v2-native-preview",
-      "codoxear-v2-progress-preview",
-      "codoxear-v2-completion-preview",
-      "codoxear-v2-trusted-preview"
-    ],
-    "cleanupExecuted": false,
-    "activeCollaborators": 0,
     "testConcurrency": 1,
     "verificationMemoryGiB": 2,
     "verificationCpuLimit": 2,
@@ -462,7 +466,7 @@
     "shellSyntax": "passed for all 21 verification wrappers",
     "behavioralVerification": "283-test full suite and full browser runner passed before final saved-binding fix;12 managed regression tests and public cold recovery pass after that fix",
     "buildMemoryCapped": true,
-    "collaboratorNote": "GPT-6.1-Sol implementation agents with coordinator-owned serial Docker execution",
+    "collaboratorNote": "GPT-6.1-Sol implementation agents assisted the coordinator; Docker execution, builds and verification were serialized by the coordinator. This field records the workflow, not a live collaborator count.",
     "managedDefaults": {
       "residentWorkers": 2,
       "idleMs": 60000,
@@ -500,14 +504,33 @@
       "afterRealParentChildDelegation": 488.24,
       "afterServiceRestart": 185.59
     },
-    "sampleLimitation": "Docker-reported samples, not peaks/P99 or capacity guarantees"
+    "sampleLimitation": "Docker-reported samples, not peaks/P99 or capacity guarantees",
+    "historicalOwnedContainerNames": [
+      "codoxear-v2-cache-demo",
+      "codoxear-v2-auth-runtime",
+      "codoxear-v2-resume-demo",
+      "codoxear-v2-native-preview",
+      "codoxear-v2-progress-preview",
+      "codoxear-v2-completion-preview",
+      "codoxear-v2-trusted-preview"
+    ],
+    "historicalCleanupExecuted": false,
+    "deployedResidentRoles": [
+      "hub-0",
+      "hub-1",
+      "client",
+      "computer-a",
+      "computer-b",
+      "gateway"
+    ],
+    "containerHistoryNote": "Earlier demo/preview names and cleanup result describe the pre-cleanup review; they are not the current running container inventory. The fresh deployment has six independently limited resident roles."
   },
   "oarImplementation": {
     "status": "Deployed real Pi/Kimi and same-Hub cross-Computer delegation slice",
     "staticTypecheck": "passed",
     "componentBoundaries": "passed",
     "authoredBehaviorTests": 36,
-    "behaviorTestsRun": 282,
+    "behaviorTestsRun": 283,
     "commitAttempt": "Reviewed v2 snapshots saved with isolated Git index; unrelated workingtree and regular index preserved",
     "remaining": [
       "Codex/Claude parent tool registration and existing terminal Pi hot-install",
@@ -518,7 +541,9 @@
       "fullSuitePassed": 283,
       "fullSuiteFailed": 0,
       "fullBrowserRunnerExitCode": 0,
-      "finalBindingRegressionPassed": 12
+      "finalBindingRegressionPassed": 12,
+      "finalSearchProtocolPassed": 21,
+      "scope": "Full suite passed before final saved-binding changes; focused binding and search/protocol checks passed afterward. No claim of a complete full-suite rerun or public search/navigation acceptance for the final snapshot."
     }
   }
 }
