@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-07",
+  "commit": "37fe249b60b2a6fbf3915498d19cf6c9afdea7ff",
+  "requirement": "Read actual provider/model/reasoning configuration and show explicit selections; no fixed provider/model choices or implicit configured-default UI.",
+  "configuration": [
+    "Pi settings, provider/model definitions and authentication provider identities",
+    "Codex active configuration/profile and cached model capability metadata",
+    "Claude settings/environment with configured endpoint identity"
+  ],
+  "tests": {
+    "initialSuite": {
+      "passed": 316,
+      "failed": 1,
+      "total": 317
+    },
+    "resolvedFailure": "Published catalogue contract still required default_backend and omitted explicit auth/effort fields; schema and generated documents updated.",
+    "protocolRerun": {
+      "passed": 2,
+      "failed": 0
+    },
+    "creationBrowser": {
+      "passed": true,
+      "scenarios": 13
+    },
+    "prunedRuntimeImages": {
+      "passed": true,
+      "roles": [
+        "computer",
+        "hub",
+        "frontend"
+      ]
+    }
+  },
+  "live": {
+    "url": "https://codoxear.gzeek.com:8445/",
+    "passed": true,
+    "checks": [
+      "Fresh owner connects to the public independent Hub and both Computers appear",
+      "Creation shows the saved litellm provider, kimi-k3 model and off reasoning as explicit selections",
+      "pi: custom provider fields are available without creating an agent",
+      "codex: custom provider fields are available without creating an agent",
+      "cc: custom provider fields are available without creating an agent",
+      "Fresh Pi creation remains usable at phone width",
+      "A newly created managed Pi returns the requested real LiteLLM response",
+      "Real assistant history survives reload and is visible at phone width"
+    ]
+  },
+  "deployment": {
+    "computer": "codoxear-computer:37fe249b",
+    "hub": "codoxear-hub:37fe249b",
+    "frontend": "codoxear-frontend:37fe249b",
+    "statePreserved": true,
+    "oomKilled": false,
+    "unexpectedRestarts": 0
+  },
+  "limits": {
+    "memoryGiB": 2,
+    "swapGiB": 0,
+    "cpus": 2,
+    "serial": true
+  }
+}
