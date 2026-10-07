@@ -295,7 +295,6 @@ try {
   assert.equal(await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).count(), 0);
   await shot(memberPage, 'member-sees-only-b');
   pass('Owner sees both Computers but cannot create on B; Member sees only B with separate explicit allowlists');
-  await grantMemberFiles();
   stage = 'managed agents and toolbar';
   await createAgent(ownerPage, 'Computer A', 'Owner agent A', workspaceA); await send(ownerPage, 'Owner UI message');
   await shot(ownerPage, 'owner-agent-a-reply');
@@ -307,6 +306,18 @@ try {
   await shot(ownerPage, 'owner-view-file'); await ownerPage.locator('#fileCloseBtn').click();
   await createAgent(memberPage, 'Computer B', 'Member agent B', workspaceB); await send(memberPage, 'Member UI message');
   await shot(memberPage, 'member-agent-b-reply');
+  stage = 'Member files before explicit workspace grant';
+  await memberPage.getByRole('button', { name: 'View file', exact: true }).click();
+  await memberPage.locator('#filePickerInput').fill('ungranted-new-file.txt');
+  await memberPage.locator('#fileViewer').getByText('Workspace access requires an active computer membership and an explicit owner grant', { exact: false }).first().waitFor();
+  assert.equal(await memberPage.locator('#filePickerMenu').getByText(/Create new file:/).count(), 0);
+  await memberPage.locator('#filePickerInput').press('Enter');
+  assert.equal(await memberPage.locator('#filePickerMenu').getByText(/Create new file:/).count(), 0);
+  assert.equal(await memberPage.locator('#fileEditBtn').isDisabled(), true);
+  await shot(memberPage, 'member-files-denied-without-create');
+  await memberPage.locator('#fileCloseBtn').click();
+  pass('Before an explicit workspace grant, Member file access is denied and neither a create-file option nor Enter opens an editor');
+  await grantMemberFiles();
   stage = 'Member toolbar: Details';
   await memberPage.getByRole('button', { name: 'Details', exact: true }).click();
   await dialog(memberPage, 'Details').waitFor();

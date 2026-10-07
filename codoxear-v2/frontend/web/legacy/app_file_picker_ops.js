@@ -38,7 +38,7 @@
     const renderRuntime = codoxearFilePicker.createMenuRenderRuntime(wiring.createMenuRenderOptions({
       menu: filePickerMenu, menuState, inputValue: () => filePickerInput.value, visibleEntries: () => entryRuntime.visibleEntries(),
       searchSnapshot: () => searchState.snapshot(), normalizeDraftFilePath: (query) => normalizeDraftFilePath(query),
-      draftSuppressed: () => searchState.draftSuppressed(filePickerInput.value), draftEntry: (path) => entryRuntime.draftEntry(path),
+      draftSuppressed: () => menuState.draftSuppressed(filePickerInput.value), draftEntry: (path) => entryRuntime.draftEntry(path),
       syncActiveDescendant: (focusIndex) => domRuntime.syncActiveDescendant(focusIndex), sectionLabel: (source) => filePickerSectionLabel(source),
       duplicatePaths: (entries) => duplicateFilePickerPaths(entries), rawByteDuplicatePaths: (entries) => rawByteDuplicatePaths(entries),
       identityHint: (entry, duplicatePaths, options) => filePickerIdentityHint(entry, duplicatePaths, options),
