@@ -255,14 +255,16 @@ export function provider(
       return guarded(async () => {
         const token = z
           .object({
-            // OAuth v3 success may omit the legacy code envelope.
+            // Accept OAuth success with or without the legacy code envelope.
             code: z.literal(0).optional(),
             error: z.never().optional(),
             access_token: z.string().min(1),
           })
           .parse(
             await feishuJson(
-              "https://accounts.feishu.cn/oauth/v3/token",
+              // v3 rejects valid S256 proofs with 20049 for affected Feishu apps.
+              // Keep PKCE and use its v2 exchange directly; never retry a used code.
+              "https://open.feishu.cn/open-apis/authen/v2/oauth/token",
               {
                 method: "POST",
                 headers: {

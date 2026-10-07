@@ -19,10 +19,11 @@ test("Feishu's no-code token response completes the real adapter callback and pr
   const accounts = new Accounts(store, "callback-tests-secret-".repeat(4), { async send() {} });
   const authority = new Authority(store, accounts, new Tokens(origin, await signingKey()));
   const calls: Array<{ url: string; init: RequestInit }> = [];
+  let expectedPkceChallenge = "";
   const transport: typeof fetch = async (input, init = {}) => {
     calls.push({ url: String(input), init });
     assert.equal(init.redirect, "error");
-    if (String(input) === "https://accounts.feishu.cn/oauth/v3/token") {
+    if (String(input) === "https://open.feishu.cn/open-apis/authen/v2/oauth/token") {
       assert.equal(init.method, "POST");
       assert.equal(new Headers(init.headers).get("content-type"), "application/json; charset=utf-8");
       const body = JSON.parse(String(init.body));
@@ -32,6 +33,7 @@ test("Feishu's no-code token response completes the real adapter callback and pr
       assert.equal(body.code, "fresh-provider-code");
       assert.equal(body.redirect_uri, origin + "/auth/work-feishu/callback");
       assert.ok(typeof body.code_verifier === "string" && body.code_verifier.length >= 43);
+      assert.equal(createHash("sha256").update(body.code_verifier).digest("base64url"), expectedPkceChallenge);
       return Response.json({ access_token: "fixture-user-token", token_type: "Bearer", expires_in: 7200 });
     }
     assert.equal(String(input), "https://open.feishu.cn/open-apis/authen/v1/user_info");
@@ -50,6 +52,8 @@ test("Feishu's no-code token response completes the real adapter callback and pr
     const start = await app.inject({ method: "GET", url: "/auth/work-feishu/start?" + new URLSearchParams({ continue: continuation }) });
     assert.equal(start.statusCode, 302);
     const authorize = new URL(start.headers.location!), flowCookie = start.cookies.find((cookie) => cookie.name === cookieName + "_oauth")!;
+    assert.equal(authorize.searchParams.get("code_challenge_method"), "S256");
+    expectedPkceChallenge = authorize.searchParams.get("code_challenge")!;
     const callbackUrl = "/auth/work-feishu/callback?" + new URLSearchParams({ state: authorize.searchParams.get("state")!, code: "fresh-provider-code" });
     const callback = await app.inject({ method: "GET", url: callbackUrl, cookies: { [flowCookie.name]: flowCookie.value } });
     assert.equal(callback.statusCode, 302, callback.body);

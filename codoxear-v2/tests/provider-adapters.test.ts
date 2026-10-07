@@ -256,8 +256,11 @@ function feishuFixture(
   const transport: typeof fetch = async (input, init = {}) => {
     calls.push({ url: String(input), init });
     assert.equal(init.redirect, "error");
-    if (String(input) === "https://accounts.feishu.cn/oauth/v3/token")
+    if (String(input) === "https://open.feishu.cn/open-apis/authen/v2/oauth/token") {
+      assert.equal(new Headers(init.headers).get("content-type"), "application/json; charset=utf-8");
+      assert.equal(JSON.parse(String(init.body)).code_verifier, verifier);
       return Response.json(token);
+    }
     if (
       String(input) === "https://open.feishu.cn/open-apis/authen/v1/user_info"
     )
@@ -287,7 +290,7 @@ test("Feishu organization connections expose labels and reject another tenant", 
   await assert.rejects(other.adapter.exchange("code", verifier, callback), rejected);
 });
 
-test("Feishu v3 exchanges PKCE and binds app connection, tenant and open_id without email", async () => {
+test("Feishu current user-token endpoint exchanges JSON PKCE and binds app connection, tenant and open_id without email", async () => {
   const f = feishuFixture(),
     redirect = "https://hub.example.test/auth/feishu-main/callback";
   const url = new URL(
@@ -330,7 +333,7 @@ test("Feishu v3 exchanges PKCE and binds app connection, tenant and open_id with
   );
 });
 
-test("Feishu v3 accepts a successful OAuth token response without an API code", async () => {
+test("Feishu accepts a successful OAuth token response without an API code", async () => {
   const f = feishuFixture({ access_token: "feishu-access", token_type: "Bearer", expires_in: 7200 });
   const identity = await f.adapter.exchange("feishu-code", verifier, callback);
   assert.equal(identity.subject, "app-open-id");
@@ -338,6 +341,22 @@ test("Feishu v3 accepts a successful OAuth token response without an API code", 
   assert.equal(identity.email, null);
   assert.equal(f.calls.length, 2);
   assert.equal(new Headers(f.calls[1]!.init.headers).get("authorization"), "Bearer feishu-access");
+});
+
+test("Feishu rejects provider code 20049 after one PKCE exchange without retrying or changing endpoints", async () => {
+  const calls: string[] = [];
+  const adapter = provider({ kind: "feishu", id: "feishu-pkce", clientId: "fixture-app", clientSecret: "fixture-secret" }, {
+    fetch: async (input, init = {}) => {
+      calls.push(String(input));
+      assert.equal(JSON.parse(String(init.body)).code_verifier, verifier);
+      return Response.json({ code: 20049, error: "invalid_request", error_description: "private provider details" }, { status: 400 });
+    },
+  });
+  const authorization = new URL(await adapter.authorize("browser-state", verifier, callback));
+  assert.equal(authorization.searchParams.get("code_challenge_method"), "S256");
+  assert.equal(authorization.searchParams.get("code_challenge"), createHash("sha256").update(verifier).digest("base64url"));
+  await assert.rejects(adapter.exchange("single-use-provider-code", verifier, callback), rejected);
+  assert.deepEqual(calls, ["https://open.feishu.cn/open-apis/authen/v2/oauth/token"]);
 });
 
 test("Feishu rejects provider errors, absent token, missing tenant and invalid identities", async () => {
@@ -402,7 +421,7 @@ test("Feishu failure diagnostics expose only static stage, HTTP status and numer
     const status = failureStage === "token" ? 400 : 403, providerCode = failureStage === "token" ? 20003 : 20021;
     const adapter = provider({ kind: "feishu", id: "diagnostic-fixture", clientId: "private-client-marker", clientSecret: "private-secret-marker" }, {
       fetch: async (input) => {
-        if (failureStage === "user_info" && String(input) === "https://accounts.feishu.cn/oauth/v3/token")
+        if (failureStage === "user_info" && String(input) === "https://open.feishu.cn/open-apis/authen/v2/oauth/token")
           return Response.json({ access_token: "private-token-marker" });
         return Response.json({ code: providerCode, error: "private-error-marker", error_description: "private-description-marker",
           access_token: "private-token-marker" }, { status });
