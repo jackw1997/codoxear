@@ -1,4 +1,5 @@
 // @ts-nocheck -- Behavioral browser fixtures retain their dynamic Playwright contracts.
+import "./testing/frontend-artifact.js";
 import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 if (!existsSync("/.dockerenv"))

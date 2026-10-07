@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { computerPackagePaths, requireOarLoaderPath } from "./package-paths.js";
 
 /** Read-only installation diagnostics. Never launch a runtime during doctor. */
 export async function oarSetupIssues(
   permissionPolicy?: string,
+  loaderPath = computerPackagePaths().oarLoader,
 ): Promise<string[]> {
   const issues: string[] = [];
   if (Number(process.versions.node.split(".")[0]) < 24)
@@ -17,17 +18,8 @@ export async function oarSetupIssues(
     issues.push(
       "OAR's noninteractive permission policy has not been explicitly configured. Review local trust before enabling managed sessions.",
     );
-  let directory = dirname(fileURLToPath(import.meta.url));
-  let root: string | undefined;
-  for (let depth = 0; depth < 8; depth++) {
-    const candidate = join(directory, "runtime/oar");
-    if (existsSync(join(candidate, "package.json"))) {
-      root = candidate;
-      break;
-    }
-    directory = dirname(directory);
-  }
-  if (!root)
+  const root = dirname(requireOarLoaderPath(loaderPath));
+  if (!existsSync(loaderPath) || !existsSync(join(root, "package.json")))
     return [
       ...issues,
       "Computer runtime/oar package is missing from this installation",

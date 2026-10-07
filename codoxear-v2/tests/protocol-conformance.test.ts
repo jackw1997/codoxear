@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
+import { resolveSchemaReferences } from "../scripts/openapi-schemas.js";
 import { WebSocket } from "ws";
 import { protocolFixture, type RegisteredRoute } from "../scripts/protocol-fixture.js";
 import { registeredInventory, HUB_CAPABILITIES, ErrorResponse } from "../src/protocol/inventory.js";
@@ -11,7 +12,7 @@ import { PAIRING_LIFETIME_SECONDS } from "../src/contracts/pairing.js";
 import { DomainError } from "../src/contracts/model.js";
 assert.ok(existsSync("/.dockerenv"),"Run protocol conformance in Docker");
 const documents:Record<string,any>={};
-async function document(name="hub") {return documents[name]??=JSON.parse(await readFile("protocol/"+name+".openapi.json","utf8"));}
+async function document(name="hub") {return documents[name]??=resolveSchemaReferences(JSON.parse(await readFile("protocol/"+name+".openapi.json","utf8")));}
 const pathName=(value:string)=>value.replace(/:([A-Za-z][A-Za-z0-9_]*)/g,"{$1}");
 async function responseContract(path:string,method:string,status:number,body:unknown,component="hub") {
   const route=(await document(component)).paths[pathName(path)]?.[method.toLowerCase()];assert.ok(route,method+" "+path+" documented");

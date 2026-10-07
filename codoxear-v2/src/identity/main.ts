@@ -6,7 +6,11 @@ import { Accounts } from "../auth/accounts.js";
 import { Tokens, signingKey } from "../auth/tokens.js";
 import { Authority } from "../auth/authority.js";
 import { createIdentityApp } from "../auth/app.js";
-import { ProviderConfig, provider, deliveryGateway } from "../auth/providers.js";
+import {
+  ProviderConfig,
+  provider,
+  deliveryGateway,
+} from "../auth/providers.js";
 import { id, passwordHash } from "../domain/commands.js";
 const file = process.env.CODOXEAR_IDENTITY_CONFIG;
 if (!file)
@@ -22,6 +26,7 @@ const config = z
     listenHost: z.string().default("127.0.0.1"),
     listenPort: z.number().default(17420),
     secureCookies: z.boolean().default(true),
+    frontendAssetsRoot: z.string().optional(),
     providers: z.array(ProviderConfig).default([]),
     delivery: z
       .object({
@@ -68,6 +73,7 @@ const accounts = new Accounts(store, config.otpKey, delivery),
   authority = new Authority(store, accounts, tokens);
 const app = await createIdentityApp({
   authority,
+  frontendAssetsRoot: config.frontendAssetsRoot,
   providers: config.providers.map(provider),
   secureCookies: config.secureCookies,
   clients: config.clients,

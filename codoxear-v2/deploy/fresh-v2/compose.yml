@@ -1,6 +1,5 @@
 name: codoxear-v2-fresh
 x-role: &role
-  image: ${CODOXEAR_V2_IMAGE:-codoxear-v2-oar:local}
   init: true
   entrypoint: []
   restart: "on-failure:2"
@@ -12,6 +11,7 @@ x-role: &role
 services:
   gateway:
     <<: *role
+    image: ${CODOXEAR_GATEWAY_IMAGE:-debian:bookworm-slim}
     profiles: [gateway]
     user: "0:0"
     command:
@@ -36,6 +36,7 @@ services:
     ports: ["8444:8444", "8445:8445", "8446:8446", "8447:8447"]
   provision:
     <<: *role
+    image: ${CODOXEAR_TOOLS_IMAGE:-codoxear-v2-oar:local}
     command: [node, --import, tsx, deploy/fresh-v2/provision.ts, /fresh]
     restart: "no"
     network_mode: none
@@ -45,6 +46,7 @@ services:
       - ${FRESH_STATE:?Set FRESH_STATE}:/fresh
   hub-0:
     <<: *role
+    image: ${CODOXEAR_HUB_IMAGE:-codoxear-hub:local}
     command: [node, dist/server/hub/main.js]
     mem_limit: 256m
     memswap_limit: 256m
@@ -52,13 +54,16 @@ services:
       provision: { condition: service_completed_successfully }
     environment:
       CODOXEAR_HUB_CONFIG: /config/hub-0.json
+      CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
       NODE_OPTIONS: --max-old-space-size=128
     volumes:
       - ${FRESH_STATE}/config:/config:ro
       - ${FRESH_STATE}/hub-0:/state
+      - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
     ports: ["127.0.0.1:19530:17430"]
   hub-1:
     <<: *role
+    image: ${CODOXEAR_HUB_IMAGE:-codoxear-hub:local}
     command: [node, dist/server/hub/main.js]
     mem_limit: 256m
     memswap_limit: 256m
@@ -66,14 +71,17 @@ services:
       provision: { condition: service_completed_successfully }
     environment:
       CODOXEAR_HUB_CONFIG: /config/hub-1.json
+      CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
       NODE_OPTIONS: --max-old-space-size=128
     volumes:
       - ${FRESH_STATE}/config:/config:ro
       - ${FRESH_STATE}/hub-1:/state
+      - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
     ports: ["127.0.0.1:19531:17430"]
   client:
     <<: *role
-    command: [node, frontend/serve.mjs]
+    image: ${CODOXEAR_FRONTEND_IMAGE:-codoxear-frontend:local}
+    command: [node, serve.mjs]
     mem_limit: 128m
     memswap_limit: 128m
     environment:
@@ -83,6 +91,7 @@ services:
     ports: ["127.0.0.1:19520:19520", "127.0.0.1:19500:19520"]
   computer-a: &computer
     <<: *role
+    image: ${CODOXEAR_COMPUTER_IMAGE:-codoxear-computer:local}
     profiles: [computer]
     depends_on:
       provision: { condition: service_completed_successfully }

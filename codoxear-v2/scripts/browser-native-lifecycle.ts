@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import { connect } from "node:net";
 import { socketPath } from "../src/computer/native/paths.js";
 import { independentAuthority } from "../src/hub/independent.js";

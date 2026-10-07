@@ -1,5 +1,7 @@
+import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer as httpServer, request } from "node:http";
 import { createServer as httpsServer } from "node:https";
@@ -14,6 +16,7 @@ import { AuthorityClient } from "../src/hub/authority-client.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import { createComputerApi } from "../src/computer/api.js";
+import { FixtureRuntime } from "./testing/fixture-runtime.js";
 import {
   createHub,
   createComputer,
@@ -138,7 +141,9 @@ if (process.argv[2] === "hub") {
   await api.attach(
     JSON.parse(await readFile("/fixture/computer/config.json", "utf8")),
   );
-  await api.service().start();
+  await api.service(undefined, {
+    runtime: (_config, stateHome) => new FixtureRuntime(join(stateHome, "fixture.sqlite")),
+  }).start();
   httpServer((_req, res) => res.end("private network probe")).listen(
     19990,
     "0.0.0.0",

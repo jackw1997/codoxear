@@ -9,7 +9,7 @@ import {
 import { connect } from "node:net";
 import { spawn, execFileSync } from "node:child_process";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { computerPackagePaths } from "../package-paths.js";
 import { createHash, randomUUID } from "node:crypto";
 import { DomainError } from "../../contracts/model.js";
 import { Launch, type Operation } from "../../contracts/tunnel.js";
@@ -35,8 +35,8 @@ export class NativeRuntime implements Runtime {
     public readonly workspace: string,
     public readonly stateHome = home,
   ) {
-    if (!isAbsolute(home) || !isAbsolute(workspace))
-      throw Error("Native home and workspace must be absolute paths");
+    if (!isAbsolute(home) || !isAbsolute(workspace) || !isAbsolute(stateHome))
+      throw Error("Native home, workspace and state home must be absolute paths");
     this.directory = ensureStateDirectory(stateHome);
   }
   async supportsProviderLaunch() {
@@ -247,16 +247,9 @@ export class NativeRuntime implements Runtime {
       ...(resumePath ? { resumePath } : {}),
     };
     backendCommand(input, !terminalOwned); // Validate credentials/setup before starting any process.
-    const directory = dirname(fileURLToPath(import.meta.url));
-    const source = fileURLToPath(import.meta.url).endsWith(".ts");
-    const broker = source
-      ? join(directory, "broker.ts")
-      : [
-          join(directory, "computer/native/broker.js"),
-          join(directory, "broker.js"),
-          join(directory, "native/broker.js"),
-        ].find(existsSync);
-    if (!broker || !existsSync(broker))
+    const paths = computerPackagePaths();
+    const broker = paths.entry("native/broker");
+    if (!existsSync(broker))
       throw new DomainError(
         400,
         "not_dispatched",
@@ -265,7 +258,7 @@ export class NativeRuntime implements Runtime {
     const child = spawn(
       process.execPath,
       [
-        ...(source ? ["--import", import.meta.resolve("tsx")] : []),
+        ...(paths.source ? ["--import", import.meta.resolve("tsx")] : []),
         broker,
         ...(terminalOwned ? ["--terminal"] : []),
       ],

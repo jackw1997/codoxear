@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { backendGateway } from "./backend-gateway.js";
 /** Runs the installed Pi CLI and native TypeScript broker in Docker. The model endpoint is scripted,

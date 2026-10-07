@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { independentAuthority } from "../src/hub/independent.js";
 /** Docker-only actual Pi, independent static client and local hub voice acceptance.

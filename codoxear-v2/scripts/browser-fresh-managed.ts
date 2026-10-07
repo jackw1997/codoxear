@@ -1,4 +1,5 @@
 // @ts-nocheck -- Playwright acceptance fixture; run only in an owned Docker container.
+import "./testing/frontend-artifact.js";
 // Never save browser storage, request bodies, traces, credentials or raw errors.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";

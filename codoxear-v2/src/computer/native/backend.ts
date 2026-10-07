@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { computerPackagePaths } from "../package-paths.js";
 import { DomainError } from "../../contracts/model.js";
 import { backendHomes } from "./homes.js";
 import { stateDirectory } from "./paths.js";
@@ -18,7 +18,9 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
   const { backend, launch, cwd, home } = input;
   const env: Record<string, string> = Object.fromEntries(
     Object.entries(process.env).filter(
-      (e): e is [string, string] => typeof e[1] === "string",
+      (e): e is [string, string] =>
+        typeof e[1] === "string" &&
+        !/^(CODOXEAR_|CODEX_WEB_|OAR_|NODE_OPTIONS$)/.test(e[0]),
     ),
   );
   env.HOME = home;
@@ -33,7 +35,8 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
   for (const [key, value] of Object.entries(launch.env_vars ?? {})) {
     if (
       reserved.has(key) ||
-      /^(CODEX_WEB_|CODOXEAR_)/.test(key) ||
+      /^(CODEX_WEB_|CODOXEAR_|OAR_)/.test(key) ||
+      ["NODE_OPTIONS", "NODE_PATH"].includes(key) ||
       !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ||
       value.includes("\0")
     )
@@ -118,13 +121,10 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
       `preferred_auth_method=${JSON.stringify(launch.preferred_auth_method)}`,
     );
   if (backend === "pi") {
-    const directory = dirname(fileURLToPath(import.meta.url));
-    const bridge = [
-      join(directory, "pi-active-session-bridge.ts"),
-      join(directory, "pi-active-session-bridge.js"),
-      join(directory, "computer/native/pi-active-session-bridge.js"),
-    ].find(existsSync);
-    if (!bridge)
+    const bridge = computerPackagePaths().entry(
+      "native/pi-active-session-bridge",
+    );
+    if (!existsSync(bridge))
       throw new DomainError(
         400,
         "not_dispatched",
@@ -200,13 +200,10 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
             ? "1"
             : "0";
         env.CODOXEAR_PROVIDER_IMAGES = provider.image_support ? "1" : "0";
-        const directory = dirname(fileURLToPath(import.meta.url));
-        const extension = [
-          join(directory, "pi-private-provider.ts"),
-          join(directory, "pi-private-provider.js"),
-          join(directory, "computer/native/pi-private-provider.js"),
-        ].find(existsSync);
-        if (!extension)
+        const extension = computerPackagePaths().entry(
+          "native/pi-private-provider",
+        );
+        if (!existsSync(extension))
           throw new DomainError(
             400,
             "not_dispatched",

@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  computerPackagePaths,
+  requireOarLoaderPath,
+} from "../package-paths.js";
 import { prepareProfile } from "./profiles.js";
 import {
   ManagedSetupError,
@@ -14,6 +16,7 @@ import {
 /** One owned process per resident session: Pi globals and OAR record buffers
  * disappear on quiescence. No detached session daemon remains after disposal. */
 export class OarFactory implements ManagedFactory {
+  constructor(private readonly options: { loaderPath?: string } = {}) {}
   async open(input: ManagedOpen): Promise<ManagedSession> {
     if (Number(process.versions.node.split(".")[0]) < 24)
       throw new ManagedSetupError(
@@ -23,13 +26,12 @@ export class OarFactory implements ManagedFactory {
       throw new ManagedSetupError(
         "OAR requires an explicitly configured locally-trusted permission policy; interactive approval policies are not supported",
       );
-    const directory = dirname(fileURLToPath(import.meta.url));
-    const source = import.meta.url.endsWith(".ts");
-    const worker = [
-      join(directory, source ? "worker.ts" : "worker.js"),
-      join(directory, "computer/managed/worker.js"),
-    ].find(existsSync);
-    if (!worker)
+    const paths = computerPackagePaths();
+    const worker = paths.entry("managed/worker");
+    const loaderPath = requireOarLoaderPath(
+      this.options.loaderPath ?? paths.oarLoader,
+    );
+    if (!existsSync(worker))
       throw new ManagedSetupError(
         "The managed runtime worker is missing from this Computer package",
       );
@@ -38,7 +40,7 @@ export class OarFactory implements ManagedFactory {
       process.execPath,
       [
         "--max-old-space-size=384",
-        ...(source ? ["--import", import.meta.resolve("tsx")] : []),
+        ...(paths.source ? ["--import", import.meta.resolve("tsx")] : []),
         worker,
       ],
       {
@@ -181,6 +183,7 @@ export class OarFactory implements ManagedFactory {
       })());
     try {
       const opened = await rpc("open", {
+        loaderPath,
         backend: input.backend,
         cwd: input.cwd,
         model: profile.model,

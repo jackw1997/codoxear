@@ -1,4 +1,5 @@
 // @ts-nocheck -- Behavioral browser fixtures retain their dynamic Playwright contracts.
+import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile, mkdtemp } from "node:fs/promises";
@@ -94,7 +95,7 @@ async function startComputer(config, index) {
   );
   const child = spawn(
     process.execPath,
-    ["dist/server/computer/main.js", "start"],
+    ["--import", "tsx", "scripts/testing/fixture-computer.ts"],
     { env, stdio: ["ignore", "pipe", "pipe"] },
   );
   children.push(child);
@@ -184,7 +185,7 @@ try {
   );
   const restarted = spawn(
     process.execPath,
-    ["dist/server/computer/main.js", "start"],
+    ["--import", "tsx", "scripts/testing/fixture-computer.ts"],
     { env: first.env, stdio: "ignore" },
   );
   children.push(restarted);

@@ -55,6 +55,7 @@ const config = z
     listenHost: z.string().default("127.0.0.1"),
     listenPort: z.number().default(17430),
     secureCookies: z.boolean().default(true),
+    frontendAssetsRoot: z.string().optional(),
     development: z.boolean().default(false),
     harmonyServiceAccount: z.string().optional(),
     vapid: z.string().optional(),
@@ -101,6 +102,7 @@ if (config.independent) {
     delivery: config.delivery
       ? deliveryGateway(config.delivery.endpoint, config.delivery.credential)
       : undefined,
+    frontendAssetsRoot: config.frontendAssetsRoot,
     secureCookies: config.secureCookies,
   });
 }
@@ -158,6 +160,7 @@ const sessions = new HubSessions(resolve(config.database)),
     notifications,
     delegations,
     tunnels: new Tunnels(),
+    frontendAssetsRoot: config.frontendAssetsRoot,
     secureCookies: config.secureCookies,
     development: config.development,
   });

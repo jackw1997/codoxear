@@ -17,7 +17,7 @@ import { AuthorityClient } from "../src/hub/authority-client.js";
 import { HubSessions } from "../src/hub/sessions.js";
 import { Tunnels } from "../src/server/tunnels.js";
 import { LocalHttpTarget } from "./support/http-target.js";
-import { FixtureRuntime } from "../src/computer/runtime.js";
+import { FixtureRuntime } from "../scripts/testing/fixture-runtime.js";
 import { createComputerApi } from "../src/computer/api.js";
 import {
   createHub,

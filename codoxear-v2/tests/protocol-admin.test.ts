@@ -5,6 +5,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { resolveSchemaReferences } from "../scripts/openapi-schemas.js";
 import { Store } from "../src/persistence/store.js";
 import { Accounts } from "../src/auth/accounts.js";
 import { Authority } from "../src/auth/authority.js";
@@ -27,7 +28,7 @@ function validatePublished(schema: any, value: unknown) {
 }
 const documents: Record<string, any> = {};
 async function document(component: string) {
-  return documents[component] ??= JSON.parse(await readFile("protocol/" + component + ".openapi.json", "utf8"));
+  return documents[component] ??= resolveSchemaReferences(JSON.parse(await readFile("protocol/" + component + ".openapi.json", "utf8")));
 }
 async function publishedResponse(component: string, method: string, path: string, status: number, contentType: string, value: unknown) {
   const name = path.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, "{$1}");

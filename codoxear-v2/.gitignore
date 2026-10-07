@@ -7,3 +7,4 @@ playwright-report/
 !.env.example
 *.sqlite*
 artifacts/
+releases/

@@ -17,9 +17,13 @@ import cookie from "@fastify/cookie";
 import websocket from "@fastify/websocket";
 import staticFiles from "@fastify/static";
 import { z } from "zod";
-import { resolve } from "node:path";
+import {
+  absoluteAssetRoot,
+  frontendAsset,
+  frontendAssetsRoot,
+  frontendModuleRoot,
+} from "../presentation/frontend-assets.js";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { WebSocket } from "ws";
 import { AuthorityClient } from "./authority-client.js";
@@ -59,11 +63,14 @@ export interface HubOptions {
   tunnels: Tunnels;
   secureCookies?: boolean;
   development?: boolean;
+  /** Explicit legacy web-only artifact override. Prefer frontendAssetsRoot. */
   webRoot?: string;
+  frontendAssetsRoot?: string | undefined;
   notifications?: NotificationInbox;
   delegations?: DelegationStore;
 }
 export async function createHubApp(o: HubOptions) {
+  const assetsRoot = frontendAssetsRoot(o.frontendAssetsRoot);
   const { authority: a, sessions, tunnels } = o,
     cookieName = "codoxear_hub_" + a.hubId,
     flowCookie = "codoxear_hub_flow_" + a.hubId,
@@ -638,26 +645,35 @@ export async function createHubApp(o: HubOptions) {
     });
   });
   app.get("/api/agents/:id/access", async (r) => access(r, "read"));
-  await browserWorkspace(app, a, async (r) => {
-    if (o.localIdentity && r.headers.authorization?.startsWith("Bearer ")) {
-      const raw = r.headers.authorization.slice(7);
-      const me = await a.request<{ id: string }>("/api/v1/me", undefined, raw);
-      return { token: raw, accountId: me.id, scopeId: digest(raw) };
-    }
-    const me = await call<{ id: string }>(r, "me");
-    const browser = sessions.get(r.cookies[cookieName] ?? "");
-    if (!browser)
-      throw new DomainError(
-        401,
-        "unauthorized",
-        "Browser account session required",
-      );
-    return {
-      token: browser.identityToken,
-      accountId: me.id,
-      scopeId: digest(r.cookies[cookieName]!),
-    };
-  });
+  await browserWorkspace(
+    app,
+    a,
+    async (r) => {
+      if (o.localIdentity && r.headers.authorization?.startsWith("Bearer ")) {
+        const raw = r.headers.authorization.slice(7);
+        const me = await a.request<{ id: string }>(
+          "/api/v1/me",
+          undefined,
+          raw,
+        );
+        return { token: raw, accountId: me.id, scopeId: digest(raw) };
+      }
+      const me = await call<{ id: string }>(r, "me");
+      const browser = sessions.get(r.cookies[cookieName] ?? "");
+      if (!browser)
+        throw new DomainError(
+          401,
+          "unauthorized",
+          "Browser account session required",
+        );
+      return {
+        token: browser.identityToken,
+        accountId: me.id,
+        scopeId: digest(r.cookies[cookieName]!),
+      };
+    },
+    assetsRoot,
+  );
   registerPushRoutes(app, o.notifications, call, a.origin, a.hubId);
   await registerDownloads(app, {
     origin: o.origin,
@@ -1731,12 +1747,16 @@ export async function createHubApp(o: HubOptions) {
     if (!computers.some((c) => c.id === computerId))
       throw new DomainError(403, "forbidden", "Computer access required");
     const me = await call<{ id: string }>(r, "me"),
-      asset = await workspaceAsset("dist/workspace", "", {
-        issuer: a.origin,
-        accountId: me.id,
-        hubId: a.hubId,
-        computerId,
-      });
+      asset = await workspaceAsset(
+        frontendModuleRoot(assetsRoot, "workspace"),
+        "",
+        {
+          issuer: a.origin,
+          accountId: me.id,
+          hubId: a.hubId,
+          computerId,
+        },
+      );
     return reply.type(asset.type).send(asset.body);
   });
   app.get("/api/v1/computers/:computerId/*", async (r, reply) => {
@@ -1745,12 +1765,16 @@ export async function createHubApp(o: HubOptions) {
     if (p["*"].startsWith("api/"))
       throw new DomainError(403, "route_denied", "Unsupported remote API");
     const me = await call<{ id: string }>(r, "me"),
-      asset = await workspaceAsset("dist/workspace", p["*"], {
-        issuer: a.origin,
-        accountId: me.id,
-        hubId: a.hubId,
-        computerId,
-      });
+      asset = await workspaceAsset(
+        frontendModuleRoot(assetsRoot, "workspace"),
+        p["*"],
+        {
+          issuer: a.origin,
+          accountId: me.id,
+          hubId: a.hubId,
+          computerId,
+        },
+      );
     return reply.type(asset.type).send(asset.body);
   });
   if (o.localIdentity) {
@@ -1814,6 +1838,7 @@ export async function createHubApp(o: HubOptions) {
       });
     }
     app.get("/login", async (r, reply) => {
+      frontendModuleRoot(assetsRoot, "client");
       return reply
         .header("Cache-Control", "no-store")
         .type("text/html")
@@ -1831,10 +1856,23 @@ export async function createHubApp(o: HubOptions) {
       reply
         .header("Cache-Control", "no-cache")
         .type("text/javascript")
-        .send(await readFile("dist/client/hub-login.js")),
+        .send(await frontendAsset(assetsRoot, "client", "hub-login.js")),
     );
-  const webRoot = resolve(o.webRoot ?? "dist/web");
-  if (existsSync(webRoot)) await app.register(staticFiles, { root: webRoot });
+  const webRoot = o.webRoot
+    ? absoluteAssetRoot(o.webRoot)
+    : assetsRoot
+      ? frontendModuleRoot(assetsRoot, "web")
+      : undefined;
+  if (webRoot && existsSync(webRoot))
+    await app.register(staticFiles, { root: webRoot });
+  else
+    app.get("/", async () => {
+      throw new DomainError(
+        404,
+        "ui_unavailable",
+        "Frontend artifact is not attached",
+      );
+    });
   app.addHook("preClose", async () => {
     for (const close of live) close();
     tunnels.close();

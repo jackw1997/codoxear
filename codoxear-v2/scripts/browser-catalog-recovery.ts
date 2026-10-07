@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile, writeFile, chmod, mkdir } from "node:fs/promises";

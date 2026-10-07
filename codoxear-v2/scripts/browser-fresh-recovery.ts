@@ -1,4 +1,5 @@
 // @ts-nocheck -- Docker-only cold recovery acceptance; creates no agents.
+import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile, mkdir, writeFile } from "node:fs/promises";

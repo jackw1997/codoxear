@@ -22,6 +22,7 @@ export async function independentAuthority(options: {
   codeDelivery?: IdentityOptions["codeDelivery"];
   secureCookies?: boolean;
   routeObserver?: IdentityOptions["routeObserver"];
+  frontendAssetsRoot?: string | undefined;
 }): Promise<{
   client: AuthorityClient;
   identity: FastifyInstance;
@@ -55,6 +56,7 @@ export async function independentAuthority(options: {
   );
   const identity = await createIdentityApp({
     authority,
+    frontendAssetsRoot: options.frontendAssetsRoot,
     localHubId: hubId,
     cookieName: "codoxear_identity_" + hubId,
     loginPath: "/login",

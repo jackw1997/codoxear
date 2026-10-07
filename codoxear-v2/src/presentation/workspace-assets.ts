@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { DomainError } from "../contracts/model.js";
 const mime: Record<string, string> = {
@@ -43,8 +43,15 @@ export async function workspaceAsset(
     throw new DomainError(403, "invalid_path", "Invalid asset path");
   let body: Buffer;
   try {
-    body = await readFile(file);
-  } catch {
+    const [actualBase, actualFile] = await Promise.all([
+      realpath(base),
+      realpath(file),
+    ]);
+    if (!actualFile.startsWith(actualBase + sep))
+      throw new DomainError(403, "invalid_path", "Invalid asset path");
+    body = await readFile(actualFile);
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
     throw new DomainError(404, "not_found", "Workspace asset not found");
   }
   if (relative === "index.html") {

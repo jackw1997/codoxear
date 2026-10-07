@@ -7,9 +7,9 @@ import {
   access,
 } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join, dirname, basename } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, basename } from "node:path";
 import { existsSync } from "node:fs";
+import { computerPackagePaths } from "../package-paths.js";
 import { scanLogs } from "../native/logs.js";
 import { Launch } from "../../contracts/tunnel.js";
 import { atomicJson } from "../../persistence/files.js";
@@ -111,17 +111,8 @@ export async function prepareProfile(input: ManagedOpen) {
     env.CODOXEAR_DELEGATION_DESCRIPTOR = input.delegation.descriptor;
     const extensionDir = join(agentDir, "extensions");
     await mkdir(extensionDir, { recursive: true, mode: 0o700 });
-    const base = dirname(fileURLToPath(import.meta.url));
-    const source = [
-      join(
-        base,
-        "../delegation/pi-extension" +
-          (import.meta.url.endsWith(".ts") ? ".ts" : ".js"),
-      ),
-      join(base, "computer/delegation/pi-extension.js"),
-      join(base, "delegation/pi-extension.js"),
-    ].find(existsSync);
-    if (!source)
+    const source = computerPackagePaths().entry("delegation/pi-extension");
+    if (!existsSync(source))
       throw new ManagedSetupError(
         "Pi delegation extension is missing from the Computer package",
       );

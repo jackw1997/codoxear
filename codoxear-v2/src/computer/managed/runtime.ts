@@ -88,7 +88,12 @@ export class ManagedRuntime implements Runtime {
   private readonly maxRecordBytes: number;
   private readonly maxTranscriptBytes: number;
   constructor(private readonly options: ManagedRuntimeOptions) {
-    for (const path of [options.home, options.workspace, options.databasePath])
+    for (const path of [
+      options.home,
+      options.workspace,
+      options.databasePath,
+      options.stateHome ?? options.home,
+    ])
       if (!isAbsolute(path))
         throw Error("Managed runtime paths must be absolute");
     this.home = options.home;

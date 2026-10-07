@@ -106,6 +106,16 @@ async function tick() {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+test("managed state home cannot depend on the invoking working directory", () => {
+  assert.throws(() => new ManagedRuntime({
+    home: "/tmp",
+    workspace: "/tmp",
+    databasePath: "/tmp/not-created-managed-state.sqlite",
+    stateHome: "relative-state",
+    factory: new Factory(),
+  }), /paths must be absolute/);
+});
+
 test("archived saved transcripts retain one binding across catalogue, state and tail after restart", async () => {
   let clock = 1000;
   const f = fixture({ now: () => clock, idleMs: 10 });

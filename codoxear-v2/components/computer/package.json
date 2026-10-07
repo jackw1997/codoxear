@@ -1,0 +1,31 @@
+{
+  "name": "@codoxear/computer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "build": "npm run typecheck && node build.mjs",
+    "start": "node dist/server/computer/main.js start",
+    "doctor": "node dist/server/computer/main.js doctor",
+    "install:runtime": "npm --prefix runtime/oar ci",
+    "postinstall": "npm run install:runtime"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.15",
+    "ws": "8.22.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  }
+}

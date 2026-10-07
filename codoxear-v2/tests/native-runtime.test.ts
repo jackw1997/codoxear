@@ -19,6 +19,33 @@ assert.ok(
   existsSync("/.dockerenv"),
   "Native runtime behavior must be tested in Docker",
 );
+test("native state home cannot depend on the invoking working directory", () => {
+  assert.throws(() => new NativeRuntime("/tmp", "/tmp", "relative-state"), /state home must be absolute/);
+});
+test("native model processes receive provider credentials without Computer service configuration", () => {
+  const keys = ["CODOXEAR_COMPUTER_CREDENTIAL", "CODEX_WEB_PASSWORD", "OAR_TEST_SERVICE_SECRET", "NODE_OPTIONS"];
+  const previous = keys.map(key => process.env[key]);
+  try {
+    for (const key of keys) process.env[key] = "private-service-value";
+    const plan = backendCommand({
+      home: "/tmp",
+      cwd: "/tmp",
+      backend: "cc",
+      name: "isolated environment",
+      sessionId: "broker-" + "a".repeat(32),
+      launch: { model: "private-model", provider_config: { base_url: "https://provider.invalid", api_key: "local-provider-key" } },
+    }, false);
+    for (const key of keys) assert.equal(plan.env[key], undefined);
+    assert.equal(plan.env.ANTHROPIC_API_KEY, "local-provider-key");
+    assert.equal(plan.env.HOME, "/tmp");
+  } finally {
+    keys.forEach((key, index) => {
+      const value = previous[index];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  }
+});
 async function until<T>(
   fn: () => Promise<T | false>,
   timeout = 15000,

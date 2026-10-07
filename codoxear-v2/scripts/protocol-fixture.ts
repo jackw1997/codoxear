@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import type { RouteOptions } from "fastify";
 import { Store } from "../src/persistence/store.js";
 import { createHub, createComputer, passwordHash, secret } from "../src/domain/commands.js";
@@ -21,7 +22,7 @@ export async function protocolFixture() {
   const local = await independentAuthority({origin,hubId:computer.computer.hubId,store,otpKey:secret(),secureCookies:false,routeObserver:routeCollector(identityRoutes)});
   const sessions = new HubSessions(":memory:"), tunnels = new Tunnels(), delegations = new DelegationStore(":memory:");
   const notifications = new NotificationInbox(":memory:",computer.computer.hubId,async (sid,aid,cid,binding)=>{local.authority.authorizeNotification(computer.computer.hubId,sid,aid,cid,binding);});
-  const hub = await createHubApp({origin,localIdentity:local.identity,authority:local.client,sessions,tunnels,notifications,delegations,webRoot:"dist/web",secureCookies:false,routeObserver:routeCollector(hubRoutes),clientOrigins:["https://client.fixture.invalid"]});
+  const hub = await createHubApp({origin,localIdentity:local.identity,authority:local.client,sessions,tunnels,notifications,delegations,secureCookies:false,routeObserver:routeCollector(hubRoutes),clientOrigins:["https://client.fixture.invalid"]});
   await hub.ready(); await local.identity.ready();
   const session = local.authority.accounts.password("owner@fixture.invalid","fixture-isolated-password","fixture").session;
   const bearer = await local.authority.tokens.issue(session,origin,"identity_access");

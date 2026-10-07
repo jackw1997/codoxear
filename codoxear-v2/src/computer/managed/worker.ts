@@ -1,6 +1,5 @@
-import { pathToFileURL, fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-import { readFileSync, existsSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+import { requireOarLoaderPath } from "../package-paths.js";
 import type { ManagedSession } from "./driver.js";
 import { oarInputId } from "./input-id.js";
 
@@ -26,26 +25,11 @@ async function receive(message: any) {
       opening = true;
       let module: any;
       try {
-        // Separately pinned Computer runtime dependencies; no dependency in Hub or Client.
-        let path = dirname(fileURLToPath(import.meta.url)),
-          root: string | undefined;
-        for (let i = 0; i < 8; i++) {
-          const candidate = join(path, "runtime/oar/load.mjs");
-          if (existsSync(candidate)) {
-            root = dirname(candidate);
-            break;
-          }
-          path = dirname(path);
-        }
-        if (!root) throw Error("package");
-        const pkg = JSON.parse(
-          readFileSync(
-            join(root, "node_modules/@botiverse/oar/package.json"),
-            "utf8",
-          ),
+        // The controller supplies this package's explicit loader. Neither cwd
+        // nor an enclosing Hub/repository can substitute another installation.
+        module = await import(
+          pathToFileURL(requireOarLoaderPath(message.args.loaderPath)).href
         );
-        if (pkg.version !== "0.13.3") throw Error("version");
-        module = await import(pathToFileURL(join(root, "load.mjs")).href);
       } catch {
         write({
           id: message.id,
@@ -55,8 +39,9 @@ async function receive(message: any) {
         });
         return;
       }
+      const { loaderPath: _loaderPath, ...args } = message.args;
       const runtime = module.runtimes.require(
-        message.args.backend === "cc" ? "claude" : message.args.backend,
+        args.backend === "cc" ? "claude" : args.backend,
       );
       const installation = await runtime.installation?.();
       if (!installation || installation.kind !== "available") {
@@ -67,7 +52,7 @@ async function receive(message: any) {
         });
         return;
       }
-      session = await runtime.session(installation, message.args);
+      session = await runtime.session(installation, args);
       session!.rawEvents((record) => write({ event: record }), {
         sessionId: session!.id,
         afterSeq: -1,

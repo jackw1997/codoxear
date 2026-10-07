@@ -1,3 +1,4 @@
+import "../scripts/testing/frontend-artifact.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -6,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { z } from "zod";
+import { resolveSchemaReferences } from "../scripts/openapi-schemas.js";
 import { Store } from "../src/persistence/store.js";
 import {
   createHub,
@@ -36,9 +38,9 @@ async function until(check: () => Promise<boolean> | boolean) {
 }
 const docs: Record<string, any> = {};
 async function document(name: string) {
-  return (docs[name] ??= JSON.parse(
+  return (docs[name] ??= resolveSchemaReferences(JSON.parse(
     await readFile(`protocol/${name}.openapi.json`, "utf8"),
-  ));
+  )));
 }
 const namespace = "/api/v1/computers/{computerId}";
 function validate(schema: any, value: unknown, label: string) {
@@ -203,7 +205,6 @@ test(
       localIdentity: local.identity,
       sessions,
       tunnels,
-      webRoot: "dist/web",
       secureCookies: false,
     });
     await hub.listen({ host: "127.0.0.1", port: 19917 });

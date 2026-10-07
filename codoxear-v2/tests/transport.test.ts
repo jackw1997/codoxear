@@ -15,6 +15,7 @@ import {
   digest,
 } from "../src/domain/commands.js";
 import { createComputerApi } from "../src/computer/api.js";
+import { FixtureRuntime } from "../scripts/testing/fixture-runtime.js";
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
 async function until(check: () => boolean | Promise<boolean>) {
   const deadline = Date.now() + 8000;
@@ -71,7 +72,9 @@ test("Computer reconnect retains runtime; revoked credential blocks reconnection
     credential: f.credential,
     runtime: "fixture",
   });
-  const service = api.service();
+  const service = api.service(undefined, {
+    runtime: (_config, stateHome) => new FixtureRuntime(join(stateHome, "fixture.sqlite")),
+  });
   try {
     await service.start();
     await until(() => f.tunnels.online(f.computer.id));

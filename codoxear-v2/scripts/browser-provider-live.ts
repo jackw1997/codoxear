@@ -1,4 +1,5 @@
 // @ts-nocheck -- Behavioral browser fixtures retain their dynamic Playwright contracts.
+import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile, mkdir, writeFile } from "node:fs/promises";

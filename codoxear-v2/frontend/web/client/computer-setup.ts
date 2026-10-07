@@ -8,7 +8,7 @@ export const computerSetup = () => `<div class="connectionStack">
   <pre class="connectionCode">tar -xzf codoxear-computer-source.tar.gz
 cd codoxear-computer
 npm ci
-npm run build:backend</pre></section>
+npm run build</pre></section>
   <section class="connectionSection"><h2>2. Sign in to your agent CLI</h2>
   <p class="connectionHint">Install Codex, Pi, or Claude Code on this computer. Sign in as the same OS user that will run Codoxear. For Codex, run <code>codex login</code>. For Pi, open <code>pi</code> and use <code>/login</code>. For Claude Code, open <code>claude</code> and finish onboarding, workspace trust, and provider confirmations. Confirm the CLI can answer a message before continuing.</p></section>
   <section class="connectionSection"><h2>3. Attach to your hub</h2>

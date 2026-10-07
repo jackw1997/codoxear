@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { DomainError, Id } from "../contracts/model.js";
 import { filterHeaders } from "../protocol/routes.js";
 import { workspaceAsset } from "./workspace-assets.js";
+import { frontendModuleRoot } from "./frontend-assets.js";
 
 type Entry = {
   id: string;
@@ -19,10 +20,14 @@ type Directory = { agents: Entry[] };
 // into the owning hub/computer namespace; credentials never reach JavaScript.
 export async function browserWorkspace(
   app: FastifyInstance,
-  authority: { origin: string; request<T>(path: string, body: unknown, token?: string): Promise<T> },
+  authority: {
+    origin: string;
+    request<T>(path: string, body: unknown, token?: string): Promise<T>;
+  },
   identity: (
     r: FastifyRequest,
   ) => Promise<{ token: string; accountId: string; scopeId: string }>,
+  assetsRoot?: string,
 ) {
   const directory = async (r: FastifyRequest) => {
     const principal = await identity(r);
@@ -65,7 +70,11 @@ export async function browserWorkspace(
         d.agents.filter((a) => a.localId).map((a) => [a.computerId, a]),
       ).values(),
     ];
-    const catalogErrors: Array<{computerId: string; computerName: string; message: string}> = [];
+    const catalogErrors: Array<{
+      computerId: string;
+      computerName: string;
+      message: string;
+    }> = [];
     const catalogs = await Promise.all(
       computers.map(async (agent) => {
         try {
@@ -89,7 +98,8 @@ export async function browserWorkspace(
               ? [
                   {
                     ...s,
-                    codoxear_launch_defaults: catalog.new_session_defaults ?? {},
+                    codoxear_launch_defaults:
+                      catalog.new_session_defaults ?? {},
                     session_id: a.id,
                     alias: s.alias || a.name,
                     codoxear_computer_id: a.computerId,
@@ -104,7 +114,11 @@ export async function browserWorkspace(
               : [];
           });
         } catch {
-          catalogErrors.push({ computerId: agent.computerId, computerName: agent.computerName ?? "Computer", message: "Computer is unreachable. Reconnect it and retry." });
+          catalogErrors.push({
+            computerId: agent.computerId,
+            computerName: agent.computerName ?? "Computer",
+            message: "Computer is unreachable. Reconnect it and retry.",
+          });
           return [];
         }
       }),
@@ -115,8 +129,13 @@ export async function browserWorkspace(
       sessions: catalogs
         .flat()
         .filter((s) => current.agents.some((a) => a.id === s.session_id)),
-      catalog_errors: catalogErrors.filter((error) => current.agents.some((a) => a.computerId === error.computerId)),
-      catalog_authorized_agents: current.agents.map((a) => ({ session_id: a.id, computer_id: a.computerId })),
+      catalog_errors: catalogErrors.filter((error) =>
+        current.agents.some((a) => a.computerId === error.computerId),
+      ),
+      catalog_authorized_agents: current.agents.map((a) => ({
+        session_id: a.id,
+        computer_id: a.computerId,
+      })),
       recent_cwds: [],
       new_session_defaults: {},
       tmux_available: false,
@@ -323,13 +342,17 @@ export async function browserWorkspace(
     const path = (r.params as { "*"?: string })["*"] ?? "";
     if (path.startsWith("api/"))
       throw new DomainError(404, "not_found", "Unknown workspace API");
-    const data = await workspaceAsset("dist/workspace", path, {
-      issuer: authority.origin,
-      accountId: p.accountId,
-      scopeId: p.scopeId,
-      hubId: "workspace",
-      computerId: "workspace",
-    });
+    const data = await workspaceAsset(
+      frontendModuleRoot(assetsRoot, "workspace"),
+      path,
+      {
+        issuer: authority.origin,
+        accountId: p.accountId,
+        scopeId: p.scopeId,
+        hubId: "workspace",
+        computerId: "workspace",
+      },
+    );
     if (
       path &&
       path !== "index.html" &&

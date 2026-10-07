@@ -6,7 +6,11 @@ import websocket from "@fastify/websocket";
 import staticFiles from "@fastify/static";
 import { z } from "zod";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  absoluteAssetRoot,
+  frontendAssetsRoot,
+  frontendModuleRoot,
+} from "../presentation/frontend-assets.js";
 import {
   Agent,
   DomainError,
@@ -47,7 +51,9 @@ import { Message, MAX_FRAME_BYTES } from "../contracts/tunnel.js";
 export interface AppOptions {
   store: Store;
   tunnels: Tunnels;
+  /** Explicit legacy web-only artifact override. Prefer frontendAssetsRoot. */
   webRoot?: string;
+  frontendAssetsRoot?: string | undefined;
   development?: boolean;
   secureCookies?: boolean;
 }
@@ -58,6 +64,7 @@ const MembershipParams = z.object({
 });
 const resourcePath = "/api/resources/:kind/:id";
 export async function createApp(options: AppOptions) {
+  const assetsRoot = frontendAssetsRoot(options.frontendAssetsRoot);
   const { store, tunnels } = options;
   const app = Fastify({ logger: false, bodyLimit: 256 * 1024 });
   await app.register(cookie);
@@ -555,14 +562,26 @@ export async function createApp(options: AppOptions) {
       tunnels.attach(Params.parse(request.params).id, socket);
     },
   );
-  const root = resolve(options.webRoot ?? "dist/web");
-  if (existsSync(root)) {
+  const root = options.webRoot
+    ? absoluteAssetRoot(options.webRoot)
+    : assetsRoot
+      ? frontendModuleRoot(assetsRoot, "web")
+      : undefined;
+  if (root && existsSync(root)) {
     await app.register(staticFiles, { root, prefix: "/" });
     app.setNotFoundHandler((request, reply) =>
       request.url.startsWith("/api/")
         ? reply.code(404).send({ error: "Unknown API route" })
         : reply.sendFile("index.html"),
     );
+  } else {
+    app.get("/", async () => {
+      throw new DomainError(
+        404,
+        "ui_unavailable",
+        "Frontend artifact is not attached",
+      );
+    });
   }
   app.addHook("onClose", async () => {
     tunnels.close();

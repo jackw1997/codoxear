@@ -2,6 +2,7 @@
  * with the actual registered routers; ordinary builds start no authority. */
 import { mkdir, writeFile } from "node:fs/promises";
 import { z } from "zod";
+import { collectSchemaNodes, reuseSchemas } from "./openapi-schemas.js";
 import {
   HttpFrame,
   CHUNK_BYTES,
@@ -98,15 +99,19 @@ const security = {
       "Private Hub service credential; X-Codoxear-Hub identifies the exact Hub.",
   },
   DelegationGrant: {
-    type: "apiKey", in: "header", name: "X-Codoxear-Delegation-Grant",
-    description: "Private parent-scoped same-Hub grant, fenced by current Computer binding and initiating principal permissions.",
+    type: "apiKey",
+    in: "header",
+    name: "X-Codoxear-Delegation-Grant",
+    description:
+      "Private parent-scoped same-Hub grant, fenced by current Computer binding and initiating principal permissions.",
   },
 };
 function auth(endpoint: Endpoint, component: string) {
   if (endpoint.auth === "public" || endpoint.auth === "download-ticket")
     return [];
   if (endpoint.auth === "computer") return [{ ComputerCredential: [] }];
-  if (endpoint.auth === "delegated") return [{ ComputerCredential: [], DelegationGrant: [] }];
+  if (endpoint.auth === "delegated")
+    return [{ ComputerCredential: [], DelegationGrant: [] }];
   if (endpoint.auth === "hub-service") return [{ HubCredential: [] }];
   if (endpoint.auth === "hub-user") return [{ HubCredential: [], Bearer: [] }];
   return [
@@ -120,6 +125,12 @@ function document(
   endpoints: Endpoint[],
   component: string,
 ) {
+  const schemaNodes = new Set<Record<string, any>>();
+  const jsonSchema = (schema: z.ZodType, io: "input" | "output" = "output") => {
+    const value = json(schema, io);
+    collectSchemaNodes(value, schemaNodes);
+    return value;
+  };
   const paths: Record<string, Record<string, unknown>> = {};
   for (const endpoint of endpoints) {
     const path = pathName(endpoint.path),
@@ -128,10 +139,10 @@ function document(
       name: match[1],
       in: "path",
       required: true,
-      schema: json(schemaForParameter(match[1]!)),
+      schema: jsonSchema(schemaForParameter(match[1]!)),
     }));
     if (endpoint.query) {
-      const schema = json(endpoint.query, "input") as {
+      const schema = jsonSchema(endpoint.query, "input") as {
         properties?: Record<string, unknown>;
         required?: string[];
       };
@@ -155,7 +166,7 @@ function document(
           name,
           in: "header",
           required: false,
-          schema: json(z.string().describe(description)),
+          schema: jsonSchema(z.string().describe(description)),
         });
     }
     if (["hub-service", "hub-user"].includes(endpoint.auth))
@@ -163,7 +174,7 @@ function document(
         name: "X-Codoxear-Hub",
         in: "header",
         required: true,
-        schema: json(Id),
+        schema: jsonSchema(Id),
       });
     if (endpoint.websocket)
       parameters.push(
@@ -172,13 +183,13 @@ function document(
             name: "X-Codoxear-Hub",
             in: "header",
             required: true,
-            schema: json(Id),
+            schema: jsonSchema(Id),
           },
           {
             name: "X-Codoxear-Protocol",
             in: "header",
             required: false,
-            schema: json(z.literal("1")),
+            schema: jsonSchema(z.literal("1")),
           },
         ],
       );
@@ -203,7 +214,7 @@ function document(
             "Unsatisfiable ranges may return an empty body with Content-Range; malformed range syntax returns a JSON error";
         if (code >= 400)
           response.content = {
-            "application/json": { schema: json(ErrorResponse) },
+            "application/json": { schema: jsonSchema(ErrorResponse) },
           };
         else if (code === 302)
           response.headers = {
@@ -217,13 +228,13 @@ function document(
           response.content = endpoint.responseContents
             ? Object.fromEntries(
                 Object.entries(endpoint.responseContents).map(
-                  ([type, schema]) => [type, { schema: json(schema) }],
+                  ([type, schema]) => [type, { schema: jsonSchema(schema) }],
                 ),
               )
             : {
                 [contentType]: {
                   schema: endpoint.response
-                    ? json(endpoint.response)
+                    ? jsonSchema(endpoint.response)
                     : contentType === "application/json"
                       ? {}
                       : {
@@ -242,7 +253,7 @@ function document(
             response["x-sse-event-schemas"] = Object.fromEntries(
               Object.entries(endpoint.events).map(([name, schema]) => [
                 name,
-                json(schema),
+                jsonSchema(schema),
               ]),
             );
         }
@@ -255,13 +266,13 @@ function document(
       ? Object.fromEntries(
           Object.entries(endpoint.requestContents).map(([type, schema]) => [
             type,
-            { schema: json(schema, "input") },
+            { schema: jsonSchema(schema, "input") },
           ]),
         )
       : endpoint.body
         ? {
             [endpoint.requestContentType ?? "application/json"]: {
-              schema: json(endpoint.body, "input"),
+              schema: jsonSchema(endpoint.body, "input"),
             },
           }
         : undefined;
@@ -290,8 +301,8 @@ function document(
               Object.entries(adminOperationSchemas).map(([op, schema]) => [
                 op,
                 {
-                  args: json(schema.request, "input"),
-                  response: json(schema.response),
+                  args: jsonSchema(schema.request, "input"),
+                  response: jsonSchema(schema.response),
                 },
               ]),
             ),
@@ -320,30 +331,33 @@ function document(
       responses,
     };
   }
-  return {
-    openapi: "3.1.0",
-    info: { title, version: "1.0.0", description },
-    paths,
-    components: {
-      securitySchemes: security,
-      schemas: {
-        Hub: json(Hub),
-        Agent: json(Agent),
-        Error: json(ErrorResponse),
-        Operation: json(Operation),
-        WorkspaceContext: json(WorkspaceContext),
-        WorkspaceOptions: json(WorkspaceOptions, "input"),
-        WorkspaceEdit: json(WorkspaceEdit, "input"),
-        BrowserSubscription: json(BrowserSubscription, "input"),
-        PushHint: json(PushHint),
-        ...Object.fromEntries(
-          Object.entries({ ...nativeSchemas, ...adminSchemas }).map(
-            ([name, schema]) => [name, json(schema)],
+  return reuseSchemas(
+    {
+      openapi: "3.1.0",
+      info: { title, version: "1.0.0", description },
+      paths,
+      components: {
+        securitySchemes: security,
+        schemas: {
+          Hub: jsonSchema(Hub),
+          Agent: jsonSchema(Agent),
+          Error: jsonSchema(ErrorResponse),
+          Operation: jsonSchema(Operation),
+          WorkspaceContext: jsonSchema(WorkspaceContext),
+          WorkspaceOptions: jsonSchema(WorkspaceOptions, "input"),
+          WorkspaceEdit: jsonSchema(WorkspaceEdit, "input"),
+          BrowserSubscription: jsonSchema(BrowserSubscription, "input"),
+          PushHint: jsonSchema(PushHint),
+          ...Object.fromEntries(
+            Object.entries({ ...nativeSchemas, ...adminSchemas }).map(
+              ([name, schema]) => [name, jsonSchema(schema)],
+            ),
           ),
-        ),
+        },
       },
     },
-  };
+    schemaNodes,
+  );
 }
 const hub = document(
   "Codoxear independent Hub API",

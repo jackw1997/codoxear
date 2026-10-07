@@ -26,11 +26,7 @@ import {
   readAttachment,
   type Attachment,
 } from "./config.js";
-import {
-  FixtureRuntime,
-  type Runtime,
-  type WorkspaceRuntime,
-} from "./runtime.js";
+import type { Runtime, WorkspaceRuntime } from "./runtime.js";
 import { RuntimeConfig } from "./config.js";
 
 export type ComputerDependencies = {
@@ -94,6 +90,12 @@ export class ComputerService {
       if (!config)
         throw new Error("Computer is not attached; use attach first");
       RuntimeConfig.parse(config);
+      if (config.runtime === "fixture" && !this.dependencies.runtime)
+        throw new DomainError(
+          400,
+          "setup_required",
+          "Synthetic runtimes require an explicitly injected verification adapter",
+        );
       if (config.runtime === "native" && !config.workspacePath)
         throw new Error("Native runtime requires an explicit workspace path");
       if (config.runtime === "oar") {
@@ -105,34 +107,32 @@ export class ComputerService {
       }
       this.runtime =
         this.dependencies.runtime?.(config, this.home) ??
-        (config.runtime === "fixture"
-          ? new FixtureRuntime(join(this.home, "fixture.sqlite"))
-          : config.runtime === "oar"
-            ? new ManagedRuntime({
-                databasePath: join(
-                  config.nativeStateHome ?? this.home,
-                  "managed.sqlite",
-                ),
-                home: config.nativeHome ?? homedir(),
-                workspace: config.workspacePath!,
-                stateHome: config.nativeStateHome ?? this.home,
-                ...(config.oarPermissionPolicy
-                  ? { permissionPolicy: config.oarPermissionPolicy }
-                  : {}),
-                maxResident: config.oarMaxResident ?? 2,
-                idleMs: config.oarIdleMs ?? 60000,
-                ...(this.delegation ? { delegation: this.delegation } : {}),
-                legacy: new NativeRuntime(
-                  config.nativeHome ?? homedir(),
-                  config.workspacePath!,
-                  config.nativeStateHome ?? this.home,
-                ),
-              })
-            : new NativeRuntime(
+        (config.runtime === "oar"
+          ? new ManagedRuntime({
+              databasePath: join(
+                config.nativeStateHome ?? this.home,
+                "managed.sqlite",
+              ),
+              home: config.nativeHome ?? homedir(),
+              workspace: config.workspacePath!,
+              stateHome: config.nativeStateHome ?? this.home,
+              ...(config.oarPermissionPolicy
+                ? { permissionPolicy: config.oarPermissionPolicy }
+                : {}),
+              maxResident: config.oarMaxResident ?? 2,
+              idleMs: config.oarIdleMs ?? 60000,
+              ...(this.delegation ? { delegation: this.delegation } : {}),
+              legacy: new NativeRuntime(
                 config.nativeHome ?? homedir(),
                 config.workspacePath!,
                 config.nativeStateHome ?? this.home,
-              ));
+              ),
+            })
+          : new NativeRuntime(
+              config.nativeHome ?? homedir(),
+              config.workspacePath!,
+              config.nativeStateHome ?? this.home,
+            ));
       this.providerLaunch =
         (await this.runtime!.supportsProviderLaunch?.().catch(() => false)) ??
         false;

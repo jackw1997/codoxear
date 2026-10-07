@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { backendGateway } from "./backend-gateway.js";
 /** Docker-only native Codex/Claude browser acceptance with scripted inference.

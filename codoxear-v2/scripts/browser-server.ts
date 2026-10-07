@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 import { existsSync } from "node:fs";
 import { Store } from "../src/persistence/store.js";
 import { createApp } from "../src/server/app.js";

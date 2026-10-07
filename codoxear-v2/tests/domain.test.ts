@@ -17,6 +17,7 @@ import {
 import { agentAccess, canCreate } from "../src/domain/policy.js";
 import { Store } from "../src/persistence/store.js";
 import { createComputerApi } from "../src/computer/api.js";
+import { FixtureRuntime } from "../scripts/testing/fixture-runtime.js";
 assert.ok(existsSync("/.dockerenv"), "Run behavioral tests in Docker");
 function fixture() {
   const s = emptyState();
@@ -150,7 +151,10 @@ test("typed computer API persists one attachment, hides credential, and excludes
   await assert.rejects(
     api.attach({ ...config, hubUrl: "http://example.test" }),
   );
-  const service = api.service();
+  await assert.rejects(api.service().start(), /explicitly injected verification adapter/);
+  const service = api.service(undefined, {
+    runtime: (_config, stateHome) => new FixtureRuntime(join(stateHome, "fixture.sqlite")),
+  });
   await service.start();
   await assert.rejects(api.detach());
   await service.stop();

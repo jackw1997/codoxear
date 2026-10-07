@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 /** Docker-only browser worker acceptance. CDP injects push events; this does not
  * claim FCM reception. No PushManager or Notification implementation is faked. */
 import assert from "node:assert/strict";

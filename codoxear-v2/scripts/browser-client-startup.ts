@@ -1,3 +1,4 @@
+import "./testing/frontend-artifact.js";
 /** Docker-only startup faults against the actual built client and native browser service workers. */
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";

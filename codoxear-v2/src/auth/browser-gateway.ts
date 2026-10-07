@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { readFile } from "node:fs/promises";
+import { frontendAsset } from "../presentation/frontend-assets.js";
 import { Readable } from "node:stream";
 import { Id, DomainError } from "../contracts/model.js";
 import type { Authority } from "./authority.js";
@@ -12,6 +12,7 @@ export async function registerBrowserGateway(
   app: FastifyInstance,
   authority: Authority,
   session: (r: FastifyRequest) => Promise<IdentitySession>,
+  assetsRoot?: string,
 ) {
   app.get("/agent-settings/", async (r, reply) => {
     const s = await session(r);
@@ -25,7 +26,8 @@ export async function registerBrowserGateway(
       hubId: agent.hubId,
       agentId: agent.id,
     }).replaceAll("<", "\\u003c");
-    const html = (await readFile("dist/web/index.html", "utf8"))
+    const html = (await frontendAsset(assetsRoot, "web", "index.html"))
+      .toString("utf8")
       .replace(
         "<head>",
         `<head><script type="application/json" id="codoxear-hub-context">${context}</script>`,
@@ -39,7 +41,7 @@ export async function registerBrowserGateway(
       throw new DomainError(404, "not_found", "Unknown asset");
     return reply
       .type(file.endsWith(".css") ? "text/css" : "text/javascript")
-      .send(await readFile("dist/web/assets/" + file));
+      .send(await frontendAsset(assetsRoot, "web", "assets/" + file));
   });
   app.route({
     method: ["GET", "POST", "PUT", "DELETE"],

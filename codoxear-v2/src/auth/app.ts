@@ -3,9 +3,17 @@ import { InvitationRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "../presentation/browser-workspace.js";
 import { WorkspaceOptions } from "../contracts/workspaces.js";
 import { Launch } from "../contracts/tunnel.js";
-import { DelegationAuthorityRequest, DelegationChildContextRequest, DelegationReserveRequest } from "../contracts/delegation.js";
+import {
+  DelegationAuthorityRequest,
+  DelegationChildContextRequest,
+  DelegationReserveRequest,
+} from "../contracts/delegation.js";
 import { registerBrowserGateway } from "./browser-gateway.js";
-import { readFile } from "node:fs/promises";
+import {
+  frontendAsset,
+  frontendAssetsRoot,
+  frontendModuleRoot,
+} from "../presentation/frontend-assets.js";
 import { portal } from "./portal.js";
 import Fastify, {
   type FastifyRequest,
@@ -45,6 +53,7 @@ import {
 } from "../domain/commands.js";
 export interface IdentityOptions {
   routeObserver?: (route: RouteOptions) => void;
+  frontendAssetsRoot?: string | undefined;
   authority: Authority;
   cookieName?: string;
   loginPath?: string;
@@ -55,6 +64,7 @@ export interface IdentityOptions {
   codeDelivery?: Array<"email" | "phone">;
 }
 export async function createIdentityApp(options: IdentityOptions) {
+  const assetsRoot = frontendAssetsRoot(options.frontendAssetsRoot);
   const cookieName = options.cookieName ?? "codoxear_identity";
   const flowCookie = cookieName + "_oauth";
   const loginPath = options.loginPath ?? "/";
@@ -136,11 +146,12 @@ export async function createIdentityApp(options: IdentityOptions) {
       const s = await session(r);
       return { token: s.id, accountId: s.userId, scopeId: s.id };
     },
+    assetsRoot,
   );
   app.get("/api/agent-directory", async (r) =>
     a.agentDirectory(await session(r)),
   );
-  await registerBrowserGateway(app, a, session);
+  await registerBrowserGateway(app, a, session, assetsRoot);
   function setSession(
     reply: FastifyReply,
     value: { credential: string; session: IdentitySession },
@@ -1096,20 +1107,25 @@ export async function createIdentityApp(options: IdentityOptions) {
               ? "image/svg+xml"
               : "text/javascript",
         )
-        .send(await readFile("dist/identity/appearance/" + asset)),
+        .send(
+          await frontendAsset(assetsRoot, "identity", "appearance/" + asset),
+        ),
     );
   }
   app.get("/account.js", async (_r, reply) =>
     reply
       .type("text/javascript; charset=utf-8")
-      .send(await readFile("dist/identity/account.js")),
+      .send(await frontendAsset(assetsRoot, "identity", "account.js")),
   );
   app.get("/cache-design", async (_r, reply) =>
     reply
       .type("text/html; charset=utf-8")
-      .send(await readFile("docs/cache-design.html", "utf8")),
+      .send(await frontendAsset(assetsRoot, "identity", "cache-design.html")),
   );
   app.get("/auth/start", async (_r, reply) => reply.redirect("/"));
-  app.get("/", async (_r, reply) => reply.type("text/html").send(portal));
+  app.get("/", async (_r, reply) => {
+    frontendModuleRoot(assetsRoot, "identity");
+    return reply.type("text/html").send(portal);
+  });
   return app;
 }
