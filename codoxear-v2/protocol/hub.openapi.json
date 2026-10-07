@@ -14874,6 +14874,9 @@
           "cwd": {
             "type": "string"
           },
+          "repository_root": {
+            "type": "string"
+          },
           "files": {
             "type": "array",
             "items": {
@@ -14911,6 +14914,12 @@
                 },
                 "non_utf8_path": {
                   "type": "boolean"
+                },
+                "abs_path": {
+                  "type": "string"
+                },
+                "abs_api_path": {
+                  "type": "string"
                 },
                 "additions": {
                   "anyOf": [
@@ -14952,6 +14961,7 @@
               },
               "required": [
                 "path",
+                "abs_path",
                 "additions",
                 "deletions",
                 "changed",
@@ -14965,6 +14975,7 @@
         "required": [
           "ok",
           "cwd",
+          "repository_root",
           "files",
           "unstaged",
           "staged",

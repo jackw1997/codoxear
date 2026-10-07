@@ -1,8 +1,9 @@
 import { createAllowedComputer } from "../scripts/testing/authorized-fixtures.js";
+import { fixtureFrontendAssetsRoot } from "../scripts/testing/frontend-artifact.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -53,12 +54,12 @@ async function fixture(independent: boolean) {
   const clients = [{ id: "admin-client", redirectUris: ["https://admin-native.test/callback"] }];
   const delivery = { async send(_method: string, _target: string, code: string) { delivered.push(code); } };
   let local: { authority: Authority; identity: FastifyInstance; client: AuthorityClient };
-  if (independent) local = await independentAuthority({ origin, hubId: created.hub.id, store, otpKey: "admin-fixture-key".repeat(4), delivery, codeDelivery: ["email"], clients, secureCookies: false });
+  if (independent) local = await independentAuthority({ origin, hubId: created.hub.id, store, otpKey: "admin-fixture-key".repeat(4), delivery, codeDelivery: ["email"], clients, secureCookies: false, frontendAssetsRoot: fixtureFrontendAssetsRoot });
   else {
     const accounts = new Accounts(store, "admin-fixture-key".repeat(4), delivery), authority = new Authority(store, accounts, new Tokens(identityOrigin, await signingKey()));
     const owner = accounts.password("alice@admin.invalid", "fixture-password", "registration");
     const registration = authority.registerHub(owner.session, created.hub.id, origin);
-    const identity = await createIdentityApp({ authority, clients, codeDelivery: ["email"], secureCookies: false });
+    const identity = await createIdentityApp({ authority, clients, codeDelivery: ["email"], secureCookies: false, frontendAssetsRoot: fixtureFrontendAssetsRoot });
     const transport: typeof fetch = async (input, init) => {
       const address = new URL(String(input)); assert.equal(address.origin, identityOrigin);
       const method = address.pathname === "/api/v1/me" ? "GET" : "POST", headers = Object.fromEntries(new Headers(init?.headers));
@@ -151,19 +152,11 @@ test("independent Hub administrative and account responses conform to exact regi
     await f.request("identity", "POST", "/api/v1/invitations/accept", "/api/v1/invitations/accept", { token: another.token }, "bob");
     await f.request("hub", "DELETE", `/api/resources/computer/${f.created.computer.id}/members/bob`, "/api/resources/:kind/:id/members/:memberId");
     await f.request("identity", "GET", "/.well-known/jwks.json", "/.well-known/jwks.json");
-    await f.request("identity", "GET", `/agent-settings/?settings=${f.created.agent.id}`, "/agent-settings/");
-    const assets = await readdir("dist/web/assets");
-    for (const extension of ["js", "css"]) {
-      const file = assets.find(file => file.endsWith("." + extension));
-      assert.ok(file, "A built " + extension + " management asset exists");
-      const asset = await f.local.identity.inject({ method: "GET", url: "/management-assets/" + file });
-      assert.equal(asset.statusCode, 200, "Management assets are public static bytes");
-      const type = extension === "css" ? "text/css" : "text/javascript";
-      assert.equal(String(asset.headers["content-type"]).split(";")[0], type);
-      assert.equal(registeredContract("identity").find(e => e.path === "/management-assets/:file")!.auth, "public");
-      await publishedResponse("identity", "GET", "/management-assets/:file", 200, type, asset.body);
-      observations.push({ component: "independent-public-asset", method: "GET", path: "/management-assets/:file", status: 200 });
+    for (const url of [`/agent-settings/?settings=${f.created.agent.id}`, "/management-assets/app.bundle.js"]) {
+      const removed = await f.local.identity.inject({ method: "GET", url });
+      assert.equal(removed.statusCode, 404, "Obsolete management UI routes are absent");
     }
+    assert.equal(registeredContract("identity").some(e => e.path === "/agent-settings/" || e.path === "/management-assets/:file"), false);
     await f.request("identity", "GET", "/appearance/app.css", "/appearance/app.css");
     await f.request("identity", "GET", "/appearance/favicon.svg", "/appearance/favicon.svg");
     const query = new URLSearchParams({ client_id: "admin-client", redirect_uri: "https://admin-native.test/callback", state: "admin-state-".repeat(3), code_challenge: createHash("sha256").update("v".repeat(43)).digest("base64url"), code_challenge_method: "S256", response_type: "code" });
@@ -171,9 +164,6 @@ test("independent Hub administrative and account responses conform to exact regi
     assert.equal(redirect.statusCode, 302); assert.equal(new URL(String(redirect.headers.location)).origin, "https://admin-native.test"); assert.equal(redirect.body, "");
     const redirectContract = (await document("identity")).paths["/oauth/authorize"].get.responses[302];
     assert.ok(redirectContract.headers.Location); assert.equal(redirectContract.content, undefined);
-    const invalidAsset = await f.local.identity.inject({ method: "GET", url: "/management-assets/invalid.txt" });
-    assert.equal(invalidAsset.statusCode, 404);
-    await publishedResponse("identity", "GET", "/management-assets/:file", 404, "application/json", invalidAsset.json());
     observations.push({ component: "independent-identity", method: "GET", path: "/oauth/authorize", status: 302 });
   } finally { await f.close(); }
 });

@@ -302,6 +302,33 @@ test("Raw byte filenames roundtrip through tokens without changing their bytes",
   }
 });
 
+test("Git changed-file identities use repository root when the session cwd is nested", async () => {
+  const f = await fixture();
+  try {
+    const nested = join(f.workspace, "nested");
+    await mkdir(nested);
+    for (const args of [["init"], ["config", "user.name", "Fixture"], ["config", "user.email", "fixture@example.invalid"]])
+      execFileSync("git", args, { cwd: f.workspace, stdio: "ignore" });
+    await writeFile(join(nested, "tracked.txt"), "before\n");
+    execFileSync("git", ["add", "."], { cwd: f.workspace });
+    execFileSync("git", ["commit", "-m", "fixture"], { cwd: f.workspace, stdio: "ignore" });
+    await writeFile(join(nested, "tracked.txt"), "after\n");
+    f.runtime.request = async () => ({ sessions: [{ session_id: id, cwd: nested }] });
+    const status = await f.call(`/api/sessions/${id}/git/changed_files`);
+    assert.equal(status.status, 200);
+    assert.equal(status.json().cwd, nested);
+    assert.equal(status.json().repository_root, f.workspace);
+    assert.equal(status.json().entries[0].path, "nested/tracked.txt");
+    const file = await f.call(`/api/sessions/${id}/file/read?path=tracked.txt`);
+    assert.equal(file.status, 200);
+    assert.equal(status.json().entries[0].abs_path, file.json().path);
+    const versions = await f.call(`/api/sessions/${id}/git/file_versions?path=nested%2Ftracked.txt`);
+    assert.equal(versions.json().abs_path, file.json().path);
+    assert.equal(versions.json().base_text, "before\n");
+    assert.equal(versions.json().current_text, "after\n");
+  } finally { await f.close(); }
+});
+
 test("UTF-8 replacement views remain readable but cannot overwrite undecodable originals", async () => {
   const f = await fixture();
   try {
@@ -348,6 +375,8 @@ test("Owner Git preserves raw filename tokens across status, versions and diff",
     const status = await f.call(`/api/sessions/${id}/git/changed_files`);
     const entry = status.json().entries[0];
     assert.equal(entry.non_utf8_path, true);
+    assert.equal(entry.abs_path, f.workspace + "/odd-\\xff.txt");
+    assert.ok(entry.abs_api_path);
     assert.equal(entry.additions, 1);
     const q = `?path=${encodeURIComponent(entry.path)}&path_token=${encodeURIComponent(entry.api_path)}`;
     const versions = await f.call(`/api/sessions/${id}/git/file_versions${q}`);

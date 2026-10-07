@@ -183,6 +183,8 @@ import { fileAccessContext } from "./app_file_access_context.js";
       const rename = Boolean(entry.rename || oldPath);
       return {
         path: entry.path,
+        absPath: typeof entry.abs_path === "string" ? entry.abs_path : "",
+        absApiPath: normalizeFileApiPath(entry.abs_api_path),
         apiPath: normalizeFileApiPath(entry.api_path || entry.apiPath),
         additions: typeof entry.additions === "number" && Number.isFinite(entry.additions) ? entry.additions : null,
         deletions: typeof entry.deletions === "number" && Number.isFinite(entry.deletions) ? entry.deletions : null,

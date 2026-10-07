@@ -166,12 +166,17 @@ export async function gitPayload(
     return {
       ok: true,
       cwd,
+      repository_root: displayPath(root),
       files: files.map(displayPath),
       unstaged: a.map(displayPath),
       staged: b.map(displayPath),
       untracked: c.map(displayPath),
       entries: files.map((path) => ({
         ...pathFields(path),
+        abs_path: displayPath(resolve(root, path)),
+        ...(pathFields(resolve(root, path)).api_path
+          ? { abs_api_path: pathFields(resolve(root, path)).api_path }
+          : {}),
         ...(stats.get(path) ?? { additions: null, deletions: null }),
         changed: !c.includes(path),
         untracked: c.includes(path),

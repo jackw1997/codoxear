@@ -89,6 +89,17 @@ for (const context of [ownerContext, memberContext]) {
 const ownerPage = await ownerContext.newPage(), memberPage = await memberContext.newPage();
 const checks = [], screenshots = [], failures = [], externalBootstrap = [], unavailable = [], browserDiagnostics = [];
 const redactDiagnostic = text => String(text).replace(/https?:\/\/[^\s"'<>]+/g, address => { try { const parsed = new URL(address); return parsed.origin + parsed.pathname; } catch { return '[URL]'; } }).slice(0, 1000);
+if (process.env.DAILY_GIT_DIAGNOSTIC_ONLY === '1') ownerPage.on('response', async response => {
+  const path = new URL(response.url()).pathname;
+  if (!/\/(?:git\/changed_files|file\/read|file\/write)(?:$|\/)/.test(path)) return;
+  const value = await response.json().catch(() => null);
+  const entries = Array.isArray(value) ? value : value?.files ?? value?.changed_files ?? value?.entries;
+  browserDiagnostics.push('File/Git response: ' + JSON.stringify({
+    path, status: response.status(), keys: value && !Array.isArray(value) ? Object.keys(value) : [],
+    error: value?.error, message: value?.message,
+    entries: Array.isArray(entries) ? entries.slice(0, 20).map(file => typeof file === 'string' ? file : ({ path: file.path, changed: file.changed, status: file.status, additions: file.additions, deletions: file.deletions })) : undefined,
+  }));
+});
 let stage = 'initialize owner', passed = false;
 for (const page of [ownerPage, memberPage]) { page.setDefaultTimeout(30000); page.on('pageerror', () => failures.push('Browser runtime exception')); page.on('console', message => { if (message.type() === 'error' && browserDiagnostics.length < 30) browserDiagnostics.push(redactDiagnostic(message.text())); }); }
 const dialog = (page, name) => page.getByRole('dialog', { name, exact: true });
@@ -299,11 +310,21 @@ async function dailyCustomer(workspaceA) {
   await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).click();
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).click();
+  await ownerPage.waitForFunction(() => {
+    const link = document.querySelector('link[data-theme-family="slate"]');
+    const channels = getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).map(Number);
+    return Boolean(link?.sheet && channels?.reduce((sum, value) => sum + value, 0) < 200);
+  });
   await shot(ownerPage, 'daily-settings-slate-dark'); await ownerPage.locator('#settingsCloseBtn').click();
   await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
   await ownerPage.getByRole('button', { name: 'Settings', exact: true }).click();
   assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).getAttribute('aria-checked'), 'true');
   assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).getAttribute('aria-checked'), 'true');
+  await ownerPage.waitForFunction(() => {
+    const link = document.querySelector('link[data-theme-family="slate"]');
+    const channels = getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).map(Number);
+    return Boolean(link?.sheet && channels?.reduce((sum, value) => sum + value, 0) < 200);
+  });
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Paper', exact: true }).click();
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Light', exact: true }).click();
   await ownerPage.locator('#settingsCloseBtn').click();
@@ -481,6 +502,7 @@ async function dailyCustomer(workspaceA) {
     await shot(ownerPage, 'daily-git-diff'); await ownerPage.locator('#fileCloseBtn').click();
     pass('Daily customer edits and saves a tracked file through UI and opens the actual Git comparison');
   });
+  if (process.env.DAILY_GIT_DIAGNOSTIC_ONLY === '1') return;
   await dailyAttempt('Daily Hub roles', async () => {
   stage = 'Daily customer: promote and demote Hub admin';
   await settings(ownerPage);
@@ -728,7 +750,13 @@ try {
     await shot(tab, 'failure-page-' + index).catch(() => {});
   process.exitCode = 1;
 } finally {
+  const clientBuild = await ownerPage.evaluate(async () => {
+    const response = await fetch('/client-release.json', { cache: 'no-store' });
+    const release = await response.json();
+    return { origin: location.origin, loadedAssetVersion: window.CODOXEAR_ASSET_VERSION, releaseStatus: response.status(), publicReleaseVersion: release.version };
+  }).catch(() => ({ origin: clientOrigin, unavailable: true }));
   await writeFile(join(artifacts, 'results.json'), JSON.stringify({ passed, stage, checks, failures, screenshots, unavailable, browserDiagnostics, clientSurface: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public deployed frontend' : 'Separate local static frontend',
+    clientBuild,
     applicationActions: 'Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding',
     oauthBoundary: 'Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance',
     runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance',

@@ -973,94 +973,6 @@
         }
       }
     },
-    "/agent-settings/": {
-      "get": {
-        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
-        "security": [
-          {
-            "Bearer": []
-          },
-          {
-            "IdentityCookie": []
-          }
-        ],
-        "x-schema-status": "typed-producer-response",
-        "parameters": [
-          {
-            "name": "settings",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/agent-directory": {
       "get": {
         "summary": "Current account's authorized agents and Computer placements",
@@ -3847,94 +3759,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminHealth"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/management-assets/{file}": {
-      "get": {
-        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
-        "security": [],
-        "x-schema-status": "typed-content-variants",
-        "parameters": [
-          {
-            "name": "file",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9_-]+\\.(js|css)$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "text/css": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "string"
-                }
-              },
-              "text/javascript": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Structured router, Hub/authority or native error; inspect code when present",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -7789,6 +7613,9 @@
           "cwd": {
             "type": "string"
           },
+          "repository_root": {
+            "type": "string"
+          },
           "files": {
             "type": "array",
             "items": {
@@ -7826,6 +7653,12 @@
                 },
                 "non_utf8_path": {
                   "type": "boolean"
+                },
+                "abs_path": {
+                  "type": "string"
+                },
+                "abs_api_path": {
+                  "type": "string"
                 },
                 "additions": {
                   "anyOf": [
@@ -7867,6 +7700,7 @@
               },
               "required": [
                 "path",
+                "abs_path",
                 "additions",
                 "deletions",
                 "changed",
@@ -7880,6 +7714,7 @@
         "required": [
           "ok",
           "cwd",
+          "repository_root",
           "files",
           "unstaged",
           "staged",

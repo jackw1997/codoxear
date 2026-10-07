@@ -10,7 +10,7 @@
     });
   }
   function createFileViewerOperationsRuntime(options = {}) {
-    const { el, fileStatus, fileEditButton, iconSvg, currentSessionId, currentFileSessionId, normalizeSessionId, normalizeFileApiPath, isFileViewerOpen, hideFileUnsavedDialog, resetFileSearchState, closeFilePickerMenu, isTextFileKind, isDiffableFileKind, confirmReload, promptUnsavedFileChoice, restoreFileEditorText, hideFileViewer, setFilePath, resetFileViewerPanel, applyFileLoadResult, normalizeDraftFilePath, inspectSessionFilePath, api, focusEditor, disposeOpenRender, isMarkdownPreviewable, updateFileTouchToolbar, hasBlockingFileEditorModal, isTextEntryTarget, eventTargetElement, isActiveFileEditorInput, focusActiveFileCodeEditor, nowMs, setToast, renderMonacoFile, getFileEditorText, fmtBytes, applyFileMode, rememberOpenedFile, renderFilePickerMenu, currentFileViewMode, currentFileNonDiffMode, setFileViewMode, currentFileEditMode, currentFileEditorKind, setFileEditorKind, setFileEditMode, currentActiveFileKind, currentActiveFileText, currentActiveFileEditable, currentActiveFileVersion, currentActiveFileDraft, applyActiveFileTextState, applyActiveFileDiffState, applyActiveFileNonTextState, currentActiveFileIdentity, currentActiveFileLine, startFileOpenRequest, isCurrentFileOpenRequest, normalizeExplicitFileOpenMode, resolveFileOpenMode, isFileOpenAbortError, activeFileEntry, isGitFileCandidatePath, currentFileCandidateGitStateFresh, activeFileCanEnterEditMode, activeFileEditorWritable, activeFileEditorInsertIdleTextWritable, currentFileEditorState, isUnavailable, blockUnavailableFileAction, fileEntryForPath, resetActiveFileBufferState, resolveFileOpenViewMode, isFileViewerSessionUnavailable, rememberActiveFileSelection, setActiveFileIdentity } = options;
+    const { el, fileStatus, fileEditButton, iconSvg, currentSessionId, currentFileSessionId, normalizeSessionId, normalizeFileApiPath, isFileViewerOpen, hideFileUnsavedDialog, resetFileSearchState, closeFilePickerMenu, isTextFileKind, isDiffableFileKind, confirmReload, promptUnsavedFileChoice, restoreFileEditorText, hideFileViewer, setFilePath, resetFileViewerPanel, applyFileLoadResult, normalizeDraftFilePath, inspectSessionFilePath, api, focusEditor, disposeOpenRender, isMarkdownPreviewable, updateFileTouchToolbar, hasBlockingFileEditorModal, isTextEntryTarget, eventTargetElement, isActiveFileEditorInput, focusActiveFileCodeEditor, nowMs, setToast, renderMonacoFile, getFileEditorText, fmtBytes, applyFileMode, rememberOpenedFile, refreshFileCandidates, currentFileCandidateEntries, renderFilePickerMenu, currentFileViewMode, currentFileNonDiffMode, setFileViewMode, currentFileEditMode, currentFileEditorKind, setFileEditorKind, setFileEditMode, currentActiveFileKind, currentActiveFileText, currentActiveFileEditable, currentActiveFileVersion, currentActiveFileDraft, applyActiveFileTextState, applyActiveFileDiffState, applyActiveFileNonTextState, currentActiveFileIdentity, currentActiveFileLine, startFileOpenRequest, isCurrentFileOpenRequest, normalizeExplicitFileOpenMode, resolveFileOpenMode, isFileOpenAbortError, activeFileEntry, isGitFileCandidatePath, currentFileCandidateGitStateFresh, activeFileCanEnterEditMode, activeFileEditorWritable, activeFileEditorInsertIdleTextWritable, currentFileEditorState, isUnavailable, blockUnavailableFileAction, fileEntryForPath, resetActiveFileBufferState, resolveFileOpenViewMode, isFileViewerSessionUnavailable, rememberActiveFileSelection, setActiveFileIdentity } = options;
     let activeSaveConflict = null, fileSaveSeq = 0, activeFileSaveToken = 0, fileSavePending = false, fileDirty = false, fileUnsavedPromptResolver = null, activeVideoFallback = null, activePdfRender = null;
     function activeVideoFallbackSnapshot() {
       const state = activeVideoFallback;
@@ -429,7 +429,19 @@
           body: saveBody,
         });
         if (!saveStillCurrent()) return true;
-        return applyActiveFileSaveSuccess(save, res, { exitEditMode });
+        applyActiveFileSaveSuccess(save, res, { exitEditMode });
+        // Search paths are relative to the session; Git paths are relative to
+        // the repository. Only the producer's absolute identity can join them.
+        await refreshFileCandidates({ force: true, sessionId: save.sessionId });
+        if (saveStillCurrent() && currentFileCandidateGitStateFresh() && res && typeof res.path === "string") {
+          const entry = currentFileCandidateEntries().find((candidate) => candidate.gitPath && candidate.changed && !candidate.absApiPath && candidate.absPath === res.path);
+          if (entry) {
+            setFilePath(entry.path, { line: currentActiveFileLine(), gitPath: true, apiPath: entry.apiPath });
+          }
+          applyFileMode();
+          renderFilePickerMenu();
+        }
+        return true;
       } catch (error) {
         if (!saveStillCurrent()) return false;
         renderActiveFileSaveError(save, error);

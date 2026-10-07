@@ -159,7 +159,7 @@ export async function createIdentityApp(options: IdentityOptions) {
   app.get("/api/agent-directory", async (r) =>
     a.agentDirectory(await session(r)),
   );
-  await registerBrowserGateway(app, a, session, assetsRoot);
+  await registerBrowserGateway(app, a, session);
   function setSession(
     reply: FastifyReply,
     value: { credential: string; session: IdentitySession },

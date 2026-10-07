@@ -589,6 +589,8 @@ function requireFunction(value, name) {
       fmtBytes: deps.fmtBytes,
       applyFileMode: deps.applyFileMode,
       rememberOpenedFile: deps.rememberOpenedFile,
+      refreshFileCandidates: deps.refreshFileCandidates,
+      currentFileCandidateEntries: currentFileCandidateEntries,
       renderFilePickerMenu: deps.renderFilePickerMenu,
       currentFileViewMode: currentFileViewMode,
       currentFileNonDiffMode: currentFileNonDiffMode,

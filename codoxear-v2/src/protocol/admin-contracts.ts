@@ -149,8 +149,6 @@ export const adminDetails: Record<string, Partial<Omit<Endpoint, "method" | "pat
   "POST /connect/v1/computers/:id/authorize-queue": { response: RelayAuthorization },
   "POST /internal/call": { body: InternalCallRequest, response: InternalCallSuccess },
   "GET /.well-known/jwks.json": { response: PublicSigningKeys },
-  "GET /agent-settings/": { query: z.object({ settings: Id }), contentType: "text/html", response: text },
-  "GET /management-assets/:file": { auth: "public", responseContents: { "text/css": text, "text/javascript": text } },
 };
 for (const path of ["/appearance/app.css", "/appearance/connections.css", "/appearance/shell.css", "/appearance/themes/clay.css", "/appearance/themes/paper.css", "/appearance/themes/slate.css"]) adminDetails["GET " + path] = { contentType: "text/css", response: text };
 adminDetails["GET /appearance/favicon.svg"] = { contentType: "image/svg+xml", response: text };

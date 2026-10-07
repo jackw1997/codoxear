@@ -313,6 +313,7 @@ The user broadened acceptance from the reported toolbar/layout failures to ordin
 | Conflicting old implementation or documentation | Current decision |
 |---|---|
 | Separate Vite password/email/SMS Computer-first client under `frontend/web/src` | Removed; the independently built client is the sole current web entry, including the compatibility `web` output |
+| Identity-hosted `/agent-settings/` page and `/management-assets/` Vite asset routes | Removed with their published contracts; current Connections management remains the human UI, and authenticated gateway APIs retain their capability checks |
 | Old password/demo customer verification chain presented as default acceptance | Removed those entrypoints and made the provider-only customer journey the default; native/security component fixtures remain separately scoped |
 | Duplicate immediately launches through a legacy broker path or only reports credential re-entry in a toast | Opens the current creation form on the source Computer/runtime/directory, without copying secrets; the user reviews precise launch options and supplies private credentials |
 | Download identity matching uses only a retained credential key | Resolve the current Hub identity scope as well, so a valid signed-in owner can download through a browser download handoff |

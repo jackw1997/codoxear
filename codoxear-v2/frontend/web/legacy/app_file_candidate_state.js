@@ -42,6 +42,8 @@
       const rename = Boolean(entry.rename || oldPath);
       return {
         path: entry.path,
+        absPath: typeof entry.absPath === "string" ? entry.absPath : "",
+        absApiPath: normalizeFileApiPath(entry.absApiPath),
         apiPath,
         gitPath,
         key: fileCandidateKey(entry.path, gitPath, apiPath),

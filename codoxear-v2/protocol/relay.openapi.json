@@ -23634,6 +23634,9 @@
           "cwd": {
             "type": "string"
           },
+          "repository_root": {
+            "type": "string"
+          },
           "files": {
             "type": "array",
             "items": {
@@ -23659,12 +23662,13 @@
             }
           },
           "entries": {
-            "$ref": "#/components/schemas/Sharedarray_d6e0a3c1b7de1d4b"
+            "$ref": "#/components/schemas/Sharedarray_8c613bbae959bb5d"
           }
         },
         "required": [
           "ok",
           "cwd",
+          "repository_root",
           "files",
           "unstaged",
           "staged",
@@ -28021,13 +28025,13 @@
           }
         }
       },
-      "Sharedarray_d6e0a3c1b7de1d4b": {
+      "Sharedarray_8c613bbae959bb5d": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_66b2d3c9caa4e424"
+          "$ref": "#/components/schemas/Sharedobject_1b367e83b122ef1a"
         }
       },
-      "Sharedobject_66b2d3c9caa4e424": {
+      "Sharedobject_1b367e83b122ef1a": {
         "type": "object",
         "properties": {
           "path": {
@@ -28038,6 +28042,12 @@
           },
           "non_utf8_path": {
             "type": "boolean"
+          },
+          "abs_path": {
+            "type": "string"
+          },
+          "abs_api_path": {
+            "type": "string"
           },
           "additions": {
             "anyOf": [
@@ -28079,6 +28089,7 @@
         },
         "required": [
           "path",
+          "abs_path",
           "additions",
           "deletions",
           "changed",

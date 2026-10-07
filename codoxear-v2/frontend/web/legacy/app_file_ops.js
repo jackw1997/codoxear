@@ -878,6 +878,7 @@ const fileViewerController = codoxearFileViewer.createFileViewerController(wirin
   fmtBytes: (value) => fmtBytes(value),
   applyFileMode: () => applyFileMode(),
   rememberOpenedFile: (rel, absPath) => rememberOpenedFile(rel, absPath),
+  refreshFileCandidates: (options) => refreshFileCandidates(options),
   historyFileSelectionForSession: (sessionId) => openedFileRuntime.historySelection(sessionId),
   renderFilePickerMenu: () => renderFilePickerMenu(),
   vimNormalActive: () => Boolean(fileVimRef.controller && fileVimRef.controller.isNormalMode()),

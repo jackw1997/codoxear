@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { frontendAsset } from "../presentation/frontend-assets.js";
 import { Readable } from "node:stream";
 import { Id, DomainError } from "../contracts/model.js";
 import type { Authority } from "./authority.js";
@@ -12,37 +11,7 @@ export async function registerBrowserGateway(
   app: FastifyInstance,
   authority: Authority,
   session: (r: FastifyRequest) => Promise<IdentitySession>,
-  assetsRoot?: string,
 ) {
-  app.get("/agent-settings/", async (r, reply) => {
-    const s = await session(r);
-    const agentId = Id.parse((r.query as { settings?: string }).settings);
-    const agent = authority
-      .agentDirectory(s)
-      .agents.find((a) => a.id === agentId);
-    if (!agent)
-      throw new DomainError(404, "not_found", "Agent is no longer accessible");
-    const context = JSON.stringify({
-      hubId: agent.hubId,
-      agentId: agent.id,
-    }).replaceAll("<", "\\u003c");
-    const html = (await frontendAsset(assetsRoot, "web", "index.html"))
-      .toString("utf8")
-      .replace(
-        "<head>",
-        `<head><script type="application/json" id="codoxear-hub-context">${context}</script>`,
-      )
-      .replaceAll('"/assets/', '"/management-assets/');
-    return reply.type("text/html").send(html);
-  });
-  app.get("/management-assets/:file", async (r, reply) => {
-    const file = (r.params as { file: string }).file;
-    if (!/^[a-zA-Z0-9_-]+\.(?:js|css)$/.test(file))
-      throw new DomainError(404, "not_found", "Unknown asset");
-    return reply
-      .type(file.endsWith(".css") ? "text/css" : "text/javascript")
-      .send(await frontendAsset(assetsRoot, "web", "assets/" + file));
-  });
   app.route({
     method: ["GET", "POST", "PUT", "DELETE"],
     url: "/gateway/hubs/:hubId/api/*",

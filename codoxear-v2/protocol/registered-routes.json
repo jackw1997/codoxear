@@ -684,12 +684,6 @@
       ]
     },
     {
-      "path": "/agent-settings/",
-      "methods": [
-        "GET"
-      ]
-    },
-    {
       "path": "/api/agent-directory",
       "methods": [
         "GET"
@@ -962,12 +956,6 @@
       "path": "/internal/queue-authorize",
       "methods": [
         "POST"
-      ]
-    },
-    {
-      "path": "/management-assets/:file",
-      "methods": [
-        "GET"
       ]
     },
     {

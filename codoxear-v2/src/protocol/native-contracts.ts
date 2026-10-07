@@ -363,12 +363,15 @@ export const FileWrite = z.object({
 export const GitChanged = z.object({
   ok,
   cwd: text,
+  repository_root: text,
   files: z.array(text),
   unstaged: z.array(text),
   staged: z.array(text),
   untracked: z.array(text),
   entries: z.array(
     PathFields.extend({
+      abs_path: text,
+      abs_api_path: text.optional(),
       additions: count.nullable(),
       deletions: count.nullable(),
       changed: z.boolean(),
