@@ -185,3 +185,45 @@ The current OAR release passed a full 283-test Docker run and the full browser r
 The authoritative current release report is [oar-cutover.html](oar-cutover.html), with exact scopes in [work-progress.json](work-progress.json). Prior paragraphs describing a "current preview," old process-preservation counts, catalog restoration or missing Docker/image access refer to earlier snapshots. They are historical evidence, not requirements to reconstruct that topology or blockers for this fresh deployment. Broader managed feature parity and physical-platform acceptance remain separately identified; cross-Hub delegation stays deferred.
 
 The follow-up public search acceptance also passed: saved history search and browser match navigation, wildcard user counts, the authenticated next-message relay and the readable HTTPS report. It created no agents and submitted no model prompts.
+
+## R48 — Every module must install, build and run independently
+
+The current request strengthens the earlier frontend/backend split: Computer, Hub, optional Identity, retained Server and frontend each need their own releasable package. The aggregate backend manifest and two-container build proof did not satisfy that request. The implementation now provides component-owned manifests, pinned minimal dependency locks, build scripts and Dockerfiles, with a reviewed-tree exporter that includes only each component's transitive source closure and declared libraries. The import guard follows the complete closure, including edges through shared libraries. A Computer archive no longer carries the entire v2 repository.
+
+Shared authentication/domain/persistence implementation remains a library used by the owning service; it does not impose a shared Identity service or database. Independent Hub accounts, permissions and signing keys remain local. The frontend owns `web/`, `harmonyos/`, `shared/`, its dependency lock and build/static-serving entry points. Native/OAR adapters remain Computer internals, with OAR's pinned installer owned only by Computer.
+
+Backend API startup has no frontend artifact requirement. Browser compatibility routes attach an external, compiled, read-only bundle through an absolute `frontendAssetsRoot` option/configuration or `CODOXEAR_FRONTEND_ASSETS_ROOT`; there is no implicit working-directory `dist/` lookup or frontend-source read. A missing artifact yields `404 ui_unavailable` at UI entry routes. OAuth/cookies/PKCE and authenticated gateways retain their established protocol. The independent frontend build includes Identity's help artifact; no backend route reads the repository's `docs/` directory. Integration fixtures declare the bundle explicitly and pass that declaration to child processes.
+
+Static TypeScript and dependency-closure checks passed during implementation. At `cf891ea5`, the full serialized Docker regression passed **302 tests**, with zero failures or skips, and the complete `verify-container.ts` browser runner exited successfully. This verifies the asset-boundary changes and existing root integration fixtures at that snapshot. The new Docker verifier and standalone smoke helpers are prepared to install/build/start five extracted packages without peer source or dependencies. A separate installed-package browser harness covers popup password login, PKCE exchange, authenticated computer creation and persisted login/catalog after reload. Those new extracted-package and browser proofs remain pending the coordinating run. The root regression, historical frontend-versus-aggregate-backend evidence and earlier public native/OAR checks do not establish this stronger isolation requirement. Physical HarmonyOS/mobile acceptance, live provider configuration and wider runtime parity remain separately scoped. Details are in [component-boundaries.md](component-boundaries.md).
+
+### Source volume and the OAR boundary
+
+The original PR baseline added **375,975 physical lines**, including whitespace. The categories below describe that baseline, not a fresh final-tree total. Generated protocol repetition and retained vendored browser code account for most of the apparent size.
+
+| Baseline category | Physical lines |
+| --- | ---: |
+| Generated protocol JSON | 190,879 |
+| Retained vendored browser controllers/assets | 71,882 |
+| Authored frontend | 40,153 |
+| Tests and verification/build scripts | 34,769 |
+| Other runtime and shared implementation | 17,172 |
+| OAR managed adapter | 2,002 |
+| Native PTY compatibility/runtime | 6,609 |
+| Dependency locks | 5,065 |
+| Documentation, deployment and other files | 7,444 |
+| **Baseline total** | **375,975** |
+
+Generated OpenAPI JSON now stores repeated schemas once and references them through `$ref`, rather than repeating expanded schemas at every route. The documents retain their original route definitions, limits and named components; expansion comparison checks the original schema objects. This changes generated representation, not native/OAR feature scope.
+
+| Generated document | Before | After | Removed physical lines |
+| --- | ---: | ---: | ---: |
+| Hub | 60,495 | 20,256 | 40,239 |
+| Identity | 28,932 | 12,408 | 16,524 |
+| Internal | 22,952 | 11,607 | 11,345 |
+| Relay | 76,605 | 29,572 | 47,033 |
+| Other protocol JSON | 1,895 | 1,895 | 0 |
+| **All protocol JSON** | **190,879** | **75,738** | **115,141 (60.3%)** |
+
+The total generated JSON size falls from **6,265,749 to 2,162,700 bytes**. New per-component locks and verification tools add legitimate files, so subtracting this reduction from the baseline does not establish an exact final PR total. The final source inventory must be measured separately.
+
+OAR replaces the managed driver behind the Computer interface; it does not supply Codoxear's remote authorization/tunnel, durable launch receipts, file/Git/media operations, saved-history search, browser controllers or support for already running terminal brokers. Removing those modules would remove accepted behavior. The native compatibility path remains required for existing terminal sessions. This iteration reduces generated duplication and enforces package ownership; it makes no claim that OAR alone eliminates all Computer code or completes the broader feature/platform roadmap.
