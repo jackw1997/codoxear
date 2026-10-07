@@ -2,6 +2,7 @@
 // Application behavior is exercised only inside Docker.
 import { spawn } from "node:child_process";
 import { constants, closeSync, fstatSync, openSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -9,8 +10,19 @@ const script = fileURLToPath(import.meta.url);
 const root = dirname(dirname(script));
 const uid = process.getuid?.();
 if (uid === undefined) throw Error("The verification coordinator requires Linux");
-const held = process.argv[2] === "--locked";
-const project = process.argv[held ? 3 : 2] ?? `codoxear-v2-check-${uid}`;
+const options = process.argv.slice(2);
+const held = options[0] === "--locked";
+if (held) options.shift();
+const managed = options[0] === "--managed";
+if (managed) options.shift();
+let image: string | undefined;
+if (options[0] === "--image") {
+  options.shift();
+  image = options.shift();
+  if (!image || image.startsWith("-") || /\s/.test(image)) throw Error("Invalid verification image");
+}
+const project = options.shift() ?? `codoxear-v2-check-${uid}`;
+if (options.length) throw Error("Usage: verify-docker.ts [--managed] [--image image] [project]");
 if (!/^[a-z0-9][a-z0-9_-]*$/.test(project)) throw Error("Invalid verification project name");
 const lockPath = `/tmp/codoxear-v2-verification-${uid}.lock`;
 let active: ReturnType<typeof spawn> | undefined;
@@ -42,10 +54,46 @@ if (!held) {
     const info = fstatSync(fd);
     if (info.uid !== uid || !info.isFile()) throw Error("Verification lock must be an owned regular file");
   } finally { closeSync(fd); }
-  const code = await run("flock", ["--no-fork", "--nonblock", "--conflict-exit-code", "75", lockPath, process.execPath, "--experimental-strip-types", script, "--locked", project]);
+  const code = await run("flock", ["--no-fork", "--nonblock", "--conflict-exit-code", "75", lockPath, process.execPath, "--experimental-strip-types", script, "--locked", ...(managed ? ["--managed"] : []), ...(image ? ["--image", image] : []), project]);
   if (code === 75) console.error("Another v2 verification is running. Wait for it to finish before starting another heavy fixture.");
   process.exitCode = code;
 } else {
+  // Do not build or attempt project cleanup until the selected daemon responds.
+  const available = await run("docker", ["info", "--format", "{{.ServerVersion}}"], 10000);
+  if (available !== 0) {
+    console.error("The selected Docker daemon is unavailable. Restore it before starting verification.");
+    process.exit(available);
+  }
+  process.env.CODOXEAR_VERIFICATION_SUITE = managed ? "managed" : "full";
+  if (image) {
+    // Use the image built by runtime/oar/build-docker.sh without another,
+    // unbounded Compose build. No provider credentials or private state mounts.
+    const temporary = await mkdtemp("/tmp/codoxear-v2-verification-");
+    const cidfile = join(temporary, "container-id");
+    const artifacts = join(root, "artifacts");
+    await mkdir(artifacts, { recursive: true });
+    let code = 1;
+    try {
+      code = await run("docker", ["run", "--init", "--cidfile", cidfile,
+        "--memory", "2g", "--memory-swap", "2g", "--cpus", "2", "--pids-limit", "512",
+        "--network", "none", "--shm-size", "256m", "--user", `${uid}:${process.getgid!()}`,
+        "--env", `CODOXEAR_VERIFICATION_SUITE=${managed ? "managed" : "full"}`,
+        "--mount", `type=bind,src=${artifacts},dst=/opt/codoxear/artifacts`,
+        "--workdir", "/opt/codoxear", "--entrypoint", "node", image,
+        "--import", "tsx", "scripts/verify-container.ts"]);
+    } finally {
+      const id = (await readFile(cidfile, "utf8").catch(() => "")).trim();
+      if (/^[a-f0-9]{64}$/.test(id)) {
+        const cleaned = await run("docker", ["rm", "--force", id], 30000).catch(() => 1);
+        if (cleaned !== 0) {
+          console.error(`Owned verification container cleanup failed: ${id}`);
+          if (code === 0) code = cleaned;
+        }
+      }
+      await rm(temporary, { recursive: true, force: true });
+    }
+    process.exitCode = code;
+  } else {
   const args = ["compose", "--project-name", project, "-f", join(root, "compose.test.yml")];
   let code = 1;
   try {
@@ -58,4 +106,5 @@ if (!held) {
     }
   }
   process.exitCode = code;
+  }
 }

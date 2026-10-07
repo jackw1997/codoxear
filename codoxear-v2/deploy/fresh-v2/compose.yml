@@ -1,0 +1,68 @@
+name: codoxear-v2-fresh
+x-role: &role
+  image: ${CODOXEAR_V2_IMAGE:-codoxear-v2-oar:local}
+  init: true
+  restart: "on-failure:2"
+  cpus: 1
+  pids_limit: 256
+  security_opt: ["no-new-privileges:true"]
+  environment:
+    NODE_OPTIONS: --max-old-space-size=128
+services:
+  hub-0:
+    <<: *role
+    command: [node, dist/server/hub/main.js]
+    mem_limit: 256m
+    memswap_limit: 256m
+    env_file: ${FRESH_STATE:?Set FRESH_STATE}/owner.env
+    environment:
+      CODOXEAR_HUB_CONFIG: /config/hub-0.json
+      NODE_OPTIONS: --max-old-space-size=128
+    volumes:
+      - ${FRESH_STATE}/config:/config:ro
+      - ${FRESH_STATE}/hub-0:/state
+    ports: ["127.0.0.1:19530:17430"]
+  hub-1:
+    <<: *role
+    command: [node, dist/server/hub/main.js]
+    mem_limit: 256m
+    memswap_limit: 256m
+    env_file: ${FRESH_STATE:?Set FRESH_STATE}/owner.env
+    environment:
+      CODOXEAR_HUB_CONFIG: /config/hub-1.json
+      NODE_OPTIONS: --max-old-space-size=128
+    volumes:
+      - ${FRESH_STATE}/config:/config:ro
+      - ${FRESH_STATE}/hub-1:/state
+    ports: ["127.0.0.1:19531:17430"]
+  client:
+    <<: *role
+    command: [node, dist/server/client/web-server.js]
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      CODOXEAR_CLIENT_HOST: 0.0.0.0
+      CODOXEAR_CLIENT_PORT: "19520"
+      NODE_OPTIONS: --max-old-space-size=64
+    ports: ["127.0.0.1:19520:19520", "127.0.0.1:19500:19520"]
+  computer-a: &computer
+    <<: *role
+    profiles: [computer]
+    command: [node, dist/server/computer/main.js, start]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    pids_limit: 512
+    environment:
+      HOME: /home/node
+      CODOXEAR_COMPUTER_HOME: /home/node/computer
+      NODE_OPTIONS: --max-old-space-size=384
+    volumes:
+      - ${FRESH_STATE}/computer-a:/home/node
+      - ${FRESH_STATE}/private/pi-litellm-launch.json:/private/pi-litellm-launch.json:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  computer-b:
+    <<: *computer
+    volumes:
+      - ${FRESH_STATE}/computer-b:/home/node
+      - ${FRESH_STATE}/private/pi-litellm-launch.json:/private/pi-litellm-launch.json:ro

@@ -11,7 +11,7 @@ app.addHook("onSend", async (_r, reply, payload) => {
     .header("Content-Security-Policy", "frame-ancestors 'none'");
   return payload;
 });
-app.get("/design", async (_r, reply) =>
+for (const path of ["/design", "/guide"]) app.get(path, async (_r, reply) =>
   reply
     .type("text/html")
     .header("Cache-Control", "no-cache")

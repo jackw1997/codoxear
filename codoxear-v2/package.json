@@ -15,6 +15,7 @@
     "dev": "tsx src/client/web-server.ts",
     "test:browser": "node --import tsx scripts/browser-verification.ts",
     "verify:docker": "node --experimental-strip-types scripts/verify-docker.ts",
+    "verify:managed": "node --experimental-strip-types scripts/verify-docker.ts --managed",
     "identity": "node dist/server/identity/main.js",
     "client": "node dist/server/client/web-server.js",
     "hub": "node dist/server/hub/main.js",

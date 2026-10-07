@@ -14,6 +14,7 @@ export async function enrollmentInput(args: string[]) {
       workspace: { type: "string" },
       runtime: { type: "string", default: "native" },
       "oar-permission-policy": { type: "string" },
+      "oar-max-resident": { type: "string" },
     },
   });
   let muted = false;
@@ -48,6 +49,9 @@ export async function enrollmentInput(args: string[]) {
       throw Error(
         "OAR bypasses interactive native permissions. After explicit local trust review, pass --oar-permission-policy locally-trusted; otherwise use native.",
       );
+    const maxResident = values["oar-max-resident"] === undefined ? undefined : Number(values["oar-max-resident"]);
+    if (maxResident !== undefined && (values.runtime !== "oar" || !Number.isInteger(maxResident) || maxResident < 1 || maxResident > 16))
+      throw Error("--oar-max-resident requires OAR and an integer from 1 to 16");
     return {
       enrollment: { identityUrl: origin, code: normalizePairingCode(code) },
       runtime: values.runtime as "native" | "oar",
@@ -55,6 +59,7 @@ export async function enrollmentInput(args: string[]) {
         ? { oarPermissionPolicy: "locally-trusted" as const }
         : {}),
       workspacePath,
+      ...(maxResident === undefined ? {} : { oarMaxResident: maxResident }),
     };
   } finally {
     muted = false;

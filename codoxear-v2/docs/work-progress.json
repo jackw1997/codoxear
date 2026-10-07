@@ -290,6 +290,18 @@
         "OAR dependency lockfile, Node24/runtime installation, full managed feature parity and OOM/process-tree acceptance remain pending."
       ],
       "report": "oar-cutover.html"
+    },
+    {
+      "id": "fresh-oar-deployment",
+      "status": "implemented-unverified",
+      "model": "GPT-6.1-Sol",
+      "scope": "Fresh independent Hub/Client/Computer deployment; retain public addresses and Computer-local LiteLLM configuration; old state archived separately",
+      "outcome": "Replaced restoration plan with fresh deployment assets, bounded Node24 image builder and focused managed Docker verification. No old catalog or account import is required.",
+      "limitations": [
+        "Real OAR dependency lock is not resolved",
+        "Fresh image build, runtime tests and deployment have not run",
+        "Tool environment still refuses systemd bus access; no permission policy has been changed"
+      ]
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",

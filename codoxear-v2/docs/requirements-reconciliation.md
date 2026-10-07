@@ -143,7 +143,13 @@ Other current gaps appear outside the 30-row register and must not disappear whe
 
 Offline remote revocation, browser storage trust and revocation's inability to recall exported copies are limitations to describe accurately, not “unfinished” code. Automatic discovery/cloud sync is optional future scope. These do not authorize adding a mandatory global service.
 
-## Suggested next priority
+## R47 — Fresh deployment supersedes restoring the old stack (7 October)
+
+The user reiterated that a new deployment should carry forward the saved Hub/client addresses and LiteLLM settings. Reconstructing deleted preview containers, restoring their deployment topology or importing their accounts/catalogs is not required. Earlier instructions to preserve history now mean keeping the existing private archive intact; they do not require old history to populate the fresh deployment. New Hubs use independent new databases and identities. New Computers receive the saved provider endpoint, key, model and effort locally, never in Hub configuration. Existing TLS/public addresses remain the intended entry points.
+
+This supersedes the restoration plan and the old/new catalog migration release gate for this deployment. The native terminal adapter remains a product capability; preserving that capability does not mean adopting deleted containers or restarting archived sessions. Cross-computer same-Hub delegation, TypeScript boundaries, memory limits, provider behavior and Docker verification still apply. Deployment sources and private configuration preparation do not establish a running or accepted deployment.
+
+## Suggested next priority (historical audit sequence; apply R47 first)
 
 1. Correct existing registers and installation/native-client wording using R15–R27. Keep historical evidence and exact accepted slices, remove resolved rows from active counts, and separate compatibility/later-stage/external limitations.
 2. Finish the installed native-runtime matrix in Docker: Pi/Claude saved resume, Codex/Claude import and interrupt, untrusted Codex readiness, then broker/Computer/Hub restart at commit boundaries. Preserve user's existing agents and private provider settings. This closes multiple overlapping acceptance rows without inventing new semantics.

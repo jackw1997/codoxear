@@ -27,19 +27,29 @@ const run = (args, capture = false, evidence) =>
   });
 const { readdir, mkdir, writeFile } = await import("node:fs/promises");
 await mkdir("artifacts", { recursive: true });
+const suite = process.env.CODOXEAR_VERIFICATION_SUITE ?? "full";
+if (suite !== "full" && suite !== "managed")
+  throw new Error("Unknown verification suite: " + suite);
+const files = (await readdir("tests"))
+  .filter((name) => name.endsWith(".test.ts"))
+  .filter((name) => suite === "full" || /^(managed-|delegation|fresh-deployment)/.test(name))
+  .sort()
+  .map((name) => "tests/" + name);
+if (!files.length) throw new Error("No verification tests selected");
 await run(
   [
     "--import",
     "tsx",
     "--test",
     "--test-concurrency=1",
-    ...(await readdir("tests"))
-      .filter((x) => x.endsWith(".test.ts"))
-      .map((x) => "tests/" + x),
+    ...files,
   ],
   true,
-  "artifacts/tests.tap",
+  suite === "managed" ? "artifacts/managed-tests.tap" : "artifacts/tests.tap",
 );
+// This slice includes its browser test; avoid unrelated preview stacks while
+// diagnosing the managed runtime. Full product acceptance remains separate.
+if (suite === "managed") process.exit(0);
 const hub = spawn(
   process.execPath,
   ["--import", "tsx", "scripts/browser-server.ts"],

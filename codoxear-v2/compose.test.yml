@@ -10,5 +10,7 @@ services:
     cpus: 2
     pids_limit: 512
     shm_size: 256mb
+    environment:
+      CODOXEAR_VERIFICATION_SUITE: ${CODOXEAR_VERIFICATION_SUITE:-full}
     volumes:
       - ./artifacts:/work/artifacts
