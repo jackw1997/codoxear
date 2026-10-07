@@ -22,6 +22,12 @@ codoxear-v2-oar:local`. It includes the independent Hub, client and Computer
 entrypoints, native CLIs, assets and real OAR dependencies. The OAR lock and image
 must be available before starting. Deploy only with authorized Docker access:
 
+For source-only follow-up releases, `runtime/oar/refresh-docker.sh <commit>
+<existing-full-image> <output-image>` retains the two installed dependency
+directories and replaces all other source with the selected commit before
+rebuilding. It refuses changed dependency manifests, locks or the full build
+recipe. Refreshes run offline under the same 2 GiB serial build limit.
+
 ```sh
 export FRESH_STATE=/absolute/private/fresh-state
 export CODOXEAR_V2_IMAGE=codoxear-v2-oar:local

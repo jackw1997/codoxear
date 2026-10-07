@@ -313,6 +313,17 @@
         "Local deterministic model gateway; real LiteLLM and public browser acceptance follow separately.",
         "Observed fixture cgroup samples are not production capacity or P99 estimates."
       ]
+    },
+    {
+      "id": "oar-managed-leaf-acceptance-20261007",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root",
+      "outcome": "Actual OAR-managed Codex and Claude CLIs returned text through controlled local provider APIs, cancelled held inference streams, and reclaimed all owned worker/CLI descendants on close.",
+      "evidence": "artifacts/managed-leaf-results.json",
+      "limitations": [
+        "Local deterministic Responses/Anthropic endpoints, not live provider model quality.",
+        "This slice verifies text and interruption; native tool execution and cold resume for these leaves remain separate."
+      ]
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
@@ -469,13 +480,18 @@
     "staticTypecheck": "passed",
     "componentBoundaries": "passed",
     "authoredBehaviorTests": 36,
-    "behaviorTestsRun": 40,
+    "behaviorTestsRun": 282,
     "commitAttempt": "Reviewed v2 snapshots saved with isolated Git index; unrelated workingtree and regular index preserved",
     "remaining": [
       "Docker native/provider/browser/OOM acceptance",
       "legacy Pi hot-install and Codex/Claude parent tool registration",
       "full managed feature parity and reviewed uncertainty recovery",
       "memory-bounded deployment and public cutover"
-    ]
+    ],
+    "behaviorTestResults": {
+      "passed": 281,
+      "failed": 1,
+      "detail": "Protocol inventory missing delegation endpoints; correction in progress"
+    }
   }
 }

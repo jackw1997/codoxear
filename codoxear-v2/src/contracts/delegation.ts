@@ -1,6 +1,15 @@
 import { z } from "zod";
-import { Id, Name, type Agent } from "./model.js";
+import { Id, Name, Agent } from "./model.js";
 import { Launch, Message } from "./tunnel.js";
+export const DelegationAuthorityRequest = z.object({
+  hubId: Id, identitySessionId: Id, actorId: Id, parentId: Id,
+  targetComputerId: Id, sourceComputerId: Id, sourceBinding: z.number().int().positive(),
+  action: z.enum(["create", "read", "send", "interrupt"]), childId: Id.optional(), launch: Launch.strict().optional(),
+}).strict();
+export const DelegationChildContextRequest = DelegationAuthorityRequest.omit({ action: true, launch: true }).extend({ childId: Id }).strict();
+export const DelegationReserveRequest = DelegationAuthorityRequest.extend({ agentId: Id, name: Name, backend: z.enum(["codex", "pi", "cc"]) }).strict();
+export const DelegationContextResponse = z.object({ actorId: Id, identitySessionId: Id, parent: Agent,
+  target: z.object({ id: Id, hubId: Id, name: Name.optional() }), sourceBinding: z.number().int().positive() });
 
 /** Delegation names an approved Computer in the parent's Hub, never a URL. */
 export const DelegationGrantRequest = z

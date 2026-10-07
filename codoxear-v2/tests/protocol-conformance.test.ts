@@ -39,6 +39,30 @@ test("public specs use exact inner methods even where the outer independent rout
   }finally{await f.close();}
 });
 function RouterError(value:unknown){assert.ok(ErrorResponse.safeParse(value).success);}
+test("delegation authority request schemas reject malformed scope at the actual handlers",async()=>{
+  const f=await protocolFixture();try {
+    const internal=await document("internal");
+    const scope={hubId:f.computer.hubId,identitySessionId:f.session.id,actorId:"owner",parentId:"parent",targetComputerId:f.computer.id,sourceComputerId:f.computer.id,sourceBinding:1};
+    for(const [path,body] of [
+      ["/internal/delegation-authorize",{...scope,action:"create",sourceBinding:0}],
+      ["/internal/delegation-child-context",{...scope,childId:"child",extra:"rejected"}],
+      ["/internal/delegation-reserve",{...scope,action:"create",agentId:"child",name:"Child",backend:"fixture"}],
+    ] as const){
+      const endpoint=internal.paths[path].post;
+      assert.equal(z.fromJSONSchema(endpoint.requestBody.content["application/json"].schema).safeParse(body).success,false);
+      const response=await f.identity.inject({method:"POST",url:path,payload:body});
+      assert.equal(response.statusCode,400);
+      await responseContract(path,"POST",400,response.json(),"internal");
+    }
+    const hub=await document();
+    const delegated=hub.paths["/connect/v1/computers/{computerId}/agents/{parentId}/delegations"].post;
+    assert.deepEqual(delegated.security,[{ComputerCredential:[],DelegationGrant:[]}]);
+    assert.equal(hub.components.securitySchemes.DelegationGrant.name,"X-Codoxear-Delegation-Grant");
+    const grants=await f.hub.inject({method:"POST",url:"/api/agents/parent/delegation-grants",payload:{targetComputerIds:[]},headers:{authorization:"Bearer "+f.bearer}});
+    assert.equal(grants.statusCode,400);
+    await responseContract("/api/agents/:id/delegation-grants","POST",400,grants.json());
+  }finally{await f.close();}
+});
 test("actual anonymous metadata and current account envelopes satisfy generated response schemas",async()=>{
   const f=await protocolFixture();try {
     for(const path of ["/health","/api/v1/meta","/api/auth/options","/.well-known/jwks.json"]){const r=await f.hub.inject({url:path});assert.equal(r.statusCode,200);await responseContract(path,"GET",r.statusCode,r.json());}

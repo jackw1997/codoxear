@@ -37,6 +37,51 @@
       ]
     },
     {
+      "path": "/api/agents/:id/delegation-grants",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations",
+      "methods": [
+        "GET",
+        "POST"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations/targets",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations/:childId",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations/:childId/messages",
+      "methods": [
+        "GET"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations/:childId/send",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/connect/v1/computers/:computerId/agents/:parentId/delegations/:childId/interrupt",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
       "path": "/api/agents/:id/interrupt",
       "methods": [
         "POST"
@@ -795,6 +840,24 @@
     },
     {
       "path": "/internal/device",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/internal/delegation-authorize",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/internal/delegation-child-context",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
+      "path": "/internal/delegation-reserve",
       "methods": [
         "POST"
       ]

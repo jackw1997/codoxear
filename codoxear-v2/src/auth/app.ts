@@ -3,6 +3,7 @@ import { InvitationRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "../presentation/browser-workspace.js";
 import { WorkspaceOptions } from "../contracts/workspaces.js";
 import { Launch } from "../contracts/tunnel.js";
+import { DelegationAuthorityRequest, DelegationChildContextRequest, DelegationReserveRequest } from "../contracts/delegation.js";
 import { registerBrowserGateway } from "./browser-gateway.js";
 import { readFile } from "node:fs/promises";
 import { portal } from "./portal.js";
@@ -741,48 +742,18 @@ export async function createIdentityApp(options: IdentityOptions) {
       b.localId,
     );
   });
-  const DelegationAuthorization = z
-    .object({
-      hubId: Id,
-      identitySessionId: Id,
-      actorId: Id,
-      parentId: Id,
-      targetComputerId: Id,
-      sourceComputerId: Id,
-      sourceBinding: z.number().int().positive(),
-      action: z.enum(["create", "read", "send", "interrupt"]),
-      childId: Id.optional(),
-      launch: Launch.strict().optional(),
-    })
-    .strict();
   app.post("/internal/delegation-authorize", async (r) => {
-    const input = DelegationAuthorization.parse(r.body);
+    const input = DelegationAuthorityRequest.parse(r.body);
     a.hubService(input.hubId, (r.headers["x-hub-credential"] as string) ?? "");
     return a.authorizeDelegation(input);
   });
   app.post("/internal/delegation-child-context", async (r) => {
-    const input = z
-      .object({
-        hubId: Id,
-        identitySessionId: Id,
-        actorId: Id,
-        parentId: Id,
-        sourceComputerId: Id,
-        sourceBinding: z.number().int().positive(),
-        childId: Id,
-        targetComputerId: Id,
-      })
-      .strict()
-      .parse(r.body);
+    const input = DelegationChildContextRequest.parse(r.body);
     a.hubService(input.hubId, (r.headers["x-hub-credential"] as string) ?? "");
     return a.childDelegationContext(input);
   });
   app.post("/internal/delegation-reserve", async (r) => {
-    const input = DelegationAuthorization.extend({
-      agentId: Id,
-      name: Name,
-      backend: z.enum(["codex", "pi", "cc"]),
-    }).parse(r.body);
+    const input = DelegationReserveRequest.parse(r.body);
     a.hubService(input.hubId, (r.headers["x-hub-credential"] as string) ?? "");
     return a.reserveDelegatedAgent(input);
   });

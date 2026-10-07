@@ -3,6 +3,8 @@ import { Agent, Hub, Id, Name, Policy, Role } from "../contracts/model.js";
 import { AuthRequirement } from "../contracts/identity.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { Launch } from "../contracts/tunnel.js";
+import { DelegationAuthorityRequest, DelegationChildContextRequest, DelegationReserveRequest, DelegationContextResponse,
+  DelegationGrantRequest, DelegationSpawn, DelegationSend, DelegationReceipt, DelegationMessages } from "../contracts/delegation.js";
 import { GrantPath } from "../contracts/workspaces.js";
 import { WebPushRegistration } from "../contracts/web-push.js";
 import { PAIRING_LIFETIME_SECONDS } from "../contracts/pairing.js";
@@ -94,9 +96,30 @@ export type Endpoint = {
   conditional?: string;
 };
 type Detail = Partial<Omit<Endpoint, "method" | "path">>;
+const details: Record<string, Detail> = {};
 const ok = z.object({ ok: z.literal(true) }),
   binding = z.number().int().positive(),
   timestamp = z.number().nonnegative();
+const delegationStatus = z.object({ installed: z.boolean(), authorized: z.boolean(),
+  authorizationUnknown: z.boolean().optional(), connectionUnknown: z.boolean().optional(),
+  expiresAt: timestamp.optional(), targetComputerIds: z.array(Id).optional(), parentId: Id.optional(),
+  sourceComputerId: Id.optional(), confirmedAt: timestamp.optional(), revoked: z.boolean().optional() });
+for (const method of ["GET", "POST", "DELETE"]) define(method, "/api/agents/:id/delegation-grants", {
+  auth: "account", ...(method === "POST" ? { body: DelegationGrantRequest } : {}), response: delegationStatus,
+  conditional: "Hub configured with durable delegation store", summary: "Manage same-Hub parent delegation access without exposing grants",
+  statuses: [200, 400, 401, 403, 404, 409, 500, 503] });
+const delegationBase = "/connect/v1/computers/:computerId/agents/:parentId/delegations";
+for (const [method, suffix, body, response] of [
+  ["POST", "", DelegationSpawn, DelegationReceipt],
+  ["GET", "", undefined, z.object({ children: z.array(DelegationReceipt) })],
+  ["GET", "/targets", undefined, z.object({ computers: z.array(z.object({ id: Id, name: Name })) })],
+  ["GET", "/:childId", undefined, DelegationReceipt],
+  ["GET", "/:childId/messages", undefined, DelegationMessages],
+  ["POST", "/:childId/send", DelegationSend, SendAck],
+  ["POST", "/:childId/interrupt", z.object({}).strict(), InterruptAck],
+] as const) define(method, delegationBase + suffix, { auth: "delegated", body, response,
+  conditional: "Hub configured with durable delegation store", summary: "Binding-fenced Computer and parent grant; same-Hub principal permissions rechecked",
+  statuses: [200, 400, 401, 403, 404, 409, 500, 503] });
 const authTokens = z.object({
   access_token: z.string(),
   token_type: z.literal("Bearer"),
@@ -179,7 +202,6 @@ const actorWorkspaceGrant = z.object({
 });
 const queueSnapshot = QueueSnapshot;
 
-const details: Record<string, Detail> = {};
 function define(method: string, path: string, detail: Detail) {
   const key = method + " " + path;
   details[key] = { ...details[key], ...detail };
@@ -868,6 +890,13 @@ define("POST", "/internal/queue-authorize", {
   }),
   statuses: [200, 400, 401, 403, 404, 500],
 });
+for (const [path, body, response] of [
+  ["/internal/delegation-authorize", DelegationAuthorityRequest, DelegationContextResponse],
+  ["/internal/delegation-child-context", DelegationChildContextRequest, DelegationContextResponse],
+  ["/internal/delegation-reserve", DelegationReserveRequest, Agent],
+] as const) define("POST", path, { auth: "hub-service", body, response,
+  summary: "Recheck initiating principal, same-Hub lineage and current Computer binding before delegated actions",
+  statuses: [200, 400, 401, 403, 404, 409, 500] });
 define("POST", "/internal/call", {
   auth: "hub-user",
   summary:

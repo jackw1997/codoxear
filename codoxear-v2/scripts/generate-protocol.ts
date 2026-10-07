@@ -97,11 +97,16 @@ const security = {
     description:
       "Private Hub service credential; X-Codoxear-Hub identifies the exact Hub.",
   },
+  DelegationGrant: {
+    type: "apiKey", in: "header", name: "X-Codoxear-Delegation-Grant",
+    description: "Private parent-scoped same-Hub grant, fenced by current Computer binding and initiating principal permissions.",
+  },
 };
 function auth(endpoint: Endpoint, component: string) {
   if (endpoint.auth === "public" || endpoint.auth === "download-ticket")
     return [];
   if (endpoint.auth === "computer") return [{ ComputerCredential: [] }];
+  if (endpoint.auth === "delegated") return [{ ComputerCredential: [], DelegationGrant: [] }];
   if (endpoint.auth === "hub-service") return [{ HubCredential: [] }];
   if (endpoint.auth === "hub-user") return [{ HubCredential: [], Bearer: [] }];
   return [

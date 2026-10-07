@@ -49,6 +49,87 @@
               "properties": {
                 "op": {
                   "type": "string",
+                  "const": "delegation-install"
+                },
+                "parentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "grant": {
+                  "type": "string",
+                  "minLength": 32,
+                  "maxLength": 200
+                },
+                "expiresAt": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "op",
+                "parentId",
+                "localId",
+                "grant",
+                "expiresAt"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "delegation-status"
+                },
+                "parentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "op",
+                "parentId",
+                "localId"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
+                  "const": "delegation-revoke"
+                },
+                "parentId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "localId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "op",
+                "parentId",
+                "localId"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "op": {
+                  "type": "string",
                   "const": "discover"
                 },
                 "actorId": {

@@ -64073,6 +64073,12 @@
         "in": "header",
         "name": "X-Hub-Credential",
         "description": "Private Hub service credential; X-Codoxear-Hub identifies the exact Hub."
+      },
+      "DelegationGrant": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Codoxear-Delegation-Grant",
+        "description": "Private parent-scoped same-Hub grant, fenced by current Computer binding and initiating principal permissions."
       }
     },
     "schemas": {
@@ -64250,6 +64256,90 @@
       "Operation": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "delegation-install"
+              },
+              "parentId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+              },
+              "localId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "grant": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 200
+              },
+              "expiresAt": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "op",
+              "parentId",
+              "localId",
+              "grant",
+              "expiresAt"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "delegation-status"
+              },
+              "parentId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+              },
+              "localId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "op",
+              "parentId",
+              "localId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "delegation-revoke"
+              },
+              "parentId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+              },
+              "localId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "op",
+              "parentId",
+              "localId"
+            ],
+            "additionalProperties": false
+          },
           {
             "type": "object",
             "properties": {

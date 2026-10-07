@@ -21,13 +21,28 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage();
 page.setDefaultTimeout(45000);
 const checks: string[] = [];
-let pageErrors = 0, passed = false, step = "connect";
+let pageErrors = 0, passed = false, step = "connect", failure = null, failureScreenshot = false;
 page.on("pageerror", () => { pageErrors += 1; });
 const artifacts = process.env.FRESH_ARTIFACTS ?? "artifacts/fresh-managed";
 const client = process.env.FRESH_CLIENT_URL ?? "https://codoxear.gzeek.com:8445";
 const hub = process.env.FRESH_HUB_URL ?? "https://codoxear.gzeek.com:8446";
 const sourceName = process.env.FRESH_SOURCE_COMPUTER ?? "Computer A";
 const targetName = process.env.FRESH_TARGET_COMPUTER ?? "Computer B";
+function sanitize(value: unknown) {
+  let text = String(value ?? "");
+  for (const secret of [owner.password, launch.provider_config?.api_key, launch.provider_config?.base_url]) {
+    if (typeof secret !== "string" || !secret) continue;
+    for (const encoded of [secret, encodeURIComponent(secret), JSON.stringify(secret).slice(1, -1)])
+      text = text.split(encoded).join("[redacted]");
+  }
+  text = text.replace(/https?:\/\/[^\s"'<>]+/g, address => {
+    try { const url = new URL(address); url.username = ""; url.password = ""; url.search = ""; url.hash = ""; return url.href; }
+    catch { return "[redacted URL]"; }
+  });
+  text = text.replace(/([?&][A-Za-z0-9_-]+=)[^&#\s"'<>]+/g, "$1[redacted]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+/gi, "Bearer [redacted]");
+  return text.slice(0, 3000);
+}
 const tag = randomBytes(6).toString("hex");
 const name = `Live fresh acceptance ${tag}`;
 const token = `FRESH_REPLY_${tag}`;
@@ -136,12 +151,18 @@ try {
   }
   assert.equal(pageErrors, 0, "No browser runtime exceptions expected");
   passed = true;
-} catch {
-  // Raw Playwright exceptions can contain fill values or authenticated URLs.
-  console.error(`Fresh managed browser acceptance failed during ${step}; consult the sanitized result artifact.`);
+} catch (error) {
+  failure = { name: sanitize(error instanceof Error ? error.name : "UnknownError"),
+    message: sanitize(error instanceof Error ? error.message : error) };
+  console.error(`Fresh managed browser acceptance failed during ${step}: ${failure.name}: ${failure.message}`);
+  try {
+    await page.screenshot({ path: `${artifacts}/failure-main.png`, fullPage: true,
+      mask: [page.locator('input[type="password"], input[name="apiKey"], input[name="apiUrl"]')] });
+    failureScreenshot = true;
+  } catch { /* Preserve the original sanitized failure if the main page closed. */ }
   process.exitCode = 1;
 } finally {
   await writeFile(`${artifacts}/results.json`, JSON.stringify({ passed, step, checks, pageErrorCount: pageErrors,
-    delegationRequested: process.env.FRESH_VERIFY_DELEGATION === "1", createdAgent: name }, null, 2));
+    delegationRequested: process.env.FRESH_VERIFY_DELEGATION === "1", createdAgent: name, failure, failureScreenshot }, null, 2));
   await browser.close();
 }
