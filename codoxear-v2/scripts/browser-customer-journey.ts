@@ -311,7 +311,7 @@ async function dailyCustomer(workspaceA) {
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).click();
   await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).click();
   await ownerPage.waitForFunction(() => {
-    const link = document.querySelector('link[data-theme-family="slate"]');
+    const link = document.querySelector('link#codoxearThemeLink[href*="themes/slate.css"]');
     const channels = getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).map(Number);
     return Boolean(link?.sheet && channels?.reduce((sum, value) => sum + value, 0) < 200);
   });
@@ -321,7 +321,7 @@ async function dailyCustomer(workspaceA) {
   assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Slate', exact: true }).getAttribute('aria-checked'), 'true');
   assert.equal(await dialog(ownerPage, 'Settings').getByRole('radio', { name: 'Dark', exact: true }).getAttribute('aria-checked'), 'true');
   await ownerPage.waitForFunction(() => {
-    const link = document.querySelector('link[data-theme-family="slate"]');
+    const link = document.querySelector('link#codoxearThemeLink[href*="themes/slate.css"]');
     const channels = getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.slice(0, 3).map(Number);
     return Boolean(link?.sheet && channels?.reduce((sum, value) => sum + value, 0) < 200);
   });
@@ -499,6 +499,7 @@ async function dailyCustomer(workspaceA) {
     await ownerPage.locator('#fileStatus').filter({ hasText: 'journey.txt - diff' }).waitFor();
     await ownerPage.locator('#fileViewer .monaco-diff-editor').waitFor({ state: 'visible' });
     await ownerPage.locator('#fileViewer .view-lines').filter({ hasText: 'Daily customer Git change' }).first().waitFor();
+    await ownerPage.locator('#fileViewer .monaco-diff-editor .line-insert, #fileViewer .monaco-diff-editor .char-insert').first().waitFor({ state: 'visible' });
     await shot(ownerPage, 'daily-git-diff'); await ownerPage.locator('#fileCloseBtn').click();
     pass('Daily customer edits and saves a tracked file through UI and opens the actual Git comparison');
   });
@@ -750,11 +751,10 @@ try {
     await shot(tab, 'failure-page-' + index).catch(() => {});
   process.exitCode = 1;
 } finally {
-  const clientBuild = await ownerPage.evaluate(async () => {
-    const response = await fetch('/client-release.json', { cache: 'no-store' });
-    const release = await response.json();
-    return { origin: location.origin, loadedAssetVersion: window.CODOXEAR_ASSET_VERSION, releaseStatus: response.status(), publicReleaseVersion: release.version };
-  }).catch(() => ({ origin: clientOrigin, unavailable: true }));
+  const clientBuild = await ownerPage.evaluate(() => ({ origin: location.origin, loadedAssetVersion: window.CODOXEAR_ASSET_VERSION })).catch(() => ({ origin: clientOrigin, loadedVersionUnavailable: true }));
+  // Read-only deployment provenance: direct static asset HTTP metadata, never an application mutation.
+  const publicRelease = await ownerContext.request.get(clientOrigin + '/client-release.json').then(async response => ({ releaseStatus: response.status(), publicReleaseVersion: (await response.json()).version })).catch(() => ({ releaseUnavailable: true }));
+  Object.assign(clientBuild, publicRelease);
   await writeFile(join(artifacts, 'results.json'), JSON.stringify({ passed, stage, checks, failures, screenshots, unavailable, browserDiagnostics, clientSurface: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public deployed frontend' : 'Separate local static frontend',
     clientBuild,
     applicationActions: 'Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding',

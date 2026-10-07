@@ -1,0 +1,3 @@
+{"role":"computer","passed":true,"checks":["pruned runtime artifacts","UID 1000","compiled Computer status/doctor","pinned OAR loads without sessions"]}
+{"role":"hub","passed":true,"checks":["pruned runtime artifacts","UID 1000","compiled API health","account authentication","unattached UI 404"]}
+{"role":"frontend","passed":true,"checks":["pruned runtime artifacts","UID 1000","frontend health/page without backend"]}

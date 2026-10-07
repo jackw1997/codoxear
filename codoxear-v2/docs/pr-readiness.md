@@ -6,6 +6,14 @@ Current authentication follows R54: the client starts with an Add Hub URL field,
 
 The implementation and validation paragraphs below record earlier named snapshots. Their counts and old login mechanisms are historical evidence, not acceptance of the latest tree. The current customer run and deployment are recorded separately in the daily browser evidence.
 
+## Current daily-use acceptance
+
+Product snapshot `9740d7ef` is deployed at the [auth demo](https://codoxear.gzeek.com:8444/?release=8cb9a63a0b4e7090) and Work Hub. The full final backend run passed **361/361**, the real-public-client customer journey passed **24/24** with **59 screenshots**, the update-notice browser run passed **2/2**, and all **three** pruned role images passed startup checks as UID 1000. TypeScript and component-boundary checks passed. These are distinct runs, not summed historical totals.
+
+[Browser-readable screenshots](evidence/customer-daily/) start with both reported phone layouts and document the Owner/Member two-Computer flow and daily agent/file actions. [Exact records and boundaries](evidence/customer-daily/verification.json) disclose controlled OAuth/model transports, external Computer enrollment/start and the assertion-only harness overlay. The Work Computer remains online with its archived session, private provider configuration and explicit access grant preserved; all three updated services report no OOM kill or restart. Home services remain untouched.
+
+Current cleanup removes the unused password/email/SMS client, old demo verification entrypoints and the separate Vite management page/routes. Duplicate uses the reviewed New agent form; actor-specific staging, file downloads/editor/PDF and Git comparison now work through the current UI. Raw browser diagnostics and unexercised features remain in the evidence; this is scoped daily-use acceptance, not every roadmap/device/runtime combination.
+
 ## Reviewable PR description
 
 Each Computer, Hub, optional Identity and retained Server now has its own release manifest, pinned dependency lock, build script and Dockerfile. The reviewed-tree exporter includes exactly that component's source dependency closure and declared libraries. Computer downloads use the same exporter and no longer include the complete v2 repository. The build guard checks the whole closure, including indirect imports through shared libraries. The frontend owns its web/HarmonyOS/shared sources, dependency lock, independent build and static server.
