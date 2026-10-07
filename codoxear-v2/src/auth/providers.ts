@@ -57,13 +57,41 @@ const denied = () =>
     "provider_rejected",
     "Provider authorization was rejected",
   );
-async function guarded<T>(operation: () => Promise<T>): Promise<T> {
+class ProviderResponseError extends Error {
+  constructor(readonly status: number, readonly providerCode?: number) {
+    super("Provider response rejected");
+  }
+}
+async function guarded<T>(
+  operation: () => Promise<T>,
+  diagnostic?: () => { provider: string; connection: string; stage: string },
+): Promise<T> {
   try {
     return await operation();
-  } catch {
+  } catch (error) {
     // Provider payloads and transport errors can contain codes, tokens, or secrets.
+    // Log only fields constructed here, never provider text, URLs or exception objects.
+    if (diagnostic) console.warn(JSON.stringify({
+      event: "provider_exchange_failed", ...diagnostic(),
+      reason: error instanceof ProviderResponseError ? "provider_response"
+        : error instanceof z.ZodError || error instanceof SyntaxError ? "invalid_response"
+        : error instanceof DomainError ? "identity_rejected" : "transport_error",
+      ...(error instanceof ProviderResponseError
+        ? { httpStatus: error.status, providerCode: error.providerCode } : {}),
+    }));
     throw denied();
   }
+}
+async function feishuJson(url: string, options: RequestInit, transport: typeof fetch) {
+  const response = await transport(url, {
+    ...options, redirect: "error", signal: AbortSignal.timeout(15000),
+  });
+  const value: unknown = await response.json();
+  const code = value && typeof value === "object" && "code" in value
+    && typeof value.code === "number" && Number.isSafeInteger(value.code) ? value.code : undefined;
+  if (!response.ok || (code !== undefined && code !== 0))
+    throw new ProviderResponseError(response.status, code);
+  return value;
 }
 async function json(
   url: string,
@@ -223,21 +251,24 @@ export function provider(
       });
     },
     exchange(code, verifier, redirectUri) {
+      let stage = "token";
       return guarded(async () => {
         const token = z
           .object({
-            code: z.literal(0),
+            // OAuth v3 success may omit the legacy code envelope.
+            code: z.literal(0).optional(),
+            error: z.never().optional(),
             access_token: z.string().min(1),
           })
           .parse(
-            await json(
+            await feishuJson(
               "https://accounts.feishu.cn/oauth/v3/token",
               {
                 method: "POST",
                 headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
+                  "Content-Type": "application/json; charset=utf-8",
                 },
-                body: new URLSearchParams({
+                body: JSON.stringify({
                   grant_type: "authorization_code",
                   client_id: config.clientId,
                   client_secret: config.clientSecret,
@@ -249,6 +280,7 @@ export function provider(
               transport,
             ),
           );
+        stage = "user_info";
         const info = z
           .object({
             code: z.literal(0),
@@ -259,7 +291,7 @@ export function provider(
             }),
           })
           .parse(
-            await json(
+            await feishuJson(
               "https://open.feishu.cn/open-apis/authen/v1/user_info",
               {
                 headers: { Authorization: "Bearer " + token.access_token },
@@ -277,7 +309,7 @@ export function provider(
           email: null,
           name: info.data.name?.trim() ? info.data.name : "Feishu member",
         };
-      });
+      }, () => ({ provider: config.kind, connection: config.id, stage }));
     },
   };
 }

@@ -316,15 +316,13 @@ test("Feishu v3 exchanges PKCE and binds app connection, tenant and open_id with
       name: "Feishu Person",
     },
   );
-  const body = new URLSearchParams(String(f.calls[0]!.init.body));
-  assert.equal(body.get("client_id"), "feishu-client");
-  assert.equal(body.get("client_secret"), "server-feishu-secret");
-  assert.equal(body.get("code_verifier"), verifier);
-  assert.equal(body.get("redirect_uri"), redirect);
-  assert.equal(body.get("code"), "feishu-code");
+  assert.deepEqual(JSON.parse(String(f.calls[0]!.init.body)), {
+    grant_type: "authorization_code", client_id: "feishu-client", client_secret: "server-feishu-secret",
+    code_verifier: verifier, redirect_uri: redirect, code: "feishu-code",
+  });
   assert.equal(
     new Headers(f.calls[0]!.init.headers).get("content-type"),
-    "application/x-www-form-urlencoded",
+    "application/json; charset=utf-8",
   );
   assert.equal(
     new Headers(f.calls[1]!.init.headers).get("authorization"),
@@ -332,10 +330,23 @@ test("Feishu v3 exchanges PKCE and binds app connection, tenant and open_id with
   );
 });
 
+test("Feishu v3 accepts a successful OAuth token response without an API code", async () => {
+  const f = feishuFixture({ access_token: "feishu-access", token_type: "Bearer", expires_in: 7200 });
+  const identity = await f.adapter.exchange("feishu-code", verifier, callback);
+  assert.equal(identity.subject, "app-open-id");
+  assert.equal(identity.tenant, "tenant-key");
+  assert.equal(identity.email, null);
+  assert.equal(f.calls.length, 2);
+  assert.equal(new Headers(f.calls[1]!.init.headers).get("authorization"), "Bearer feishu-access");
+});
+
 test("Feishu rejects provider errors, absent token, missing tenant and invalid identities", async () => {
   for (const token of [
     { code: 20002, error_description: "private secret" },
-    { access_token: "token" },
+    { code: 20002, access_token: "token", error_description: "private secret" },
+    { code: 0, access_token: "token", error: "invalid_grant" },
+    { access_token: "token", error: "invalid_grant" },
+    { code: 0 },
     { code: 0, access_token: "" },
   ]) {
     const f = feishuFixture(token);
@@ -382,4 +393,30 @@ test("Feishu rejects provider errors, absent token, missing tenant and invalid i
       rejected,
     );
   }
+});
+
+test("Feishu failure diagnostics expose only static stage, HTTP status and numeric provider code", async (t) => {
+  const logged: string[] = [];
+  t.mock.method(console, "warn", (message: unknown) => logged.push(String(message)));
+  for (const failureStage of ["token", "user_info"] as const) {
+    const status = failureStage === "token" ? 400 : 403, providerCode = failureStage === "token" ? 20003 : 20021;
+    const adapter = provider({ kind: "feishu", id: "diagnostic-fixture", clientId: "private-client-marker", clientSecret: "private-secret-marker" }, {
+      fetch: async (input) => {
+        if (failureStage === "user_info" && String(input) === "https://accounts.feishu.cn/oauth/v3/token")
+          return Response.json({ access_token: "private-token-marker" });
+        return Response.json({ code: providerCode, error: "private-error-marker", error_description: "private-description-marker",
+          access_token: "private-token-marker" }, { status });
+      },
+    });
+    await assert.rejects(adapter.exchange("private-authorization-code-marker", "private-verifier-marker", "https://private-callback.test/auth/callback"), rejected);
+    assert.deepEqual(JSON.parse(logged.at(-1)!), {
+      event: "provider_exchange_failed", provider: "feishu", connection: "diagnostic-fixture", stage: failureStage,
+      reason: "provider_response", httpStatus: status, providerCode,
+    });
+  }
+  const text = logged.join("\n");
+  for (const sensitive of ["private-client-marker", "private-secret-marker", "private-token-marker", "private-error-marker", "private-description-marker",
+    "private-authorization-code-marker", "private-verifier-marker", "https://", "error_description", "access_token", "client_secret"])
+    assert.equal(text.includes(sensitive), false, "Diagnostic output must not contain " + sensitive);
+  assert.equal(logged.length, 2);
 });
