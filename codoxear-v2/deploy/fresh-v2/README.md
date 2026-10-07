@@ -28,6 +28,25 @@ export CODOXEAR_V2_IMAGE=codoxear-v2-oar:local
 docker compose -f deploy/fresh-v2/compose.yml --profile computer up -d
 ```
 
+If the earlier host gateway is inactive, use the optional independent Docker
+gateway. Prepare only its missing files in the existing private fresh state:
+
+```sh
+node --experimental-strip-types deploy/fresh-v2/gateway.ts "$FRESH_STATE"
+docker compose -f deploy/fresh-v2/compose.yml --profile computer --profile gateway up -d
+```
+
+This gateway uses the host's Cloudflare-enabled `/usr/local/bin/caddy` binary
+read-only and reads only the root-owned `/etc/codoxear-https/cloudflare.env` secret
+file. UID 0 is confined to this gateway container so it can read that file. TLS
+state lives in new private `gateway/data` and `gateway/config` directories; no
+old container or certificate cache is required. ACME DNS validation needs DNS
+and external network access. Ports 8444–8447 must be available. The gateway
+routes directly through Compose DNS and retains the saved public origins and
+guide path. It has a 192 MiB ceiling and bounded restart attempts, bringing the
+whole resident stack ceiling to 2880 MiB. The gateway profile stays disabled in
+fixtures. Existing host/global/v1 TLS services are not changed.
+
 The image runs as UID 1000. Private directories must be owned by that deployment
 user; do not make private files publicly readable. The loopback ports match the
 existing TLS gateway: 19520 client, 19530/19531 Hubs, and 19500 guide (served by the

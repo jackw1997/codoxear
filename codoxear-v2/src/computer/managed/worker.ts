@@ -2,6 +2,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
 import type { ManagedSession } from "./driver.js";
+import { oarInputId } from "./input-id.js";
 
 let session: ManagedSession | undefined;
 let input = "",
@@ -81,7 +82,7 @@ async function receive(message: any) {
       const result =
         message.op === "prompt"
           ? await session.prompt(message.args.text, {
-              inputId: message.args.inputId,
+              inputId: oarInputId(message.args.inputId),
             })
           : message.op === "abort"
             ? await session.abort()

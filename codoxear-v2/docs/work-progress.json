@@ -302,6 +302,17 @@
         "Fresh image build, runtime tests and deployment have not run",
         "Tool environment still refuses systemd bus access; no permission policy has been changed"
       ]
+    },
+    {
+      "id": "oar-native-acceptance-20261007",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root",
+      "outcome": "Docker access restored; genuine OAR lock installed and full Node24 image built. Focused suite passed40 tests. Actual OAR Pi SDK completed HTTP inference, native write tool, idle worker disposal, controller restart/native history resume and stream cancellation. Fixed opaque receipt UUID conversion and Pi private API-key environment reference.",
+      "evidence": "artifacts/managed-native-results.json",
+      "limitations": [
+        "Local deterministic model gateway; real LiteLLM and public browser acceptance follow separately.",
+        "Observed fixture cgroup samples are not production capacity or P99 estimates."
+      ]
     }
   ],
   "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
@@ -402,7 +413,7 @@
   },
   "memoryControl": {
     "targetGiB": 8,
-    "status": "Continue after user RAM cleanup; runtime verification still blocked by Docker socket permission denial and npm DNS failure",
+    "status": "Docker access restored; serial builds and verification enforce2GiB memory with zero swap",
     "knownOwnedContainers": [
       "codoxear-v2-cache-demo",
       "codoxear-v2-auth-runtime",
@@ -413,15 +424,15 @@
       "codoxear-v2-trusted-preview"
     ],
     "cleanupExecuted": false,
-    "activeCollaborators": 0,
+    "activeCollaborators": 2,
     "testConcurrency": 1,
     "verificationMemoryGiB": 2,
     "verificationCpuLimit": 2,
     "verificationPidLimit": 512,
     "staticTypecheck": "passed",
     "shellSyntax": "passed for all 21 verification wrappers",
-    "behavioralVerification": "not run; Docker unavailable",
-    "buildMemoryCapped": false,
+    "behavioralVerification": "40 focused tests and native OAR Pi lifecycle acceptance passed; current release verification ongoing",
+    "buildMemoryCapped": true,
     "collaboratorNote": "Continuation completed with two GPT-6.1-Sol agents; no additional runtime stack started.",
     "managedDefaults": {
       "residentWorkers": 2,
@@ -445,17 +456,22 @@
       "stagedForNextDeployment": true,
       "liveProviderReverified": false
     },
-    "cleanupStatus": "User reports RAM cleanup completed on 6 October; this session cannot inspect Docker status because socket access remains denied."
+    "cleanupStatus": "No running Docker containers at start of7October continuation; temporary verification containers cleaned after execution",
+    "nativeFixture": {
+      "maximumObservedCgroupMiB": 352.38671875,
+      "quiescedCgroupMiB": 168.0859375,
+      "ownedDescendantsAfterQuiescence": 0,
+      "scope": "Actual Pi SDK with local deterministic HTTP provider; sampled cgroup memory, not measured peak"
+    }
   },
   "oarImplementation": {
-    "status": "workspace implementation; not deployed",
+    "status": "Native Pi lifecycle verified locally; public deployment in progress",
     "staticTypecheck": "passed",
     "componentBoundaries": "passed",
     "authoredBehaviorTests": 36,
-    "behaviorTestsRun": 0,
-    "commitAttempt": "Previous Node helper failed with spawnSync git EPERM; this continuation prepares a snapshot using direct Git commands and an isolated index.",
+    "behaviorTestsRun": 40,
+    "commitAttempt": "Reviewed v2 snapshots saved with isolated Git index; unrelated workingtree and regular index preserved",
     "remaining": [
-      "pinned dependency lockfile and Node24/OAR install",
       "Docker native/provider/browser/OOM acceptance",
       "legacy Pi hot-install and Codex/Claude parent tool registration",
       "full managed feature parity and reviewed uncertainty recovery",

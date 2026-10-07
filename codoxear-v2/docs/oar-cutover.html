@@ -3,7 +3,7 @@
 <title>Codoxear fresh OAR deployment</title>
 <style>body{font:16px/1.55 system-ui;margin:24px auto;padding:0 18px;max-width:850px;color:#212121;background:#fafafa}h1{font-size:1.7rem}h2{font-size:1.25rem}code{overflow-wrap:anywhere}a{color:#0645ad}li{margin-bottom:9px}</style>
 <h1>Fresh v2 deployment</h1>
-<p><strong>7 October 2026 — source prepared; new deployment not running.</strong></p>
+<p><strong>7 October 2026 — image built and native Pi lifecycle verified; public deployment in progress.</strong></p>
 <p>The user requested a fresh deployment from the beginning. The restoration approach was a mistake. The new plan carries forward the public addresses and LiteLLM endpoint, key, Kimi model and effort. Old catalogs, accounts and histories stay in the private archive and are not prerequisites for starting the new system.</p>
 <h2>Addresses retained</h2>
 <ul><li><a href="https://codoxear.gzeek.com:8445/">Client: codoxear.gzeek.com:8445</a></li>
@@ -13,15 +13,15 @@
 <h2>Prepared implementation</h2>
 <ul><li>Independent Hub, static Client and Computer roles; new Hub databases and identities.</li>
 <li>Private Computer-local Pi configuration retains the user's LiteLLM defaults. Provider keys are excluded from Hub configuration and source control.</li>
-<li>Node 24 image with OAR 0.13.3 and pinned top-level Pi, Codex and Claude CLI versions. A real dependency lock must be resolved before building.</li>
+<li>Node 24 image with OAR 0.13.3, genuine resolved dependency lock and pinned top-level Pi, Codex and Claude CLI versions. The first full build succeeded under the 2 GiB cap.</li>
 <li>The image builder exports a committed snapshot and runs the full build in one owned container capped at 2 GiB, with no swap. It records the source commit, base image and lock hashes.</li>
 <li>Builds, dependency installation and verification share a serial lock. Focused managed-runtime verification uses the built image, including the delegation browser check, without another image build.</li>
 <li>Managed Pi has the implemented same-Hub delegation tool. Parent agents can select authorized Computers, create children, send work and read bounded answers. These paths still require native acceptance.</li></ul>
 <h2>Required before calling it finished</h2>
-<ol><li>Resolve the genuine OAR lock, build the fresh image and run Docker verification.</li>
+<ol><li>Verify the final release snapshot. The first focused Docker suite passed 40 tests; actual OAR Pi SDK inference, file-writing tool, idle disposal, cold conversation resume and interruption also passed against a local deterministic HTTP provider.</li>
 <li>Start fresh Hubs and Computers; verify sign-in and actual Kimi/LiteLLM inference.</li>
 <li>Verify same-Hub cross-computer delegation, revocation, restart, cold resume and full process-tree memory cleanup.</li>
 <li>Finish and verify remaining runtime/UI parity, including Codex/Claude parent-tool registration and attachments/tool/reasoning presentation.</li></ol>
-<p>The current execution environment rejects access to the systemd user bus, and npm registry lookup has failed. No service, container or permission policy was changed as a workaround. The private migration archive remains intact.</p>
-<p>Source checks are separate from behavioral acceptance. No new runtime test, image build or deployment is claimed here.</p>
+<p>Docker access and registry downloads now work through the codoxear user. Limits were checked inside a container: 2 GiB memory, zero swap, two CPUs and 512 processes. Native fixture memory samples reached 352.4 MiB and fell to 168.1 MiB after idle disposal; no owned worker descendants remained. These are fixture samples, not a production capacity estimate.</p>
+<p>Native acceptance exposed two integration errors now fixed: OAR requires UUID input IDs, and Pi environment-key references require a dollar prefix. Original durable receipt IDs remain unchanged. The private migration archive remains intact.</p>
 </html>

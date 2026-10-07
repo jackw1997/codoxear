@@ -9,6 +9,7 @@ import { provisionFreshState } from "../deploy/fresh-v2/provision.js";
 import { Store } from "../src/persistence/store.js";
 import { passwordMatches, digest } from "../src/domain/commands.js";
 import { canCreate } from "../src/domain/policy.js";
+import { prepareFreshGateway } from "../deploy/fresh-v2/gateway.js";
 assert.ok(existsSync("/.dockerenv"), "Fresh deployment tests run only in Docker");
 test("fresh generation preserves origins and provider defaults without importing state", async () => {
   const source = await mkdtemp(join(tmpdir(), "fresh-input-"));
@@ -40,6 +41,20 @@ test("fresh generation preserves origins and provider defaults without importing
     }
     assert.equal((await stat(join(target, "private/owner.json"))).mode & 0o777, 0o600);
     assert.equal(existsSync(join(target, "old-catalog.sqlite")), false);
+    await prepareFreshGateway(target);
+    const gatewayFile = join(target, "gateway/Caddyfile");
+    const gatewayBytes = await readFile(gatewayFile, "utf8");
+    assert.equal(gatewayBytes.includes("private-key-sentinel"), false);
+    assert.equal(gatewayBytes.includes("reverse_proxy hub-0:17430"), true);
+    assert.equal(gatewayBytes.includes("reverse_proxy hub-1:17430"), true);
+    assert.equal(gatewayBytes.includes("reverse_proxy client:19520"), true);
+    assert.equal(gatewayBytes.includes("handle /guide"), true);
+    assert.equal((await stat(gatewayFile)).mode & 0o777, 0o600);
+    await prepareFreshGateway(target);
+    assert.equal(await readFile(gatewayFile, "utf8"), gatewayBytes);
+    await writeFile(gatewayFile, "operator-edited configuration");
+    await assert.rejects(prepareFreshGateway(target), /refusing to overwrite/);
+    assert.equal(await readFile(gatewayFile, "utf8"), "operator-edited configuration");
     await assert.rejects(generateFreshState(target, undefined, source), /already exists/);
     assert.equal(await readFile(join(source, "pi-litellm-launch.json"), "utf8"), bytes);
     assert.deepEqual(await provisionFreshState(target), { alreadyProvisioned: false });

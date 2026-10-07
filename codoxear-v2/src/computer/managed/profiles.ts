@@ -181,7 +181,7 @@ export async function prepareProfile(input: ManagedOpen) {
         providers: {
           codoxear_private: {
             baseUrl: provider.base_url,
-            apiKey: "CODOXEAR_PROVIDER_API_KEY",
+            apiKey: "$CODOXEAR_PROVIDER_API_KEY",
             api: provider.api ?? "openai-completions",
             models: [
               {

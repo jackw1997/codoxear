@@ -92,6 +92,7 @@ test("Pi private providers have separate homes and survive cold reopen without d
       JSON.parse(modelsText).providers.codoxear_private.models[0].id,
       "private-model",
     );
+    assert.equal(JSON.parse(modelsText).providers.codoxear_private.apiKey, "$CODOXEAR_PROVIDER_API_KEY");
     assert.equal(
       (await stat(join(home, "managed-profiles", first.profile, "launch.json")))
         .mode & 0o777,

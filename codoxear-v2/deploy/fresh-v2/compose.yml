@@ -9,6 +9,30 @@ x-role: &role
   environment:
     NODE_OPTIONS: --max-old-space-size=128
 services:
+  gateway:
+    <<: *role
+    profiles: [gateway]
+    user: "0:0"
+    command:
+      - /bin/sh
+      - -ec
+      - 'set -a; . /run/secrets/cloudflare.env; set +a; exec /usr/local/bin/caddy run --config /gateway/Caddyfile --adapter caddyfile'
+    mem_limit: 192m
+    memswap_limit: 192m
+    environment:
+      XDG_DATA_HOME: /gateway-data
+      XDG_CONFIG_HOME: /gateway-config
+    depends_on:
+      client: { condition: service_started }
+      hub-0: { condition: service_started }
+      hub-1: { condition: service_started }
+    volumes:
+      - /usr/local/bin/caddy:/usr/local/bin/caddy:ro
+      - /etc/codoxear-https/cloudflare.env:/run/secrets/cloudflare.env:ro
+      - ${FRESH_STATE:?Set FRESH_STATE}/gateway/Caddyfile:/gateway/Caddyfile:ro
+      - ${FRESH_STATE}/gateway/data:/gateway-data
+      - ${FRESH_STATE}/gateway/config:/gateway-config
+    ports: ["8444:8444", "8445:8445", "8446:8446", "8447:8447"]
   provision:
     <<: *role
     command: [node, --import, tsx, deploy/fresh-v2/provision.ts, /fresh]
