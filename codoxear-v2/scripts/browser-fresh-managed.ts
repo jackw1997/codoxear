@@ -115,7 +115,7 @@ try {
   await card(name).click();
   await send(`Reply with exactly ${token} and no other text. Do not use tools.`);
   await assistant(token).first().waitFor({ timeout: 180000 });
-  assert.equal((await assistant(token).first().innerText()).trim(), token);
+  assert.equal((await assistant(token).first().locator(".md").innerText()).trim(), token);
   pass("A newly created managed Pi returns the requested real LiteLLM response");
   step = "reload history";
   await page.reload();
@@ -146,7 +146,7 @@ try {
     await card(childName).waitFor({ timeout: 240000 });
     await card(childName).click();
     await assistant(childToken).first().waitFor({ timeout: 240000 });
-    assert.equal((await assistant(childToken).first().innerText()).trim(), childToken);
+    assert.equal((await assistant(childToken).first().locator(".md").innerText()).trim(), childToken);
     pass("Parent Pi uses delegated tools to create and message a real child on Computer B");
   }
   assert.equal(pageErrors, 0, "No browser runtime exceptions expected");

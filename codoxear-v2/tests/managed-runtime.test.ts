@@ -106,6 +106,42 @@ async function tick() {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+test("archived saved transcripts retain one binding across catalogue, state and tail after restart", async () => {
+  let clock = 1000;
+  const f = fixture({ now: () => clock, idleMs: 10 });
+  let reopened: ManagedRuntime | undefined;
+  try {
+    const { localId } = await f.runtime.execute(create()) as { localId: string };
+    await f.runtime.sendQueued(localId, "saved user");
+    f.factory.sessions[0]!.emit([
+      { kind: "text_delta", text: "saved assistant" },
+      { kind: "turn_ended", outcome: { kind: "completed" } },
+    ]);
+    const original = await f.runtime.request(`/api/sessions/${localId}/messages/tail`);
+    clock += 20;
+    await f.runtime.quiesceIdle();
+    await f.runtime.close();
+    reopened = new ManagedRuntime(f.config);
+    const tail = await reopened.request(`/api/sessions/${localId}/messages/tail`);
+    const state = await reopened.request(`/api/sessions/${localId}/state`);
+    const catalogue = await reopened.request("/api/sessions");
+    const listed = catalogue.sessions.find((item: { session_id: string }) => item.session_id === localId);
+    assert.deepEqual(tail.events.map((event: { text: string }) => event.text), ["saved user", "saved assistant"]);
+    for (const snapshot of [original, tail, state, listed]) {
+      assert.equal(snapshot.transcript_state, "bound");
+      assert.equal(snapshot.thread_id, "native-1");
+      assert.equal(snapshot.log_path, `managed:${localId}`);
+    }
+    assert.equal(state.resident, false);
+    assert.equal(state.runtime_state, "archived");
+    assert.equal(f.factory.opens.length, 1, "Transcript reads never reactivate native execution");
+  } finally {
+    await reopened?.close();
+    await f.runtime.close();
+    rmSync(f.path, { recursive: true, force: true });
+  }
+});
+
 test("managed conversation survives quiescence/restart with native identity and a fresh stream", async () => {
   let clock = 1000;
   const f = fixture({ now: () => clock, idleMs: 10 });

@@ -1,27 +1,22 @@
 <!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Codoxear fresh OAR deployment</title>
-<style>body{font:16px/1.55 system-ui;margin:24px auto;padding:0 18px;max-width:850px;color:#212121;background:#fafafa}h1{font-size:1.7rem}h2{font-size:1.25rem}code{overflow-wrap:anywhere}a{color:#0645ad}li{margin-bottom:9px}</style>
-<h1>Fresh v2 deployment</h1>
-<p><strong>7 October 2026 — image built and native Pi lifecycle verified; public deployment in progress.</strong></p>
-<p>The user requested a fresh deployment from the beginning. The restoration approach was a mistake. The new plan carries forward the public addresses and LiteLLM endpoint, key, Kimi model and effort. Old catalogs, accounts and histories stay in the private archive and are not prerequisites for starting the new system.</p>
-<h2>Addresses retained</h2>
-<ul><li><a href="https://codoxear.gzeek.com:8445/">Client: codoxear.gzeek.com:8445</a></li>
-<li><a href="https://codoxear.gzeek.com:8444/guide">Guide: codoxear.gzeek.com:8444/guide</a></li>
-<li>Hubs: <code>https://codoxear.gzeek.com:8446</code> and <code>https://codoxear.gzeek.com:8447</code></li></ul>
-<p>These are retained entry points, not evidence that the new deployment is live.</p>
-<h2>Prepared implementation</h2>
-<ul><li>Independent Hub, static Client and Computer roles; new Hub databases and identities.</li>
-<li>Private Computer-local Pi configuration retains the user's LiteLLM defaults. Provider keys are excluded from Hub configuration and source control.</li>
-<li>Node 24 image with OAR 0.13.3, genuine resolved dependency lock and pinned top-level Pi, Codex and Claude CLI versions. The first full build succeeded under the 2 GiB cap.</li>
-<li>The image builder exports a committed snapshot and runs the full build in one owned container capped at 2 GiB, with no swap. It records the source commit, base image and lock hashes.</li>
-<li>Builds, dependency installation and verification share a serial lock. Focused managed-runtime verification uses the built image, including the delegation browser check, without another image build.</li>
-<li>Managed Pi has the implemented same-Hub delegation tool. Parent agents can select authorized Computers, create children, send work and read bounded answers. These paths still require native acceptance.</li></ul>
-<h2>Required before calling it finished</h2>
-<ol><li>Verify the final release snapshot. The first focused Docker suite passed 40 tests; actual OAR Pi SDK inference, file-writing tool, idle disposal, cold conversation resume and interruption also passed against a local deterministic HTTP provider.</li>
-<li>Start fresh Hubs and Computers; verify sign-in and actual Kimi/LiteLLM inference.</li>
-<li>Verify same-Hub cross-computer delegation, revocation, restart, cold resume and full process-tree memory cleanup.</li>
-<li>Finish and verify remaining runtime/UI parity, including Codex/Claude parent-tool registration and attachments/tool/reasoning presentation.</li></ol>
-<p>Docker access and registry downloads now work through the codoxear user. Limits were checked inside a container: 2 GiB memory, zero swap, two CPUs and 512 processes. Native fixture memory samples reached 352.4 MiB and fell to 168.1 MiB after idle disposal; no owned worker descendants remained. These are fixture samples, not a production capacity estimate.</p>
-<p>Native acceptance exposed two integration errors now fixed: OAR requires UUID input IDs, and Pi environment-key references require a dollar prefix. Original durable receipt IDs remain unchanged. The private migration archive remains intact.</p>
+<title>Codoxear OAR release status</title>
+<style>body{font:16px/1.6 system-ui;margin:24px auto;padding:0 18px;max-width:850px;color:#212121;background:#fafafa}h1{font-size:1.7rem}h2{font-size:1.2rem}code{overflow-wrap:anywhere}a{color:#0645ad}li{margin-bottom:9px}td,th{text-align:left;padding:8px;border-bottom:1px solid #ddd}table{border-collapse:collapse;width:100%}</style>
+<h1>The fresh OAR deployment is live</h1>
+<p><strong>7 October 2026.</strong> <a href="https://codoxear.gzeek.com:8445/">Open Codoxear</a>. Connect <code>https://codoxear.gzeek.com:8446</code> in Hubs &amp; computers. Computer A and Computer B belong to this same Hub. The second independent Hub remains at <code>https://codoxear.gzeek.com:8447</code>.</p>
+<h2>Verified through the actual interface</h2>
+<ul><li>Public HTTPS login and both Computer connections.</li>
+<li>Pi, Codex and Claude creation forms expose provider URL, API key and model controls, including at phone width.</li>
+<li>A new managed Pi uses the preserved LiteLLM/Kimi configuration and returns a real model reply. Its transcript survives browser reload.</li>
+<li>A Pi/Kimi parent on Computer A uses the delegation tool to create and message a Pi/Kimi child on Computer B. The child's actual reply appears in the browser.</li>
+<li>All 283 Docker tests and the complete browser verification runner pass. Component import checks keep the TypeScript backend inside v2.</li>
+<li>Separate real OAR/runtime checks cover Pi tool execution, idle unloading, cold history resume and interruption; actual Codex and Claude CLIs cover provider routing, text, interruption and process cleanup against controlled local APIs.</li></ul>
+<h2>Memory observations</h2>
+<table><tr><th>Public stack sample</th><th>Docker-reported memory</th></tr><tr><td>Idle services before model workers</td><td>About 188 MiB</td></tr><tr><td>Parent and child after real delegation</td><td>About 488 MiB</td></tr><tr><td>Idle after service restart</td><td>About 186 MiB</td></tr></table>
+<p>These are observations, not peak/P99 measurements or session-capacity guarantees. Each Computer has a 1 GiB ceiling and one resident managed worker; idle workers unload after 60 seconds while their histories remain saved. Both Hubs, client and gateway have separate limits. The combined resident service ceiling is 2880 MiB, with swap disabled. Builds and verification run serially under a separate 2 GiB cap.</p>
+<h2>What changed from older documents</h2>
+<p>Your latest instructions supersede restoring the earlier preview architecture: this is a fresh deployment with new accounts and catalogs. Your public addresses and private LiteLLM endpoint/key/model are retained. Old histories and databases remain in a separate private archive. v1 and unrelated host sessions are unchanged. Managed sessions use Computer-local OAR; the Hub supplies routing and authorization. Same-Hub cross-Computer delegation is implemented. Cross-Hub delegation remains explicitly deferred.</p>
+<h2>Scope still outside this verified release</h2>
+<p>This deployment does not establish complete managed-runtime parity. Codex/Claude parent delegation-tool registration, hot-installing tools into existing terminal Pi sessions, all managed attachments/tool/reasoning controls, and explicit recovery of uncertain submissions still need their own implementation and acceptance. The native terminal adapter remains available. Physical mobile devices, Safari and macOS have not been certified by the Chromium phone-viewport checks. Live Codex/Claude providers were not tested with your credentials; their controlled native API checks are separate from the real Kimi result.</p>
+<p>No API keys or login passwords are included in this public report.</p>
 </html>

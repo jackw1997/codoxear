@@ -915,7 +915,11 @@ export class ManagedRuntime implements Runtime {
   private metadata(row: Row) {
     return {
       session_id: row.id,
-      thread_id: row.native_id,
+      thread_id: row.native_id ?? row.id,
+      // A saved managed transcript lives in SQLite, independently of a worker.
+      // Catalogue/state snapshots must retain the same binding as tail/live.
+      transcript_state: "bound",
+      log_path: `managed:${row.id}`,
       agent_backend: row.backend,
       alias: row.name,
       cwd: row.cwd,
@@ -1234,6 +1238,7 @@ export class ManagedRuntime implements Runtime {
       events,
       event_count: events.length,
       transcript_state: "bound",
+      thread_id: row.native_id ?? row.id,
       log_path: `managed:${id}`,
       meta_delta: { thinking: 0, thinking_tokens: 0, tool: 0, system: 0 },
       turn_start: row.state === "running",

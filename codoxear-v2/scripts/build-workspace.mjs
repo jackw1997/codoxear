@@ -77,6 +77,7 @@ for (const root of ["dist/web/appearance", "dist/identity/appearance"]) {
 // The independent client is just the original UI plus a local multi-hub transport.
 await cp(destination, resolve("dist/client"), { recursive: true });
 if (existsSync("docs/progress.html")) await cp("docs/progress.html", "dist/client/progress.html");
+if (existsSync("docs/oar-cutover.html")) await cp("docs/oar-cutover.html", "dist/client/oar-cutover.html");
 await build({
   entryPoints: [resolve("web/client/main.ts")],
   bundle: true,
