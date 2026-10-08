@@ -91,7 +91,9 @@ test("every established relay route publishes typed JSON, binary/document or SSE
   const dispatcher = (await document("internal")).paths["/internal/call"].post[
     "x-dispatch-operation-schemas"
   ];
-  assert.equal(Object.keys(dispatcher).length, 24);
+  assert.equal(Object.keys(dispatcher).length, 27);
+  for (const op of ["invitation-link-create", "invitation-link-list", "invitation-link-revoke"])
+    assert.ok(dispatcher[op], op + " has its published management contract");
   for (const [op, value] of Object.entries(dispatcher) as [string, any][])
     assert.ok(
       Object.keys(value.args).length && Object.keys(value.response).length,

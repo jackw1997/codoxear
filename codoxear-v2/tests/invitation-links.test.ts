@@ -177,7 +177,8 @@ test("Links expire precisely, survive reload, keep existing roles, and cap activ
     f.store.change(s=>createInvitationLink(s,"owner",f.hub.id,168,start+4000000+103*61000));
     const latest = f.store.read().invitationLinks.at(-1)!;
     f.store.change(s=>{s.memberships.push({resource:"hub",resourceId:f.hub.id,userId:guest.session.userId,role:"member"});transferOwner(s,"owner","hub",f.hub.id,guest.session.userId);});
-    assert.equal(inspectInvitationLink(f.store.read(), f.store.change(s=>createInvitationLink(s,guest.session.userId,f.hub.id,24,start+10000000)).token,f.hub.id,start+10000000).status,"pending");
+    const newOwnerLink = f.store.change(s=>createInvitationLink(s,guest.session.userId,f.hub.id,24,start+10000000));
+    assert.equal(inspectInvitationLink(f.store.read(), newOwnerLink.token,f.hub.id,start+10000000).status,"pending");
     assert.equal(latest.ownerRevision < f.store.read().hubs[0]!.revision,true);
     assert.equal(InvitationLinkRequest.safeParse({expiresInHours:0}).success,false);
     assert.equal(InvitationLinkRequest.safeParse({expiresInHours:169}).success,false);

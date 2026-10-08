@@ -100,7 +100,9 @@ test("binding Feishu rejects already-issued foreign sessions, refreshes and cach
     const owner = await f.signIn("google", "owner", null, true);
     const foreign = await f.signIn("feishu", "foreign", "team-b"), cached = await f.tokens.issue(foreign.session!, f.hub.id);
     const refresh = f.accounts.issueRefresh(foreign.session!.id);
-    await f.join(owner.session!, foreign);
+    // Model retained membership established before the organization was bound.
+    // New link acceptance intentionally requires a bound Feishu organization.
+    f.store.change(state=>state.memberships.push({resource:"hub",resourceId:f.hub.id,userId:foreign.session!.userId,role:"member"}));
     configureHubOrganization(f.store, f.hub.id, [feishuProvider("team-a"), f.google]);
     assert.equal((await f.app.inject({ method: "GET", url: "/api/v1/me", cookies: { codoxear_identity: foreign.credential! } })).statusCode, 403);
     assert.throws(() => f.accounts.rotateRefresh(refresh), /organization/);
