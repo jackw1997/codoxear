@@ -314,6 +314,7 @@ async function createAgent(page, computer, name, workspace) {
   await create.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
   await create.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
   await create.getByLabel('Custom model', { exact: true }).fill('journey-model');
+  await create.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
   await create.getByLabel('Agent name', { exact: true }).fill(name);
   await create.getByText('More', { exact: true }).click();
   await create.getByLabel('Working directory', { exact: true }).fill(workspace);
@@ -607,6 +608,7 @@ async function dailyCustomer(workspaceA) {
     await copy.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
     await copy.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
     await copy.getByLabel('Custom model', { exact: true }).fill('journey-model');
+    await copy.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
     await copy.getByRole('button', { name: 'Create agent', exact: true }).click();
     await copy.waitFor({ state: 'hidden' }); await card(ownerPage, 'Daily disposable duplicate').waitFor();
     await shot(ownerPage, 'daily-duplicate-created');

@@ -538,6 +538,7 @@ try {
       assert.equal(await dialog().getByLabel("Fast mode").isChecked(), true);
     }
     const request = (await submit()).body;
+    assert.equal(request.reasoning_effort, "low");
     assert.deepEqual(request.provider_config, {
       base_url: "https://private.test/v1",
       api_key: "fixture-private-key",
