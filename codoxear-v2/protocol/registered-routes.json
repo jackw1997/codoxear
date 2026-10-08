@@ -1,6 +1,12 @@
 {
   "hub": [
     {
+      "path": "/api/computers/:id/provider-catalog",
+      "methods": [
+        "POST"
+      ]
+    },
+    {
       "path": "/api/hubs/:id/invitation-links",
       "methods": [
         "GET",

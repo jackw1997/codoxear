@@ -3,7 +3,7 @@ import { Agent, Hub, Id, Name, Policy, Role } from "../contracts/model.js";
 import { AuthRequirement } from "../contracts/identity.js";
 import { HubLoginMethodsRequest } from "../contracts/hub-organization.js";
 import { InvitationRequest } from "../contracts/invitations.js";
-import { Launch } from "../contracts/tunnel.js";
+import { Launch, ProviderCatalogRequest, ProviderCatalog } from "../contracts/tunnel.js";
 import { DelegationAuthorityRequest, DelegationChildContextRequest, DelegationReserveRequest, DelegationContextResponse,
   DelegationGrantRequest, DelegationSpawn, DelegationSend, DelegationReceipt, DelegationMessages } from "../contracts/delegation.js";
 import { GrantPath } from "../contracts/workspaces.js";
@@ -480,6 +480,11 @@ define("PUT", "/api/computers/:id/workspace", {
 for (const method of ["GET", "PUT"])
   details[method + " /api/computers/:id/workspace"]!.response =
     WorkspaceSnapshot;
+define("POST", "/api/computers/:id/provider-catalog", {
+  summary:"Discover caller-key-visible provider models and declared reasoning metadata",
+  body:ProviderCatalogRequest,response:ProviderCatalog,
+  statuses:[200,400,401,403,404,409,500,503],
+});
 define("GET", "/api/computers/:id/launch-defaults", {
   summary: "Current native producer launch choices; credentials are excluded",
   response: z.object({

@@ -22,7 +22,7 @@ export async function registerBrowserGateway(
       // Only the management API is exposed here. Workspace binary transfers use
       // the streaming workspace gateway; OAuth, device and internal routes do not.
       if (
-        !/^(?:me|auth\/options|agent-directory|hubs(?:\/[A-Za-z0-9_-]+\/computers)?|computers\/[A-Za-z0-9_-]+\/(?:agents|launch-defaults|discovered|import|pairing|workspace|workspace-access\/[A-Za-z0-9_-]+)|agents\/[A-Za-z0-9_-]+\/(?:access|messages|send|interrupt|shares(?:\/[A-Za-z0-9_-]+)?)|resources\/(?:hub|computer)\/[A-Za-z0-9_-]+\/(?:members(?:\/[A-Za-z0-9_-]+)?|invitations|policy|owner)|invitations\/accept)$/.test(
+        !/^(?:me|auth\/options|agent-directory|hubs(?:\/[A-Za-z0-9_-]+\/computers)?|computers\/[A-Za-z0-9_-]+\/(?:agents|launch-defaults|provider-catalog|discovered|import|pairing|workspace|workspace-access\/[A-Za-z0-9_-]+)|agents\/[A-Za-z0-9_-]+\/(?:access|messages|send|interrupt|shares(?:\/[A-Za-z0-9_-]+)?)|resources\/(?:hub|computer)\/[A-Za-z0-9_-]+\/(?:members(?:\/[A-Za-z0-9_-]+)?|invitations|policy|owner)|invitations\/accept)$/.test(
           suffix,
         )
       )

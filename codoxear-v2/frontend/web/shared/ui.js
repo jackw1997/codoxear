@@ -102,6 +102,13 @@ export function shell(
 }
 export function placementDialog(placements, proceed, options = {}) {
   return agentCreationDialog(placements, proceed, {
+    loadProviderCatalog: async (placement, body, signal) => {
+      const prefix = placement.origin === location.origin ? "" : `/gateway/hubs/${encodeURIComponent(placement.hubId)}`;
+      const response = await fetch(`${prefix}/api/computers/${encodeURIComponent(placement.computerId)}/provider-catalog`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal, cache: "no-store" });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value.error ?? "Model discovery unavailable");
+      return value;
+    },
     loadDefaults: async (placement, signal) => {
       const prefix =
         placement.origin === location.origin

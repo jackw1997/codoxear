@@ -43,6 +43,7 @@ export class FixtureRuntime implements Runtime {
       if (op.op === "delegation-install")
         throw new Error("Fixture runtime does not install delegation tools");
     }
+    if (op.op === "provider-catalog") throw new Error("Provider discovery unavailable in fixture runtime");
     if (op.op === "resume-candidates") return { sessions: [] };
     if (op.op === "workspace") return { id: "default", path: null };
     if (op.op === "launch-status")

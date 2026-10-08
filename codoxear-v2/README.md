@@ -33,7 +33,7 @@ File and Git operations belong to the Computer; authorization belongs to the hub
 
 Agent creation reads the Computer's configured provider/model metadata. Pi reasoning models receive the installed SDK's supported thinking levels, including explicit exclusions and opt-in extended levels. A configured model marked `reasoning: false` offers Off. Custom API instead shows **Requested reasoning**: these are runtime requests that the provider may reject, not verified model capabilities. No provider or model name determines reasoning support.
 
-LiteLLM's basic model listing does not guarantee a complete effort catalogue. Its [reasoning metadata API](https://docs.litellm.ai/docs/reasoning_content#checking-if-a-model-supports-reasoning) can advertise capabilities; exact lists depend on its version and model/deployment metadata. Codoxear currently reads local Computer configuration, rather than automatically synchronizing LiteLLM metadata. Failed or missing discovery must not be presented as verified provider capability.
+Select **Discover models** in agent creation to read LiteLLM's caller-visible `/v1/models` and advertised capabilities from `/model_group/info`. A configured provider uses its key on the Computer; Custom API uses the key entered in the form. Results expose only visible model IDs and capability fields. Missing or null effort lists remain unknown, including fields filtered by a gateway. Discovery uses no administrator credentials or inference requests. Discovered Pi models receive an isolated session definition without changing the global model configuration. See [LiteLLM integration](docs/integrations/litellm.md) for metadata, protocol and gateway-filter boundaries.
 
 Behavioral verification runs in Docker:
 

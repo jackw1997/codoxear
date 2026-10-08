@@ -1075,6 +1075,7 @@ test("write-allowlisted Members read launch configuration and create explicit ag
     f.tunnels.supports = () => true;
     f.tunnels.request = async (_id, operation) => {
       operations.push(operation);
+      if (operation.op === "provider-catalog") return {metadata_available:true,models:[{id:"key-visible",supports_reasoning:true,supported_reasoning_efforts:["low","high"]}]};
       if (operation.op === "discover") {
         if (revokeDuringDiscover) f.store.change((s) => setComputerAccess(s, "alice", computerId, member.session.userId, "read"));
         return { sessions: [], recent_cwds: ["/owner/private-history"], new_session_defaults: { backends: { pi: { model: "explicit-model", provider_choice: "gateway" } } } };
@@ -1085,6 +1086,11 @@ test("write-allowlisted Members read launch configuration and create explicit ag
     assert.equal(defaults.statusCode, 200, defaults.body);
     assert.equal(defaults.json().new_session_defaults.backends.pi.provider_choice, "gateway");
     assert.deepEqual(defaults.json().recent_cwds, []);
+    const catalogInput={backend:"pi",provider:"gateway"};
+    const catalogue=await f.app.inject({method:"POST",url:`/api/computers/${computerId}/provider-catalog`,headers,payload:catalogInput});
+    assert.equal(catalogue.statusCode,200,catalogue.body);
+    assert.deepEqual(catalogue.json(),{metadata_available:true,models:[{id:"key-visible",supports_reasoning:true,supported_reasoning_efforts:["low","high"]}]});
+    assert.deepEqual(operations.at(-1),{op:"provider-catalog",input:catalogInput});
     for (const [url, payload] of [
       [`/api/computers/${computerId}/agents`, { name: "Explicit member agent", backend: "pi", launch }],
       [`/api/v1/computers/${computerId}/api/sessions`, { name: "Explicit member session", agent_backend: "pi", ...launch }],
@@ -1109,6 +1115,7 @@ test("write-allowlisted Members read launch configuration and create explicit ag
     revokeDuringDiscover = true;
     assert.equal((await f.app.inject({ url: `/api/computers/${computerId}/launch-defaults`, headers })).statusCode, 403);
     const afterRevocation = operations.length;
+    assert.equal((await f.app.inject({method:"POST",url:`/api/computers/${computerId}/provider-catalog`,headers,payload:{backend:"pi",provider:"gateway"}})).statusCode,403);
     assert.equal((await f.app.inject({ url: `/api/computers/${computerId}/launch-defaults`, headers })).statusCode, 403);
     assert.equal((await f.app.inject({ method: "POST", url: `/api/computers/${computerId}/agents`, headers, payload: { name: "Read only", backend: "pi", launch } })).statusCode, 403);
     assert.equal(operations.length, afterRevocation);

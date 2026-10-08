@@ -1,3 +1,4 @@
+import { ProviderCatalogRequest, ProviderCatalog } from "../contracts/tunnel.js";
 import { InvitationRequest } from "../contracts/invitations.js";
 import { InvitationLinkRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "./browser-workspace.js";
@@ -739,6 +740,15 @@ export async function createHubApp(o: HubOptions) {
       tmux_available: z.boolean().optional(),
     })
     .passthrough();
+  app.post("/api/computers/:id/provider-catalog", async r => {
+    const computerId=Id.parse((r.params as {id:string}).id);
+    await requireComputerCreation(r,computerId);
+    const input=ProviderCatalogRequest.parse(r.body);
+    if (!tunnels.supports(computerId,"provider-catalog")) throw new DomainError(409,"unsupported","Update this Computer to discover provider models");
+    const result=await tunnels.request(computerId,{op:"provider-catalog",input});
+    await requireComputerCreation(r,computerId);
+    return ProviderCatalog.parse(result);
+  });
   app.get("/api/computers/:id/launch-defaults", async (r) => {
     const computerId = Id.parse((r.params as { id: string }).id);
     await requireComputerCreation(r, computerId);

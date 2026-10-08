@@ -4,6 +4,9 @@ import {
   modelsFor,
   effortsFor,
   launchOptions,
+  discoveredEfforts,
+  type ProviderCatalog,
+  type ProviderCatalogRequest,
   type Backend,
   type Catalog,
   type LaunchOptions,
@@ -28,6 +31,7 @@ export type ResumeCandidate = {
   first_user_message?: string;
 };
 export type CreationOptions = {
+  loadProviderCatalog?: (placement: Placement, request: ProviderCatalogRequest, signal: AbortSignal) => Promise<ProviderCatalog>;
   loadResumeCandidates?: (
     placement: Placement,
     backend: Backend,
@@ -58,6 +62,7 @@ const labels: Record<string, string> = {
   max: "Maximum",
   ultra: "Ultra",
   off: "Off",
+  none: "None",
   minimal: "Minimal",
   low: "Low",
   medium: "Medium",
@@ -75,7 +80,7 @@ export function agentCreationDialog(
   const previousFocus = document.activeElement as HTMLElement | null;
   dialog.className = "account-dialog agent-creation";
   dialog.setAttribute("aria-label", "New agent");
-  dialog.innerHTML = `<form><header><h2>New agent</h2><button type="button" aria-label="Close">×</button></header><div class="agent-creation-body"><label>Agent name<input name="name" required maxlength="120" placeholder="What are you working on?" autofocus></label><label>Computer &amp; hub<select name="placement" aria-label="Computer &amp; hub">${placements.map((p, i) => `<option value="${i}">${escape(p.computerName)} · ${escape(p.hubName)}</option>`).join("")}</select></label><label>Runtime<select name="backend" aria-label="Runtime"><option value="pi">Pi</option><option value="codex">Codex</option><option value="cc">Claude Code</option></select></label><label>Start<select name="start" aria-label="Start"><option value="new">New session</option><option value="resume">Resume saved session</option></select></label><div data-resume hidden><label>Session working directory<input name="resumeCwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Absolute directory on this computer"></label><label>Saved sessions<select name="resumeCandidate" aria-label="Saved sessions"><option value="">Enter a session ID below</option></select></label><button type="button" data-find-resume>Find saved sessions</button><p class="directory-hint" data-resume-status role="status"></p><label>Session ID<input name="resumeSessionId" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Backend session ID"></label><p class="directory-hint">Continue a saved session on the selected computer and runtime. Enter its backend session ID and original working directory. Private API keys and environment variables must be entered again when needed. Complete runtime setup and trust this directory in the CLI beforehand. A session already running cannot be resumed here.</p></div><p class="directory-hint" data-catalog-status role="status"></p><div class="agent-runtime-fields"><label>Provider<select name="provider" aria-label="Provider"></select></label><div data-provider-config hidden><label data-api-url>API URL<input name="apiUrl" type="url" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="https://your-provider.example/v1"></label><label>API key<input name="apiKey" type="password" maxlength="8192" autocomplete="off" spellcheck="false" placeholder="Provider API key"></label><label data-api-kind hidden>API compatibility<select name="api" aria-label="API compatibility"><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses</option><option value="anthropic-messages">Anthropic Messages</option></select></label><label data-image-support class="checkField" hidden><input name="imageSupport" type="checkbox"><span>Image support</span></label><p class="directory-hint" data-provider-hint></p></div><label>Model<select name="model" aria-label="Model"></select></label><label data-custom hidden>Custom model<input name="customModel" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Model ID"></label><label data-effort><span data-effort-label>Reasoning</span><select name="effort" aria-label="Reasoning"></select></label><p class="directory-hint" data-effort-hint hidden></p><details><summary>More</summary><div data-fast hidden><label class="checkField"><input name="fast" type="checkbox"><span>Fast mode</span></label></div><label>Working directory<input name="cwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Computer’s workspace"></label><details><summary>Advanced</summary><label data-command hidden>Claude command override<input name="command" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="claude or /path/to/claude"></label><fieldset><legend>Environment variables</legend><div data-env-rows></div><button type="button" data-add-env>Add variable</button></fieldset></details></details></div><p class="directory-error" role="alert"></p>${placements.length ? "" : '<p class="directory-hint">Add a computer in Hubs &amp; computers to create an agent.</p>'}</div><footer><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Create agent</button></footer></form>`;
+  dialog.innerHTML = `<form><header><h2>New agent</h2><button type="button" aria-label="Close">×</button></header><div class="agent-creation-body"><label>Agent name<input name="name" required maxlength="120" placeholder="What are you working on?" autofocus></label><label>Computer &amp; hub<select name="placement" aria-label="Computer &amp; hub">${placements.map((p, i) => `<option value="${i}">${escape(p.computerName)} · ${escape(p.hubName)}</option>`).join("")}</select></label><label>Runtime<select name="backend" aria-label="Runtime"><option value="pi">Pi</option><option value="codex">Codex</option><option value="cc">Claude Code</option></select></label><label>Start<select name="start" aria-label="Start"><option value="new">New session</option><option value="resume">Resume saved session</option></select></label><div data-resume hidden><label>Session working directory<input name="resumeCwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Absolute directory on this computer"></label><label>Saved sessions<select name="resumeCandidate" aria-label="Saved sessions"><option value="">Enter a session ID below</option></select></label><button type="button" data-find-resume>Find saved sessions</button><p class="directory-hint" data-resume-status role="status"></p><label>Session ID<input name="resumeSessionId" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Backend session ID"></label><p class="directory-hint">Continue a saved session on the selected computer and runtime. Enter its backend session ID and original working directory. Private API keys and environment variables must be entered again when needed. Complete runtime setup and trust this directory in the CLI beforehand. A session already running cannot be resumed here.</p></div><p class="directory-hint" data-catalog-status role="status"></p><div class="agent-runtime-fields"><label>Provider<select name="provider" aria-label="Provider"></select></label><div data-provider-config hidden><label data-api-url>API URL<input name="apiUrl" type="url" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="https://your-provider.example/v1"></label><label>API key<input name="apiKey" type="password" maxlength="8192" autocomplete="off" spellcheck="false" placeholder="Provider API key"></label><label data-api-kind hidden>API compatibility<select name="api" aria-label="API compatibility"><option value="openai-completions">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses</option><option value="anthropic-messages">Anthropic Messages</option></select></label><label data-image-support class="checkField" hidden><input name="imageSupport" type="checkbox"><span>Image support</span></label><p class="directory-hint" data-provider-hint></p></div><button type="button" data-discover-models>Discover models</button><p class="directory-hint" role="status" data-discovery-status></p><label>Model<select name="model" aria-label="Model"></select></label><label data-custom hidden>Custom model<input name="customModel" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Model ID"></label><label data-effort><span data-effort-label>Reasoning</span><select name="effort" aria-label="Reasoning"></select></label><p class="directory-hint" data-effort-hint hidden></p><details><summary>More</summary><div data-fast hidden><label class="checkField"><input name="fast" type="checkbox"><span>Fast mode</span></label></div><label>Working directory<input name="cwd" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="Computer’s workspace"></label><details><summary>Advanced</summary><label data-command hidden>Claude command override<input name="command" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="claude or /path/to/claude"></label><fieldset><legend>Environment variables</legend><div data-env-rows></div><button type="button" data-add-env>Add variable</button></fieldset></details></details></div><p class="directory-error" role="alert"></p>${placements.length ? "" : '<p class="directory-hint">Add a computer in Hubs &amp; computers to create an agent.</p>'}</div><footer><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Create agent</button></footer></form>`;
   const select = (name: string) =>
     dialog.querySelector<HTMLSelectElement>(`select[name=${name}]`)!;
   const input = (name: string) =>
@@ -114,6 +119,10 @@ export function agentCreationDialog(
     loading = false,
     submitting = false,
     request: AbortController | undefined;
+  let discovered: ProviderCatalog | undefined, discoveryRequest: AbortController | undefined, discovering = false;
+  const discoveryButton = dialog.querySelector<HTMLButtonElement>("[data-discover-models]")!;
+  const discoveryStatus = dialog.querySelector<HTMLElement>("[data-discovery-status]")!;
+  discoveryButton.hidden = !options.loadProviderCatalog;
   const backend = () => select("backend").value as Backend;
   const defaults = () => defaultsFor(catalog, backend());
   const selectedModel = () =>
@@ -220,7 +229,8 @@ export function agentCreationDialog(
     >("input, select, button"))
       control.disabled = pendingChoices;
     input("cwd").disabled = pendingChoices || resuming();
-    button.disabled = !placements.length || loading || submitting;
+    button.disabled = !placements.length || loading || submitting || discovering;
+    discoveryButton.disabled = loading || submitting || discovering || !select("provider").value || (select("provider").value === "__custom_api__" && (!input("apiUrl").value.trim() || !input("apiKey").value.trim()));
     button.textContent = submitting
       ? resuming()
         ? "Resuming agent…"
@@ -234,21 +244,26 @@ export function agentCreationDialog(
   const updateEffort = () => {
     const prior = select("effort").value;
     const custom = select("provider").value === "__custom_api__";
-    const efforts = effortsFor(
-      defaults(),
-      select("provider").value,
-      selectedModel(),
-    );
-    const effortLabel = custom ? "Requested reasoning" : "Reasoning";
+    const model = discovered?.models.find(model => model.id === selectedModel());
+    const efforts = discovered ? discoveredEfforts(defaults(), model) : effortsFor(defaults(), select("provider").value, selectedModel());
+    const effortLabel = discovered || custom ? "Requested reasoning" : "Reasoning";
     dialog.querySelector<HTMLElement>("[data-effort-label]")!.textContent = effortLabel;
     select("effort").setAttribute("aria-label", effortLabel);
     const hint = dialog.querySelector<HTMLElement>("[data-effort-hint]")!;
-    hint.textContent = custom
+    hint.textContent = discovered
+      ? model?.supports_reasoning === false
+        ? "LiteLLM reports reasoning support: no. No reasoning request is sent for this model."
+      : !model || model.supported_reasoning_efforts == null
+        ? efforts.length
+          ? "LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified."
+          : "LiteLLM reasoning metadata is unknown. No verified runtime request vocabulary is available for this model."
+        : `LiteLLM advertised levels: ${model.supported_reasoning_efforts.join(", ") || "no advertised values"}. ${model.runtime_reasoning_efforts != null || defaults().reasoning_efforts_for_custom_model != null ? "Selectable levels are exact requests also supported by this runtime; other levels cannot be submitted." : "These are exact advertised requests. Runtime acceptance is unknown; initialization will honor or explicitly reject the requested level."} Reasoning support: ${model.supports_reasoning == null ? "unknown" : model.supports_reasoning ? "yes" : "no"}.`
+      : custom
       ? "These levels are requests understood by the runtime. The provider or model may reject the requested level."
       : efforts.length === 1 && efforts[0] === "off"
         ? "The Computer’s model configuration does not advertise reasoning levels beyond Off."
         : "";
-    hint.hidden = !efforts.length || !hint.textContent;
+    hint.hidden = !hint.textContent;
     setOptions(select("effort"), efforts, "Choose a reasoning level");
     select("effort").value = "";
     const configured = defaults().reasoning_effort;
@@ -257,9 +272,9 @@ export function agentCreationDialog(
         (defaults().provider_choice ?? defaults().model_provider) &&
       selectedModel() === defaults().model;
     if (efforts.includes(prior)) select("effort").value = prior;
-    else if (sameConfiguredModel && configured && efforts.includes(configured))
+    else if (!discovered && sameConfiguredModel && configured && efforts.includes(configured))
       select("effort").value = configured;
-    else if (efforts.length === 1 && efforts[0] === "off")
+    else if (!discovered && efforts.length === 1 && efforts[0] === "off")
       select("effort").value = "off";
     select("effort").required = !!efforts.length;
     dialog.querySelector<HTMLElement>("[data-effort]")!.hidden =
@@ -320,8 +335,55 @@ export function agentCreationDialog(
     dialog.querySelector<HTMLElement>("[data-custom]")!.hidden = !customApi;
     select("effort").value = "";
     updateEffort();
+    updateButton();
   };
+  const invalidateDiscovery = () => {
+    discoveryRequest?.abort(); discoveryRequest = undefined; discovering = false;
+    const hadDiscovery = !!discovered; discovered = undefined;
+    discoveryStatus.textContent = "";
+    if (hadDiscovery) {
+      const previous = select("model").value;
+      const local = modelsFor(defaults(), select("provider").value);
+      setOptions(select("model"), local, "Choose a model", true);
+      select("model").value = previous === "__custom__" || local.includes(previous) ? previous : "";
+      const custom = select("model").value === "__custom__";
+      dialog.querySelector<HTMLElement>("[data-custom]")!.hidden = !custom;
+      input("customModel").required = custom;
+      updateEffort();
+    }
+    updateButton();
+  };
+  discoveryButton.onclick = () => {
+    const placement = placements[Number(select("placement").value)];
+    if (!placement || !options.loadProviderCatalog || discoveryButton.disabled) return;
+    const provider = select("provider").value;
+    const body: ProviderCatalogRequest = provider === "__custom_api__"
+      ? { backend: backend(), base_url: input("apiUrl").value.trim(), api_key: input("apiKey").value.trim(), ...(backend() === "pi" ? { api: select("api").value as "openai-completions" | "openai-responses" | "anthropic-messages" } : {}) }
+      : { backend: backend(), provider };
+    const pending = new AbortController(); discoveryRequest?.abort(); discoveryRequest = pending;
+    discovering = true; discoveryStatus.textContent = "Discovering caller-key-visible models…"; updateButton();
+    void options.loadProviderCatalog(placement, body, pending.signal).then(result => {
+      if (pending.signal.aborted || discoveryRequest !== pending || !dialog.isConnected) return;
+      discovered = result;
+      const prior = selectedModel();
+      setOptions(select("model"), result.models.map(model => model.id), "Choose a model", true);
+      select("model").value = result.models.some(model => model.id === prior) ? prior : "";
+      dialog.querySelector<HTMLElement>("[data-custom]")!.hidden = true;
+      input("customModel").required = false;
+      select("effort").value = "";
+      updateEffort();
+      discoveryStatus.textContent = `${result.models.length} caller-key-visible models from /v1/models. ${result.metadata_available ? "Reasoning metadata from /model_group/info; missing model fields remain unknown." : "Reasoning metadata unavailable or denied; support and advertised levels remain unknown."}`;
+    }).catch(error => {
+      if (!pending.signal.aborted && discoveryRequest === pending && dialog.isConnected) discoveryStatus.textContent = `Model discovery failed: ${error instanceof Error ? error.message : "Computer unavailable"}`;
+    }).finally(() => {
+      if (discoveryRequest === pending) { discovering = false; updateButton(); }
+    });
+  };
+  input("apiUrl").addEventListener("input", invalidateDiscovery);
+  input("apiKey").addEventListener("input", invalidateDiscovery);
+  input("customModel").addEventListener("input", updateEffort);
   const clearProvider = () => {
+    invalidateDiscovery();
     input("apiUrl").value = "";
     input("apiKey").value = "";
     input("imageSupport").checked = false;
@@ -417,7 +479,7 @@ export function agentCreationDialog(
     updateEffort();
     if (custom) input("customModel").focus();
   };
-  select("api").onchange = updateApiHint;
+  select("api").onchange = () => { invalidateDiscovery(); updateApiHint(); };
   input("customModel").oninput = updateEffort;
   form.onsubmit = async (event) => {
     event.preventDefault();
@@ -466,7 +528,16 @@ export function agentCreationDialog(
           );
         Object.defineProperty(envVars, key, { value, enumerable: true });
       }
-      const launch = launchOptions(backend(), defaults(), {
+      const discoveredModel = discovered?.models.find(model => model.id === selectedModel());
+      if (discoveredModel && discoveredModel.supports_reasoning !== false && discoveredModel.supported_reasoning_efforts?.length && !discoveredEfforts(defaults(), discoveredModel).length)
+        fieldError(select("model"), "This model advertises reasoning levels that this runtime cannot submit exactly. Choose another model or runtime.");
+      const launchDefaults = discovered ? {
+        ...defaults(),
+        reasoning_efforts: discoveredEfforts(defaults(), discovered.models.find(model => model.id === selectedModel())),
+        reasoning_efforts_for_custom_model: discoveredEfforts(defaults(), discovered.models.find(model => model.id === selectedModel())),
+        reasoning_efforts_by_model: { [selectedModel()]: discoveredEfforts(defaults(), discovered.models.find(model => model.id === selectedModel())) },
+      } : defaults();
+      const launch = launchOptions(backend(), launchDefaults, {
         provider: select("provider").value,
         model: selectedModel(),
         effort: select("effort").value,
@@ -480,6 +551,7 @@ export function agentCreationDialog(
         envVars,
         command: input("command").value,
       });
+      if (discovered?.models.some(model => model.id === selectedModel())) launch.provider_catalog = true;
       if (resuming())
         launch.resume_session_id = input("resumeSessionId").value.trim();
       submitting = true;
@@ -551,6 +623,7 @@ export function agentCreationDialog(
   dialog.addEventListener("close", () => {
     request?.abort();
     resumeRequest?.abort();
+    discoveryRequest?.abort();
     form.reset();
     dialog.querySelector("[data-env-rows]")!.replaceChildren();
     dialog.remove();

@@ -202,6 +202,7 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
             ? "1"
             : "0";
         env.CODOXEAR_PROVIDER_IMAGES = provider.image_support ? "1" : "0";
+        if(input.catalogModel){env.CODOXEAR_PROVIDER_REASONING=input.catalogModel.reasoning?"1":"0";env.CODOXEAR_PROVIDER_THINKING_MAP=JSON.stringify(input.catalogModel.thinkingLevelMap);}
         const extension = computerPackagePaths().entry(
           "native/pi-private-provider",
         );

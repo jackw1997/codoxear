@@ -412,6 +412,7 @@ export class ComputerService {
                     "git",
                     "transcript-cursors",
                     "launch-options",
+                    "provider-catalog",
                     "resume-candidates",
                     ...(this.providerLaunch ? ["provider-launch"] : []),
                     "authorized-queue",

@@ -1,3 +1,4 @@
+import {providerCatalog} from "../provider-catalog.js";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
@@ -392,6 +393,7 @@ export class ManagedRuntime implements Runtime {
       return new WorkspaceRegistry(this.stateHome, this.workspace).execute(
         operation,
       );
+    if (operation.op === "provider-catalog") return providerCatalog(this.home,operation.input);
     if (operation.op === "discover") return this.discover(operation.actorId);
     if (operation.op === "resume-candidates")
       return this.candidates(operation.backend, operation.cwd);

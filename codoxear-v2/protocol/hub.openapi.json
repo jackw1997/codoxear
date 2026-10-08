@@ -6,6 +6,225 @@
     "description": "A Computer connects outbound to its chosen Hub. Each independent Hub owns accounts, signing keys and policy. Static browser clients connect directly using OAuth and a scoped service worker; Hub-hosted BFF cookies and a separate shared authority remain optional compatibility. No automatic direct fallback and no automatic mutation replay. JSON Schema describes structural validation; current membership, identity, binding, canonical paths and custom refinements remain server checks."
   },
   "paths": {
+    "/api/computers/{id}/provider-catalog": {
+      "post": {
+        "summary": "Discover caller-key-visible provider models and declared reasoning metadata",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "BrowserCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "backend": {
+                    "type": "string",
+                    "enum": [
+                      "pi",
+                      "codex",
+                      "cc"
+                    ]
+                  },
+                  "api": {
+                    "type": "string",
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "format": "uri"
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "backend"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "maxItems": 1000,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "supports_reasoning": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          },
+                          "runtime_reasoning_efforts": {
+                            "maxItems": 32,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            }
+                          },
+                          "supported_reasoning_efforts": {
+                            "anyOf": [
+                              {
+                                "maxItems": 32,
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "supports_reasoning",
+                          "supported_reasoning_efforts"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "metadata_available": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "models",
+                    "metadata_available"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/hubs/{id}/invitation-links": {
       "get": {
         "summary": "Authenticated API; producer-specific response fields are described by its runtime",
@@ -1913,7 +2132,7 @@
                     ]
                   },
                   "launch": {
-                    "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                    "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
                   }
                 },
                 "required": [
@@ -3913,7 +4132,7 @@
                     ]
                   },
                   "launch": {
-                    "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                    "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
                   }
                 },
                 "required": [
@@ -7313,6 +7532,10 @@
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
                 "properties": {
+                  "provider_catalog": {
+                    "type": "boolean",
+                    "const": true
+                  },
                   "provider_config": {
                     "$ref": "#/components/schemas/Sharedobject_20648b894d11cb60"
                   },
@@ -12982,6 +13205,61 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "provider-catalog"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "backend": {
+                    "type": "string",
+                    "enum": [
+                      "pi",
+                      "codex",
+                      "cc"
+                    ]
+                  },
+                  "api": {
+                    "type": "string",
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "format": "uri"
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "backend"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "delegation-install"
               },
               "parentId": {
@@ -13179,7 +13457,7 @@
                 "maxLength": 120
               },
               "launch": {
-                "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
               }
             },
             "required": [
@@ -18367,6 +18645,28 @@
         ],
         "description": "Unwrapped dispatcher result. Select the exact response by the request op using x-dispatch-operation-schemas; authentication and operation failures use the documented error status schemas."
       },
+      "Sharedobject_8d30d7d183a9c069": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode",
+          "error",
+          "message"
+        ],
+        "additionalProperties": false
+      },
       "Sharedarray_c491c4fcfbf64e76": {
         "type": "array",
         "items": {
@@ -18440,28 +18740,6 @@
           "id",
           "name",
           "origin"
-        ],
-        "additionalProperties": false
-      },
-      "Sharedobject_8d30d7d183a9c069": {
-        "type": "object",
-        "properties": {
-          "statusCode": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "error": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "statusCode",
-          "error",
-          "message"
         ],
         "additionalProperties": false
       },
@@ -18993,9 +19271,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_7c2a42d4d5c47e31": {
+      "Sharedobject_8a7618cf35c14ea6": {
         "type": "object",
         "properties": {
+          "provider_catalog": {
+            "type": "boolean",
+            "const": true
+          },
           "provider_config": {
             "$ref": "#/components/schemas/Sharedobject_20648b894d11cb60"
           },

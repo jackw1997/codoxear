@@ -16,6 +16,7 @@ export default function (pi: {
         id: model,
         name: model,
         reasoning: env.CODOXEAR_PROVIDER_REASONING === "1",
+        ...(env.CODOXEAR_PROVIDER_THINKING_MAP?{thinkingLevelMap:JSON.parse(env.CODOXEAR_PROVIDER_THINKING_MAP),compat:{supportsReasoningEffort:true}}:{}),
         input:
           env.CODOXEAR_PROVIDER_IMAGES === "1" ? ["text", "image"] : ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

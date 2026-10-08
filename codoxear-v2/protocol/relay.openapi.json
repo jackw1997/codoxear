@@ -20934,6 +20934,61 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "provider-catalog"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "backend": {
+                    "type": "string",
+                    "enum": [
+                      "pi",
+                      "codex",
+                      "cc"
+                    ]
+                  },
+                  "api": {
+                    "type": "string",
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "format": "uri"
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "backend"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "delegation-install"
               },
               "parentId": {
@@ -21133,6 +21188,10 @@
               "launch": {
                 "type": "object",
                 "properties": {
+                  "provider_catalog": {
+                    "type": "boolean",
+                    "const": true
+                  },
                   "provider_config": {
                     "type": "object",
                     "properties": {

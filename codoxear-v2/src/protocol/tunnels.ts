@@ -195,6 +195,7 @@ export class Tunnels {
         "launch-status",
         "workspace",
         "resume-candidates",
+        "provider-catalog",
       ].includes(operation.op),
       id = randomUUID();
     const frame = JSON.stringify({

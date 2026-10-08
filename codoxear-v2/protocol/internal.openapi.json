@@ -2271,7 +2271,7 @@
                     "pattern": "^[a-zA-Z0-9_-]{1,80}$"
                   },
                   "launch": {
-                    "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                    "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
                   }
                 },
                 "required": [
@@ -2587,7 +2587,7 @@
                     "pattern": "^[a-zA-Z0-9_-]{1,80}$"
                   },
                   "launch": {
-                    "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                    "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
                   },
                   "agentId": {
                     "type": "string",
@@ -3400,6 +3400,61 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "provider-catalog"
+              },
+              "input": {
+                "type": "object",
+                "properties": {
+                  "backend": {
+                    "type": "string",
+                    "enum": [
+                      "pi",
+                      "codex",
+                      "cc"
+                    ]
+                  },
+                  "api": {
+                    "type": "string",
+                    "enum": [
+                      "openai-completions",
+                      "openai-responses",
+                      "anthropic-messages"
+                    ]
+                  },
+                  "provider": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "base_url": {
+                    "type": "string",
+                    "maxLength": 4096,
+                    "format": "uri"
+                  },
+                  "api_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8192,
+                    "writeOnly": true
+                  }
+                },
+                "required": [
+                  "backend"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "input"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "delegation-install"
               },
               "parentId": {
@@ -3597,7 +3652,7 @@
                 "maxLength": 120
               },
               "launch": {
-                "$ref": "#/components/schemas/Sharedobject_7c2a42d4d5c47e31"
+                "$ref": "#/components/schemas/Sharedobject_8a7618cf35c14ea6"
               }
             },
             "required": [
@@ -11851,9 +11906,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_7c2a42d4d5c47e31": {
+      "Sharedobject_8a7618cf35c14ea6": {
         "type": "object",
         "properties": {
+          "provider_catalog": {
+            "type": "boolean",
+            "const": true
+          },
           "provider_config": {
             "$ref": "#/components/schemas/Sharedobject_20648b894d11cb60"
           },

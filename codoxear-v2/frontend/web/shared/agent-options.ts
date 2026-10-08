@@ -1,5 +1,6 @@
 export type Backend = "pi" | "codex" | "cc";
 export type LaunchOptions = {
+  provider_catalog?: boolean;
   resume_session_id?: string;
   model?: string;
   model_provider?: string;
@@ -176,4 +177,19 @@ export function launchOptions(
   if (backend === "cc" && input.command?.trim())
     launch.command = input.command.trim();
   return launch;
+}
+
+export type ProviderCatalogRequest = { backend: Backend; provider: string } | { backend: Backend; base_url: string; api_key: string; api?: "openai-completions" | "openai-responses" | "anthropic-messages" };
+export type ProviderModel = { id: string; supports_reasoning: boolean | null; supported_reasoning_efforts: string[] | null; runtime_reasoning_efforts?: string[] };
+export type ProviderCatalog = { models: ProviderModel[]; metadata_available: boolean };
+export function discoveredEfforts(defaults: BackendDefaults, model: ProviderModel | undefined) {
+  if (model?.supports_reasoning === false) return [];
+  const runtime = model?.runtime_reasoning_efforts ?? defaults.reasoning_efforts_for_custom_model;
+  const advertised = model?.supported_reasoning_efforts;
+  // A configured model's selected/default effort is not a runtime vocabulary
+  // for another model. Advertised values stay exact requests when compatibility
+  // is unproven; initialization must honor or explicitly reject the request.
+  if (runtime == null) return strings(advertised);
+  const supported = strings(runtime);
+  return advertised == null ? supported : supported.filter(effort => advertised.includes(effort));
 }

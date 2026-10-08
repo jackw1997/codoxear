@@ -1,3 +1,4 @@
+import {providerCatalog,resolveCatalogLaunch} from "../provider-catalog.js";
 import {
   existsSync,
   mkdirSync,
@@ -236,6 +237,7 @@ export class NativeRuntime implements Runtime {
         );
       resumePath = saved.path;
     }
+    const catalog=await resolveCatalogLaunch(this.home,backend,launch);
     const input: BrokerLaunch = {
       home: this.home,
       storageHome: this.stateHome,
@@ -243,7 +245,8 @@ export class NativeRuntime implements Runtime {
       backend,
       cwd,
       name,
-      launch,
+      launch:catalog.launch,
+      ...(catalog.catalogModel?{catalogModel:catalog.catalogModel}:{}),
       ...(resumePath ? { resumePath } : {}),
     };
     backendCommand(input, !terminalOwned); // Validate credentials/setup before starting any process.
@@ -489,6 +492,7 @@ export class NativeRuntime implements Runtime {
       return new WorkspaceRegistry(this.stateHome, this.workspace).execute(
         operation,
       );
+    if (operation.op === "provider-catalog") return providerCatalog(this.home,operation.input);
     if (operation.op === "discover") return this.catalogue(operation.actorId);
     if (operation.op === "resume-candidates")
       return this.request(

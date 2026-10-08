@@ -66,6 +66,10 @@ export function createNewSessionDialogController(options: {
               `/api/client/hubs/${encodeURIComponent(placement.loginId!)}/api/computers/${encodeURIComponent(placement.computerId)}/resume-candidates?backend=${encodeURIComponent(backend)}&cwd=${encodeURIComponent(cwd)}`,
               { signal, cache: "no-store" },
             ),
+          loadProviderCatalog: (placement, body, signal) => request(
+            `/api/client/hubs/${encodeURIComponent(placement.loginId!)}/api/computers/${encodeURIComponent(placement.computerId)}/provider-catalog`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal, cache: "no-store" },
+          ),
           loadDefaults: (placement, signal) =>
             request(
               `/api/client/hubs/${encodeURIComponent(placement.loginId!)}/api/computers/${encodeURIComponent(placement.computerId)}/launch-defaults`,

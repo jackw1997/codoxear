@@ -187,7 +187,7 @@ export class OarFactory implements ManagedFactory {
         backend: input.backend,
         cwd: input.cwd,
         model: profile.model,
-        effort: input.effort,
+        effort: profile.effort,
         resume: input.resume,
       });
       return {

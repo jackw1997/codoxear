@@ -1,3 +1,4 @@
+import {resolveCatalogLaunch} from "../provider-catalog.js";
 import {
   mkdir,
   readFile,
@@ -25,12 +26,14 @@ export async function prepareProfile(input: ManagedOpen) {
   const directory = join(input.stateHome, "managed-profiles", profile);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await chmod(directory, 0o700);
-  const launch = input.profile
+  let launch = input.profile
     ? Launch.strict().parse(
         JSON.parse(await readFile(join(directory, "launch.json"), "utf8")),
       )
     : Launch.strict().parse(input.launch ?? {});
   if (!input.profile) await atomicJson(join(directory, "launch.json"), launch);
+  const resolved=await resolveCatalogLaunch(input.home,input.backend, {...launch,model:input.model??launch.model,reasoning_effort:input.effort??launch.reasoning_effort});
+  launch=resolved.launch;
   const homes = backendHomes(input.home);
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -141,7 +144,7 @@ export async function prepareProfile(input: ManagedOpen) {
     throw new ManagedSetupError(
       "The selected authentication method must match the Codex configuration on this Computer",
     );
-  let model = input.model === "default" ? undefined : input.model;
+  let model = launch.model === "default" ? undefined : launch.model ?? input.model;
   if (
     input.backend === "pi" &&
     launch.provider_config?.base_url &&
@@ -186,7 +189,8 @@ export async function prepareProfile(input: ManagedOpen) {
               {
                 id: model,
                 name: model,
-                reasoning: !!input.effort && input.effort !== "off",
+                reasoning: resolved.catalogModel?.reasoning ?? (!!input.effort && input.effort !== "off"),
+                ...(resolved.catalogModel ? {thinkingLevelMap:resolved.catalogModel.thinkingLevelMap,compat:{supportsReasoningEffort:true}} : {}),
                 input: provider.image_support ? ["text", "image"] : ["text"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                 contextWindow: 128000,
@@ -248,7 +252,7 @@ export async function prepareProfile(input: ManagedOpen) {
       env[key] = provider.api_key;
     }
   }
-  return { profile, env, model };
+  return { profile, env, model, effort: launch.provider_catalog ? launch.reasoning_effort : input.effort };
 }
 
 /** OAR accepts provider/model, while native Pi settings store them separately. */

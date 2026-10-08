@@ -72,6 +72,8 @@ const catalogs = {
 let origin,
   delayLaptop = false,
   delayLaunch = false;
+let discoveryMode = "success", releaseDiscovery;
+const discoveryCalls = [];
 const received = [],
   errors = [],
   checks = [];
@@ -107,6 +109,16 @@ app.get("/api/computers/:id/launch-defaults", async (r) => {
   if (r.params.id === "laptop" && delayLaptop)
     await new Promise((resolve) => setTimeout(resolve, 700));
   return catalogs[r.params.id];
+});
+app.post("/api/computers/:id/provider-catalog", async (r, reply) => {
+  discoveryCalls.push({ computer: r.params.id, body: r.body });
+  if (discoveryMode === "delayed") await new Promise(resolve => { releaseDiscovery = resolve; });
+  if (discoveryMode === "denied") return reply.code(403).send({ error: "Caller key cannot list models." });
+  return { metadata_available: true, models: [
+    { id: "caller-reasoner", supports_reasoning: true, supported_reasoning_efforts: ["none", "low", "high", "max", "unsupported-level"], runtime_reasoning_efforts: ["none", "low", "high", "max"] },
+    { id: "caller-unknown", supports_reasoning: null, supported_reasoning_efforts: null },
+    { id: "caller-missing" },
+  ] };
 });
 for (const path of [
   "/api/v1/computers/:id/api/sessions",
@@ -218,6 +230,13 @@ const pass = (text) => {
 };
 const dialog = () =>
   page.getByRole("dialog", { name: "New agent", exact: true });
+async function assertEventually(predicate) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (predicate()) return;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.fail("Controlled discovery request did not arrive");
+}
 async function ready() {
   await dialog().waitFor();
   await page.waitForFunction(
@@ -486,6 +505,60 @@ try {
   pass(
     "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
   );
+  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  await dialog().getByLabel("Provider", { exact: true }).selectOption("local");
+  await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+  await dialog().locator("[data-discovery-status]").filter({ hasText: "3 caller-key-visible models" }).waitFor();
+  assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "local" } });
+  assert.deepEqual(await dialog().getByLabel("Model", { exact: true }).locator("option").allTextContents(), ["Choose a model", "caller-reasoner", "caller-unknown", "caller-missing", "Custom…"]);
+  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Max"]);
+  for (const model of ["caller-unknown", "caller-missing"]) {
+    await dialog().getByLabel("Model", { exact: true }).selectOption(model);
+    await dialog().getByText("LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.", { exact: true }).waitFor();
+    assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
+    await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
+    assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).inputValue(), "low");
+  }
+  pass("Configured-provider discovery sends only the selected provider, replaces global models, intersects exact advertised effort requests, and leaves null/missing metadata explicitly unknown");
+  await dialog().getByLabel("Provider", { exact: true }).selectOption("__custom_api__");
+  await dialog().getByLabel("API URL", { exact: true }).fill("https://caller.test/v1");
+  await dialog().getByLabel("API key", { exact: true }).fill("caller-discovery-private-key");
+  discoveryMode = "denied";
+  await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+  await dialog().getByText("Model discovery failed: Caller key cannot list models.", { exact: true }).waitFor();
+  assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", base_url: "https://caller.test/v1", api: "openai-completions", api_key: "caller-discovery-private-key" } });
+  discoveryMode = "success";
+  await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+  await dialog().locator("[data-discovery-status]").filter({ hasText: "3 caller-key-visible models" }).waitFor();
+  assert.equal(await dialog().locator("[data-discovery-status]").textContent().then(t => t.includes("caller-discovery-private-key")), false);
+  assert.equal(await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]).includes("caller-discovery-private-key")), false);
+  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Max"]);
+  await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("max");
+  const discoveredLaunch = (await submit()).body;
+  assert.equal(discoveredLaunch.provider_catalog, true);
+  assert.equal(discoveredLaunch.model, "caller-reasoner");
+  assert.equal(discoveredLaunch.reasoning_effort, "max");
+  assert.equal(discoveredLaunch.provider_config.api, "openai-completions");
+  pass("Discovered model uses its proven runtime vocabulary, excludes unsupported values, and submits exact Max with provider_catalog confirmation without client aliases");
+  pass("Custom discovery uses the caller-entered key and URL, shows a precise denied-listing error, allows retry, and never stores or reflects the secret");
+  for (const change of ["provider", "placement"]) {
+    discoveryMode = "delayed"; releaseDiscovery = undefined;
+    await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+    // Wait for the controlled endpoint to receive the request, without supplying a browser result.
+    await assertEventually(() => typeof releaseDiscovery === "function");
+    if (change === "provider") await dialog().getByLabel("Provider", { exact: true }).selectOption("local");
+    else await dialog().getByLabel("Computer & hub", { exact: true }).selectOption("1");
+    const staleDelivered = page.waitForEvent("response", { predicate: response => response.url().includes("provider-catalog"), timeout: 5000 }).catch(() => null);
+    releaseDiscovery(); await staleDelivered;
+    if (change === "placement") await ready();
+    assert.equal(await dialog().getByLabel("Model", { exact: true }).locator('option[value="caller-reasoner"]').count(), 0);
+    assert.equal(await dialog().getByLabel("API key", { exact: true }).inputValue(), "");
+  }
+  discoveryMode = "success";
+  await dialog().getByLabel("Computer & hub", { exact: true }).selectOption("0"); await ready();
+  pass("Provider and Computer changes cancel in-flight discovery and reject late models while clearing caller credentials");
   for (const runtime of ["pi", "codex", "cc"]) {
     await dialog().getByLabel("Runtime", { exact: true }).selectOption(runtime);
     await dialog()

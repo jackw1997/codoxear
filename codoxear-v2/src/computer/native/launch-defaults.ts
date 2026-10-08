@@ -37,7 +37,7 @@ function empty(efforts: string[], fast: boolean): LaunchBackendDefaults {
 
 /** Read only scalar configuration keys. Track tables so nested model keys can
  * never masquerade as root settings. Unsupported TOML values remain unknown. */
-function tomlScalars(path: string) {
+export function tomlScalars(path: string) {
   const tables = new Map<string, JsonObject>([["", {}]]);
   let text: string;
   try { text = readFileSync(path, "utf8"); } catch { return tables; }

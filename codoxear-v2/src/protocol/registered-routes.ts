@@ -1,6 +1,7 @@
 // Registered HTTP entry points. Docker conformance checks this explicit inventory against Fastify onRoute.
 export type RegisteredEndpoint = {path: string; methods: string[]; websocket?: boolean};
 export const hubRegisteredEndpoints: RegisteredEndpoint[] = [
+  {path:"/api/computers/:id/provider-catalog",methods:["POST"]},
   {path:"/api/hubs/:id/invitation-links",methods:["GET","POST"]},
   {path:"/api/hubs/:id/invitation-links/:invitationId",methods:["DELETE"]},
   {path:"/api/invitation-links/:token",methods:["GET"]},

@@ -26,7 +26,45 @@ export const ProviderConfig = z
     image_support: z.boolean().optional(),
   })
   .strict();
+export const ProviderCatalogRequest = z
+  .object({
+    backend: z.enum(["pi", "codex", "cc"]),
+    api: ProviderConfig.shape.api,
+    provider: z.string().min(1).max(200).optional(),
+    base_url: z.string().url().max(4096).optional(),
+    api_key: z.string().min(1).max(8192).meta({ writeOnly: true }).optional(),
+  })
+  .strict()
+  .refine(
+    (x) =>
+      x.provider ? !x.base_url && !x.api_key : !!x.base_url && !!x.api_key,
+    "Choose a configured provider or supply an endpoint and key",
+  );
+export const ProviderCatalog = z
+  .object({
+    models: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(200),
+            supports_reasoning: z.boolean().nullable(),
+            runtime_reasoning_efforts: z
+              .array(z.string().min(1).max(100))
+              .max(32)
+              .optional(),
+            supported_reasoning_efforts: z
+              .array(z.string().min(1).max(100))
+              .max(32)
+              .nullable(),
+          })
+          .strict(),
+      )
+      .max(1000),
+    metadata_available: z.boolean(),
+  })
+  .strict();
 export const Launch = z.object({
+  provider_catalog: z.literal(true).optional(),
   provider_config: ProviderConfig.optional(),
   env_vars: z
     .record(
@@ -50,6 +88,10 @@ export const Launch = z.object({
   create_in_tmux: z.literal(false).optional(),
 });
 export const Operation = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("provider-catalog"),
+    input: ProviderCatalogRequest,
+  }),
   z.object({
     op: z.literal("delegation-install"),
     parentId: Id,
