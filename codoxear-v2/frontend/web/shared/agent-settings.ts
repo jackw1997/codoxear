@@ -44,7 +44,7 @@ export function createAgentSettingsEditor(options: {
   let sid: string | null = null, generation = 0;
   let request: AbortController | undefined;
   let snapshot: AgentSettings | undefined, catalog: ProviderCatalog | null = null;
-  let applying = false, pending = false, uncertain = false, discovered = false, availabilityMessage = "";
+  let dirty = false, applying = false, pending = false, uncertain = false, discovered = false, availabilityMessage = "";
   const active = (id: string, epoch: number) => sid === id && generation === epoch && options.sessionState.get("selected") === id;
   const busy = () => ["running", "sending", "turnOpen"].some(field => !!options.sessionState.get(field));
   const readOnly = () => {
@@ -54,7 +54,7 @@ export function createAgentSettingsEditor(options: {
   const selectedModel = (): ProviderModel | undefined => catalog?.models.find(row => row.id === model.value);
   const levels = () => discoveredEfforts({}, selectedModel());
   const draftEffort = () => selectedModel()?.supports_reasoning === false ? null : effort.value || null;
-  const changed = () => !!snapshot && (model.value !== snapshot.model || draftEffort() !== snapshot.reasoning_effort);
+  const changed = () => dirty && !!snapshot && (model.value !== snapshot.model || draftEffort() !== snapshot.reasoning_effort);
   function choices(node: HTMLSelectElement, values: string[], selected: string | null, placeholder: string) {
     node.replaceChildren();
     const prompt = new Option(placeholder, ""); prompt.disabled = true; node.add(prompt);
@@ -106,7 +106,7 @@ export function createAgentSettingsEditor(options: {
       const result: AgentSettings = await options.api(`/api/sessions/${encodeURIComponent(id)}/settings`, { signal: controller.signal });
       if (!active(id, epoch)) return;
       snapshot = result; catalog = result.catalog; discovered = !!catalog?.metadata_available || (catalog?.models.length ?? 0) > 1;
-      uncertain = false; status.textContent = ""; populate(draft);
+      uncertain = false; if (!preserveDraft) dirty = false; status.textContent = ""; populate(draft);
     } catch (cause) {
       if (!active(id, epoch) || controller.signal.aborted) return;
       snapshot = undefined; providerValue.textContent = "Not available";
@@ -133,9 +133,9 @@ export function createAgentSettingsEditor(options: {
   const discoverOnOpen = () => { if (!discovered && !pending && snapshot?.provider) void discoverModels(true); };
   modelDropdown.trigger.addEventListener("click", discoverOnOpen);
   modelDropdown.trigger.addEventListener("keydown", event => { if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) discoverOnOpen(); });
-  model.onchange = () => { error.textContent = ""; status.textContent = ""; populateEffort(effort.value || snapshot?.reasoning_effort || null); };
-  effort.onchange = () => { error.textContent = ""; status.textContent = ""; updateAvailability(); };
-  cancel.onclick = () => { if (pending) return; error.textContent = ""; status.textContent = ""; populate(); modelDropdown.trigger.focus(); };
+  model.onchange = () => { dirty = true; error.textContent = ""; status.textContent = ""; populateEffort(effort.value || snapshot?.reasoning_effort || null); };
+  effort.onchange = () => { dirty = true; error.textContent = ""; status.textContent = ""; updateAvailability(); };
+  cancel.onclick = () => { if (pending) return; dirty = false; error.textContent = ""; status.textContent = ""; populate(); modelDropdown.trigger.focus(); };
   reload.onclick = () => void load();
   form.onsubmit = async event => {
     event.preventDefault(); updateAvailability(); if (!sid || apply.disabled) return;
@@ -149,7 +149,7 @@ export function createAgentSettingsEditor(options: {
       const confirmed: AgentSettings = await options.api(`/api/sessions/${encodeURIComponent(id)}/settings`, { signal: controller.signal });
       if (!active(id, epoch)) return;
       if (confirmed.model !== body.model || confirmed.reasoning_effort !== body.reasoning_effort) throw new Error("The saved settings could not be confirmed. Reload settings before retrying.");
-      snapshot = confirmed; populate(); pending = false; status.textContent = "Agent settings saved."; updateAvailability();
+      snapshot = confirmed; dirty = false; populate(); pending = false; status.textContent = "Agent settings saved."; updateAvailability();
       void options.onSaved(id).catch(() => { if (active(id, epoch) && !pending && !changed()) status.textContent = "Settings saved. Reopen Details to refresh session information."; });
     } catch (cause) {
       if (!active(id, epoch) || controller.signal.aborted) return;
@@ -158,7 +158,7 @@ export function createAgentSettingsEditor(options: {
   };
   function close() {
     sid = null; generation++; request?.abort(); request = undefined; snapshot = undefined; catalog = null;
-    applying = false; pending = false; uncertain = false; discovered = false; modelDropdown.close(); effortDropdown.close();
+    dirty = false; applying = false; pending = false; uncertain = false; discovered = false; modelDropdown.close(); effortDropdown.close();
   }
   let wasBusy = busy();
   const syncRuntime = () => {

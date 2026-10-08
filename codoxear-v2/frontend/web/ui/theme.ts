@@ -5,6 +5,7 @@ export const sharedThemeCSS = `
 .ui-button {position:relative;cursor:pointer;touch-action:manipulation;color:var(--text);font:var(--font-md)/1.4 var(--font-ui);}
 /* Compact icon/chip controls retain their existing 44px hit areas. */
 .ui-button:where(:not(.icon-btn,.agentBackendTab,.choiceChip,.ui-dropdown-trigger)) {min-height:44px;}
+.ui-button.danger {color:var(--text-danger-bright,var(--danger));}
 .ui-button:disabled {cursor:default;color:var(--text-soft);}
 .ui-button:focus-visible,.ui-input:focus-visible {outline:2px solid var(--focus-ring);outline-offset:2px;}
 .ui-button--primary {background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);border-radius:var(--radius-control);padding:var(--space-3) var(--space-5);}

@@ -294,7 +294,8 @@ export function mountDropdown(select: HTMLSelectElement, options: DropdownOption
   listen(select, "invalid", (event) => {
     event.preventDefault(); trigger.setAttribute("aria-invalid", "true"); trigger.focus();
   });
-  if (select.form) listen(select.form, "reset", () => queueMicrotask(refresh));
+  // Reset listeners run before the browser restores the select's default state.
+  if (select.form) listen(select.form, "reset", () => { window.setTimeout(refresh, 0); });
   for (const property of ["value", "selectedIndex", "disabled", "required", "multiple"]) restoreProperties.push(mirrorProperty(select, property, refresh));
   const focusDescriptor = Object.getOwnPropertyDescriptor(select, "focus");
   Object.defineProperty(select, "focus", { configurable: true, value: (focusOptions?: FocusOptions) => trigger.focus(focusOptions) });
