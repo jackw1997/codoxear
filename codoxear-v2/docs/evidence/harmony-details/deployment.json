@@ -1,0 +1,13 @@
+{
+  "source": "e84dc2e2c8f60a76b029785c366d86701e420815",
+  "frontendImage": "codoxear-frontend:harmony-e84dc2e2",
+  "frontendImageId": "sha256:167e62373b6efdc77693c9d6a460333db5408cdd154f3e5d32c726b68cae2740",
+  "frontendAssetVersion": "cb9f6494780cd7c5",
+  "privateSettingsPreserved": true,
+  "allOtherServicesPreserved": true,
+  "running": true,
+  "oomKilled": false,
+  "restarts": 0,
+  "backendProductSource": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "deploymentScope": "Frontend only; no backend restart or database mutations"
+}

@@ -1,0 +1,84 @@
+{
+  "frontendSource": "e84dc2e2c8f60a76b029785c366d86701e420815",
+  "backendProductSource": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "backendClosureUnchanged": true,
+  "changedPathsSinceBackendProduct": [
+    "codoxear-v2/docs/evidence/agent-details/agent-creation-results.json",
+    "codoxear-v2/docs/evidence/agent-details/backend.log",
+    "codoxear-v2/docs/evidence/agent-details/client-update-results.json",
+    "codoxear-v2/docs/evidence/agent-details/deployment.json",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-busy.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-desktop.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-persisted.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-portrait.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-read-only.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-saved.png",
+    "codoxear-v2/docs/evidence/agent-details/index.html",
+    "codoxear-v2/docs/evidence/agent-details/local-container.json",
+    "codoxear-v2/docs/evidence/agent-details/local-results.json",
+    "codoxear-v2/docs/evidence/agent-details/package-isolation.json",
+    "codoxear-v2/docs/evidence/agent-details/public-container.json",
+    "codoxear-v2/docs/evidence/agent-details/results.json",
+    "codoxear-v2/docs/evidence/agent-details/role-image-smoke.json",
+    "codoxear-v2/docs/evidence/agent-details/verification.json",
+    "codoxear-v2/docs/requirements-reconciliation.md",
+    "codoxear-v2/frontend/web/legacy/app.css",
+    "codoxear-v2/frontend/web/legacy/app_diagnostics.js",
+    "codoxear-v2/frontend/web/shared/agent-settings.ts",
+    "codoxear-v2/scripts/browser-customer-journey.ts"
+  ],
+  "local": {
+    "checks": 25,
+    "screenshots": 85
+  },
+  "public": {
+    "checks": 25,
+    "screenshots": 85,
+    "clientBuild": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "cb9f6494780cd7c5",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "cb9f6494780cd7c5"
+    }
+  },
+  "designReference": "frontend/harmonyos/entry/src/main/ets/components/SessionDetails.ets, ui/ThemeDropdown.ets and model/SessionDetails.ets",
+  "designChecks": [
+    "13px single-line action labels with 40px visual height and 44px touch boxes",
+    "14px selector type, one visible setting at a time, model dropdown and input",
+    "Apply change and Cancel change in the same action row",
+    "Session rows stacked in Harmony order; actual Context values only",
+    "Copy conversation followed by Show/Hide technical details",
+    "No nested bordered card; 20px section spacing; phone panel matches Harmony geometry"
+  ],
+  "boundaries": {
+    "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+    "oauth": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+    "runtime": "Real ManagedRuntime, ComputerService and NativeHttpTarget; browser model discovery traverses the actual Hub tunnel and Computer HTTP fetch to controlled caller-key model/metadata endpoints; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR profile/image acceptance",
+    "externalBootstrap": [
+      {
+        "computer": "Computer A",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      },
+      {
+        "computer": "Computer B",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      }
+    ],
+    "unavailable": [
+      "Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests",
+      "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+      "Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained",
+      "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+      "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+    ],
+    "note": "Controlled OAuth, caller-key catalog and model replies. Production profile preparation and actual Hub/Computer transport. No live OAuth/inference or physical mobile acceptance. Frontend-only deployment preserves running backend services and private configuration."
+  },
+  "priorBackendEvidence": "../agent-details/verification.json",
+  "priorBackendTests": 384
+}

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "source": "e84dc2e2c8f60a76b029785c366d86701e420815",
+  "image": "codoxear-frontend:harmony-e84dc2e2",
+  "imageId": "sha256:167e62373b6efdc77693c9d6a460333db5408cdd154f3e5d32c726b68cae2740",
+  "exitCode": 0,
+  "oomKilled": false,
+  "memory": 2147483648,
+  "memorySwap": 2147483648,
+  "nanoCpus": 2000000000,
+  "pids": 512
+}
