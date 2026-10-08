@@ -512,7 +512,7 @@ try {
   assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "local" } });
   assert.deepEqual(await dialog().getByLabel("Model", { exact: true }).locator("option").allTextContents(), ["Choose a model", "caller-reasoner", "caller-unknown", "caller-missing", "Custom…"]);
   await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Max"]);
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum"]);
   for (const model of ["caller-unknown", "caller-missing"]) {
     await dialog().getByLabel("Model", { exact: true }).selectOption(model);
     await dialog().getByText("LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.", { exact: true }).waitFor();
@@ -535,7 +535,7 @@ try {
   assert.equal(await dialog().locator("[data-discovery-status]").textContent().then(t => t.includes("caller-discovery-private-key")), false);
   assert.equal(await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]).includes("caller-discovery-private-key")), false);
   await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Max"]);
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum"]);
   await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("max");
   await page.screenshot({ path: "artifacts/creation-discovery-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   const discoveredLaunch = (await submit()).body;

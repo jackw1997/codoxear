@@ -333,7 +333,7 @@ async function createAgent(page, computer, name, workspace) {
   await create.getByText('LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.', { exact: true }).waitFor();
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-unknown');
   await create.getByLabel('Model', { exact: true }).selectOption('journey-model');
-  assert.deepEqual(await create.getByLabel('Requested reasoning', { exact: true }).locator('option').allTextContents(), ['Choose a reasoning level', 'Low', 'High', 'Max']);
+  assert.deepEqual(await create.getByLabel('Requested reasoning', { exact: true }).locator('option').allTextContents(), ['Choose a reasoning level', 'Low', 'High', 'Maximum']);
   await create.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-desktop');
   await page.setViewportSize({ width: 390, height: 844 });
