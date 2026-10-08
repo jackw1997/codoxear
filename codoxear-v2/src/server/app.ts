@@ -345,6 +345,7 @@ export async function createApp(options: AppOptions) {
     const userId = actor(request),
       { kind, id: resourceId } = MembershipParams.parse(request.params),
       body = InvitationRequest.parse(request.body);
+    if (kind === "hub") throw new DomainError(409, "hub_invitation_link_required", "Create a shareable Member invitation link for this Hub");
     const value = store.change((s) =>
       invite(
         s,
@@ -366,6 +367,8 @@ export async function createApp(options: AppOptions) {
       { token } = z
         .object({ token: z.string().min(32).max(100) })
         .parse(request.body);
+    const invitation = requireValue(store.read().invitations.find(value => value.tokenHash === digest(token)));
+    if (invitation.resource === "hub") throw new DomainError(409, "hub_invitation_link_required", "Use a Member invitation link to join this Hub");
     const i = store.change((s) => acceptInvite(s, userId, token));
     return { resource: i.resource, resourceId: i.resourceId };
   });

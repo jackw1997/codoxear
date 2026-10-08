@@ -13,6 +13,7 @@ import {
   createHub,
   passwordHash,
   digest,
+  invite,
 } from "../src/domain/commands.js";
 import { createComputerApi } from "../src/computer/api.js";
 import { FixtureRuntime } from "../scripts/testing/fixture-runtime.js";
@@ -60,6 +61,33 @@ async function fixture() {
     },
   };
 }
+test("Compatibility server rejects targeted Hub creation and role-changing acceptance while preserving Computer invitations", async () => {
+  const f = await fixture();
+  try {
+    f.store.change(s => {
+      s.users.push({id:"bob",email:"bob@example.test",name:"Bob",passwordHash:passwordHash("bob-password"),disabled:false});
+      s.memberships.push({resource:"hub",resourceId:f.computer.hubId,userId:"bob",role:"member"});
+    });
+    const login = await f.app.inject({method:"POST",url:"/api/auth/login",payload:{email:"bob@example.test",password:"bob-password"}});
+    const cookies = {codoxear_v2:login.cookies[0]!.value};
+    for (const role of ["member","admin"] as const) {
+      const created = await f.app.inject({method:"POST",url:`/api/resources/hub/${f.computer.hubId}/invitations`,cookies:f.cookies,payload:{email:"bob@example.test",role}});
+      assert.equal(created.statusCode,409);
+      assert.equal(created.json().code,"hub_invitation_link_required");
+      const retained = f.store.change(s=>invite(s,"alice","hub",f.computer.hubId,"bob@example.test",role));
+      const accepted = await f.app.inject({method:"POST",url:"/api/invitations/accept",cookies,payload:{token:retained.token}});
+      assert.equal(accepted.statusCode,409);
+      assert.equal(accepted.json().code,"hub_invitation_link_required");
+      assert.equal(f.store.read().invitations.find(value=>value.id===retained.invitation.id)!.accepted,false);
+      assert.equal(f.store.read().memberships.find(value=>value.resource==="hub" && value.userId==="bob")!.role,"member");
+    }
+    const computer = await f.app.inject({method:"POST",url:`/api/resources/computer/${f.computer.id}/invitations`,cookies:f.cookies,payload:{email:"bob@example.test",role:"viewer"}});
+    assert.equal(computer.statusCode,200);
+    const accepted = await f.app.inject({method:"POST",url:"/api/invitations/accept",cookies,payload:{token:computer.json().token}});
+    assert.equal(accepted.statusCode,200);
+    assert.equal(f.store.read().memberships.find(value=>value.resource==="computer" && value.userId==="bob")!.role,"viewer");
+  } finally {await f.close();}
+});
 test("Computer reconnect retains runtime; revoked credential blocks reconnection", async () => {
   const f = await fixture(),
     home = mkdtempSync(join(tmpdir(), "transport-")),

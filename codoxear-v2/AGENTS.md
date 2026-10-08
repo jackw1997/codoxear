@@ -58,7 +58,15 @@ Root instructions about `codoxear/util.py`, Python module locations, `pip instal
 - Owner, Admin and Member are Hub administration roles, displayed beside identities. Owners promote/demote admins and remove admins/members. Admins invite/remove ordinary members but cannot remove or demote admins/owner. Provider policy remains owner-controlled.
 - Owners/admins see all Computers and manage their allowlists. Members see only Computers explicitly allowing one of their signed-in identities. Every human, including the Hub owner/admin and Computer owner, must be explicitly allowlisted to use a Computer or create/use its agents. Creating or owning a Computer grants no automatic execution access. Agent sharing/retained rights must not bypass the Computer allowlist.
 - Computer service authentication and outbound WSS binding are separate from human sign-in. Retain those service credentials; removing client device signing keys does not remove Computer authentication. Hub authority enforces allowlists for execution, streams, files, queues and delegation.
-- Public sign-in without Hub membership is a signed-in nonmember state with an invitation action, not an unexplained Hub access error or automatic membership. Existing unrelated sessions and LiteLLM settings remain preserved.
+- Public sign-in without Hub membership is a signed-in nonmember state that can open a shared invitation link, not an unexplained Hub access error or automatic membership. Existing unrelated sessions and LiteLLM settings remain preserved.
+
+## R57 — Shareable Hub invitations
+
+- Owner/Admin creates an expiring, single-use Member invitation link before the recipient has an account. Never require the recipient to copy internal provider connection/subject/tenant identifiers.
+- Opening the link previews the Hub and scope. The recipient selects an allowed provider or saved identity and explicitly chooses Join Hub. Opening the link or signing in must not consume it or grant membership.
+- Hub invitations grant Member only. Owner promotes Admin separately, and Computer/workspace grants remain separate for every human. Already-member identities cannot consume an invitation or change their role through it.
+- Managers can list and revoke pending links. Expiry, consumption, revocation, issuer demotion/removal and provider policy must fence admission. Retained compatibility APIs must reject obsolete targeted Hub create/accept operations, including Admin invitations.
+- The current static client owns invitation presentation; carry the secret in its URL fragment and mask it in screenshots. An API-only Hub does not require a second frontend.
 
 ## Customer acceptance through the browser
 
