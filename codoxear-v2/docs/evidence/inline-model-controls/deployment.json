@@ -1,0 +1,13 @@
+{
+  "source": "3fce032526fab3d26ae816afb45960d755beddeb",
+  "frontendImage": "codoxear-frontend:ui-controls-3fce0325",
+  "frontendImageId": "sha256:738db9cf25e6945225a96065f67ced322907fa074b139a86d7b485090041f9a8",
+  "frontendAssetVersion": "e491e176163d15b5",
+  "privateSettingsPreserved": true,
+  "allOtherServicesPreserved": true,
+  "running": true,
+  "oomKilled": false,
+  "restarts": 0,
+  "backendProductSource": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "deploymentScope": "Frontend only; no backend restart or database mutations"
+}

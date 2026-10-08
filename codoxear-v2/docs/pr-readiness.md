@@ -6,7 +6,15 @@ Current authentication follows R54 and R57: the client starts with an Add Hub UR
 
 The implementation and validation paragraphs below record named snapshots. Historical counts and superseded login mechanisms are not acceptance of the current tree. R57 corrects the Hub invitation flow; its final public browser evidence is recorded separately.
 
-## Current invitation and daily-use acceptance (R57)
+## Current direct-dropdown acceptance (R61)
+
+The displayed model name and reasoning effort are the dropdown controls themselves. Separate Change buttons and the hidden single-setting editor are removed. A frontend-owned library supplies consistent menus, buttons, fields and dialogs across web entries; pages retain business logic. R61 explicitly supersedes the earlier R59/R60 layout interpretation.
+
+Frontend `3fce0325`, public asset `e491e176163d15b5`: 17 component checks, 20 creation checks, two update checks, 25 local and 25 public-client customer checks pass, with 86 masked frames per customer run. The independent frontend installs/builds and passes pruned UID-1000 runtime startup. Verification is serialized under 2GiB, without OOM. Computer/Hub/backend closure remains unchanged from `b8534473`; its previous 384-test backend evidence is retained, not rerun or aggregated. Frontend-only deployment preserves backend containers and private settings.
+
+[Current screenshots](evidence/inline-model-controls/index.html) · [Sources and boundaries](evidence/inline-model-controls/verification.json) · [Demo](https://codoxear.gzeek.com:8444/?release=e491e176163d15b5). OAuth, model catalogs and managed replies are controlled browser fixtures; live identity/model inference and physical-device acceptance are separate.
+
+## Historical invitation and daily-use acceptance (R57)
 
 The corrected Hub invitation is a shareable, expiring, single-use Member link created before the recipient exists. Sign-in only authenticates; the recipient explicitly chooses Join Hub. Membership grants no Computer/workspace access or Admin role. Managers revoke pending links, and obsolete targeted Hub creation/acceptance APIs reject in both independent Hub and compatibility Server. The Owner cannot accept its own invitation. Joined Members see the verified Hub name and separate-access guidance.
 

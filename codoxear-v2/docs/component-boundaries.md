@@ -23,6 +23,10 @@ The repository root `AGENTS.md` testing policy applies: behavioral tests run in 
 
 Preserve unrelated services, legacy deployment processes and host sessions. The scoped R41 authorization permits stopping owned Codoxear demo/test containers while retaining their data; source ownership changes do not broaden that authorization.
 
+## Owned web controls
+
+`frontend/web/ui/` owns browser dropdown/listbox behavior, buttons, fields, dialogs and their single token-based theme. Client, workspace, account, Hub sign-in and callback entries adopt this library. It imports no backend, account, runtime or provider implementation. Business controllers supply choices and handle saving; the library owns rendering, keyboard/focus, form integration and disposal. Dropdowns retain hidden native form backing values while rendering owned menus. Monaco internals are excluded from automatic adoption. See [control contracts](../frontend/web/ui/README.md) and [current browser evidence](evidence/inline-model-controls/verification.json).
+
 ## Standalone release packages and explicit UI integration
 
 `scripts/package-component.ts` exports a reviewed Git tree's exact transitive TypeScript source closure for Computer, Hub, Identity or Server. Each archive contains its own manifest, minimal pinned dependencies, lockfile, build script, Dockerfile and release provenance. Computer also contains its declared OAR installer inputs. Archives exclude peer components, frontend sources/assets, repository development tools and private configuration. `scripts/package-computer.mjs` uses this exporter rather than exporting the complete v2 tree. The browser transport SDK belongs to `frontend/shared/`; there is no backend `src/client` directory.

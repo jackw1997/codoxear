@@ -1,0 +1,75 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "native backing is hidden while owned controls remain accessible",
+      "passed": true
+    },
+    {
+      "name": "pointer selection emits one native input/change pair and submits its value",
+      "passed": true
+    },
+    {
+      "name": "Arrow keys skip disabled options and keyboard Enter commits",
+      "passed": true
+    },
+    {
+      "name": "Home and End navigate enabled choices",
+      "passed": true
+    },
+    {
+      "name": "typeahead selects the matching option",
+      "passed": true
+    },
+    {
+      "name": "disabled options and disabled groups remain visible and reject clicks",
+      "passed": true
+    },
+    {
+      "name": "programmatic value, index, and selected-option changes sync without fake change events",
+      "passed": true
+    },
+    {
+      "name": "option replacement and add retain native controller contracts",
+      "passed": true
+    },
+    {
+      "name": "mutating an option's disabled state updates the owned popup",
+      "passed": true
+    },
+    {
+      "name": "native form reset restores displayed selection without new change events",
+      "passed": true
+    },
+    {
+      "name": "native required validation prevents submission and focuses the owned trigger",
+      "passed": true
+    },
+    {
+      "name": "disabled fieldset disables the owned control and restores it",
+      "passed": true
+    },
+    {
+      "name": "Escape closes only the dialog's dropdown and restores trigger focus",
+      "passed": true
+    },
+    {
+      "name": "outside click and Tab close transient popups",
+      "passed": true
+    },
+    {
+      "name": "dynamic controls dispose their adapter and do not retain activation handlers",
+      "passed": true
+    },
+    {
+      "name": "repeated enhancement shares one stylesheet and primitives own actual controls",
+      "passed": true
+    },
+    {
+      "name": "60-option phone popup remains bounded, scrolls, and uses live theme tokens",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "fixture": "Actual source-owned frontend UI library; controlled local fixture; Chromium phone viewport; no provider/customer acceptance claimed."
+}
