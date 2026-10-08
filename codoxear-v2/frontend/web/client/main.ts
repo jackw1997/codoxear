@@ -181,7 +181,7 @@ async function startClient() {
   setInterval(() => {
     void refresh().catch(() => {});
   }, 5000);
-  if (pendingHubInvitation) await openHubInvitation(pendingHubInvitation, refresh, () => openConnections(refresh));
+  if (pendingHubInvitation) await openHubInvitation(pendingHubInvitation, refresh, () => openConnections(refresh, () => { conversationCache.clear(); clearAccountStorage(); }));
   else if (!(await vault.list()).length)
     openConnections(refresh, () => {
       conversationCache.clear();

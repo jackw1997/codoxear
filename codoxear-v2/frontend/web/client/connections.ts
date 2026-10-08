@@ -646,11 +646,6 @@ export function openConnections(
     page.render("Sign-in methods", `<div class="connectionStack"><p>Signed in as <strong>${esc(me.name)}</strong> on ${esc(login.name)}.</p><section class="connectionSection"><h2>Linked accounts</h2>${me.identities.map((identity: any) => `<div class="connectionRow"><strong>${esc(identity.method === "google" ? "Google" : "Feishu")}</strong></div>`).join("")}</section><p class="connectionHint">To invite someone, a Hub owner or admin shares an invitation link from Hub members.</p></div>`, back);
   }
   home();
-      },
-      page.error,
-    );
-  }
-  home();
   return page;
 }
 async function computerAllowlistPage(
