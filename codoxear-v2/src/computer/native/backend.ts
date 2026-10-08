@@ -91,8 +91,11 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
   if (launch.model && launch.model !== "default")
     args.push(backend === "pi" ? "--model" : "--model", launch.model);
   if (launch.model_provider) {
-    if (backend === "cc" &&
-        launch.model_provider !== readLaunchDefaults(home, cwd, env).backends.cc.model_provider)
+    if (
+      backend === "cc" &&
+      launch.model_provider !==
+        readLaunchDefaults(home, cwd, env).backends.cc.model_provider
+    )
       throw new DomainError(
         400,
         "not_dispatched",
@@ -202,7 +205,17 @@ export function backendCommand(input: BrokerLaunch, preflight = true) {
             ? "1"
             : "0";
         env.CODOXEAR_PROVIDER_IMAGES = provider.image_support ? "1" : "0";
-        if(input.catalogModel){env.CODOXEAR_PROVIDER_REASONING=input.catalogModel.reasoning?"1":"0";env.CODOXEAR_PROVIDER_THINKING_MAP=JSON.stringify(input.catalogModel.thinkingLevelMap);}
+        if (input.catalogModel) {
+          env.CODOXEAR_PROVIDER_REASONING = input.catalogModel.reasoning
+            ? "1"
+            : "0";
+          env.CODOXEAR_PROVIDER_THINKING_MAP = JSON.stringify(
+            input.catalogModel.thinkingLevelMap,
+          );
+          env.CODOXEAR_PROVIDER_COMPAT = JSON.stringify(
+            input.catalogModel.compat ?? { supportsReasoningEffort: true },
+          );
+        }
         const extension = computerPackagePaths().entry(
           "native/pi-private-provider",
         );

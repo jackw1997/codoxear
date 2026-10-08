@@ -246,6 +246,9 @@ export function agentCreationDialog(
     const custom = select("provider").value === "__custom_api__";
     const model = discovered?.models.find(model => model.id === selectedModel());
     const efforts = discovered ? discoveredEfforts(defaults(), model) : effortsFor(defaults(), select("provider").value, selectedModel());
+    const advertised = model?.supports_reasoning === false ? [] : model?.supported_reasoning_efforts ?? [];
+    const unavailable = advertised.filter(level => !efforts.includes(level));
+    const displayedEfforts = [...new Set([...advertised, ...efforts])];
     const effortLabel = discovered || custom ? "Requested reasoning" : "Reasoning";
     dialog.querySelector<HTMLElement>("[data-effort-label]")!.textContent = effortLabel;
     select("effort").setAttribute("aria-label", effortLabel);
@@ -263,8 +266,17 @@ export function agentCreationDialog(
       : efforts.length === 1 && efforts[0] === "off"
         ? "The Computer’s model configuration does not advertise reasoning levels beyond Off."
         : "";
+    if (unavailable.length) hint.textContent += ` Unavailable for this runtime/API: ${unavailable.join(", ")}. ${efforts.length ? "Choose a supported level." : "This runtime/API cannot submit any of this model's advertised levels. Choose another runtime or API compatibility; the model remains selected."}`;
     hint.hidden = !hint.textContent;
-    setOptions(select("effort"), efforts, "Choose a reasoning level");
+    hint.id = "agent-creation-effort-hint";
+    select("effort").setAttribute("aria-describedby", hint.id);
+    setOptions(select("effort"), displayedEfforts, "Choose a reasoning level");
+    for (const option of select("effort").options) {
+      if (unavailable.includes(option.value)) {
+        option.disabled = true;
+        option.textContent += " (unavailable for this runtime/API)";
+      }
+    }
     select("effort").value = "";
     const configured = defaults().reasoning_effort;
     const sameConfiguredModel =
@@ -278,7 +290,7 @@ export function agentCreationDialog(
       select("effort").value = "off";
     select("effort").required = !!efforts.length;
     dialog.querySelector<HTMLElement>("[data-effort]")!.hidden =
-      !efforts.length;
+      !displayedEfforts.length;
     dialog.querySelector<HTMLElement>("[data-fast]")!.hidden =
       backend() === "pi";
   };

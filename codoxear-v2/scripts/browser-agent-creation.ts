@@ -114,6 +114,7 @@ app.post("/api/computers/:id/provider-catalog", async (r, reply) => {
   discoveryCalls.push({ computer: r.params.id, body: r.body });
   if (discoveryMode === "delayed") await new Promise(resolve => { releaseDiscovery = resolve; });
   if (discoveryMode === "denied") return reply.code(403).send({ error: "Caller key cannot list models." });
+  if (discoveryMode.startsWith("anthropic")) return { metadata_available: true, models: [{ id: "caller-anthropic", supports_reasoning: true, supported_reasoning_efforts: ["low", "high", "max"], runtime_reasoning_efforts: discoveryMode === "anthropic-unsupported" ? [] : ["low", "high", "max"] }] };
   return { metadata_available: true, models: [
     { id: "caller-reasoner", supports_reasoning: true, supported_reasoning_efforts: ["none", "low", "high", "max", "unsupported-level"], runtime_reasoning_efforts: ["none", "low", "high", "max"] },
     { id: "caller-unknown", supports_reasoning: null, supported_reasoning_efforts: null },
@@ -506,13 +507,43 @@ try {
     "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
   );
   await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  await dialog().getByLabel("Provider", { exact: true }).selectOption("anthropic");
+  discoveryMode = "anthropic-unsupported";
+  await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+  await dialog().locator("[data-discovery-status]").filter({ hasText: "1 caller-key-visible models" }).waitFor();
+  assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "anthropic" } });
+  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-anthropic");
+  const advertised = dialog().getByLabel("Requested reasoning", { exact: true });
+  assert.deepEqual(await advertised.locator("option").allTextContents(), ["Choose a reasoning level", "Low (unavailable for this runtime/API)", "High (unavailable for this runtime/API)", "Maximum (unavailable for this runtime/API)"]);
+  for (const value of ["low", "high", "max"]) assert.equal(await advertised.locator(`option[value="${value}"]`).isDisabled(), true);
+  await dialog().getByText("This runtime/API cannot submit any of this model's advertised levels.", { exact: false }).waitFor();
+  assert.equal(await dialog().getByLabel("Model", { exact: true }).inputValue(), "caller-anthropic");
+  await page.screenshot({ path: "artifacts/creation-anthropic-unsupported.png", mask: [dialog().getByLabel("API key", { exact: true })] });
+  discoveryMode = "anthropic-supported";
+  await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
+  await dialog().locator("[data-discovery-status]").filter({ hasText: "1 caller-key-visible models" }).waitFor();
+  assert.equal(await dialog().getByLabel("Model", { exact: true }).inputValue(), "caller-anthropic");
+  assert.deepEqual(await advertised.locator("option").allTextContents(), ["Choose a reasoning level", "Low", "High", "Maximum"]);
+  assert.equal(await advertised.inputValue(), "");
+  for (const value of ["low", "high", "max"]) assert.equal(await advertised.locator(`option[value="${value}"]`).isDisabled(), false);
+  await advertised.selectOption("max");
+  const anthropicLaunch = (await submit()).body;
+  assert.equal(anthropicLaunch.provider_catalog, true);
+  assert.equal(anthropicLaunch.model_provider, "anthropic");
+  assert.equal(anthropicLaunch.model, "caller-anthropic");
+  assert.equal(anthropicLaunch.reasoning_effort, "max");
+  assert.equal(anthropicLaunch.provider_config, undefined);
+  await page.screenshot({ path: "artifacts/creation-anthropic-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
+  pass("Configured Anthropic discovery preserves advertised disabled levels and selected model, then producer compatibility enables exact explicit Max without copying private credentials");
+  discoveryMode = "success";
   await dialog().getByLabel("Provider", { exact: true }).selectOption("local");
   await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
   await dialog().locator("[data-discovery-status]").filter({ hasText: "3 caller-key-visible models" }).waitFor();
   assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "local" } });
   assert.deepEqual(await dialog().getByLabel("Model", { exact: true }).locator("option").allTextContents(), ["Choose a model", "caller-reasoner", "caller-unknown", "caller-missing", "Custom…"]);
   await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum"]);
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
+  assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).locator('option[value="unsupported-level"]').isDisabled(), true);
   for (const model of ["caller-unknown", "caller-missing"]) {
     await dialog().getByLabel("Model", { exact: true }).selectOption(model);
     await dialog().getByText("LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.", { exact: true }).waitFor();
@@ -535,7 +566,8 @@ try {
   assert.equal(await dialog().locator("[data-discovery-status]").textContent().then(t => t.includes("caller-discovery-private-key")), false);
   assert.equal(await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]).includes("caller-discovery-private-key")), false);
   await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum"]);
+  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
+  assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).locator('option[value="unsupported-level"]').isDisabled(), true);
   await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("max");
   await page.screenshot({ path: "artifacts/creation-discovery-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   const discoveredLaunch = (await submit()).body;

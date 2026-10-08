@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -17,6 +17,70 @@ const input = {
   base_url: "https://provider.invalid/deploy/v1",
   api_key: "private-secret",
 };
+test("Unknown Anthropic metadata exposes only proven request vocabulary without claiming provider capabilities", async () => {
+  const { resolveCatalogLaunch } =
+    await import("../src/computer/provider-catalog.js");
+  const request = { ...input, api: "anthropic-messages" as const };
+  const fetcher = (async (url: any) =>
+    new Response(
+      JSON.stringify({
+        data: url.pathname.endsWith("/models")
+          ? [{ id: "opaque-route" }]
+          : [
+              {
+                model_group: "opaque-route",
+                supports_reasoning: null,
+                supported_reasoning_efforts: null,
+              },
+            ],
+      }),
+    )) as typeof fetch;
+  const catalogue = await providerCatalog("/unused", request, fetcher);
+  assert.equal(catalogue.models[0]!.supports_reasoning, null);
+  assert.equal(catalogue.models[0]!.supported_reasoning_efforts, null);
+  assert.deepEqual(catalogue.models[0]!.runtime_reasoning_efforts, [
+    "none",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+  ]);
+  const launch = {
+    provider_catalog: true as const,
+    model: "opaque-route",
+    provider_config: {
+      base_url: request.base_url,
+      api_key: request.api_key,
+      api: request.api,
+    },
+  };
+  for (const effort of catalogue.models[0]!.runtime_reasoning_efforts!) {
+    const result = await resolveCatalogLaunch(
+      "/unused",
+      "pi",
+      { ...launch, reasoning_effort: effort },
+      fetcher,
+    );
+    assert.equal(
+      result.launch.reasoning_effort,
+      effort === "none" ? "off" : effort,
+    );
+    assert.equal(
+      result.catalogModel!.thinkingLevelMap[effort === "none" ? "off" : effort],
+      effort,
+    );
+  }
+  await assert.rejects(
+    resolveCatalogLaunch(
+      "/unused",
+      "pi",
+      { ...launch, reasoning_effort: "minimal" },
+      fetcher,
+    ),
+    /cannot send/,
+  );
+});
 test("Provider catalogue preserves precise declared levels and unknowns, scoped to caller-visible IDs", async () => {
   const seen: string[] = [];
   const fetcher = (async (url: any, options: any) => {
@@ -82,6 +146,267 @@ test("Provider catalogue preserves precise declared levels and unknowns, scoped 
     ],
   });
   assert.equal(JSON.stringify(result).includes("private-secret"), false);
+});
+
+test("Discovered Anthropic efforts use exact adaptive payloads in managed and native installed Pi SDKs", async (t) => {
+  const { resolveCatalogLaunch } =
+    await import("../src/computer/provider-catalog.js");
+  const { prepareProfile } =
+    await import("../src/computer/managed/profiles.js");
+  const { backendCommand } = await import("../src/computer/native/backend.js");
+  const { default: privateProvider } =
+    await import("../src/computer/native/pi-private-provider.js");
+  const { computerPackagePaths } =
+    await import("../src/computer/package-paths.js");
+  const { pathToFileURL } = await import("node:url");
+  const home = await mkdtemp(join(tmpdir(), "catalogue-anthropic-effort-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const configured = join(home, ".pi", "agent", "models.json");
+  await mkdir(join(home, ".pi", "agent"), { recursive: true });
+  const original = JSON.stringify({
+    providers: {
+      gateway: {
+        api: "anthropic-messages",
+        baseUrl: input.base_url,
+        apiKey: input.api_key,
+        models: [{ id: "opaque-route", reasoning: false }],
+      },
+    },
+  });
+  await writeFile(configured, original);
+  const levels = ["none", "minimal", "low", "high", "max"];
+  const fetcher = (async (url: any) =>
+    new Response(
+      JSON.stringify({
+        data: url.pathname.endsWith("/models")
+          ? [{ id: "opaque-route" }]
+          : [
+              {
+                model_group: "opaque-route",
+                supports_reasoning: true,
+                supported_reasoning_efforts: levels,
+              },
+            ],
+      }),
+    )) as typeof fetch;
+  const catalogue = await providerCatalog(
+    home,
+    { backend: "pi", provider: "gateway" },
+    fetcher,
+  );
+  assert.deepEqual(catalogue.models[0]!.runtime_reasoning_efforts, [
+    "none",
+    "low",
+    "high",
+    "max",
+  ]);
+  const baseLaunch = {
+    provider_catalog: true as const,
+    model_provider: "gateway",
+    model: "opaque-route",
+  };
+  await assert.rejects(
+    resolveCatalogLaunch(
+      home,
+      "pi",
+      { ...baseLaunch, reasoning_effort: "minimal" },
+      fetcher,
+    ),
+    /cannot send/,
+  );
+  const managedPath = join(
+    computerPackagePaths().root,
+    "runtime/oar/node_modules/@earendil-works/pi-ai/dist/api/anthropic-messages.js",
+  );
+  const nativePath =
+    "/usr/local/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/api/anthropic-messages.js";
+  const managedVersion = JSON.parse(
+    await readFile(
+      join(
+        computerPackagePaths().root,
+        "runtime/oar/node_modules/@earendil-works/pi-ai/package.json",
+      ),
+      "utf8",
+    ),
+  ).version;
+  const nativeVersion = JSON.parse(
+    await readFile(
+      "/usr/local/lib/node_modules/@earendil-works/pi-coding-agent/package.json",
+      "utf8",
+    ),
+  ).version;
+  assert.equal(managedVersion, "1.0.4");
+  assert.equal(nativeVersion, "1.0.0");
+  t.diagnostic(
+    `Exact Anthropic payloads verified with managed pi-ai ${managedVersion} and native Pi CLI ${nativeVersion}`,
+  );
+  assert.ok(
+    existsSync(nativePath),
+    "Native Pi SDK must be installed in the verification image",
+  );
+  const sdks = await Promise.all(
+    [managedPath, nativePath].map((path) => import(pathToFileURL(path).href)),
+  );
+  for (const requested of ["low", "high", "max", "none"] as const) {
+    const resolved = await resolveCatalogLaunch(
+      home,
+      "pi",
+      { ...baseLaunch, reasoning_effort: requested },
+      fetcher,
+    );
+    assert.deepEqual(resolved.catalogModel!.compat, {
+      forceAdaptiveThinking: true,
+    });
+    const previousFetch = globalThis.fetch;
+    let profile: Awaited<ReturnType<typeof prepareProfile>>;
+    try {
+      globalThis.fetch = fetcher;
+      profile = await prepareProfile({
+        home,
+        stateHome: home,
+        cwd: home,
+        backend: "pi",
+        launch: { ...baseLaunch, reasoning_effort: requested },
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+    const managedConfig = JSON.parse(
+      await readFile(
+        join(profile.env.OAR_PI_AGENT_DIR!, "models.json"),
+        "utf8",
+      ),
+    );
+    const managedModel = managedConfig.providers.codoxear_private.models[0];
+    assert.equal(
+      managedModel.reasoning,
+      true,
+      "Producer metadata overrides the stale local false only for this launch",
+    );
+    assert.deepEqual(managedModel.compat, { forceAdaptiveThinking: true });
+    const plan = backendCommand(
+      {
+        home,
+        cwd: home,
+        backend: "pi",
+        name: "catalogue fixture",
+        sessionId: "broker-" + "a".repeat(32),
+        launch: resolved.launch,
+        catalogModel: resolved.catalogModel!,
+      },
+      false,
+    );
+    const privateEnv = Object.fromEntries(
+      Object.entries(plan.env).filter(([key]) =>
+        key.startsWith("CODOXEAR_PROVIDER_"),
+      ),
+    );
+    const previousEnv = new Map(
+      Object.keys(privateEnv).map((key) => [key, process.env[key]]),
+    );
+    let nativeConfig: any;
+    try {
+      Object.assign(process.env, privateEnv);
+      privateProvider({
+        registerProvider: (_name, config) => {
+          nativeConfig = config;
+        },
+      });
+    } finally {
+      for (const [key, value] of previousEnv) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+    assert.deepEqual(nativeConfig.models[0].compat, {
+      forceAdaptiveThinking: true,
+    });
+    for (const [index, sdk] of sdks.entries()) {
+      const source = index === 0 ? managedModel : nativeConfig.models[0];
+      const model = {
+        ...source,
+        api: "anthropic-messages",
+        provider: "codoxear_private",
+        baseUrl: input.base_url,
+      };
+      let body: any;
+      const events = [
+        {
+          type: "message_start",
+          message: {
+            id: "fixture",
+            type: "message",
+            role: "assistant",
+            model: "opaque-route",
+            content: [],
+            stop_reason: null,
+            stop_sequence: null,
+            usage: { input_tokens: 0, output_tokens: 0 },
+          },
+        },
+        {
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "text", text: "" },
+        },
+        {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "text_delta", text: "fixture reply" },
+        },
+        { type: "content_block_stop", index: 0 },
+        {
+          type: "message_delta",
+          delta: { stop_reason: "end_turn", stop_sequence: null },
+          usage: { output_tokens: 1 },
+        },
+        { type: "message_stop" },
+      ];
+      const result = await sdk
+        .streamSimple(
+          model,
+          {
+            messages: [{ role: "user", content: "SDK fixture", timestamp: 0 }],
+          },
+          {
+            apiKey: "fixture-key",
+            ...(requested !== "none" ? { reasoning: requested } : {}),
+            fetch: async (_url: any, options: any) => {
+              body = JSON.parse(options.body);
+              return new Response(
+                events
+                  .map(
+                    (event) =>
+                      `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
+                  )
+                  .join(""),
+                { headers: { "content-type": "text/event-stream" } },
+              );
+            },
+          },
+        )
+        .result();
+      assert.notEqual(result.stopReason, "error", JSON.stringify(result));
+      assert.equal(body.model, "opaque-route");
+      if (requested === "none") {
+        assert.deepEqual(body.thinking, { type: "disabled" });
+        assert.equal(body.output_config, undefined);
+      } else {
+        assert.equal(body.thinking.type, "adaptive");
+        assert.equal(
+          body.thinking.budget_tokens,
+          undefined,
+          "Effort is never approximated through a budget",
+        );
+        assert.equal(body.output_config.effort, requested);
+      }
+    }
+    assert.equal(
+      await readFile(configured, "utf8"),
+      original,
+      "Configured provider files remain unchanged",
+    );
+  }
 });
 test("Metadata rejection preserves unknown models; redirects/list rejection and oversized bodies fail without secret leakage", async () => {
   const metadataDenied = (async (url: any) =>

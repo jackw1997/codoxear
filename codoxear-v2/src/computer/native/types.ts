@@ -40,7 +40,11 @@ export type Attachment = {
   kind: "file" | "image";
 };
 export type BrokerLaunch = {
-  catalogModel?: {reasoning:boolean;thinkingLevelMap:Record<string,string|null>};
+  catalogModel?: {
+    reasoning: boolean;
+    thinkingLevelMap: Record<string, string | null>;
+    compat?: { forceAdaptiveThinking?: true; supportsReasoningEffort?: true };
+  };
   home: string;
   storageHome?: string;
   sessionId: string;

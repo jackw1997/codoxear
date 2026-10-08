@@ -1,4 +1,4 @@
-import {resolveCatalogLaunch} from "../provider-catalog.js";
+import { resolveCatalogLaunch } from "../provider-catalog.js";
 import {
   mkdir,
   readFile,
@@ -32,8 +32,12 @@ export async function prepareProfile(input: ManagedOpen) {
       )
     : Launch.strict().parse(input.launch ?? {});
   if (!input.profile) await atomicJson(join(directory, "launch.json"), launch);
-  const resolved=await resolveCatalogLaunch(input.home,input.backend, {...launch,model:input.model??launch.model,reasoning_effort:input.effort??launch.reasoning_effort});
-  launch=resolved.launch;
+  const resolved = await resolveCatalogLaunch(input.home, input.backend, {
+    ...launch,
+    model: input.model ?? launch.model,
+    reasoning_effort: input.effort ?? launch.reasoning_effort,
+  });
+  launch = resolved.launch;
   const homes = backendHomes(input.home);
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -128,23 +132,24 @@ export async function prepareProfile(input: ManagedOpen) {
       { mode: 0o600 },
     );
   }
-  if (
-    launch.service_tier ||
-    launch.command ||
-    launch.worktree_branch
-  )
+  if (launch.service_tier || launch.command || launch.worktree_branch)
     throw new ManagedSetupError(
       "This OAR adapter cannot honor service tier, command, or worktree overrides yet",
     );
-  const configured = input.backend === "pi" ? undefined
-    : readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
-  if (launch.preferred_auth_method &&
-      (input.backend !== "codex" ||
-       launch.preferred_auth_method !== configured?.preferred_auth_method))
+  const configured =
+    input.backend === "pi"
+      ? undefined
+      : readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
+  if (
+    launch.preferred_auth_method &&
+    (input.backend !== "codex" ||
+      launch.preferred_auth_method !== configured?.preferred_auth_method)
+  )
     throw new ManagedSetupError(
       "The selected authentication method must match the Codex configuration on this Computer",
     );
-  let model = launch.model === "default" ? undefined : launch.model ?? input.model;
+  let model =
+    launch.model === "default" ? undefined : (launch.model ?? input.model);
   if (
     input.backend === "pi" &&
     launch.provider_config?.base_url &&
@@ -189,8 +194,15 @@ export async function prepareProfile(input: ManagedOpen) {
               {
                 id: model,
                 name: model,
-                reasoning: resolved.catalogModel?.reasoning ?? (!!input.effort && input.effort !== "off"),
-                ...(resolved.catalogModel ? {thinkingLevelMap:resolved.catalogModel.thinkingLevelMap,compat:{supportsReasoningEffort:true}} : {}),
+                reasoning:
+                  resolved.catalogModel?.reasoning ??
+                  (!!input.effort && input.effort !== "off"),
+                ...(resolved.catalogModel
+                  ? {
+                      thinkingLevelMap: resolved.catalogModel.thinkingLevelMap,
+                      compat: resolved.catalogModel.compat,
+                    }
+                  : {}),
                 input: provider.image_support ? ["text", "image"] : ["text"],
                 cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
                 contextWindow: 128000,
@@ -221,7 +233,11 @@ export async function prepareProfile(input: ManagedOpen) {
         if (!model.startsWith(`${launch.model_provider}/`))
           model = `${launch.model_provider}/${model}`;
       } else {
-        model = await configuredPiModel(model, env.OAR_PI_AGENT_DIR!, input.cwd);
+        model = await configuredPiModel(
+          model,
+          env.OAR_PI_AGENT_DIR!,
+          input.cwd,
+        );
       }
     }
     if (
@@ -252,7 +268,12 @@ export async function prepareProfile(input: ManagedOpen) {
       env[key] = provider.api_key;
     }
   }
-  return { profile, env, model, effort: launch.provider_catalog ? launch.reasoning_effort : input.effort };
+  return {
+    profile,
+    env,
+    model,
+    effort: launch.provider_catalog ? launch.reasoning_effort : input.effort,
+  };
 }
 
 /** OAR accepts provider/model, while native Pi settings store them separately. */
@@ -265,15 +286,19 @@ async function configuredPiModel(model: string, agentDir: string, cwd: string) {
       return value as Record<string, any>;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
-      throw new ManagedSetupError("Cannot read Pi configuration on the Computer");
+      throw new ManagedSetupError(
+        "Cannot read Pi configuration on the Computer",
+      );
     }
   }
   const settings = {
-    ...await config(join(agentDir, "settings.json")),
-    ...await config(join(cwd, ".pi", "settings.json")),
+    ...(await config(join(agentDir, "settings.json"))),
+    ...(await config(join(cwd, ".pi", "settings.json"))),
   };
-  const provider = typeof settings.defaultProvider === "string"
-    ? settings.defaultProvider.trim() : "";
+  const provider =
+    typeof settings.defaultProvider === "string"
+      ? settings.defaultProvider.trim()
+      : "";
   if (!model.includes("/")) {
     if (!provider)
       throw new ManagedSetupError(
@@ -283,9 +308,18 @@ async function configuredPiModel(model: string, agentDir: string, cwd: string) {
   }
   if (!provider || model.startsWith(`${provider}/`)) return model;
   // Private providers can themselves expose model IDs containing slashes.
-  const models = (await config(join(agentDir, "models.json"))).providers?.[provider]?.models;
-  const isRawModel = settings.defaultModel === model ||
-    (Array.isArray(models) && models.some((item: unknown) =>
-      !!item && typeof item === "object" && "id" in item && item.id === model));
+  const models = (await config(join(agentDir, "models.json"))).providers?.[
+    provider
+  ]?.models;
+  const isRawModel =
+    settings.defaultModel === model ||
+    (Array.isArray(models) &&
+      models.some(
+        (item: unknown) =>
+          !!item &&
+          typeof item === "object" &&
+          "id" in item &&
+          item.id === model,
+      ));
   return isRawModel ? `${provider}/${model}` : model;
 }

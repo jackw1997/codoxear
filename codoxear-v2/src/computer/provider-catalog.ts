@@ -15,6 +15,16 @@ const json = (p: string): any => {
     return {};
   }
 };
+/** These categorical values survive Pi's actual wire protocol unchanged.
+ * Anthropic uses adaptive thinking + output_config.effort, never token-budget
+ * approximations. LiteLLM accepts that exact vocabulary on /v1/messages. */
+function piWireEfforts(api: string): readonly string[] {
+  return api === "anthropic-messages"
+    ? ["none", "low", "medium", "high", "xhigh", "max"]
+    : ["openai-completions", "openai-responses"].includes(api)
+      ? ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+      : [];
+}
 function credential(
   value: unknown,
   env: NodeJS.ProcessEnv,
@@ -173,49 +183,52 @@ export async function providerCatalog(
         ? localModels.find((item: any) => item?.id === id)
         : undefined;
       const modelApi = localModel?.api ?? api;
+      const declared =
+        Array.isArray(efforts) &&
+        efforts.length <= 32 &&
+        efforts.every(
+          (x: unknown) =>
+            typeof x === "string" &&
+            !!x &&
+            x.length <= 100 &&
+            !/[\r\n\0]/.test(x),
+        )
+          ? efforts
+          : null;
+      const anthropicVocabulary =
+        input.backend === "pi" && modelApi === "anthropic-messages"
+          ? info?.supports_reasoning === false
+            ? []
+            : declared === null
+              ? [...piWireEfforts(modelApi)]
+              : declared.filter((x: string) =>
+                  piWireEfforts(modelApi).includes(x),
+                )
+          : undefined;
 
       return {
         id,
-        ...(input.backend === "pi" &&
-        typeof info?.supports_reasoning === "boolean" &&
-        Array.isArray(efforts) &&
-        efforts.length <= 32
-          ? {
-              runtime_reasoning_efforts:
-                info.supports_reasoning &&
-                ["openai-completions", "openai-responses"].includes(modelApi)
+        ...(anthropicVocabulary !== undefined
+          ? { runtime_reasoning_efforts: anthropicVocabulary }
+          : input.backend === "pi" &&
+              typeof info?.supports_reasoning === "boolean" &&
+              Array.isArray(efforts) &&
+              efforts.length <= 32
+            ? {
+                runtime_reasoning_efforts: info.supports_reasoning
                   ? efforts.filter(
                       (x: unknown) =>
                         typeof x === "string" &&
-                        [
-                          "none",
-                          "minimal",
-                          "low",
-                          "medium",
-                          "high",
-                          "xhigh",
-                          "max",
-                        ].includes(x),
+                        piWireEfforts(modelApi).includes(x),
                     )
                   : [],
-            }
-          : {}),
+              }
+            : {}),
         supports_reasoning:
           typeof info?.supports_reasoning === "boolean"
             ? info.supports_reasoning
             : null,
-        supported_reasoning_efforts:
-          Array.isArray(efforts) &&
-          efforts.length <= 32 &&
-          efforts.every(
-            (x: unknown) =>
-              typeof x === "string" &&
-              !!x &&
-              x.length <= 100 &&
-              !/[\r\n\0]/.test(x),
-          )
-            ? efforts
-            : null,
+        supported_reasoning_efforts: declared,
       };
     }),
   });
@@ -280,28 +293,18 @@ export async function resolveCatalogLaunch(
     localModel?.api ??
     credentials.api ??
     "openai-completions";
-  const piRequests = [
-    "off",
-    "none",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-  ];
   if (
     backend === "pi" &&
     effort &&
-    (!piRequests.includes(effort) ||
-      (effort !== "off" &&
-        !["openai-completions", "openai-responses"].includes(api)))
+    effort !== "off" &&
+    !piWireEfforts(api).includes(effort)
   )
     throw new Error("This Pi adapter cannot send the advertised effort value");
   const map: Record<string, string | null> = {};
   for (const level of ["minimal", "low", "medium", "high", "xhigh", "max"])
     map[level] =
-      declared?.includes(level) || (declared === null && effort === level)
+      piWireEfforts(api).includes(level) &&
+      (declared?.includes(level) || (declared === null && effort === level))
         ? level
         : null;
   if (backend === "pi") {
@@ -339,6 +342,10 @@ export async function resolveCatalogLaunch(
         model.supports_reasoning === true ||
         (model.supports_reasoning !== false && !!effort && effort !== "off"),
       thinkingLevelMap: map,
+      compat:
+        api === "anthropic-messages"
+          ? { forceAdaptiveThinking: true as const }
+          : { supportsReasoningEffort: true as const },
     },
   };
 }

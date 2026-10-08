@@ -257,12 +257,18 @@ async function createComputer(name) {
   await mkdir(workspace, { recursive: true });
   await writeFile(join(workspace, 'journey.txt'), 'Customer journey workspace\n');
   if (process.env.DAILY_EXERCISE === '1') await prepareWorkspaceFixtures(workspace);
+  const piHome = join(homePath, '.pi', 'agent');
+  await mkdir(piHome, { recursive: true });
+  await writeFile(join(piHome, 'models.json'), JSON.stringify({ providers: {
+    'controlled-anthropic': { baseUrl: origin + '/controlled-models/v1', apiKey: 'controlled-no-live-secret', api: 'anthropic-messages', models: [{ id: 'journey-model', api: 'anthropic-messages', reasoning: false }] },
+  } }), { mode: 0o600 });
+  await writeFile(join(piHome, 'settings.json'), JSON.stringify({ defaultProvider: 'controlled-anthropic', defaultModel: 'journey-model', defaultThinkingLevel: 'off' }), { mode: 0o600 });
   const api = createComputerApi(homePath);
   await api.enroll({ enrollment: { identityUrl: origin, code }, runtime: 'oar', nativeHome: homePath,
     nativeStateHome: homePath, workspacePath: workspace, oarPermissionPolicy: 'locally-trusted' });
   const service = api.service(undefined, { runtime: () => new ManagedRuntime({ databasePath: join(homePath, 'managed.sqlite'), home: homePath, stateHome: homePath, workspace, factory }) });
   services.push(service); await service.start();
-  externalBootstrap.push({ computer: name, operation: 'External Computer enroll and service start using the pairing code generated in browser', runtime: 'Real ManagedRuntime with controlled ManagedFactory', preparedWorkspaceFixtures: process.env.DAILY_EXERCISE === '1' ? 'Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI' : 'Pre-existing text file' });
+  externalBootstrap.push({ computer: name, operation: 'External Computer enroll and service start using the pairing code generated in browser', runtime: 'Real ManagedRuntime with controlled ManagedFactory', preparedProviderConfig: 'External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding', preparedWorkspaceFixtures: process.env.DAILY_EXERCISE === '1' ? 'Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI' : 'Pre-existing text file' });
   await pair.getByRole('button', { name: 'Done', exact: true }).click();
   stage = name + ': wait for completed pairing page';
   await dialog(ownerPage, 'Hubs & computers').waitFor({ state: 'visible' });
@@ -323,13 +329,15 @@ async function createAgent(page, computer, name, workspace) {
   if (page === memberPage) assert.equal(await create.getByLabel('Computer & hub', { exact: true }).locator('option').filter({ hasText: 'Computer A' }).count(), 0);
   await create.locator('[data-catalog-status]').getByText('Provider and model choices were read from this computer’s configuration.', { exact: true }).waitFor();
   await create.getByLabel('Runtime', { exact: true }).selectOption('pi');
-  await create.getByLabel('Provider', { exact: true }).selectOption({ label: 'Custom API' });
-  await create.getByLabel('API URL', { exact: true }).fill(origin + '/controlled-models/v1');
-  await create.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
+  await create.getByLabel('Provider', { exact: true }).selectOption('controlled-anthropic');
+  assert.equal(await create.getByLabel('Model', { exact: true }).inputValue(), 'journey-model');
+  assert.equal(await create.getByLabel('Reasoning', { exact: true }).inputValue(), 'off');
+  await create.getByText('The Computer’s model configuration does not advertise reasoning levels beyond Off.', { exact: true }).waitFor();
   stage = name + ': caller-key model discovery';
   await create.getByRole('button', { name: 'Discover models', exact: true }).click();
   await create.locator('[data-discovery-status]').filter({ hasText: '3 caller-key-visible models' }).waitFor();
   assert.deepEqual(await create.getByLabel('Model', { exact: true }).locator('option').allTextContents(), ['Choose a model', 'journey-model', 'journey-model-next', 'journey-unknown', 'Custom…']);
+  assert.equal(await create.getByLabel('Model', { exact: true }).inputValue(), 'journey-model');
   await create.getByLabel('Model', { exact: true }).selectOption('journey-unknown');
   await create.getByText('LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.', { exact: true }).waitFor();
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-unknown');
@@ -644,6 +652,7 @@ async function dailyCustomer(workspaceA) {
     assert.equal(await copy.getByLabel('API key', { exact: true }).inputValue(), '', 'Duplicate must require re-entry rather than copy saved secrets');
     await copy.getByLabel('API URL', { exact: true }).fill(origin + '/controlled-models/v1');
     await copy.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
+    await copy.getByLabel('API compatibility', { exact: true }).selectOption('anthropic-messages');
     await copy.getByLabel('Custom model', { exact: true }).fill('journey-model');
     await copy.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
     await copy.getByRole('button', { name: 'Create agent', exact: true }).click();
