@@ -16,6 +16,7 @@ import { HubSessions } from '../src/hub/sessions.js';
 import { Tunnels } from '../src/protocol/tunnels.js';
 import { createComputerApi } from '../src/computer/api.js';
 import { ManagedRuntime } from '../src/computer/managed/runtime.js';
+import { prepareProfile } from '../src/computer/managed/profiles.js';
 import { createStaticServer } from '../frontend/serve.mjs';
 process.env.DAILY_EXERCISE ??= '1';
 assert.ok(existsSync('/.dockerenv'), 'Customer journey must run in Docker');
@@ -69,13 +70,13 @@ for (const route of ['/controlled-models/v1/models', '/controlled-models/model_g
 await hub.listen({ host: '127.0.0.1', port: 19964 });
 const staticClient = process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? undefined : createStaticServer();
 if (staticClient) await new Promise(resolve => staticClient.listen(19965, '127.0.0.1', resolve));
-// Thin deterministic managed transport only. Runtime persistence, queue, authorization,
+// Thin deterministic managed transport only; production private-profile preparation runs unchanged. Runtime persistence, queue, authorization,
 // files, HTTP relay, Computer service and Hub endpoints remain the production implementations.
 const managedInputs = [];
 class ControlledManagedSession {
-  id; observer; sequence = 0; pendingPrompt;
+  id; profile; observer; sequence = 0; pendingPrompt;
   capabilities = { images: true, steer: true };
-  constructor(id) { this.id = id; }
+  constructor(id, profile) { this.id = id; this.profile = profile; }
   rawEvents(observer) { this.observer = observer; return () => { this.observer = undefined; }; }
   async prompt(text, options) {
     managedInputs.push({ text, images: (options?.images ?? []).map(image => ({ mediaType: image.mediaType, filename: image.path.split('/').at(-1) })) });
@@ -89,7 +90,7 @@ class ControlledManagedSession {
   async abort() { clearTimeout(this.pendingPrompt); this.observer?.({ kind: 'frame', seq: this.sequence++, sessionId: this.id, receivedAt: Date.now(), agentPath: [], body: { events: [{ kind: 'turn_ended', outcome: { kind: 'aborted' } }] } }); return { kind: 'accepted' }; }
   async dispose() { clearTimeout(this.pendingPrompt); this.observer = undefined; }
 }
-const factory = { async open(options) { return new ControlledManagedSession(options.resume ?? randomUUID()); } };
+const factory = { async open(options) { const profile = await prepareProfile(options); return new ControlledManagedSession(options.resume ?? randomUUID(), profile.id); } };
 const services = [];
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox', '--disable-dev-shm-usage'] });
