@@ -89,6 +89,9 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
     let detailsBody = diagContent;
     let overviewBody = null;
     let contextBody = null;
+    let technicalButton = null;
+    diagCopyConversationBtn.className = "agentDetailsAction";
+    diagCopyConversationBtn.textContent = "Copy conversation";
     const settingsEditor = createAgentSettingsEditor({
       api,
       sessionState,
@@ -110,16 +113,18 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
     function resetActionButtonState() {
       diagCopyConversationBtn.disabled = true;
       diagCopyBtn.disabled = true;
+      if (technicalButton) technicalButton.disabled = true;
     }
 
     function applyActionButtonState() {
       diagCopyConversationBtn.disabled = !diagConversationCopyReady;
       diagCopyBtn.disabled = !diagCopyText;
+      if (technicalButton) technicalButton.disabled = !diagCopyText;
     }
 
     function addRowTo(content, rows, label, value, { mono = false } = {}) {
       const cleanLabel = String(label || "");
-      const v = value == null || value === "" ? "-" : String(value);
+      const v = value == null || value === "" ? "Not available" : String(value);
       if (rows) rows.push([cleanLabel, v]);
       const row = el("div", { class: "detailsRow" });
       row.appendChild(el("div", { class: "detailsLabel", text: cleanLabel }));
@@ -147,44 +152,51 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
       );
       diagCopyText = recoveryDetailsText(sid, selectedInfo);
       diagConversationCopyReady = true;
+      diagContent.appendChild(diagCopyConversationBtn);
       applyActionButtonState();
     }
 
     function renderLiveRows(sid, d) {
       diagStatus.textContent = "";
-      const now = Date.now() / 1000;
       const diagRows = [];
-      const overview = new Set(["Agent", "Provider", "Busy", "Queue", "CWD", "Branch"]);
-      const addRow = (label, value, opts = {}) => {
-        // Current editable values have one authoritative settings widget.
-        if (label === "Model" || label === "Reasoning") { diagRows.push([label, value]); return; }
-        const target = label === "Context" ? contextBody : overview.has(label) ? overviewBody : detailsBody;
-        addRowTo(target, diagRows, label, value, opts);
-      };
-      const age = (ts) => {
-        const t = Number(ts);
-        if (!Number.isFinite(t) || t <= 0) return "";
-        const s = Math.max(0, Math.floor(now - t));
-        return fmtRelativeAge(s);
-      };
-      addRow("Session", d && d.session_id ? d.session_id : "-");
+      const addOverview = (label, value) => addRowTo(overviewBody, diagRows, label, value);
+      const addContext = (label, value) => addRowTo(contextBody, diagRows, label, value);
+      const addRow = (label, value) => addRowTo(detailsBody, diagRows, label, value);
+      addOverview("Backend", d ? agentBackendDisplayName(d.agent_backend) : null);
+      addOverview("Provider", d ? diagnosticsProviderDisplay(d) : null);
+      addOverview("Status", d && d.lost ? "Disconnected" : d && typeof d.busy === "boolean" ? d.busy ? "Working" : "Idle" : null);
+      addOverview("Queued messages", d && typeof d.queue_len === "number" ? d.queue_len : null);
+      addOverview("Working directory", d && d.cwd);
+      addOverview("Git branch", d && d.git_branch);
+      const tok = d && d.token && typeof d.token === "object" ? d.token : null;
+      const tokenNumber = value => typeof value === "number" && Number.isFinite(value) ? value.toLocaleString() : null;
+      if (tok) {
+        addContext("Tokens in context", tokenNumber(tok.tokens_in_context));
+        addContext("Context window", tokenNumber(tok.context_window));
+        addContext("Remaining", typeof tok.percent_remaining === "number" && Number.isFinite(tok.percent_remaining) ? `${tok.percent_remaining}%` : null);
+        addContext("Reserved tokens", tokenNumber(tok.reserved_tokens));
+      } else contextBody.appendChild(el("p", { class: "agentSettingsHint", text: "No context usage reported yet." }));
+      addRow("Session ID", d && d.session_id);
+      addRow("Thread ID", d && d.thread_id);
+      addRow("Log path", d && d.log_path);
+      addRow("Broker process", d && d.broker_pid);
+      addRow("Agent process", d && d.codex_pid);
+      addRow("Transport", d && (d.transport || sessionLaunchLabel(d).replace("-owned", "")));
+      addRow("Tmux session", d && d.tmux_session ? `${d.tmux_session}${d.tmux_window ? ":" + d.tmux_window : ""}` : null);
+      addRow("Authentication", d && d.preferred_auth_method);
+      addRow("Service tier", d && d.service_tier || "Standard");
+      addRow("Started", d && typeof d.start_ts === "number" && d.start_ts > 0 ? fmtTs(d.start_ts) : null);
+      addRow("Updated", d && typeof d.updated_ts === "number" && d.updated_ts > 0 ? fmtTs(d.updated_ts) : null);
+      addRow("Priority adjustment", d && d.priority_offset);
+      addRow("Time priority", d && d.time_priority);
+      addRow("Base priority", d && d.base_priority);
+      addRow("Final priority", d && d.final_priority);
+      addRow("Dependency", d && d.dependency_session_id || "None");
+      addRow("Snoozed until", d && typeof d.snooze_until === "number" && d.snooze_until > 0 ? fmtTs(d.snooze_until) : "Not snoozed");
       if (d && d.runtime) addRow("Runtime", d.runtime);
       if (d && d.native_session_id) addRow("Native session", d.native_session_id);
-      if (d && typeof d.retained_records === "number") addRow("Retained records", String(d.retained_records));
-      if (d && typeof d.retained_record_bytes === "number") addRow("Retained bytes", String(d.retained_record_bytes));
-      addRow("Thread", d && d.thread_id ? d.thread_id : "-");
-      addRow("Owned", d ? sessionLaunchLabel(d).replace("-owned", "") : "-");
-      addRow("Busy", d && typeof d.busy === "boolean" ? (d.busy ? "busy" : "idle") : "-");
-      addRow("Queue", d && typeof d.queue_len === "number" ? String(d.queue_len) : "-");
-      addRow("CWD", d && d.cwd ? d.cwd : "-", { mono: true });
-      addRow("Started", d && typeof d.start_ts === "number" ? `${fmtTs(d.start_ts)}${age(d.start_ts) ? " (" + age(d.start_ts) + ")" : ""}` : "-");
-      addRow(
-        "Updated",
-        d && typeof d.updated_ts === "number" ? `${fmtTs(d.updated_ts)}${age(d.updated_ts) ? " (" + age(d.updated_ts) + ")" : ""}` : "-"
-      );
-      addRow("Broker PID", d && typeof d.broker_pid === "number" ? String(d.broker_pid) : "-");
-      addRow("Agent", d ? agentBackendDisplayName(d.agent_backend) : "-");
-      addRow("Agent PID", d && typeof d.codex_pid === "number" ? String(d.codex_pid) : "-");
+      if (d && typeof d.retained_records === "number") addRow("Retained records", d.retained_records);
+      if (d && typeof d.retained_record_bytes === "number") addRow("Retained bytes", d.retained_record_bytes);
       const piBridge = d && d.pi_bridge_marker && typeof d.pi_bridge_marker === "object" ? d.pi_bridge_marker : null;
       if (piBridge) {
         const marker = piBridge.marker && typeof piBridge.marker === "object" ? piBridge.marker : null;
@@ -198,34 +210,10 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
           addRow("Pi bridge caps", `${capability}; ${commands} commands`);
         }
       }
-      addRow("Log", d && d.log_path ? d.log_path : "-", { mono: true });
-      addRow("tmux", d && d.tmux_session ? `${d.tmux_session}${d.tmux_window ? ":" + d.tmux_window : ""}` : "-");
-      addRow("Branch", d && d.git_branch ? d.git_branch : "-");
-      addRow("Provider", diagnosticsProviderDisplay(d));
-      addRow("Model", d && d.model ? d.model : "-");
-      addRow("Reasoning", d && d.reasoning_effort ? d.reasoning_effort : "-");
-      addRow("Service tier", d && d.service_tier ? d.service_tier : "-");
-      addRow("Priority", d && typeof d.final_priority === "number" ? Number(d.final_priority).toFixed(4) : "-");
-      addRow("Priority offset", d && typeof d.priority_offset === "number" ? formatPriorityOffset(d.priority_offset) : "-");
-      addRow("Snooze", d && typeof d.snooze_until === "number" ? fmtTs(d.snooze_until) : "-");
-      addRow("Depends on", d && d.dependency_session_id ? d.dependency_session_id : "-");
       addRow("UI", uiVersion);
-      const tok = d && d.token && typeof d.token === "object" ? d.token : null;
-      if (tok) {
-        const ctx = Number(tok.context_window);
-        const used = Number(tok.tokens_in_context);
-        const pct = Number(tok.percent_remaining);
-        if (Number.isFinite(ctx) && Number.isFinite(used) && ctx > 0 && used >= 0) {
-          const p = Number.isFinite(pct) ? Math.max(0, Math.min(100, Math.round(pct))) : null;
-          const maxInput = Number(tok.max_input_tokens);
-          const reserved = Number(tok.reserved_tokens);
-          const effectiveMaxInput = Number.isFinite(maxInput) && maxInput >= 0 ? maxInput : ctx;
-          const effectiveReserved = Number.isFinite(reserved) && reserved >= 0 ? reserved : Math.max(ctx - effectiveMaxInput, 0);
-          const txt = p === null ? `${used}/${effectiveMaxInput}` : `${used}/${effectiveMaxInput} (${p}% left; ${effectiveReserved} reserved)`;
-          addRow("Context", txt);
-        }
-      }
-      if (!contextBody.childElementCount) contextBody.appendChild(el("p", { class: "agentSettingsHint", text: "No context usage reported yet." }));
+      // The settings widget owns the visible current values; the complete
+      // diagnostics copy still includes the producer's reported values.
+      diagRows.push(["Model", d && d.model || "Not reported"], ["Reasoning effort", d && d.reasoning_effort || "Not reported"]);
       diagCopyText = diagnosticsCopyText(sid, diagRows);
       diagConversationCopyReady = true;
       applyActionButtonState();
@@ -258,10 +246,13 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
       if (sessionLaunchFailed(selectedInfo)) {
         detailsBody = diagContent;
         renderFailedLaunchRows(sid, selectedInfo);
+        diagContent.appendChild(diagCopyConversationBtn);
         return;
       }
-      diagContent.appendChild(el("h2", { class: "agentDetailsName", text: sessionDisplayName(selectedInfo) || "Agent" }));
-      diagContent.appendChild(settingsEditor.element);
+      const settingsSection = el("section", { class: "agentSettingsSection" });
+      settingsSection.appendChild(el("h2", { class: "agentDetailsName", text: sessionDisplayName(selectedInfo) || "Agent" }));
+      settingsSection.appendChild(settingsEditor.element);
+      diagContent.appendChild(settingsSection);
       const overview = el("section", { class: "agentDetailsSection", "aria-label": "Session" });
       overview.appendChild(el("h3", { text: "Session" }));
       overviewBody = el("div", { class: "agentOverviewRows" });
@@ -272,10 +263,18 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
       contextBody = el("div", { class: "agentContextRows" });
       context.appendChild(contextBody);
       diagContent.appendChild(context);
-      const diagnostics = el("details", { class: "agentDiagnostics" });
-      diagnostics.appendChild(el("summary", { text: "Technical details" }));
-      detailsBody = el("div", { class: "agentDiagnosticsRows" });
+      diagContent.appendChild(diagCopyConversationBtn);
+      const diagnostics = el("section", { class: "agentDiagnostics", "aria-label": "Technical details" });
+      technicalButton = el("button", { id: "diagTechnicalBtn", class: "agentDetailsAction", type: "button", text: "Show technical details", "aria-expanded": "false", "aria-controls": "diagTechnicalRows" });
+      technicalButton.disabled = true;
+      diagnostics.appendChild(technicalButton);
+      detailsBody = el("div", { id: "diagTechnicalRows", class: "agentDiagnosticsRows", hidden: true });
       diagnostics.appendChild(detailsBody);
+      technicalButton.onclick = () => {
+        detailsBody.hidden = !detailsBody.hidden;
+        technicalButton.textContent = detailsBody.hidden ? "Show technical details" : "Hide technical details";
+        technicalButton.setAttribute("aria-expanded", String(!detailsBody.hidden));
+      };
       diagContent.appendChild(diagnostics);
       settingsEditor.open(sid);
       try {

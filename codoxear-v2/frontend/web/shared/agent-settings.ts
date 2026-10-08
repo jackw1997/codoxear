@@ -23,10 +23,16 @@ export function createAgentSettingsEditor(options: {
   const element = document.createElement("section");
   element.className = "agentSettings";
   element.setAttribute("aria-label", "Agent settings");
-  element.innerHTML = `<div class="agentSettingRow"><div><span class="agentSettingLabel">Model</span><div class="agentSettingCurrent" id="diagCurrentModel">Not reported</div></div><button type="button" id="diagChangeModel" data-change-model>Change model</button></div><div class="agentSettingRow"><div><span class="agentSettingLabel">Reasoning effort</span><div class="agentSettingCurrent" id="diagCurrentEffort">Not reported</div></div><button type="button" id="diagChangeEffort" data-change-effort>Change reasoning effort</button></div><form hidden><h3>Change agent settings</h3><p class="agentSettingsProvider"></p><label>Model<select id="diagModelSelect" aria-label="Model" name="model"></select></label><label>Thinking effort<select id="diagEffortSelect" aria-label="Thinking effort" name="effort"></select></label><p class="agentSettingsHint" data-effort-hint></p><div class="agentSettingsActions"><button type="button" data-discover>Discover models</button><button type="submit" class="primary" data-save>Save settings</button><button type="button" data-cancel>Cancel change</button></div></form><p class="agentSettingsHint" id="diagSettingsStatus" role="status" aria-live="polite" data-status></p><p class="agentSettingsError" id="diagSettingsError" role="alert" data-error></p><button type="button" data-reload hidden>Reload settings</button>`;
+  element.innerHTML = `<div class="agentSettingRow"><div><span class="agentSettingLabel">Model</span><div class="agentSettingCurrent" id="diagCurrentModel">Not reported</div></div><button type="button" id="diagChangeModel" data-change-model>Change model</button></div><div class="agentSettingRow"><div><span class="agentSettingLabel">Reasoning effort</span><div class="agentSettingCurrent" id="diagCurrentEffort">Not reported</div></div><button type="button" id="diagChangeEffort" data-change-effort>Change reasoning effort</button></div><form hidden><h3 data-editor-title>Change model</h3><p class="agentSettingsProvider" hidden></p><label data-model-field>Model<select id="diagModelSelect" aria-label="Model" name="model"></select><input type="text" data-model-input aria-label="Model name" placeholder="Model name" autocomplete="off" spellcheck="false"></label><label data-effort-field hidden>Reasoning effort<select id="diagEffortSelect" aria-label="Reasoning effort" name="effort"></select></label><div class="agentSettingsDiscover"><button type="button" data-discover>Discover models</button></div><p class="agentSettingsHint" data-effort-hint></p><p class="agentSettingsHint" data-apply-hint></p><div class="agentSettingsActions"><button type="submit" class="primary" data-save>Apply change</button><button type="button" data-cancel>Cancel change</button></div></form><p class="agentSettingsHint" id="diagSettingsStatus" role="status" aria-live="polite" data-status></p><p class="agentSettingsError" id="diagSettingsError" role="alert" data-error></p><button type="button" data-reload hidden>Reload settings</button>`;
+
   const form = element.querySelector("form")!;
   const model = element.querySelector<HTMLSelectElement>("[name=model]")!;
   const effort = element.querySelector<HTMLSelectElement>("[name=effort]")!;
+  const modelInput = element.querySelector<HTMLInputElement>("[data-model-input]")!;
+  const modelField = element.querySelector<HTMLElement>("[data-model-field]")!;
+  const effortField = element.querySelector<HTMLElement>("[data-effort-field]")!;
+  const editorTitle = element.querySelector<HTMLElement>("[data-editor-title]")!;
+  const applyHint = element.querySelector<HTMLElement>("[data-apply-hint]")!;
   const provider = element.querySelector<HTMLElement>(".agentSettingsProvider")!;
   const hint = element.querySelector<HTMLElement>("[data-effort-hint]")!;
   const status = element.querySelector<HTMLElement>("[data-status]")!;
@@ -39,7 +45,7 @@ export function createAgentSettingsEditor(options: {
   const changeEffort = element.querySelector<HTMLButtonElement>("[data-change-effort]")!;
   const currentModel = element.querySelector<HTMLElement>("#diagCurrentModel")!;
   const currentEffort = element.querySelector<HTMLElement>("#diagCurrentEffort")!;
-  let editing = false;
+  let editing: "model" | "effort" | null = null;
   let sid: string | null = null, generation = 0;
   let request: AbortController | undefined;
   let snapshot: AgentSettings | undefined;
@@ -80,6 +86,7 @@ export function createAgentSettingsEditor(options: {
     const values = catalog?.models.map(row => row.id) ?? [];
     if (snapshot?.model && !values.includes(snapshot.model)) values.unshift(snapshot.model);
     choices(model, values, draft?.model ?? snapshot?.model ?? null, "Choose model");
+    modelInput.value = model.value;
     provider.textContent = `Provider: ${snapshot?.provider || "Unknown"}`;
     currentModel.textContent = snapshot?.model || "Not reported";
     currentEffort.textContent = snapshot?.reasoning_effort || (catalog?.models.find(row => row.id === snapshot?.model)?.supports_reasoning === false ? "Not supported" : "Not reported");
@@ -88,6 +95,7 @@ export function createAgentSettingsEditor(options: {
   function updateAvailability() {
     const unavailable = !sid || pending || uncertain || readOnly() || busy() || !snapshot?.editable;
     model.disabled = unavailable;
+    modelInput.disabled = unavailable;
     effort.disabled = unavailable || !levels().length;
     discover.disabled = !sid || pending || readOnly() || busy() || !snapshot?.provider;
     reload.disabled = !sid || pending;
@@ -96,9 +104,16 @@ export function createAgentSettingsEditor(options: {
     cancel.disabled = pending;
     reload.hidden = !error.textContent && !uncertain && !!snapshot?.editable;
     form.hidden = !editing;
-    const valid = !!model.value && (selectedModel()?.supports_reasoning === false || !!effort.value && levels().includes(effort.value));
+    modelField.hidden = editing !== "model";
+    effortField.hidden = editing !== "effort";
+    editorTitle.textContent = editing === "effort" ? "Change reasoning effort" : "Change model";
+    applyHint.textContent = editing === "model" ? (selectedModel()?.supports_reasoning === false ? "This model does not support reasoning effort; applying it clears that setting. Your current draft stays unchanged." : `Keeps reasoning effort ${snapshot?.reasoning_effort || "as reported by the agent"}. Your current draft stays unchanged.`) : model.value !== snapshot?.model ? `Applies model ${model.value} with the selected reasoning effort. Your current draft stays unchanged.` : "Applies to this session. Your current draft stays unchanged.";
+    discover.setAttribute("aria-description", `Discover models from saved provider: ${snapshot?.provider || "unknown"}`);
+    save.textContent = pending ? "Applying…" : "Apply change";
+    const valid = !!model.value && (selectedModel()?.supports_reasoning === false || !!effort.value && (levels().includes(effort.value) || editing === "model" && !selectedModel() && effort.value === snapshot?.reasoning_effort));
     const changed = model.value !== snapshot?.model || (selectedModel()?.supports_reasoning === false ? null : effort.value) !== snapshot?.reasoning_effort;
     save.disabled = unavailable || !valid || !changed;
+    if (editing === "model" && model.value && selectedModel()?.supports_reasoning !== false && levels().length && !effort.value) hint.textContent = "This model requires a compatible reasoning effort. Use Change reasoning effort above before applying.";
     element.setAttribute("aria-busy", String(pending));
     if (!pending && !uncertain) {
       const message = readOnly() ? "Read-only access: agent settings cannot be changed."
@@ -152,7 +167,7 @@ export function createAgentSettingsEditor(options: {
       if (!active(id, epoch)) return;
       catalog = result;
       populate(draft);
-      status.textContent = result.models.length ? "Models discovered. Choose a model and thinking effort, then save." : "No models were returned by this provider.";
+      status.textContent = result.models.length ? `Models discovered. Choose ${editing === "effort" ? "a reasoning effort" : "a model"}, then Apply change.` : "No models were returned by this provider.";
     } catch (cause) {
       if (!active(id, epoch) || controller.signal.aborted) return;
       error.textContent = `Model discovery failed: ${cause instanceof Error ? cause.message : "unknown error"}`;
@@ -183,7 +198,7 @@ export function createAgentSettingsEditor(options: {
       snapshot = confirmed;
       // Preserve deliberate discovery while updating authoritative current values.
       populate();
-      editing = false;
+      editing = null;
       status.textContent = "Agent settings saved.";
       pending = false;
       updateAvailability();
@@ -202,15 +217,23 @@ export function createAgentSettingsEditor(options: {
       if (active(id, epoch)) { pending = false; updateAvailability(); if (!editing && !changeModel.disabled) changeModel.focus(); }
     }
   };
-  model.onchange = () => { error.textContent = ""; populateEffort(effort.value); };
+  model.onchange = () => { modelInput.value = model.value; error.textContent = ""; populateEffort(snapshot?.reasoning_effort ?? null); };
+  modelInput.oninput = () => {
+    const value = modelInput.value.trim();
+    if (value && !Array.from(model.options).some(option => option.value === value)) model.add(new Option(value, value));
+    model.value = value;
+    error.textContent = "";
+    populateEffort(snapshot?.reasoning_effort ?? null);
+  };
   effort.onchange = () => { error.textContent = ""; updateAvailability(); };
   reload.onclick = () => void load();
   const begin = (control: HTMLSelectElement) => {
     if (pending || uncertain || readOnly() || busy() || !snapshot?.editable) return;
-    editing = true;
+    const draft = editing ? { model: model.value, effort: effort.value } : undefined;
+    editing = control === model ? "model" : "effort";
     error.textContent = "";
     status.textContent = "";
-    populate();
+    populate(draft);
     updateAvailability();
     control.focus();
   };
@@ -218,7 +241,7 @@ export function createAgentSettingsEditor(options: {
   changeEffort.onclick = () => begin(effort);
   cancel.onclick = () => {
     if (pending) return;
-    editing = false;
+    editing = null;
     error.textContent = "";
     populate();
     updateAvailability();
@@ -233,7 +256,7 @@ export function createAgentSettingsEditor(options: {
     catalog = null;
     pending = false;
     uncertain = false;
-    editing = false;
+    editing = null;
     form.hidden = true;
   };
   let wasBusy = busy();

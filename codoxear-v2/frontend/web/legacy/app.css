@@ -2709,15 +2709,56 @@ select {
         box-sizing: border-box;
       }
       .diagViewer {
-        max-height: min(calc(var(--appH, 100dvh) - 24px), 720px);
+        --font-sm: 12px;
+        --font-md: 13px;
+        --font-lg: 14px;
+        --font-xl: 16px;
+        --font-2xl: 18px;
+        width: min(100vw, 520px);
+        height: 88dvh;
+        max-height: calc(var(--appH, 100dvh) - 24px);
         min-height: 0;
+        padding: 0;
+        gap: 0;
+        background: var(--paper);
+        border-color: var(--hairline);
         overflow: hidden;
       }
+      .diagViewer > .queueHeader {
+        min-height: 60px;
+        padding: 0 var(--space-5) 0 calc(var(--space-5) + var(--space-3));
+        border-bottom: 1px solid var(--hairline);
+        box-sizing: border-box;
+      }
+      .diagViewer > .queueHeader .title {
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .diagViewer > #diagStatus:not(:empty) {
+        padding: var(--space-7);
+        font-size: var(--font-sm);
+      }
+      .diagViewer > #diagStatus:empty { display: none; }
       .diagViewer .detailsGrid {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: calc(var(--space-5) + var(--space-3));
         flex: 1 1 auto;
         min-height: 0;
+        padding: calc(var(--space-5) + var(--space-3));
+        border: 0;
+        border-radius: 0;
         overflow-x: hidden;
         overflow-y: auto;
+      }
+      @media (max-width: 840px) {
+        .diagViewer {
+          width: 100vw;
+          height: var(--appH, 100dvh);
+          max-height: var(--appH, 100dvh);
+          border-radius: 0;
+        }
       }
       .formViewer {
         width: min(92vw, 560px);
@@ -3496,74 +3537,134 @@ select {
         font-size: var(--font-sm);
       }
       .agentSettings {
-        padding: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
         min-width: 0;
       }
-      .agentSettings h3 {
-        margin: 0 0 var(--space-3);
+      .agentSettings h3,
+      .agentDetailsSection h3 {
+        margin: 0;
         font-size: var(--font-lg);
+        font-weight: 500;
+      }
+      .agentSettingsSection {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        width: 100%;
+        min-width: 0;
       }
       .agentDetailsName {
-        margin: var(--space-4) var(--space-4) 0;
-        font-size: var(--font-xl);
+        margin: 0;
+        font-size: var(--font-2xl);
+        font-weight: 500;
         overflow-wrap: anywhere;
       }
-      .agentDetailsSection h3 {
-        margin: var(--space-4);
-        font-size: var(--font-lg);
+      .agentDetailsSection,
+      .agentDiagnostics {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+        width: 100%;
+        min-width: 0;
       }
-      .agentDetailsSection .agentSettingsHint {
-        margin: var(--space-4);
+      .agentOverviewRows,
+      .agentContextRows,
+      .agentDiagnosticsRows {
+        width: 100%;
       }
       .agentSettingRow {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-        gap: var(--space-4);
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-5);
         align-items: center;
-        padding: var(--space-3) 0;
+        padding: var(--space-4) 0;
       }
       .agentSettingLabel {
         color: var(--muted);
         font-size: var(--font-sm);
       }
       .agentSettingCurrent {
-        margin-top: var(--space-1);
-        font: var(--font-lg)/1.4 var(--font-mono);
+        margin-top: 5px;
+        font: 500 var(--font-xl)/1.4 var(--font-ui);
         overflow-wrap: anywhere;
       }
-      .agentSettingRow button {
-        min-height: 44px;
-        white-space: normal;
-        max-width: 150px;
+      .diagViewer .agentSettings button,
+      .diagViewer .agentDetailsAction {
+        position: relative;
+        isolation: isolate;
+        flex: 0 0 auto;
+        align-self: flex-start;
+        width: auto;
+        min-width: 0;
+        height: var(--ctl);
+        min-height: var(--ctl);
+        max-width: none;
+        padding: 0 var(--space-5);
+        border: 0;
+        border-radius: var(--radius-control);
+        background: transparent;
+        color: var(--text);
+        font: 400 var(--font-md)/1.2 var(--font-ui);
+        white-space: nowrap;
+      }
+      .diagViewer .agentSettings button::before,
+      .diagViewer .agentDetailsAction::before {
+        content: "";
+        position: absolute;
+        inset: 2px 0;
+        z-index: -1;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-control);
+        background: var(--paper);
+      }
+      .diagViewer .agentSettings button.primary {
+        color: var(--on-accent);
+      }
+      .diagViewer .agentSettings button.primary::before {
+        border-color: var(--accent-strong, var(--ink));
+        background: var(--accent-strong, var(--ink));
+      }
+      .diagViewer .agentSettings button:disabled,
+      .diagViewer .agentDetailsAction:disabled {
+        opacity: 0.5;
       }
       .agentSettingsProvider {
-        margin: 0 0 var(--space-4);
-        font: var(--font-sm)/1.4 var(--font-mono);
+        margin: 0;
+        font: var(--font-sm)/1.4 var(--font-ui);
         overflow-wrap: anywhere;
       }
       .agentSettings form,
       .agentSettings label {
         display: grid;
-        gap: var(--space-3);
+        gap: var(--space-5);
         min-width: 0;
       }
-      .agentSettings form[hidden] { display: none; }
+      .agentSettings form[hidden],
+      .agentSettings label[hidden],
+      .agentDiagnosticsRows[hidden] { display: none; }
       .agentSettings form {
-        margin: var(--space-4) 0;
-        padding: var(--space-4);
-        border: 1px solid var(--border);
+        margin: 0;
+        padding: var(--space-5);
+        border: 0;
         border-radius: var(--radius-control);
-        background: var(--wash);
+        background: var(--surface-subtle);
       }
       .agentSettings label {
         font-size: var(--font-md);
         color: var(--muted);
       }
-      .agentSettings select {
+      .agentSettings select,
+      .agentSettings input[data-model-input] {
         width: 100%;
         min-width: 0;
-        min-height: 44px;
-        font-family: var(--font-mono);
+        height: var(--ctl);
+        min-height: var(--ctl);
+        padding: 0 var(--space-5);
+        border-color: var(--hairline);
+        font-family: var(--font-ui);
         font-size: var(--font-lg);
       }
       .agentSettingsActions {
@@ -3571,29 +3672,34 @@ select {
         flex-wrap: wrap;
         gap: var(--space-3);
       }
-      .agentSettingsActions button,
-      .agentDiagnostics summary {
-        min-height: 44px;
-      }
       .agentSettingsHint,
       .agentSettingsError {
         margin: 0;
-        font-size: var(--font-sm);
+        font-size: var(--font-md);
         line-height: 1.4;
         overflow-wrap: anywhere;
       }
       .agentSettingsHint { color: var(--muted); }
+      .agentSettings [data-apply-hint] { font-size: var(--font-sm); }
       .agentSettingsError { color: var(--danger); }
       .agentSettingsHint:empty,
       .agentSettingsError:empty { display: none; }
-      .agentDiagnostics {
-        border-top: 1px solid var(--hairline);
-      }
-      .agentDiagnostics summary {
-        padding: var(--space-4);
+      .diagViewer .detailsRow {
+        width: 100%;
         box-sizing: border-box;
-        cursor: pointer;
-        font-size: var(--font-md);
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--space-1);
+        padding: var(--space-4) 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .diagViewer .detailsLabel {
+        padding: 0;
+        font-size: var(--font-sm);
+      }
+      .diagViewer .detailsValue,
+      .diagViewer .detailsValue.mono {
+        font-family: var(--font-ui);
+        font-size: var(--font-lg);
       }
       .queueHeader {
         display: flex;

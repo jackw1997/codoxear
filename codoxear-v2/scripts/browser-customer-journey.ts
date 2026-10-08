@@ -444,7 +444,12 @@ async function dailyCustomer(workspaceA) {
   });
   stage = 'Daily customer: conversation copy and search';
   await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
-  await dialog(ownerPage, 'Details').getByRole('button', { name: 'Copy conversation', exact: true }).click();
+  const copyDetails = dialog(ownerPage, 'Details');
+  await copyDetails.getByRole('button', { name: 'Show technical details', exact: true }).click();
+  await copyDetails.locator('.agentDiagnosticsRows').waitFor({ state: 'visible' });
+  await copyDetails.getByRole('button', { name: 'Hide technical details', exact: true }).click();
+  await copyDetails.locator('.agentDiagnosticsRows').waitFor({ state: 'hidden' });
+  await copyDetails.getByRole('button', { name: 'Copy conversation', exact: true }).click();
   await ownerPage.locator('#toast').filter({ hasText: /^Copied [0-9]+ messages?/ }).waitFor();
   const copied = await ownerPage.evaluate(() => navigator.clipboard.readText());
   assert.ok(copied.includes('Managed response: Owner UI message'));
@@ -539,24 +544,37 @@ async function dailyCustomer(workspaceA) {
     const details = dialog(ownerPage, 'Details');
     await details.getByRole('button', { name: 'Change model', exact: true }).click();
     const model = details.getByLabel('Model', { exact: true });
-    const effort = details.getByLabel('Thinking effort', { exact: true });
+    const effort = details.getByLabel('Reasoning effort', { exact: true });
     await model.locator('option[value="journey-model-next"]:checked').waitFor({ state: 'attached' });
     await details.getByRole('button', { name: 'Discover models', exact: true }).click();
     await model.locator('option[value="journey-model"]').waitFor({ state: 'attached' });
-    await model.selectOption('journey-model');
+    await details.getByRole('textbox', { name: 'Model name', exact: true }).fill('journey-model');
+    assert.equal(await model.inputValue(), 'journey-model');
+    assert.equal(await effort.isVisible(), false, 'Harmony model editor shows only the model field');
+    await ownerPage.setViewportSize({ width: 390, height: 844 });
+    await details.getByRole('textbox', { name: 'Model name', exact: true }).scrollIntoViewIfNeeded();
+    await shot(ownerPage, 'details-harmony-model-portrait');
+    await details.getByRole('button', { name: 'Change reasoning effort', exact: true }).click();
+    assert.equal(await model.isVisible(), false, 'Harmony effort editor shows only the effort field');
     await effort.locator('option[value="max"]:not(:disabled)').waitFor({ state: 'attached' });
     await effort.selectOption('max');
+    await ownerPage.setViewportSize({ width: 1440, height: 1000 });
     await shot(ownerPage, 'details-model-effort-desktop');
     await ownerPage.setViewportSize({ width: 390, height: 844 });
-    await details.getByRole('button', { name: 'Save settings', exact: true }).scrollIntoViewIfNeeded();
-    for (const control of [model, effort, details.getByRole('button', { name: 'Save settings', exact: true })]) {
+    await details.getByRole('button', { name: 'Apply change', exact: true }).scrollIntoViewIfNeeded();
+    for (const control of [effort, details.getByRole('button', { name: 'Apply change', exact: true })]) {
       const box = await control.boundingBox();
       assert.ok(box && box.width >= 44 && box.height >= 44 && box.x >= 0 && box.x + box.width <= 390, 'Details editing controls fit phone viewport with touch targets');
+    }
+    for (const name of ['Change model', 'Change reasoning effort']) {
+      const style = await details.getByRole('button', { name, exact: true }).evaluate(node => ({ whiteSpace: getComputedStyle(node).whiteSpace, fontSize: getComputedStyle(node).fontSize }));
+      assert.equal(style.whiteSpace, 'nowrap', 'Harmony setting actions stay on one line');
+      assert.equal(style.fontSize, '13px', 'Harmony setting actions use compact 13px text');
     }
     await shot(ownerPage, 'details-model-effort-portrait');
     const saved = ownerPage.waitForResponse(response => response.request().method() === 'POST' && /\/settings(?:\?|$)/.test(new URL(response.url()).pathname));
     void saved.catch(() => {});
-    await details.getByRole('button', { name: 'Save settings', exact: true }).click();
+    await details.getByRole('button', { name: 'Apply change', exact: true }).click();
     const response = await saved;
     assert.ok(response.ok(), 'Runtime confirms the model and thinking effort together');
     const accepted = await response.json();
@@ -564,6 +582,8 @@ async function dailyCustomer(workspaceA) {
     assert.equal(accepted.reasoning_effort, 'max');
     await ownerPage.waitForFunction(() => document.querySelector('#diagCurrentModel')?.textContent === 'journey-model' && document.querySelector('#diagCurrentEffort')?.textContent === 'max');
     await shot(ownerPage, 'details-model-effort-saved');
+    await details.getByRole('button', { name: 'Copy conversation', exact: true }).scrollIntoViewIfNeeded();
+    await shot(ownerPage, 'details-harmony-actions-portrait');
     await ownerPage.locator('#diagCloseBtn').click();
     await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor();
     await ownerPage.locator('#threadTitle').filter({ hasText: 'Owner agent A' }).waitFor();
@@ -575,6 +595,7 @@ async function dailyCustomer(workspaceA) {
     await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
     await details.getByRole('button', { name: 'Change reasoning effort', exact: true }).click();
     await model.locator('option[value="journey-model"]:checked').waitFor({ state: 'attached' });
+    assert.equal(await model.isVisible(), false);
     await effort.locator('option[value="max"]:checked').waitFor({ state: 'attached' });
     await shot(ownerPage, 'details-model-effort-persisted');
     await effort.selectOption('high');
