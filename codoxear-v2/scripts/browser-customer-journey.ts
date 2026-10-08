@@ -813,7 +813,7 @@ try {
   await memberPage.reload(); await home(memberPage);
   await dialog(memberPage, 'Hubs & computers').getByText('Member', { exact: true }).waitFor();
   await dialog(memberPage, 'Hubs & computers').getByText('No computers are available to these identities. Ask a Hub owner or admin for allowlist access.', { exact: true }).waitFor();
-  await memberPage.locator('.sidebarEmptyHint').getByText('No accessible agents or Computers. Ask a Hub Owner or Admin for Computer access.', { exact: true }).waitFor();
+  await memberPage.locator('.sessionDiscoveryStatus').getByText('No accessible agents or Computers. Ask a Hub Owner or Admin for Computer access.', { exact: true }).waitFor();
   assert.equal(await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer B/ }).count(), 0);
   assert.equal(await card(memberPage, 'Member agent B').count(), 0);
   await shot(memberPage, 'member-revoked');
