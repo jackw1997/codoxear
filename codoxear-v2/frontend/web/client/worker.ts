@@ -399,6 +399,7 @@ async function catalog(placement: string | null) {
               failures.some((f: any) => f.computerId === a.computerId),
             )
             .map((a: any) => key(login, a.id)),
+          accessibleComputers: d.placements.length,
           errors: failures.map((f: any) => ({
             loginId: login.id,
             name: f.computerName,
@@ -463,7 +464,7 @@ async function catalog(placement: string | null) {
           ? groups.some((g) => g.ok)
             ? "partial"
             : "unavailable"
-          : "ready",
+          : groups.some(g => g.ok && (("accessibleComputers" in g && g.accessibleComputers > 0) || g.sessions.length > 0)) ? "ready" : "no_access",
       authenticated_hubs: new Set(logins.map(scope)).size,
       errors: groups.flatMap((g) => g.errors),
       retained_session_ids: groups.flatMap((g) => g.retainedIds),

@@ -57,6 +57,15 @@ export async function openHubInvitation(pending: PendingInvitation, changed: () 
     if (page.version !== version || !page.element.isConnected) return;
     if (canonicalOrigin(invite.hub.origin) !== pending.origin) throw new Error("Invitation Hub address does not match this link.");
     const identities = saved.filter(login => login.origin === pending.origin && login.hubId === invite.hub.id);
+    for (const login of identities) {
+      if (typeof invite.hub.name === "string" && invite.hub.name && login.name !== invite.hub.name) {
+        const latest = await vault.get(login.id);
+        if (latest && latest.origin === pending.origin && latest.hubId === invite.hub.id) {
+          await vault.put({ ...latest, name: invite.hub.name });
+          login.name = invite.hub.name;
+        }
+      }
+    }
     const accounts = await Promise.all(identities.map(async login => ({ login, me: await accountApi(login, "/api/v1/me").catch(() => null) })));
     if (page.version !== version || !page.element.isConnected) return;
     const available = accounts.filter(account => account.me);

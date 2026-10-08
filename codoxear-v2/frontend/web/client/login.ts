@@ -172,6 +172,7 @@ export async function saveHubLogin(
     hubId: meta.hubId,
     name:
       hubs.find((hub: any) => hub.id === meta.hubId)?.name ??
+      existing?.name ??
       new URL(origin).host,
     accountId: me.id,
     accessToken: tokens.access_token,

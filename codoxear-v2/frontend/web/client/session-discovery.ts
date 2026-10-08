@@ -14,6 +14,8 @@ export function installSessionDiscovery(connect: () => void) {
         ? "Discovering sessions…"
         : state.state === "signed_out"
           ? "Connect a hub to discover sessions."
+          : state.state === "no_access"
+            ? "No accessible agents or Computers. Ask a Hub Owner or Admin for Computer access."
           : state.state === "unavailable"
             ? "Session discovery unavailable."
             : state.state === "partial"
@@ -78,9 +80,9 @@ export function installSessionDiscovery(connect: () => void) {
   const observer = new MutationObserver(render);
   observer.observe(document.body, { childList: true, subtree: true });
   render();
-  return () => {
+  return { refresh: () => retry(), dispose: () => {
     observer.disconnect();
     configureSessionDiscoveryObserver(null);
     panel?.remove();
-  };
+  } };
 }

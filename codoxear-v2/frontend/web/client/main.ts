@@ -126,7 +126,7 @@ async function startClient() {
       root.append(wrap);
     },
   });
-  installSessionDiscovery(() =>
+  const sessionDiscovery = installSessionDiscovery(() =>
     openConnections(refresh, () => {
       conversationCache.clear();
       clearAccountStorage();
@@ -134,11 +134,18 @@ async function startClient() {
   );
   controller.renderApp();
   installClientUpdates();
+  let discoveryIdentity = "";
   async function refresh() {
     const response = await fetch("/api/client/directory");
     if (!response.ok)
       throw new Error("Hub identity changed; retry the directory");
     directory = await response.json();
+    const identities = await vault.list();
+    const identity = JSON.stringify(identities.map(login => [login.id, login.selectionId, login.name]).sort());
+    if (identity !== discoveryIdentity) {
+      discoveryIdentity = identity;
+      await sessionDiscovery.refresh();
+    }
     updateWorkspaceSelection(directory.agents);
     conversationCache.setDirectory(directory.agents);
     const chosen =
