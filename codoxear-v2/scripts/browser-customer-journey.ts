@@ -58,9 +58,10 @@ for (const route of ['/controlled-models/v1/models', '/controlled-models/model_g
   hub.get(route, async (request, reply) => {
     if (request.headers.authorization !== 'Bearer controlled-no-live-secret') return reply.code(403).send({ error: 'Controlled caller key required' });
     return route.endsWith('/models')
-      ? { data: [{ id: 'journey-model' }, { id: 'journey-unknown' }] }
+      ? { data: [{ id: 'journey-model' }, { id: 'journey-model-next' }, { id: 'journey-unknown' }] }
       : { data: [
           { model_group: 'journey-model', supports_reasoning: true, supported_reasoning_efforts: ['low', 'high', 'max'] },
+          { model_group: 'journey-model-next', supports_reasoning: true, supported_reasoning_efforts: ['low', 'high', 'max'] },
           { model_group: 'journey-unknown', supports_reasoning: null, supported_reasoning_efforts: null },
         ] };
   });
@@ -327,8 +328,8 @@ async function createAgent(page, computer, name, workspace) {
   await create.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
   stage = name + ': caller-key model discovery';
   await create.getByRole('button', { name: 'Discover models', exact: true }).click();
-  await create.locator('[data-discovery-status]').filter({ hasText: '2 caller-key-visible models' }).waitFor();
-  assert.deepEqual(await create.getByLabel('Model', { exact: true }).locator('option').allTextContents(), ['Choose a model', 'journey-model', 'journey-unknown', 'Custom…']);
+  await create.locator('[data-discovery-status]').filter({ hasText: '3 caller-key-visible models' }).waitFor();
+  assert.deepEqual(await create.getByLabel('Model', { exact: true }).locator('option').allTextContents(), ['Choose a model', 'journey-model', 'journey-model-next', 'journey-unknown', 'Custom…']);
   await create.getByLabel('Model', { exact: true }).selectOption('journey-unknown');
   await create.getByText('LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.', { exact: true }).waitFor();
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-unknown');
