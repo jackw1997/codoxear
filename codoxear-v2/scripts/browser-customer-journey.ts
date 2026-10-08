@@ -339,6 +339,18 @@ async function createAgent(page, computer, name, workspace) {
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-desktop');
   await page.setViewportSize({ width: 390, height: 844 });
   await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-portrait');
+  await create.locator('.agent-creation-body').hover();
+  await page.mouse.wheel(0, 550);
+  const requestedEffort = create.getByLabel('Requested reasoning', { exact: true });
+  await requestedEffort.waitFor({ state: 'visible' });
+  assert.equal(await requestedEffort.inputValue(), 'low');
+  await page.waitForFunction(() => {
+    const effort = document.querySelector('dialog[open] select[name="effort"]')?.getBoundingClientRect();
+    const footer = document.querySelector('dialog[open] footer')?.getBoundingClientRect();
+    const header = document.querySelector('dialog[open] header')?.getBoundingClientRect();
+    return !!effort && !!footer && !!header && effort.top >= header.bottom && effort.bottom <= footer.top;
+  });
+  await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-effort-portrait');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await create.getByLabel('Agent name', { exact: true }).fill(name);
   await create.getByText('More', { exact: true }).click();
