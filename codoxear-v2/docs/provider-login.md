@@ -6,6 +6,12 @@ Add the desired entries from [`config/providers.example.json`](../config/provide
 
 App secrets remain on the server. Do not put them in browser storage, frontend environment variables, source control, or the public frontend bundle. Preserve each connection ID and its associated provider application; changing an application's client ID requires a new connection ID because existing identity bindings belong to the original application.
 
+## Joining through an invitation
+
+The Owner or an Admin creates a Member invitation link and shares it with the intended person. The recipient opens it in the current client, selects this Hub's allowed Google/Feishu provider, signs in, and explicitly chooses Join Hub. The recipient does not need to register first or copy provider connection/subject/tenant IDs back to the inviter. Existing signed-in identities may also join.
+
+Links expire, are single-use, and may be revoked by a Hub manager. Viewing or signing in does not consume a link. An existing member cannot use a link to change their role. Membership alone grants no Computer or workspace access; administrators grant those separately, and only the Owner can subsequently promote a Member to Admin.
+
 ## Google
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), configure the OAuth consent screen for your audience. If the app is in testing, add the people who will test it.

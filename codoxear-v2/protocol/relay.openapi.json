@@ -26311,6 +26311,99 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "invitation-link-create"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "expiresInHours": {
+                    "default": 24,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 168
+                  },
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "expiresInHours",
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-list"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-revoke"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  "invitationId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "hubId",
+                  "invitationId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "invite"
               },
               "args": {
@@ -26337,10 +26430,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -26375,10 +26465,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -26816,6 +26903,127 @@
             "required": [
               "ok",
               "access"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+              },
+              "hub": {
+                "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+              },
+              "role": {
+                "type": "string",
+                "const": "member"
+              },
+              "createdAt": {
+                "type": "number",
+                "minimum": 0
+              },
+              "expiresAt": {
+                "type": "number",
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "expired",
+                  "revoked",
+                  "authority_changed"
+                ]
+              },
+              "token": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{43}$"
+              }
+            },
+            "required": [
+              "id",
+              "hub",
+              "role",
+              "createdAt",
+              "expiresAt",
+              "status",
+              "token"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "invitations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    },
+                    "hub": {
+                      "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+                    },
+                    "role": {
+                      "type": "string",
+                      "const": "member"
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "expiresAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "accepted",
+                        "expired",
+                        "revoked",
+                        "authority_changed"
+                      ]
+                    },
+                    "issuerId": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hub",
+                    "role",
+                    "createdAt",
+                    "expiresAt",
+                    "status",
+                    "issuerId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "invitations"
             ],
             "additionalProperties": false
           },
@@ -29889,6 +30097,28 @@
           "credentialHash",
           "binding",
           "revision"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_691f50bd39208b87": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "origin"
         ],
         "additionalProperties": false
       }

@@ -20,6 +20,8 @@ export function isolateHub(source: State, hubId: string): State {
   s.invitations = s.invitations.filter((i) =>
     belongs(i.resource, i.resourceId),
   );
+  // Shared-authority invitation secrets cannot admit identities into a new independent authority.
+  s.invitationLinks = [];
   const users = new Set([
     s.hubs[0]!.ownerId,
     ...s.computers.map((c) => c.ownerId),

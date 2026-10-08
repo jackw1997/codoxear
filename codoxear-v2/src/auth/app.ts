@@ -1,6 +1,8 @@
 import { canManageHub } from "../domain/policy.js";
 import { agentShares, setAgentShare } from "../domain/agent-sharing.js";
 import { InvitationRequest } from "../contracts/invitations.js";
+import { InvitationLinkRequest, InvitationLinkToken } from "../contracts/invitations.js";
+import { createInvitationLink, inspectInvitationLink, listInvitationLinks, revokeInvitationLink, acceptInvitationLink } from "../domain/invitation-links.js";
 import { browserWorkspace } from "../presentation/browser-workspace.js";
 import { WorkspaceOptions } from "../contracts/workspaces.js";
 import { Launch } from "../contracts/tunnel.js";
@@ -26,7 +28,7 @@ import { createHash } from "node:crypto";
 import { Accounts } from "./accounts.js";
 import { registerAdminMembershipRoutes } from "./admin-membership-routes.js";
 import { hubRole } from "../domain/policy.js";
-import { configureHubOrganization, checkHubLoginMethod, hubLoginMethods } from "./hub-organization.js";
+import { configureHubOrganization, checkHubLoginMethod, checkHubOrganization, hubLoginMethods } from "./hub-organization.js";
 import { HubLoginMethodsRequest } from "../contracts/hub-organization.js";
 import { Authority } from "./authority.js";
 import { type Provider } from "./providers.js";
@@ -292,7 +294,26 @@ export async function createIdentityApp(options: IdentityOptions) {
   app.post("/api/v1/invitations/accept", async (r) => {
     const current = await session(r),
       b = z.object({ token: z.string().min(32).max(256) }).parse(r.body);
+    const invitation = requireValue(store.read().invitations.find(value => value.tokenHash === digest(b.token)));
+    if (invitation.resource === "hub") throw new DomainError(409, "hub_invitation_link_required", "Use a Member invitation link to join this Hub");
     return store.change((s) => acceptInvite(s, current.userId, b.token));
+  });
+  app.get("/api/invitation-links/:token", async (r) => {
+    accounts.rateLimit("invite-preview:" + r.ip, 60, 60000);
+    return inspectInvitationLink(store.read(), InvitationLinkToken.parse((r.params as {token: string}).token), options.localHubId);
+  });
+  app.post("/api/invitation-links/:token/accept", async (r) => {
+    accounts.rateLimit("invite-accept:" + r.ip, 30, 60000);
+    z.object({}).strict().parse(r.body ?? {});
+    const current = await session(r);
+    const token = InvitationLinkToken.parse((r.params as {token: string}).token);
+    return store.change(state => {
+      const link = inspectInvitationLink(state, token, options.localHubId);
+      checkHubOrganization(state, link.hub.id, current.context.method, current.context.tenant, true);
+      const requirement = state.identity.requirements.find(value => value.hubId === link.hub.id)?.rule;
+      if (requirement) a.checkAuthentication(current, requirement);
+      return acceptInvitationLink(state, current.userId, token, options.localHubId);
+    });
   });
   app.post("/api/v1/hubs", async (r) => {
     forbid(!options.localHubId, "An independent hub cannot create other hubs");
@@ -795,6 +816,21 @@ export async function createIdentityApp(options: IdentityOptions) {
         .parse(r.body),
       args = b.args;
     switch (b.op) {
+      case "invitation-link-create": {
+        const input = InvitationLinkRequest.extend({ hubId: Id }).parse(args);
+        forbid(input.hubId === hubId, "Resource belongs to another hub");
+        return store.change(state => createInvitationLink(state, s.userId, hubId, input.expiresInHours));
+      }
+      case "invitation-link-list": {
+        const input = z.object({hubId: Id}).strict().parse(args);
+        forbid(input.hubId === hubId, "Resource belongs to another hub");
+        return listInvitationLinks(store.read(), s.userId, hubId);
+      }
+      case "invitation-link-revoke": {
+        const input = z.object({hubId: Id, invitationId: Id}).strict().parse(args);
+        forbid(input.hubId === hubId, "Resource belongs to another hub");
+        return store.change(state => revokeInvitationLink(state, s.userId, hubId, input.invitationId));
+      }
       case "delegation-parent": {
         const input = z.object({ parentId: Id }).strict().parse(args);
         return a.delegationParent(s, hubId, input.parentId);
@@ -919,6 +955,7 @@ export async function createIdentityApp(options: IdentityOptions) {
         const invitation = requireValue(
           store.read().invitations.find((x) => x.tokenHash === digest(token)),
         );
+        if (invitation.resource === "hub") throw new DomainError(409, "hub_invitation_link_required", "Use a Member invitation link to join this Hub");
         resourceInHub(invitation.resource, invitation.resourceId, hubId);
         return store.change((state) => acceptInvite(state, s.userId, token));
       }
@@ -1009,6 +1046,7 @@ export async function createIdentityApp(options: IdentityOptions) {
       }
       case "invite": {
         const p = resourceParams.parse(args);
+        if (p.kind === "hub") throw new DomainError(409, "hub_invitation_link_required", "Create a shareable Member invitation link for this Hub");
         const {
           kind: _kind,
           id: _id,

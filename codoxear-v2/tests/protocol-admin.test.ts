@@ -146,6 +146,9 @@ test("independent Hub administrative and account responses conform to exact regi
     await f.request("identity", "GET", `/api/v1/computers/${f.created.computer.id}/allowlist`, "/api/v1/computers/:id/allowlist");
     await f.request("identity", "PUT", `/api/v1/computers/${f.created.computer.id}/allowlist/bob`, "/api/v1/computers/:id/allowlist/:userId", {access:"write"});
     await f.request("identity", "DELETE", `/api/v1/computers/${f.created.computer.id}/allowlist/bob`, "/api/v1/computers/:id/allowlist/:userId");
+    const link = await f.call("invitation-link-create", {hubId: f.created.hub.id, expiresInHours: 24});
+    await f.call("invitation-link-list", {hubId: f.created.hub.id});
+    await f.call("invitation-link-revoke", {hubId: f.created.hub.id, invitationId: link.id});
     const invitation = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "viewer" });
     await f.request("hub", "POST", "/api/invitations/accept", "/api/invitations/accept", { token: invitation.token }, "bob");
     const another = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "operator" });
@@ -192,6 +195,9 @@ test("all authority dispatcher operations have their own argument and actual unw
     assert.equal(imported.state, "ready");
     await f.call("create-agent", { computerId: f.created.computer.id, name: "Reserved", backend: "fixture" });
     await f.call("create-computer", { name: "Created" });
+    const link = await f.call("invitation-link-create", {hubId: f.created.hub.id, expiresInHours: 24});
+    await f.call("invitation-link-list", {hubId: f.created.hub.id});
+    await f.call("invitation-link-revoke", {hubId: f.created.hub.id, invitationId: link.id});
     const invitation = await f.call("invite", { kind: "computer", id: f.created.computer.id, email: "bob@admin.invalid", role: "viewer" });
     await f.call("accept", { token: invitation.token }, "bob");
     await f.call("remove", { kind: "computer", id: f.created.computer.id, memberId: "bob" });

@@ -50,10 +50,8 @@ await run(
 if (suite === "managed") process.exit(0);
 // Customer acceptance creates identities and grants through the current web UI.
 await run(["--import", "tsx", "scripts/browser-customer-journey.ts"]);
-// Private initialization and provider-only sessions exercise the independent Hub login flow.
-await run(["--import", "tsx", "scripts/browser-registration.ts"]);
+// The customer journey covers private initialization, provider sign-in and
+// link-first Hub invitation. Retired identity-ID/code forms are not verification.
 await run(["--import", "tsx", "scripts/browser-agent-creation.ts"]);
-
-await run(["--import", "tsx", "scripts/browser-invitations.ts"]);
 await run(["--import", "tsx", "scripts/browser-client-updates.ts"]);
 await run(["scripts/render-evidence.mjs"]);

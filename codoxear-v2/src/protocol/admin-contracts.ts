@@ -4,7 +4,7 @@ import { z } from "zod";
 import { HubOrganizationSummary, HubLoginMethodsSummary } from "../contracts/hub-organization.js";
 import { Agent, Action, Computer, Hub, Id, Invitation, Membership, Name, Policy, Role } from "../contracts/model.js";
 import { AuthRequirement, ExternalIdentity, LoginContext } from "../contracts/identity.js";
-import { InvitationRequest } from "../contracts/invitations.js";
+import { InvitationRequest, InvitationLinkRequest, InvitationLinkCreated, InvitationLinkList, InvitationLinkSummary, InvitationLinkAccepted } from "../contracts/invitations.js";
 import { GrantPath, WorkspaceContext, WorkspaceOptions } from "../contracts/workspaces.js";
 import { PAIRING_LIFETIME_SECONDS } from "../contracts/pairing.js";
 import { AccessDecision } from "./native-contracts.js";
@@ -91,7 +91,10 @@ export const adminOperationSchemas: Record<string, { request: z.ZodType; respons
   "agent-shares": operation(z.object({ agentId: Id }), AgentShares),
   "agent-share": operation(z.object({ agentId: Id, userId: Id, role: Role.nullable() }).strict(), AgentShareResult),
   "workspace-access": operation(z.object({ computerId: Id, userId: Id, access: z.enum(["read", "write"]).nullable(), ...WorkspaceOptions.shape }), AdminOk),
-  invite: operation(z.union(InvitationRequest.options.map(schema => schema.extend(resourceArgs.shape))), z.object({ token: secret, id: Id }).strict()),
+  "invitation-link-create": operation(InvitationLinkRequest.extend({hubId: Id}), InvitationLinkCreated),
+  "invitation-link-list": operation(z.object({hubId: Id}).strict(), InvitationLinkList),
+  "invitation-link-revoke": operation(z.object({hubId: Id, invitationId: Id}).strict(), AdminOk),
+  invite: operation(z.union(InvitationRequest.options.map(schema => schema.extend({kind: z.literal("computer"), id: Id }))), z.object({ token: secret, id: Id }).strict()),
   remove: operation(resourceArgs.extend({ memberId: Id }), AdminOk),
   policy: operation(resourceArgs.extend({ policy: Policy.nullable() }), AdminOk),
   owner: operation(resourceArgs.extend({ ownerId: Id }), z.union([Hub, Computer])),
@@ -148,6 +151,11 @@ export const adminDetails: Record<string, Partial<Omit<Endpoint, "method" | "pat
   "POST /internal/queue-authorize": { response: RelayAuthorization },
   "POST /connect/v1/computers/:id/authorize-queue": { response: RelayAuthorization },
   "POST /internal/call": { body: InternalCallRequest, response: InternalCallSuccess },
+  "GET /api/invitation-links/:token": { auth: "public", response: InvitationLinkSummary, statuses: [200,400,404,429,500] },
+  "POST /api/invitation-links/:token/accept": { body: z.object({}).strict(), response: InvitationLinkAccepted, statuses: [200,400,401,403,404,409,429,500] },
+  "POST /api/hubs/:id/invitation-links": { body: InvitationLinkRequest, response: InvitationLinkCreated, statuses: [200,400,401,403,404,429,500,503] },
+  "GET /api/hubs/:id/invitation-links": { response: InvitationLinkList, statuses: [200,400,401,403,404,500,503] },
+  "DELETE /api/hubs/:id/invitation-links/:invitationId": { response: AdminOk, statuses: [200,400,401,403,404,409,500,503] },
   "GET /.well-known/jwks.json": { response: PublicSigningKeys },
 };
 for (const path of ["/appearance/app.css", "/appearance/connections.css", "/appearance/shell.css", "/appearance/themes/clay.css", "/appearance/themes/paper.css", "/appearance/themes/slate.css"]) adminDetails["GET " + path] = { contentType: "text/css", response: text };

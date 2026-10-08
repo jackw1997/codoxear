@@ -6,9 +6,7 @@ const artifactRoot = resolve("artifacts");
 await mkdir(artifactRoot, { recursive: true });
 const suites = [
   ["customer-journey/results.json", "Daily customer journey", "Browser-created identities, membership, Computers, allowlists and agents. Controlled provider and managed-driver boundaries are recorded by the run.", process.env.CUSTOMER_JOURNEY_ARTIFACTS ?? "/opt/codoxear/artifacts/customer-journey"],
-  ["registration-results.json", "Private initialization and provider-only OAuth sessions", "Controlled Google/Feishu providers; no live provider application acceptance."],
   ["agent-creation-results.json", "Agent creation form", "Focused launch-form validation; this fixture is separate from daily customer onboarding."],
-  ["invitation-results.json", "Invitations, sharing and access layout", "Focused permissions and browser-layout fixture; the report states its tested scope."],
   ["client-updates/results.json", "Open client deployment update", "Empty client deployment notification and draft-preserving reload behavior; no authenticated application grants are seeded.", process.env.CLIENT_UPDATE_ARTIFACTS ?? "/opt/codoxear/artifacts/client-updates"],
 ];
 const reports = [], pictures = [];
@@ -23,7 +21,7 @@ for (const [file, title, boundary, externalRoot] of suites) {
   if (!(await exists(source))) { reports.push({ file, title, boundary, missing: true }); continue; }
   const data = JSON.parse(await readFile(source, "utf8"));
   reports.push({ ...data, file, title, boundary });
-  const names = data.screenshots ?? (file === "registration-results.json" ? ["registration-mobile.png", "registration-admin-mobile.png"] : []);
+  const names = data.screenshots ?? [];
   for (const name of names) {
     if (typeof name !== "string" || !/^[A-Za-z0-9_.-]+\.png$/.test(name)) continue;
     const prefix = file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "";

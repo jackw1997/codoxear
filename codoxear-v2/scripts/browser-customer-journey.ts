@@ -117,7 +117,7 @@ async function shot(page, name) {
     })).catch(() => undefined);
     browserDiagnostics.push('Appearance ' + name + ': ' + JSON.stringify(appearance));
   }
-  await page.screenshot({ path, fullPage: true, mask: [page.locator('[data-code], [data-command], output, input[name="token"], input[type="password"]')] });
+  await page.screenshot({ path, fullPage: true, mask: [page.locator('[data-code], [data-command], [data-private], output, input[name="token"], input[type="password"], input[aria-label="Invitation link"], textarea[aria-label="Invitation link"]')] });
   screenshots.push(name + '.png');
 }
 async function home(page) {
@@ -134,6 +134,50 @@ async function home(page) {
   await dialog(page, 'Hubs & computers').getByRole('button', { name: 'Hub settings', exact: true }).waitFor();
 }
 async function settings(page) { await home(page); await dialog(page, 'Hubs & computers').getByRole('button', { name: 'Hub settings', exact: true }).click(); }
+async function hubMembers(page) {
+  await settings(page);
+  await dialog(page, 'Hub settings').getByRole('button', { name: 'Manage Hub members', exact: true }).click();
+  await dialog(page, 'Hub members').waitFor({ state: 'visible' });
+}
+async function createInvitationLink(page, screenshot, hours = '1') {
+  const members = dialog(page, 'Hub members');
+  await members.getByLabel('Invitation expiry', { exact: true }).selectOption(hours);
+  const previous = await members.getByLabel('Invitation link', { exact: true }).inputValue().catch(() => '');
+  await members.getByRole('button', { name: 'Create invitation link', exact: true }).click();
+  const field = members.getByLabel('Invitation link', { exact: true });
+  await field.waitFor();
+  await page.waitForFunction(old => {
+    const field = document.querySelector('[aria-label="Invitation link"]');
+    return field?.value && field.value !== old;
+  }, previous);
+  const expected = await field.inputValue();
+  await members.getByRole('button', { name: 'Copy invitation link', exact: true }).click();
+  await page.waitForFunction(async value => await navigator.clipboard.readText() === value, expected);
+  const invitation = await page.evaluate(() => navigator.clipboard.readText());
+  assert.equal(invitation, await field.inputValue());
+  const url = new URL(invitation);
+  assert.equal(url.origin, clientOrigin);
+  assert.equal(url.searchParams.get('hub'), origin);
+  assert.ok(new URLSearchParams(url.hash.slice(1)).get('invite'));
+  await shot(page, screenshot);
+  return invitation;
+}
+async function rejectInvitationLink(invitation, reason, screenshot) {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
+  if (process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN) await context.grantPermissions(['local-network-access'], { origin: clientOrigin });
+  const recipient = await context.newPage();
+  try {
+    await recipient.goto(invitation);
+    const preview = dialog(recipient, 'Hub invitation');
+    await preview.getByText('This invitation is ' + reason + '.', { exact: true }).waitFor();
+    assert.equal(new URLSearchParams(new URL(recipient.url()).hash.slice(1)).has('invite'), false);
+    assert.equal(await preview.getByRole('button', { name: 'Join Hub', exact: true }).count(), 0);
+    await shot(recipient, screenshot);
+  } catch (error) {
+    await shot(recipient, screenshot + '-failure').catch(() => {});
+    throw error;
+  } finally { await context.close(); }
+}
 async function backHome(page) {
   for (let index = 0; index < 5 && !(await dialog(page, 'Hubs & computers').isVisible().catch(() => false)); index++) {
     const heading = await page.locator('.connectionHeader h1').innerText();
@@ -516,10 +560,15 @@ async function dailyCustomer(workspaceA) {
   await dialog(memberPage, 'Hubs & computers').getByText('Admin', { exact: true }).waitFor();
   await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).waitFor();
   await shot(memberPage, 'daily-admin-sees-computers-without-usage');
+  await hubMembers(memberPage);
+  await createInvitationLink(memberPage, 'daily-admin-created-invitation-link', '24');
+  await dialog(memberPage, 'Hub members').locator('[data-pending-invitation]').getByRole('button', { name: 'Revoke invitation', exact: true }).click();
+  await dialog(memberPage, 'Hub members').getByText('No pending invitations.', { exact: true }).waitFor();
+  await shot(memberPage, 'daily-admin-revoked-pending-invitation');
   await memberRow.getByRole('button', { name: 'Make member', exact: true }).click();
   await memberRow.getByRole('button', { name: 'Make admin', exact: true }).waitFor();
   await backHome(ownerPage); await closeConnections(ownerPage); await card(ownerPage, 'Owner agent A').click();
-  pass('Owner promotes a Member to Admin through UI, Admin sees all Computers without automatic usage, and Owner restores Member role');
+  pass('Owner promotes Member to Admin; Admin sees all Computers without automatic usage and creates/revokes a pending Member invitation link; Owner restores Member role');
   });
   await dailyAttempt('Daily simultaneous identities', async () => {
     stage = 'Daily customer: add second provider identity on same device';
@@ -590,7 +639,7 @@ async function dailyCustomer(workspaceA) {
   await shot(ownerPage, 'daily-renamed-priority-persisted'); await ownerPage.locator('#editCloseBtn').click();
   pass('Daily customer renames, sets priority with the keyboard, and snoozes the conversation through Edit; name and priority persist after reload');
   });
-  for (const feature of ['Sidebar star/archive/manual drag order: no visible controls found in the exercised card', 'Native resume/import (no existing external native CLI session in this fresh managed-only Hub)', 'Live provider answers and device/mobile Safari acceptance (controlled boundary)']) unavailable.push(feature);
+  for (const feature of ['Sidebar star/archive/manual drag order: no visible controls found in the exercised card', 'Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained', 'Native resume/import (no existing external native CLI session in this fresh managed-only Hub)', 'Live provider answers and device/mobile Safari acceptance (controlled boundary)']) unavailable.push(feature);
 }
 try {
   const init = await ownerContext.newPage();
@@ -613,7 +662,9 @@ try {
   await dialog(ownerPage, 'Hubs & computers').getByText('No computers yet. Add a computer to get started.', { exact: true }).waitFor();
   await shot(ownerPage, 'empty-owner-hub');
   stage = 'owner: Hub settings role and return';
-  await settings(ownerPage); await shot(ownerPage, 'owner-hub-settings-role');
+  await settings(ownerPage);
+  assert.equal(await dialog(ownerPage, 'Hub settings').getByRole('button', { name: 'Accept invitation', exact: true }).count(), 0);
+  await shot(ownerPage, 'owner-hub-settings-role');
   await ownerPage.setViewportSize({ width: 390, height: 844 });
   await shot(ownerPage, 'customer-hub-settings-portrait');
   await ownerPage.setViewportSize({ width: 944, height: 560 });
@@ -624,35 +675,57 @@ try {
   stage = 'create Computer A'; const workspaceA = await createComputer('Computer A');
   await access('Computer A', 'owner', 'write');
   pass('Owner creates Computer A through UI and explicitly grants only itself execution access');
-  stage = 'second identity and invitation';
-  await signIn(memberPage, 'Feishu', 'member');
-  await memberPage.getByText('Not a member', { exact: true }).waitFor();
-  await shot(memberPage, 'member-before-invitation');
-  await settings(memberPage);
-  await dialog(memberPage, 'Hub settings').getByRole('button', { name: 'Sign-in methods', exact: true }).click();
-  await dialog(memberPage, 'Sign-in methods').getByRole('button', { name: 'Copy invitation details', exact: true }).click();
-  const invitationIdentity = JSON.parse(await memberPage.evaluate(() => navigator.clipboard.readText()));
-  await backHome(memberPage);
-  await settings(ownerPage);
-  await dialog(ownerPage, 'Hub settings').getByRole('button', { name: 'Manage Hub members', exact: true }).click();
+  stage = 'Owner: create and revoke link before recipient exists';
+  await hubMembers(ownerPage);
   const members = dialog(ownerPage, 'Hub members');
-  await members.getByLabel('Invite by', { exact: true }).selectOption(invitationIdentity.method);
-  await members.getByLabel('Sign-in connection').fill(invitationIdentity.connection);
-  await members.getByLabel('Identity ID').fill(invitationIdentity.subject);
-  await members.getByLabel('Tenant (optional)').fill(invitationIdentity.tenant);
-  await members.getByLabel('Hub role', { exact: true }).selectOption('member');
-  await members.getByRole('button', { name: 'Create invitation', exact: true }).click();
-  await members.locator('output').filter({ hasText: 'Invitation code:' }).waitFor();
-  const invitation = (await members.locator('output').innerText()).split(': ')[1];
-  await shot(ownerPage, 'owner-created-invitation'); await backHome(ownerPage);
-  await settings(memberPage);
-  await dialog(memberPage, 'Hub settings').getByRole('button', { name: 'Accept invitation', exact: true }).click();
-  await dialog(memberPage, 'Accept invitation').getByLabel('Invitation code').fill(invitation);
-  await dialog(memberPage, 'Accept invitation').getByRole('button', { name: 'Accept invitation', exact: true }).click();
+  assert.equal(await members.getByText('Journey Member', { exact: true }).count(), 0);
+  const revokedInvitation = await createInvitationLink(ownerPage, 'owner-pending-link-before-recipient', '1');
+  await members.locator('[data-pending-invitation]').getByRole('button', { name: 'Revoke invitation', exact: true }).click();
+  await members.getByText('No pending invitations.', { exact: true }).waitFor();
+  await shot(ownerPage, 'owner-revoked-pending-link');
+  await rejectInvitationLink(revokedInvitation, 'revoked', 'recipient-revoked-link-denied');
+  stage = 'Owner: invitation link created before recipient sign-in';
+  const invitation = await createInvitationLink(ownerPage, 'owner-created-invitation', '1');
+  await members.locator('[data-pending-invitation]').getByText('Member invitation', { exact: true }).waitFor();
+  await members.locator('[data-pending-invitation]').getByText(/^Expires /).waitFor();
+  await ownerPage.goto(invitation);
+  await dialog(ownerPage, 'Hub invitation').getByText('Already a Hub member. Use another identity to join with this invitation.', { exact: true }).waitFor();
+  assert.equal(await dialog(ownerPage, 'Hub invitation').getByRole('button', { name: 'Join Hub', exact: true }).count(), 0);
+  await shot(ownerPage, 'owner-cannot-join-own-hub-invitation');
+  await ownerPage.locator('.connectionPage').getByRole('button', { name: 'Back', exact: true }).click();
+  await home(ownerPage);
+  stage = 'Recipient: open link and choose enabled provider';
+  await memberPage.goto(invitation);
+  const preview = dialog(memberPage, 'Hub invitation');
+  await preview.getByText('Invitation role:', { exact: false }).waitFor();
+  await preview.getByText('Expires:', { exact: false }).waitFor();
+  await preview.getByRole('button', { name: 'Continue with Google', exact: true }).waitFor();
+  await preview.getByRole('button', { name: 'Continue with Feishu', exact: true }).waitFor();
+  assert.equal(await preview.getByRole('button', { name: 'Join Hub', exact: true }).count(), 0);
+  assert.equal(new URLSearchParams(new URL(memberPage.url()).hash.slice(1)).has('invite'), false);
+  await shot(memberPage, 'recipient-link-before-sign-in');
+  const popupPromise = memberContext.waitForEvent('page'); void popupPromise.catch(() => {});
+  await preview.getByRole('button', { name: 'Continue with Feishu', exact: true }).click();
+  const popup = await popupPromise;
+  const popupClosed = popup.waitForEvent('close'); void popupClosed.catch(() => {});
+  await popup.getByRole('button', { name: 'Sign in as Journey Member', exact: true }).waitFor();
+  await shot(popup, 'provider-member');
+  await popup.getByRole('button', { name: 'Sign in as Journey Member', exact: true }).click(); await popupClosed;
+  stage = 'Recipient: review signed-in identity and explicitly join';
+  await preview.getByRole('button', { name: 'Join Hub', exact: true }).waitFor();
+  assert.match(await preview.getByLabel('Sign-in identity', { exact: true }).locator('option:checked').innerText(), /Journey Member.*feishu/);
+  await shot(memberPage, 'member-signed-in-before-explicit-join');
+  await preview.getByRole('button', { name: 'Join Hub', exact: true }).click();
+  await dialog(memberPage, 'Joined Hub').getByText('Joined as Member. Computer access requires a separate grant.', { exact: true }).waitFor();
+  await shot(memberPage, 'member-explicitly-joined-hub');
+  await dialog(memberPage, 'Joined Hub').getByRole('button', { name: 'View Hub', exact: true }).click();
   await home(memberPage); await memberPage.getByText('Member', { exact: true }).waitFor();
+  await dialog(memberPage, 'Hubs & computers').getByText('No computers are available to these identities. Ask a Hub owner or admin for allowlist access.', { exact: true }).waitFor();
   assert.equal(await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).count(), 0);
   await shot(memberPage, 'member-joined-no-computers');
-  pass('Second identity signs in via provider popup, shares invitation identity through UI, and joins through the owner-created UI invitation');
+  await rejectInvitationLink(invitation, 'already used', 'recipient-used-link-denied');
+  unavailable.push('Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests');
+  pass('Owner creates invitation links before recipient exists, revokes a pending link, cannot join its own Hub, and recipient chooses Feishu then explicitly joins Member with no Computer grant; fresh browsers reject revoked and reused links');
   stage = 'Computer B allowlist'; const workspaceB = await createComputer('Computer B');
   await access('Computer B', 'member', 'write');
   await ownerPage.reload(); await home(ownerPage);

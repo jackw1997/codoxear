@@ -1,3 +1,4 @@
+import { captureHubInvitation, openHubInvitation } from "./hub-invitations.js";
 import { installSessionDiscovery } from "./session-discovery.js";
 import { ensureClientTransport } from "./transport-ready.js";
 import { installClientUpdates } from "./updates.js";
@@ -19,6 +20,7 @@ import {
   workspaceAccessContext,
 } from "../shared/workspace-selection.js";
 import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
+const pendingHubInvitation = captureHubInvitation();
 async function startClient() {
   let switching = false;
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -179,7 +181,8 @@ async function startClient() {
   setInterval(() => {
     void refresh().catch(() => {});
   }, 5000);
-  if (!(await vault.list()).length)
+  if (pendingHubInvitation) await openHubInvitation(pendingHubInvitation, refresh, () => openConnections(refresh));
+  else if (!(await vault.list()).length)
     openConnections(refresh, () => {
       conversationCache.clear();
       clearAccountStorage();

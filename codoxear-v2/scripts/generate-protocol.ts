@@ -40,6 +40,7 @@ import {
   relayContract,
   type Endpoint,
 } from "../src/protocol/inventory.js";
+import { InvitationLinkToken } from "../src/contracts/invitations.js";
 import { nativeSchemas } from "../src/protocol/native-contracts.js";
 import {
   adminSchemas,
@@ -52,6 +53,7 @@ const json = (schema: z.ZodType, io: "input" | "output" = "output") =>
     io,
   });
 const schemaForParameter = (name: string) =>
+  name === "token" ? InvitationLinkToken :
   name === "file"
     ? z.string().regex(/^[a-zA-Z0-9_-]+\.(js|css)$/)
     : name === "localId"

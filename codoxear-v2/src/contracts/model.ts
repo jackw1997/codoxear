@@ -104,6 +104,11 @@ export const Session = z.object({
   userId: Id,
   expiresAt: z.number(),
 });
+export const InvitationLink = z.object({
+  id: Id, tokenHash: z.string(), hubId: Id, issuerId: Id, ownerRevision: z.number().int().nonnegative(),
+  createdAt: z.number().nonnegative(), expiresAt: z.number().nonnegative(),
+  acceptedAt: z.number().nonnegative().nullable(), acceptedBy: Id.nullable(), revokedAt: z.number().nonnegative().nullable(),
+}).strict();
 export const AuditEvent = z.object({
   id: Id,
   at: z.number(),
@@ -123,6 +128,7 @@ export const State = z.object({
   agentGrants: z.array(AgentGrant).default([]),
   priorGrants: z.array(PriorGrant),
   invitations: z.array(Invitation),
+  invitationLinks: z.array(InvitationLink).default([]),
   sessions: z.array(Session),
   audit: z.array(AuditEvent),
 });
@@ -151,6 +157,7 @@ export const emptyState = (): State => ({
   agentGrants: [],
   priorGrants: [],
   invitations: [],
+  invitationLinks: [],
   sessions: [],
   audit: [],
 });

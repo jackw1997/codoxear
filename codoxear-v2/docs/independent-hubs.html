@@ -258,8 +258,10 @@
   <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private single-use initialization link; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
   <h2>Invitations and selective sharing — local implementation</h2>
   <p>
-    Owners and admins invite ordinary Hub members using an exact Google/Feishu
-    connection, subject and tenant, or a recipient’s verified Google email address.
+    Owners and admins create expiring, single-use Member invitation links.
+    The recipient opens the link in the current client, signs in with an allowed
+    Google or Feishu identity, then explicitly joins. No existing account or
+    exchange of internal identity IDs is required. Pending links can be revoked.
     Only Owners manage Admin roles. Agent sharing with a Hub member does not
     bypass the mandatory Computer allowlist. Working-file paths, Git history,
     uploads and video processing require separate approved workspace grants.

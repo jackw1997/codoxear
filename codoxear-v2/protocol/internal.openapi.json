@@ -753,15 +753,139 @@
               "$ref": "#/components/schemas/AdminOk"
             }
           },
+          "invitation-link-create": {
+            "args": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "expiresInHours": {
+                  "default": 24,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 168
+                },
+                "hubId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                }
+              },
+              "required": [
+                "hubId"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "hub": {
+                  "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+                },
+                "role": {
+                  "type": "string",
+                  "const": "member"
+                },
+                "createdAt": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "expiresAt": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "accepted",
+                    "expired",
+                    "revoked",
+                    "authority_changed"
+                  ]
+                },
+                "token": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{43}$"
+                }
+              },
+              "required": [
+                "id",
+                "hub",
+                "role",
+                "createdAt",
+                "expiresAt",
+                "status",
+                "token"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "invitation-link-list": {
+            "args": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "hubId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                }
+              },
+              "required": [
+                "hubId"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "invitations": {
+                  "$ref": "#/components/schemas/Sharedarray_c491c4fcfbf64e76"
+                }
+              },
+              "required": [
+                "invitations"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "invitation-link-revoke": {
+            "args": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "hubId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                },
+                "invitationId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                }
+              },
+              "required": [
+                "hubId",
+                "invitationId"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "$ref": "#/components/schemas/AdminOk"
+            }
+          },
           "invite": {
             "args": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/Sharedobject_84481e00fb48e634"
+                  "$ref": "#/components/schemas/Sharedobject_81e63cc780dc957e"
                 },
                 {
-                  "$ref": "#/components/schemas/Sharedobject_520f3efd28e125f9"
+                  "$ref": "#/components/schemas/Sharedobject_ad09462c779fe936"
                 }
               ]
             },
@@ -1508,15 +1632,89 @@
                     "properties": {
                       "op": {
                         "type": "string",
+                        "const": "invitation-link-create"
+                      },
+                      "args": {
+                        "type": "object",
+                        "properties": {
+                          "expiresInHours": {
+                            "default": 24,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 168
+                          },
+                          "hubId": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                          }
+                        },
+                        "required": [
+                          "hubId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "args"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "invitation-link-list"
+                      },
+                      "args": {
+                        "type": "object",
+                        "properties": {
+                          "hubId": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                          }
+                        },
+                        "required": [
+                          "hubId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "args"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
+                        "const": "invitation-link-revoke"
+                      },
+                      "args": {
+                        "$ref": "#/components/schemas/Sharedobject_ab7944133aa77356"
+                      }
+                    },
+                    "required": [
+                      "op",
+                      "args"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "op": {
+                        "type": "string",
                         "const": "invite"
                       },
                       "args": {
                         "anyOf": [
                           {
-                            "$ref": "#/components/schemas/Sharedobject_84481e00fb48e634"
+                            "$ref": "#/components/schemas/Sharedobject_81e63cc780dc957e"
                           },
                           {
-                            "$ref": "#/components/schemas/Sharedobject_520f3efd28e125f9"
+                            "$ref": "#/components/schemas/Sharedobject_ad09462c779fe936"
                           }
                         ]
                       }
@@ -9320,6 +9518,84 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "invitation-link-create"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "expiresInHours": {
+                    "default": 24,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 168
+                  },
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "expiresInHours",
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-list"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-revoke"
+              },
+              "args": {
+                "$ref": "#/components/schemas/Sharedobject_ab7944133aa77356"
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "invite"
               },
               "args": {
@@ -9346,10 +9622,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -9384,10 +9657,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -9613,6 +9883,25 @@
           },
           {
             "$ref": "#/components/schemas/Sharedobject_fe5a78f16b427c38"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "$ref": "#/components/schemas/Sharedobject_9ca8a3f65ba99d3a"
+          },
+          {
+            "$ref": "#/components/schemas/Sharedobject_31f7c5f34577ae33"
           },
           {
             "type": "object",
@@ -11017,6 +11306,142 @@
         ],
         "additionalProperties": false
       },
+      "Sharedobject_9ca8a3f65ba99d3a": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "hub": {
+            "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+          },
+          "role": {
+            "type": "string",
+            "const": "member"
+          },
+          "createdAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expiresAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "expired",
+              "revoked",
+              "authority_changed"
+            ]
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          }
+        },
+        "required": [
+          "id",
+          "hub",
+          "role",
+          "createdAt",
+          "expiresAt",
+          "status",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_691f50bd39208b87": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "origin"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_31f7c5f34577ae33": {
+        "type": "object",
+        "properties": {
+          "invitations": {
+            "$ref": "#/components/schemas/Sharedarray_c491c4fcfbf64e76"
+          }
+        },
+        "required": [
+          "invitations"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedarray_c491c4fcfbf64e76": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Sharedobject_562ba179d27a780c"
+        }
+      },
+      "Sharedobject_562ba179d27a780c": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "hub": {
+            "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+          },
+          "role": {
+            "type": "string",
+            "const": "member"
+          },
+          "createdAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expiresAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "expired",
+              "revoked",
+              "authority_changed"
+            ]
+          },
+          "issuerId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          }
+        },
+        "required": [
+          "id",
+          "hub",
+          "role",
+          "createdAt",
+          "expiresAt",
+          "status",
+          "issuerId"
+        ],
+        "additionalProperties": false
+      },
       "Sharedobject_2332b5977755a442": {
         "type": "object",
         "properties": {
@@ -11078,7 +11503,25 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_84481e00fb48e634": {
+      "Sharedobject_ab7944133aa77356": {
+        "type": "object",
+        "properties": {
+          "hubId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "invitationId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          }
+        },
+        "required": [
+          "hubId",
+          "invitationId"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_81e63cc780dc957e": {
         "type": "object",
         "properties": {
           "email": {
@@ -11098,10 +11541,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "hub",
-              "computer"
-            ]
+            "const": "computer"
           },
           "id": {
             "type": "string",
@@ -11116,7 +11556,7 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_520f3efd28e125f9": {
+      "Sharedobject_ad09462c779fe936": {
         "type": "object",
         "properties": {
           "email": {
@@ -11136,10 +11576,7 @@
           },
           "kind": {
             "type": "string",
-            "enum": [
-              "hub",
-              "computer"
-            ]
+            "const": "computer"
           },
           "id": {
             "type": "string",

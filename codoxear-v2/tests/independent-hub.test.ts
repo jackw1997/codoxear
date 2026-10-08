@@ -85,7 +85,7 @@ async function fixture(origin: string) {
     },
   };
 }
-test("independent hub Google/Feishu invitations flow through the public API without linking email", async () => {
+test("independent hub Google/Feishu Computer invitations flow through the public API without linking email", async () => {
   const origin = "https://invitation.test",
     f = await fixture(origin);
   try {
@@ -138,10 +138,18 @@ test("independent hub Google/Feishu invitations flow through the public API with
       "identity_access",
     );
     const headers = { authorization: "Bearer " + ownerToken };
+    const join = async (credential: string) => {
+      const link = await f.app.inject({method:"POST",url:`/api/hubs/${f.hubId}/invitation-links`,headers,payload:{}});
+      assert.equal(link.statusCode,200,link.body);
+      const accepted = await f.app.inject({method:"POST",url:`/api/invitation-links/${link.json().token}/accept`,headers:{authorization:"Bearer "+credential},payload:{}});
+      assert.equal(accepted.statusCode,200,accepted.body);
+    };
+    await join(bobToken);
+
     const create = (body: unknown, auth = headers) =>
       f.app.inject({
         method: "POST",
-        url: `/api/resources/hub/${f.hubId}/invitations`,
+        url: `/api/resources/computer/${f.store.read().computers[0]!.id}/invitations`,
         payload: JSON.stringify(body),
         headers: { ...auth, "content-type": "application/json" },
       });
@@ -153,7 +161,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
             connection: "personal-google",
             subject: "",
           },
-          role: "member",
+          role: "viewer",
         })
       ).statusCode,
       400,
@@ -168,7 +176,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
             subject: "bob-google",
             tenant: null,
           },
-          role: "member",
+          role: "viewer",
         })
       ).statusCode,
       400,
@@ -180,7 +188,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
         subject: "bob-google",
         tenant: null,
       },
-      role: "member",
+      role: "viewer",
     });
     assert.equal(invited.statusCode, 200, invited.body);
     const accept = (token: string, credential: string) =>
@@ -212,7 +220,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
               subject: "bob-google",
               tenant: null,
             },
-            role: "member",
+            role: "viewer",
           },
           { authorization: "Bearer " + bobToken },
         )
@@ -240,6 +248,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
       origin,
       "identity_access",
     );
+    await join(providerToken);
     const targeted = await create({
       target: {
         method: "feishu",
@@ -247,7 +256,7 @@ test("independent hub Google/Feishu invitations flow through the public API with
         subject: "open-id",
         tenant: "team",
       },
-      role: "member",
+      role: "viewer",
     });
     assert.equal(targeted.statusCode, 200, targeted.body);
     assert.equal(
@@ -857,27 +866,26 @@ test("a newcomer can accept hub and computer invitations without an existing hub
       origin: "https://client.test",
     };
     const computer = f.store.read().computers[0]!;
-    const invitation = f.store.change((s) =>
-      invite(s, "alice", "hub", f.hubId, "bob@example.test", "member"),
-    );
+    const invitation = await f.app.inject({method:"POST",url:`/api/hubs/${f.hubId}/invitation-links`,headers:{authorization:"Bearer "+f.token},payload:{}});
+    assert.equal(invitation.statusCode,200,invitation.body);
     assert.equal(
       (
         await f.app.inject({
           method: "POST",
-          url: "/api/v1/invitations/accept",
+          url: `/api/invitation-links/${invitation.json().token}/accept`,
           headers: { authorization: "Bearer " + f.token },
-          payload: { token: invitation.token },
+          payload: {},
         })
       ).statusCode,
-      403,
+      409,
     );
     assert.equal(
       (
         await f.app.inject({
           method: "POST",
-          url: "/api/v1/invitations/accept",
+          url: `/api/invitation-links/${invitation.json().token}/accept`,
           headers,
-          payload: { token: invitation.token },
+          payload: {},
         })
       ).statusCode,
       200,
@@ -886,9 +894,9 @@ test("a newcomer can accept hub and computer invitations without an existing hub
       (
         await f.app.inject({
           method: "POST",
-          url: "/api/v1/invitations/accept",
+          url: `/api/invitation-links/${invitation.json().token}/accept`,
           headers,
-          payload: { token: invitation.token },
+          payload: {},
         })
       ).statusCode,
       409,

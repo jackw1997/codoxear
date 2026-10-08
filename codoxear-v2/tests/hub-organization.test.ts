@@ -9,7 +9,8 @@ import { createIdentityApp } from "../src/auth/app.js";
 import { initializeHub, hubSetup } from "../src/auth/hub-setup.js";
 import { configureHubOrganization } from "../src/auth/hub-organization.js";
 import { HubProviders, ProviderConfig, type Provider } from "../src/auth/providers.js";
-import { createComputer, invite, setComputerAccess, secret } from "../src/domain/commands.js";
+import { createComputer, setComputerAccess, secret, digest } from "../src/domain/commands.js";
+import { createInvitationLink } from "../src/domain/invitation-links.js";
 assert.ok(existsSync("/.dockerenv"), "Run in Docker");
 const origin = "https://organization.test", privateToken = "private-administrator-initialization-link-".repeat(3);
 const credentials = { clientId: "test-app", clientSecret: "test-server-secret" };
@@ -19,6 +20,7 @@ function feishuProvider(tenant?: string): Provider {
 }
 async function fixture(tenant?: string) {
   const store = new Store(":memory:"), hub = store.change(state => initializeHub(state, "one-hub", "Organization Hub"));
+  store.change(state=>state.identity.hubs.push({hubId:hub.id,origin,credentialHash:digest(secret()),enabled:true}));
   const accounts = new Accounts(store, "organization-tests-".repeat(4), { async send() {} });
   const tokens = new Tokens(origin, await signingKey()), authority = new Authority(store, accounts, tokens);
   const setup = hubSetup(store, hub.id, { token: privateToken, expiresAt: Date.now() + 86400000 });
@@ -45,14 +47,9 @@ async function fixture(tenant?: string) {
   }
   async function join(owner: NonNullable<Awaited<ReturnType<typeof signIn>>["session"]>,
     member: Awaited<ReturnType<typeof signIn>>) {
-    const identity = store.read().identity.identities.find(value => value.id === member.session!.context.identityId)!;
-    assert.ok(identity.method === "google" || identity.method === "feishu");
-    const invitation = store.change(state => invite(state, owner.userId, "hub", hub.id, {
-      method: identity.method as "google" | "feishu", connection: identity.connection,
-      subject: identity.subject, tenant: identity.tenant,
-    }, "member"));
-    const accepted = await app.inject({ method: "POST", url: "/api/v1/invitations/accept",
-      cookies: { codoxear_identity: member.credential! }, payload: { token: invitation.token } });
+    const invitation = store.change(state => createInvitationLink(state, owner.userId, hub.id, 24));
+    const accepted = await app.inject({ method: "POST", url: `/api/invitation-links/${invitation.token}/accept`,
+      cookies: { codoxear_identity: member.credential! }, payload: {} });
     assert.equal(accepted.statusCode, 200, accepted.body);
   }
   return { store, accounts, tokens, authority, app, setup, hub, feishu, google, signIn, join,

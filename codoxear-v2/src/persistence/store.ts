@@ -96,6 +96,12 @@ function validateRelations(s: State): void {
     s.memberships.map((m) => `${m.resource}:${m.resourceId}:${m.userId}`),
     "membership",
   );
+  unique(s.invitationLinks.map(value => value.id), "invitation link");
+  unique(s.invitationLinks.map(value => value.tokenHash), "invitation link token");
+  for (const value of s.invitationLinks)
+    if (!s.hubs.some(hub => hub.id === value.hubId) || !s.users.some(user => user.id === value.issuerId) ||
+        (value.acceptedBy !== null && !s.users.some(user => user.id === value.acceptedBy)))
+      throw new Error("Invitation link needs an existing Hub and accounts");
   unique(
     s.priorGrants.map((g) => `${g.userId}:${g.agentId}`),
     "prior grant",

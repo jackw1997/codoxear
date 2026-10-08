@@ -351,6 +351,11 @@ export function removeMember(
       m.userId === memberId,
   );
   if (!member) return;
+  if (kind === "hub") {
+    for (const link of s.invitationLinks)
+      if (link.hubId === resourceId && link.issuerId === memberId && link.acceptedAt === null)
+        link.revokedAt ??= Date.now();
+  }
   if (kind === "hub")
     s.agentGrants = s.agentGrants.filter(
       (g) =>
@@ -458,6 +463,11 @@ export function setHubMemberRole(
         m.resource === "hub" && m.resourceId === hubId && m.userId === userId,
     ),
   );
+  if (member.role === "admin" && role === "member") {
+    for (const link of s.invitationLinks)
+      if (link.hubId === hubId && link.issuerId === userId && link.acceptedAt === null)
+        link.revokedAt ??= Date.now();
+  }
   member.role = role;
   audit(s, actorId, "hub.member.role", hubId);
   return member;

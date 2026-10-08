@@ -6,6 +6,657 @@
     "description": "A Computer connects outbound to its chosen Hub. Each independent Hub owns accounts, signing keys and policy. Static browser clients connect directly using OAuth and a scoped service worker; Hub-hosted BFF cookies and a separate shared authority remain optional compatibility. No automatic direct fallback and no automatic mutation replay. JSON Schema describes structural validation; current membership, identity, binding, canonical paths and custom refinements remain server checks."
   },
   "paths": {
+    "/api/hubs/{id}/invitation-links": {
+      "get": {
+        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "BrowserCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "invitations": {
+                      "$ref": "#/components/schemas/Sharedarray_c491c4fcfbf64e76"
+                    }
+                  },
+                  "required": [
+                    "invitations"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "BrowserCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "expiresInHours": {
+                    "default": 24,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 168
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    },
+                    "hub": {
+                      "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+                    },
+                    "role": {
+                      "type": "string",
+                      "const": "member"
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "expiresAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "accepted",
+                        "expired",
+                        "revoked",
+                        "authority_changed"
+                      ]
+                    },
+                    "token": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{43}$"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hub",
+                    "role",
+                    "createdAt",
+                    "expiresAt",
+                    "status",
+                    "token"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hubs/{id}/invitation-links/{invitationId}": {
+      "delete": {
+        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "BrowserCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOk"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitation-links/{token}": {
+      "get": {
+        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
+        "security": [],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                    },
+                    "hub": {
+                      "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+                    },
+                    "role": {
+                      "type": "string",
+                      "const": "member"
+                    },
+                    "createdAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "expiresAt": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "accepted",
+                        "expired",
+                        "revoked",
+                        "authority_changed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "hub",
+                    "role",
+                    "createdAt",
+                    "expiresAt",
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitation-links/{token}/accept": {
+      "post": {
+        "summary": "Authenticated API; producer-specific response fields are described by its runtime",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "BrowserCookie": []
+          }
+        ],
+        "x-schema-status": "typed-producer-response",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "hub": {
+                      "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+                    },
+                    "role": {
+                      "type": "string",
+                      "const": "member"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "hub",
+                    "role"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Structured router, Hub/authority or native error; inspect code when present",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/computers/{id}/allowlist": {
       "get": {
         "summary": "Authenticated API; producer-specific response fields are described by its runtime",
@@ -4848,7 +5499,7 @@
     },
     "/api/resources/{kind}/{id}/invitations": {
       "post": {
-        "summary": "Owner issues an invitation for a specific verified identity",
+        "summary": "Issue recipient-bound Computer access; Hub invitations require a Member invitation link",
         "security": [
           {
             "Bearer": []
@@ -16998,6 +17649,99 @@
             "properties": {
               "op": {
                 "type": "string",
+                "const": "invitation-link-create"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "expiresInHours": {
+                    "default": 24,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 168
+                  },
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "expiresInHours",
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-list"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "hubId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "invitation-link-revoke"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "hubId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  },
+                  "invitationId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+                  }
+                },
+                "required": [
+                  "hubId",
+                  "invitationId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "op",
+              "args"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
                 "const": "invite"
               },
               "args": {
@@ -17024,10 +17768,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -17062,10 +17803,7 @@
                       },
                       "kind": {
                         "type": "string",
-                        "enum": [
-                          "hub",
-                          "computer"
-                        ]
+                        "const": "computer"
                       },
                       "id": {
                         "type": "string",
@@ -17502,6 +18240,79 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+              },
+              "hub": {
+                "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+              },
+              "role": {
+                "type": "string",
+                "const": "member"
+              },
+              "createdAt": {
+                "type": "number",
+                "minimum": 0
+              },
+              "expiresAt": {
+                "type": "number",
+                "minimum": 0
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "accepted",
+                  "expired",
+                  "revoked",
+                  "authority_changed"
+                ]
+              },
+              "token": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{43}$"
+              }
+            },
+            "required": [
+              "id",
+              "hub",
+              "role",
+              "createdAt",
+              "expiresAt",
+              "status",
+              "token"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "invitations": {
+                "$ref": "#/components/schemas/Sharedarray_c491c4fcfbf64e76"
+              }
+            },
+            "required": [
+              "invitations"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ok": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "ok"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
               "token": {
                 "type": "string",
                 "minLength": 32
@@ -17556,6 +18367,104 @@
         ],
         "description": "Unwrapped dispatcher result. Select the exact response by the request op using x-dispatch-operation-schemas; authentication and operation failures use the documented error status schemas."
       },
+      "Sharedarray_c491c4fcfbf64e76": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Sharedobject_562ba179d27a780c"
+        }
+      },
+      "Sharedobject_562ba179d27a780c": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "hub": {
+            "$ref": "#/components/schemas/Sharedobject_691f50bd39208b87"
+          },
+          "role": {
+            "type": "string",
+            "const": "member"
+          },
+          "createdAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expiresAt": {
+            "type": "number",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "expired",
+              "revoked",
+              "authority_changed"
+            ]
+          },
+          "issuerId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          }
+        },
+        "required": [
+          "id",
+          "hub",
+          "role",
+          "createdAt",
+          "expiresAt",
+          "status",
+          "issuerId"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_691f50bd39208b87": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "origin"
+        ],
+        "additionalProperties": false
+      },
+      "Sharedobject_8d30d7d183a9c069": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode",
+          "error",
+          "message"
+        ],
+        "additionalProperties": false
+      },
       "Sharedarray_22f02d24c932ccdb": {
         "type": "array",
         "items": {
@@ -17584,28 +18493,6 @@
           "userId",
           "name",
           "access"
-        ],
-        "additionalProperties": false
-      },
-      "Sharedobject_8d30d7d183a9c069": {
-        "type": "object",
-        "properties": {
-          "statusCode": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          "error": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "statusCode",
-          "error",
-          "message"
         ],
         "additionalProperties": false
       },

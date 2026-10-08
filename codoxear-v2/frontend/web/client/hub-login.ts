@@ -94,28 +94,7 @@ async function render() {
   );
   const list = root.querySelector<HTMLElement>("#identities")!;
   list.hidden = !identities.length;
-  list.innerHTML = `<h2>Linked accounts</h2>${identities.map((identity: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${providerName(identity.method)}</strong><span class="connectionHint">${esc(identity.subject)}${identity.tenant ? " · " + esc(identity.tenant) : ""}</span></span><button data-invitation="${esc(identity.id)}">Copy invitation details</button><button data-unlink="${esc(identity.id)}" ${fresh ? "" : "disabled"}>Unlink</button></div>`).join("")}`;
-  for (const button of list.querySelectorAll<HTMLButtonElement>(
-    "[data-invitation]",
-  ))
-    button.onclick = () => {
-      const identity = identities.find(
-        (item: any) => item.id === button.dataset.invitation,
-      );
-      const { method, connection, subject, tenant } = identity;
-      void navigator.clipboard
-        .writeText(
-          JSON.stringify(
-            { method, connection, subject, tenant: tenant ?? null },
-            null,
-            2,
-          ),
-        )
-        .then(() => {
-          button.textContent = "Copied";
-        })
-        .catch(error);
-    };
+  list.innerHTML = `<h2>Linked accounts</h2>${identities.map((identity: any) => `<div class="connectionRow"><span class="connectionRowText"><strong>${providerName(identity.method)}</strong></span><button data-unlink="${esc(identity.id)}" ${fresh ? "" : "disabled"}>Unlink</button></div>`).join("")}`;
   for (const button of list.querySelectorAll<HTMLButtonElement>(
     "[data-unlink]",
   ))

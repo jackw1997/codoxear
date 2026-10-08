@@ -439,7 +439,7 @@ define("PUT", "/api/agents/:id/shares/:userId", {
   statuses: [200, 400, 401, 403, 404, 500],
 });
 define("POST", "/api/resources/:kind/:id/invitations", {
-  summary: "Owner issues an invitation for a specific verified identity",
+  summary: "Issue recipient-bound Computer access; Hub invitations require a Member invitation link",
   body: InvitationRequest,
   response: z.object({ id: Id, token: z.string() }),
   statuses: [200, 400, 401, 403, 404, 409, 500],

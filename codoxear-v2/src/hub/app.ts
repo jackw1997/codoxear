@@ -1,4 +1,5 @@
 import { InvitationRequest } from "../contracts/invitations.js";
+import { InvitationLinkRequest } from "../contracts/invitations.js";
 import { browserWorkspace } from "./browser-workspace.js";
 import { workspaceAsset } from "./workspace.js";
 import { Readable } from "node:stream";
@@ -1373,16 +1374,27 @@ export async function createHubApp(o: HubOptions) {
     void tick();
   });
   const base = "/api/resources/:kind/:id";
+  app.post("/api/hubs/:id/invitation-links", async r => call(r, "invitation-link-create", {
+    hubId: Id.parse((r.params as {id: string}).id), ...InvitationLinkRequest.parse(r.body ?? {}),
+  }));
+  app.get("/api/hubs/:id/invitation-links", async r => call(r, "invitation-link-list", {
+    hubId: Id.parse((r.params as {id: string}).id),
+  }));
+  app.delete("/api/hubs/:id/invitation-links/:invitationId", async r => call(r, "invitation-link-revoke", {
+    hubId: Id.parse((r.params as {id: string}).id), invitationId: Id.parse((r.params as {invitationId: string}).invitationId),
+  }));
   const params = z.object({ kind: z.enum(["hub", "computer"]), id: Id });
   app.get(base + "/members", async (r) =>
     call(r, "members", params.parse(r.params)),
   );
-  app.post(base + "/invitations", async (r) =>
-    call(r, "invite", {
-      ...params.parse(r.params),
-      ...InvitationRequest.parse(r.body),
-    }),
-  );
+  app.post(base + "/invitations", async (r) => {
+    const resource = params.parse(r.params);
+    if (resource.kind === "hub") {
+      await call(r, "hub");
+      throw new DomainError(409, "hub_invitation_link_required", "Create a shareable Member invitation link for this Hub");
+    }
+    return call(r, "invite", { ...resource, ...InvitationRequest.parse(r.body) });
+  });
   app.post("/api/invitations/accept", async (r) =>
     call(r, "accept", z.object({ token: z.string() }).parse(r.body)),
   );
@@ -1784,6 +1796,8 @@ export async function createHubApp(o: HubOptions) {
       "/api/v1/me/*",
       "/api/v1/hub-token",
       "/api/v1/invitations/accept",
+      "/api/invitation-links/:token",
+      "/api/invitation-links/:token/accept",
       "/api/v1/hubs",
       "/api/v1/hubs/*",
       "/api/v1/pairing/redeem",
@@ -1800,7 +1814,8 @@ export async function createHubApp(o: HubOptions) {
       "/appearance/*",
     ]) {
       app.route({
-        method: ["GET", "POST", "PUT", "DELETE"],
+        method: url === "/api/invitation-links/:token" ? ["GET"] :
+          url === "/api/invitation-links/:token/accept" ? ["POST"] : ["GET", "POST", "PUT", "DELETE"],
         url,
         handler: async (r, reply) => {
           const headers = { ...r.headers };
