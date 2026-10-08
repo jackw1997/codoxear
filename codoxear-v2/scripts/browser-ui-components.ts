@@ -81,7 +81,7 @@ async function check(name, body) {
   catch (error) { checks.push({ name, passed: false, error: String(error) }); throw error; }
 }
 const choice = () => page.getByRole("combobox", { name: "Choice", exact: true });
-const selected = async (expected) => assert.equal(await choice().innerText(), expected);
+const selected = async (expected) => { await page.waitForFunction(expected => document.querySelector("#choice")?.parentElement?.querySelector(".ui-dropdown-label")?.textContent === expected, expected, { timeout: 5000 }); assert.equal(await choice().innerText(), expected); };
 const eventState = async () => JSON.parse(await page.locator("#events").innerText());
 const formValue = async () => { await page.getByRole("button", { name: "Read form data" }).click(); return JSON.parse(await page.locator("#form-data").innerText()).choice; };
 try {
@@ -141,7 +141,7 @@ try {
   });
   await check("native form reset restores displayed selection without new change events", async () => {
     await page.getByRole("button", { name: "Set value", exact: true }).click(); await selected("Beta");
-    await page.getByRole("button", { name: "Reset choice" }).click(); await selected("Alpha"); assert.equal(await formValue(), "alpha"); assert.equal((await eventState()).changes, 0);
+    await page.getByRole("button", { name: "Reset choice" }).click(); assert.equal(await page.locator("#choice").inputValue(), "alpha", "Native form reset restores the backing value"); await selected("Alpha"); assert.equal(await formValue(), "alpha"); assert.equal((await eventState()).changes, 0);
   });
   await check("native required validation prevents submission and focuses the owned trigger", async () => {
     await page.getByRole("button", { name: "Submit required form" }).click();
