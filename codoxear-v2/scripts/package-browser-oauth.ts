@@ -151,10 +151,23 @@ globalThis.fetch = (input, init) => {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await context.route(url => url.origin === "https://accounts.feishu.cn" && url.pathname === "/open-apis/authen/v1/authorize", async route => {
-    const authorize = new URL(route.request().url());
+  // Playwright invokes routing for the initial request in a server redirect
+  // chain. Intercept the Hub start URL, execute that real request without
+  // following its redirect, and replace only the validated provider destination.
+  // Its actual state/PKCE generation and Set-Cookie response remain intact.
+  await context.route(url => url.origin === hubOrigin && url.pathname === "/auth/package-feishu/start", async route => {
+    const upstream = await route.fetch({ maxRedirects: 0 });
+    assert.equal(upstream.status(), 302, "Installed Hub starts real provider authorization");
+    const authorize = new URL(upstream.headers().location);
+    assert.equal(authorize.origin, "https://accounts.feishu.cn");
+    assert.equal(authorize.pathname, "/open-apis/authen/v1/authorize");
+    assert.equal(authorize.searchParams.get("client_id"), "package-feishu");
+    assert.equal(authorize.searchParams.get("code_challenge_method"), "S256");
+    assert.ok(authorize.searchParams.get("state"));
+    assert.ok(authorize.searchParams.get("code_challenge"));
+    assert.equal(new URL(authorize.searchParams.get("redirect_uri")).origin, hubOrigin);
     browserDiagnostics.push({ event: "controlled_provider_authorize", path: authorize.pathname });
-    await route.fulfill({ status: 302, headers: { Location: providerOrigin + "/authorize" + authorize.search } });
+    await route.fulfill({ response: upstream, headers: { ...upstream.headers(), location: providerOrigin + "/authorize" + authorize.search } });
   });
   context.on("page", page => {
     page.on("pageerror", error => pageErrors.push(error.message));
