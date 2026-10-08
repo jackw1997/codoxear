@@ -639,7 +639,7 @@ async function dailyCustomer(workspaceA) {
     await card(ownerPage, 'Owner agent A').getByRole('button', { name: 'Duplicate session', exact: true }).click();
     const copy = dialog(ownerPage, 'New agent');
     await copy.waitFor({ state: 'visible' });
-    await copy.getByText("Create a new agent on this Computer and runtime. Re-enter the source agent's private provider credentials and launch settings; they are not copied.", { exact: true }).waitFor();
+    await copy.getByText('Create a new agent on this Computer and runtime. Review its provider, model and launch settings before creating it.', { exact: true }).waitFor();
     assert.match(await copy.getByLabel('Computer & hub', { exact: true }).locator('option:checked').innerText(), /Computer A/);
     assert.equal(await copy.getByLabel('Runtime', { exact: true }).inputValue(), 'pi');
     await copy.getByText('More', { exact: true }).click();
