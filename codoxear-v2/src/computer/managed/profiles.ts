@@ -32,6 +32,7 @@ export async function prepareProfile(input: ManagedOpen) {
         JSON.parse(await readFile(join(directory, "launch.json"), "utf8")),
       )
     : Launch.strict().parse(input.launch ?? {});
+  const selectedProviderName = launch.model_provider;
   const resolved = await resolveCatalogLaunch(input.home, input.backend, {
     ...launch,
     model: input.model ?? launch.model,
@@ -284,8 +285,8 @@ export async function prepareProfile(input: ManagedOpen) {
   }
   if (!input.profile) {
     const choices = readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
-    const selected = launch.provider_config?.base_url ? new URL(launch.provider_config.base_url).host
-      : launch.model_provider ?? (input.backend === "pi" && model ? choices.provider_choices.find((provider) => model!.startsWith(provider + "/")) : undefined) ?? choices.model_provider;
+    const selected = selectedProviderName ?? (launch.provider_config?.base_url ? new URL(launch.provider_config.base_url).host
+      : launch.model_provider ?? (input.backend === "pi" && model ? choices.provider_choices.find((provider) => model!.startsWith(provider + "/")) : undefined) ?? choices.model_provider);
     if (input.backend !== "pi") {
       const catalog = configuredKnownCatalog(choices, selected);
       if (catalog) await atomicJson(join(directory, "catalog-known.json"), { provider: selected, catalog });

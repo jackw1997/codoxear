@@ -45,6 +45,7 @@ test("Discovered managed profiles retain their original caller key and private d
     assert.equal(privateModels.providers.codoxear_private.models.find((entry: any) => entry.id === "second").thinkingLevelMap.max, "max");
     assert.deepEqual(JSON.parse(await readFile(join(first.env.OAR_PI_AGENT_DIR!, "settings.json"), "utf8")), { theme: "dark", proxy: "https://proxy.invalid" });
     const settings = await savedSettings(home, first.profile, "pi", changed.model!, "max", launch);
+    assert.equal(settings.provider, "gateway", "The named provider alias survives canonical private endpoint resolution");
     assert.equal(settings.request?.api_key, "original-private-key");
     assert.ok(settings.catalog.models.find((entry) => entry.id === "second")!.runtime_reasoning_efforts!.includes("max"));
     assert.equal(JSON.stringify(settings.catalog).includes("original-private-key"), false);
