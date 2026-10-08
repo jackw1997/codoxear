@@ -4280,7 +4280,7 @@
                   "type": "object",
                   "properties": {
                     "new_session_defaults": {
-                      "$ref": "#/components/schemas/Sharedobject_c5fa879a3cf55fd9"
+                      "$ref": "#/components/schemas/Sharedobject_8448fa6aebbf48fb"
                     },
                     "recent_cwds": {
                       "type": "array",
@@ -14128,7 +14128,7 @@
             "const": true
           },
           "backends": {
-            "$ref": "#/components/schemas/Sharedobject_da56e7d96ff3eb19"
+            "$ref": "#/components/schemas/Sharedobject_93ebc5459f38b23f"
           }
         },
         "required": [
@@ -14452,7 +14452,7 @@
             "$ref": "#/components/schemas/Sharedarray_a73b79b43610bd52"
           },
           "new_session_defaults": {
-            "$ref": "#/components/schemas/SharedUnion_e3d29b79babfbd38"
+            "$ref": "#/components/schemas/SharedUnion_ad4dbf126cd03a02"
           },
           "recent_cwds": {
             "type": "array",
@@ -14478,7 +14478,7 @@
         "type": "object",
         "properties": {
           "sessions": {
-            "$ref": "#/components/schemas/Sharedarray_2dbdcddb2b921421"
+            "$ref": "#/components/schemas/Sharedarray_9c508b0fbcabe6ff"
           },
           "catalog_errors": {
             "$ref": "#/components/schemas/Sharedarray_a7d280e3b619d410"
@@ -19792,7 +19792,7 @@
         "additionalProperties": {},
         "description": "Backend-owned optional child telemetry, with additional producer fields permitted."
       },
-      "Sharedobject_c5fa879a3cf55fd9": {
+      "Sharedobject_8448fa6aebbf48fb": {
         "type": "object",
         "properties": {
           "default_backend": {
@@ -19808,7 +19808,7 @@
             "const": true
           },
           "backends": {
-            "$ref": "#/components/schemas/Sharedobject_da56e7d96ff3eb19"
+            "$ref": "#/components/schemas/Sharedobject_93ebc5459f38b23f"
           }
         },
         "required": [
@@ -19817,17 +19817,17 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_da56e7d96ff3eb19": {
+      "Sharedobject_93ebc5459f38b23f": {
         "type": "object",
         "properties": {
           "pi": {
-            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
+            "$ref": "#/components/schemas/Sharedobject_c643e509d135d2f3"
           },
           "codex": {
-            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
+            "$ref": "#/components/schemas/Sharedobject_c643e509d135d2f3"
           },
           "cc": {
-            "$ref": "#/components/schemas/Sharedobject_a2832537bd31817e"
+            "$ref": "#/components/schemas/Sharedobject_c643e509d135d2f3"
           }
         },
         "required": [
@@ -19837,7 +19837,7 @@
         ],
         "additionalProperties": false
       },
-      "Sharedobject_a2832537bd31817e": {
+      "Sharedobject_c643e509d135d2f3": {
         "type": "object",
         "properties": {
           "model": {
@@ -19913,6 +19913,13 @@
               "items": {
                 "type": "string"
               }
+            }
+          },
+          "reasoning_efforts_for_custom_model": {
+            "description": "Runtime request vocabulary for a user-supplied model; the provider may reject these levels.",
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         },
@@ -20792,10 +20799,10 @@
           "$ref": "#/components/schemas/Sharedobject_0004a52af95eadca"
         }
       },
-      "SharedUnion_e3d29b79babfbd38": {
+      "SharedUnion_ad4dbf126cd03a02": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/Sharedobject_c5fa879a3cf55fd9"
+            "$ref": "#/components/schemas/Sharedobject_8448fa6aebbf48fb"
           },
           {
             "type": "object",
@@ -21060,13 +21067,13 @@
         ],
         "additionalProperties": false
       },
-      "Sharedarray_2dbdcddb2b921421": {
+      "Sharedarray_9c508b0fbcabe6ff": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/Sharedobject_293baffa87d43762"
+          "$ref": "#/components/schemas/Sharedobject_b9ae50bc2443e002"
         }
       },
-      "Sharedobject_293baffa87d43762": {
+      "Sharedobject_b9ae50bc2443e002": {
         "type": "object",
         "properties": {
           "version": {
@@ -21320,7 +21327,7 @@
             "$ref": "#/components/schemas/Sharedobject_0152a3b261ae052b"
           },
           "codoxear_launch_defaults": {
-            "$ref": "#/components/schemas/SharedUnion_e3d29b79babfbd38"
+            "$ref": "#/components/schemas/SharedUnion_ad4dbf126cd03a02"
           },
           "codoxear_computer_id": {
             "type": "string",

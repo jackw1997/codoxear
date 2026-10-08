@@ -152,6 +152,7 @@ const defaults = z.object({
   supports_fast: z.boolean(),
   provider_models: z.record(text, z.array(text)).optional(),
   reasoning_efforts_by_model: z.record(text, z.array(text)).optional(),
+  reasoning_efforts_for_custom_model: z.array(text).optional().describe("Runtime request vocabulary for a user-supplied model; the provider may reject these levels."),
 });
 export const LaunchDefaults = z.object({
   default_backend: NativeBackend.optional(),

@@ -4,7 +4,9 @@ import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { readLaunchDefaults } from "../src/computer/native/launch-defaults.js";
+import { pathToFileURL } from "node:url";
+import { readLaunchDefaults, piThinkingLevels } from "../src/computer/native/launch-defaults.js";
+import { computerPackagePaths } from "../src/computer/package-paths.js";
 
 assert.ok(existsSync("/.dockerenv"), "Launch configuration behavior must be tested in Docker");
 async function fixture(t: { after: (fn: () => Promise<void>) => void }) {
@@ -54,10 +56,33 @@ test("Pi exposes exact dynamic provider identities, configured model and off thi
   assert.deepEqual(pi.provider_models.Zai, ["glm"]);
   assert.deepEqual(pi.reasoning_efforts_by_model["litellm/team/kimi"], ["off"]);
   assert.deepEqual(pi.reasoning_efforts_by_model["Micu/model-with-no-reasoning"], ["off"]);
-  assert.deepEqual(pi.reasoning_efforts_by_model["Zai/glm"], ["off", "xhigh"]);
+  assert.deepEqual(pi.reasoning_efforts_by_model["Zai/glm"], ["off", "minimal", "low", "medium", "high", "xhigh"]);
   const advertised = JSON.stringify(defaults);
   for (const credential of ["secret-pi-key", "secret-zai-key", "secret-openai-key", "secret-oauth", "provider.invalid"])
     assert.equal(advertised.includes(credential), false);
+});
+
+test("Pi launch effort choices match the installed SDK for declared, restricted and unknown model capabilities", async t => {
+  const sdkUrl = pathToFileURL(join(computerPackagePaths().root, "runtime/oar/node_modules/@earendil-works/pi-ai/dist/models.js")).href;
+  const sdk = await import(sdkUrl);
+  const models = [
+    {id:"declared",reasoning:true},
+    {id:"restricted",reasoning:true,thinkingLevelMap:{off:null,minimal:null,low:null,medium:"low",high:"high",xhigh:"high",max:null}},
+    {id:"extended",reasoning:true,thinkingLevelMap:{max:"high",unexpected:"high"}},
+    {id:"nonreasoning",reasoning:false},
+    {id:"unknown"},
+  ];
+  const f = await fixture(t);
+  await f.put(".pi/agent/settings.json",{defaultProvider:"configured",defaultModel:"declared",defaultThinkingLevel:"off"});
+  await f.put(".pi/agent/models.json",{providers:{configured:{models}}});
+  const defaults = readLaunchDefaults(f.home,f.workspace,{}).backends.pi;
+  assert.deepEqual(defaults.reasoning_efforts_for_custom_model,sdk.getSupportedThinkingLevels({reasoning:true}));
+  for (const model of models) {
+    assert.deepEqual(piThinkingLevels(model),sdk.getSupportedThinkingLevels(model));
+    assert.deepEqual(defaults.reasoning_efforts_by_model["configured/"+model.id],sdk.getSupportedThinkingLevels(model));
+  }
+  assert.deepEqual(defaults.reasoning_efforts_by_model["configured/declared"],["off","minimal","low","medium","high"]);
+  assert.deepEqual(defaults.reasoning_efforts_by_model["configured/unknown"],["off"]);
 });
 
 test("Pi workspace selection and model-specific thinking override global settings", async t => {

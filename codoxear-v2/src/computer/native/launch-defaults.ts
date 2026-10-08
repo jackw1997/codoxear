@@ -14,6 +14,8 @@ export type LaunchBackendDefaults = {
   provider_models: Record<string, string[]>;
   reasoning_efforts: string[];
   reasoning_efforts_by_model: Record<string, string[]>;
+  /** Adapter request vocabulary for a user-supplied model; not verified model support. */
+  reasoning_efforts_for_custom_model?: string[];
   supports_fast: boolean;
 };
 const string = (value: unknown): string | null =>
@@ -93,6 +95,16 @@ function selectedModel(backend: LaunchBackendDefaults) {
   }
 }
 
+/** Pi 1.x getSupportedThinkingLevels contract: base levels for a declared
+ * reasoning model, explicit null exclusions, opt-in extended levels. No
+ * provider/model-name inference; absent reasoning metadata stays off-only. */
+export function piThinkingLevels(model: JsonObject): string[] {
+  if (model.reasoning !== true) return ["off"];
+  const map = object(model.thinkingLevelMap);
+  return ["off", "minimal", "low", "medium", "high", "xhigh", "max"].filter(level =>
+    map[level] !== null && (!(level === "xhigh" || level === "max") || map[level] !== undefined));
+}
+
 /** Configuration identities and model capabilities only; never credentials.
  * Callers must separately check what their runtime adapter can honor. */
 export function readLaunchDefaults(
@@ -140,6 +152,7 @@ export function readLaunchDefaults(
   codex.reasoning_efforts = [...new Set(codex.reasoning_efforts)];
 
   const pi = empty([], false);
+  pi.reasoning_efforts_for_custom_model = piThinkingLevels({ reasoning: true });
   const settings = {
     ...json(join(homes.pi, "settings.json")),
     ...(workspace ? json(join(workspace, ".pi", "settings.json")) : {}),
@@ -158,16 +171,7 @@ export function readLaunchDefaults(
       const model = object(value), id = string(model.id);
       if (!id) continue;
       if (!pi.provider_models[provider]!.includes(id)) pi.provider_models[provider]!.push(id);
-      // Do not infer a capability list for reasoning models. Return explicitly
-      // mapped levels and their configured effort; nonreasoning means off.
-      const levels = object(model.thinkingLevelMap);
-      const configuredEffort = string(object(settings.modelThinkingLevels)[`${provider}/${id}`]) ?? string(settings.defaultThinkingLevel);
-      pi.reasoning_efforts_by_model[`${provider}/${id}`] = model.reasoning === true
-        ? [...new Set([
-          ...(configuredEffort && levels[configuredEffort] !== null ? [configuredEffort] : []),
-          ...Object.keys(levels).filter(level => levels[level] !== null),
-        ])]
-        : ["off"];
+      pi.reasoning_efforts_by_model[`${provider}/${id}`] = piThinkingLevels(model);
       pi.reasoning_efforts.push(...pi.reasoning_efforts_by_model[`${provider}/${id}`]!);
     }
   }

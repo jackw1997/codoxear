@@ -24,9 +24,10 @@ const catalogs = {
             local: ["pi-default"],
             anthropic: ["pi-reasoner"],
           },
-          reasoning_efforts: ["off", "low", "high"],
+          reasoning_efforts: ["off", "minimal", "low", "medium", "high"],
+          reasoning_efforts_for_custom_model: ["off", "minimal", "low", "medium", "high"],
           reasoning_efforts_by_model: {
-            "anthropic/pi-reasoner": ["low", "high"],
+            "anthropic/pi-reasoner": ["off", "minimal", "low", "medium", "high"],
             "local/pi-default": ["off"],
           },
         },
@@ -324,6 +325,9 @@ try {
     await dialog().getByLabel("Reasoning", { exact: true }).inputValue(),
     "off",
   );
+  await dialog().getByText("The Computer’s model configuration does not advertise reasoning levels beyond Off.", { exact: true }).waitFor();
+  assert.deepEqual(await dialog().getByLabel("Reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off"]);
+  pass("Configured non-reasoning model exposes only Off and explains its Computer metadata constraint");
   for (const field of ["Provider", "Model", "Reasoning"]) {
     const options = await dialog()
       .getByLabel(field, { exact: true })
@@ -366,8 +370,10 @@ try {
       .getByLabel("Reasoning", { exact: true })
       .locator("option")
       .allTextContents(),
-    ["Choose a reasoning level", "Low", "High"],
+    ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"],
   );
+  assert.equal(await dialog().getByText("The Computer’s model configuration does not advertise reasoning levels beyond Off.", { exact: true }).isVisible(), false);
+  pass("Configured reasoning model receives the producer-derived standard levels without an explicit thinking-level map");
   await dialog().getByLabel("Reasoning", { exact: true }).selectOption("high");
   assert.equal(await dialog().getByLabel("Fast mode").isVisible(), false);
   await page.screenshot({ path: "artifacts/creation-pi-desktop.png" });
@@ -484,6 +490,8 @@ try {
     await dialog()
       .getByLabel("Provider", { exact: true })
       .selectOption("__custom_api__");
+    await dialog().getByText("These levels are requests understood by the runtime. The provider or model may reject the requested level.", { exact: true }).waitFor();
+    if (runtime === "pi") assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
     assert.equal(
       await dialog().getByLabel("Custom model", { exact: true }).isVisible(),
       true,
@@ -497,7 +505,7 @@ try {
     await dialog()
       .getByLabel("Custom model", { exact: true })
       .fill("PrivateModel");
-    await dialog().getByLabel("Reasoning", { exact: true }).selectOption("low");
+    await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
     assert.equal(
       await dialog()
         .getByLabel("API key", { exact: true })

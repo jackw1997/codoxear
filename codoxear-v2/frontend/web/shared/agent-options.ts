@@ -26,6 +26,7 @@ export type BackendDefaults = {
   provider_models?: Record<string, string[]>;
   reasoning_effort?: string | null;
   reasoning_efforts?: string[];
+  reasoning_efforts_for_custom_model?: string[];
   reasoning_efforts_by_model?: Record<string, string[]>;
   supports_fast?: boolean;
 };
@@ -82,7 +83,8 @@ export function effortsFor(
   provider: string,
   model: string,
 ) {
-  if (provider === "__custom_api__") return strings(defaults.reasoning_efforts);
+  if (provider === "__custom_api__")
+    return strings(defaults.reasoning_efforts_for_custom_model ?? defaults.reasoning_efforts);
   const selectedProvider =
     provider || defaults.provider_choice || defaults.model_provider || "";
   const selectedModel = model || defaults.model || "";
