@@ -1,7 +1,7 @@
 // @ts-nocheck -- Docker-only browser acceptance, controlled OAuth and managed-driver boundary.
 import './testing/frontend-artifact.js';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -828,16 +828,43 @@ try {
   // Read-only deployment provenance: direct static asset HTTP metadata, never an application mutation.
   const publicRelease = await ownerContext.request.get(clientOrigin + '/client-release.json').then(async response => ({ releaseStatus: response.status(), publicReleaseVersion: (await response.json()).version })).catch(() => ({ releaseUnavailable: true }));
   Object.assign(clientBuild, publicRelease);
-  await writeFile(join(artifacts, 'results.json'), JSON.stringify({ passed, stage, checks, failures, screenshots, unavailable, browserDiagnostics, clientSurface: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public deployed frontend' : 'Separate local static frontend',
+  const result = { passed, stage, checks, failures, screenshots, unavailable, browserDiagnostics, clientSurface: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public deployed frontend' : 'Separate local static frontend',
     clientBuild,
     applicationActions: 'Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding',
     oauthBoundary: 'Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance',
     runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance',
     externalBootstrap, browserPermissionSetup: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public-origin local-network-access and clipboard permissions granted to automated browser; no application grants injected' : 'Clipboard permissions only',
-    physicalBootstrapBoundary: 'Computer attachment and start are external infrastructure operations, not browser-only product support' }, null, 2));
-  await browser.close();
-  for (const service of services.reverse()) await service.stop().catch(() => {});
-  if (staticClient) await new Promise(resolve => staticClient.close(resolve));
-  hub.server.closeAllConnections(); await hub.close(); await authority.identity.close(); sessions.close(); store.close();
-  await rm(scratch, { recursive: true, force: true });
+    physicalBootstrapBoundary: 'Computer attachment and start are external infrastructure operations, not browser-only product support', cleanup: [] };
+  const saveResult = () => writeFileSync(join(artifacts, 'results.json'), JSON.stringify(result, null, 2));
+  saveResult();
+  // This watchdog belongs only to this ephemeral Docker test process. Never let
+  // a failed assertion hold the shared verification lock through a hung close.
+  const watchdog = setTimeout(() => {
+    result.passed = false;
+    failures.push('Infrastructure teardown exceeded its 45-second bound');
+    result.cleanup.push('Teardown exceeded 45 seconds; terminating owned Docker test process');
+    saveResult(); process.exit(1);
+  }, 45000);
+  watchdog.unref();
+  async function closeOwned(label, action, milliseconds = 8000) {
+    result.cleanup.push('Closing ' + label); saveResult();
+    let timer;
+    try {
+      await Promise.race([Promise.resolve().then(action), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Close timeout')), milliseconds); })]);
+      result.cleanup.push('Closed ' + label);
+    } catch {
+      result.passed = false; process.exitCode = 1;
+      failures.push('Infrastructure teardown failed or timed out: ' + label);
+      result.cleanup.push('Close failed or timed out: ' + label);
+    } finally { clearTimeout(timer); saveResult(); }
+  }
+  await closeOwned('browser', () => browser.close());
+  await closeOwned('Hub tunnels', () => tunnels.close());
+  for (const [index, service] of services.reverse().entries()) await closeOwned('Computer service ' + index, () => service.stop());
+  if (staticClient) await closeOwned('static client', () => { staticClient.closeAllConnections(); return new Promise(resolve => staticClient.close(resolve)); });
+  await closeOwned('Hub server', () => { hub.server.closeAllConnections(); return hub.close(); });
+  await closeOwned('Hub identity', () => authority.identity.close());
+  await closeOwned('databases', () => { sessions.close(); store.close(); });
+  await closeOwned('scratch workspace', () => rm(scratch, { recursive: true, force: true }));
+  if (result.cleanup.some(entry => entry.startsWith('Close failed'))) process.exit(1);
 }
