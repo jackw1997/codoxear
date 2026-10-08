@@ -28,6 +28,9 @@ const children = [];
 const checks = [];
 const pageErrors = [];
 const oauthResponses = [];
+const browserDiagnostics = [];
+const providerDiagnostics = [];
+let stage = "start packages";
 let browser;
 let controlledProvider;
 let passed = false;
@@ -83,6 +86,7 @@ try {
   controlledProvider = createHttpServer(async (request, response) => {
     try {
       const url = new URL(request.url, "http://127.0.0.1");
+      providerDiagnostics.push({ path: url.pathname, method: request.method });
       const json = (status, body) => { response.writeHead(status, { "Content-Type": "application/json" }); response.end(JSON.stringify(body)); };
       if (url.pathname === "/authorize") {
         assert.equal(url.searchParams.get("client_id"), "package-feishu");
@@ -111,7 +115,7 @@ try {
         assert.ok(providerTokens.has(String(request.headers.authorization).replace(/^Bearer /, "")));
         json(200, { code: 0, data: { open_id: "package-owner", tenant_key: "package-organization", name: "Package Owner" } });
       } else json(404, { error: "Not found" });
-    } catch { response.writeHead(400, { "Content-Type": "application/json" }); response.end(JSON.stringify({ error: "Controlled provider rejected request" })); }
+    } catch { providerDiagnostics.push({ rejected: true }); response.writeHead(400, { "Content-Type": "application/json" }); response.end(JSON.stringify({ error: "Controlled provider rejected request" })); }
   });
   controlledProvider.listen(0, "127.0.0.1"); await once(controlledProvider, "listening");
   const providerOrigin = "http://127.0.0.1:" + controlledProvider.address().port;
@@ -147,11 +151,18 @@ globalThis.fetch = (input, init) => {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await context.route("https://accounts.feishu.cn/open-apis/authen/v1/authorize?*", async route => {
+  await context.route(url => url.origin === "https://accounts.feishu.cn" && url.pathname === "/open-apis/authen/v1/authorize", async route => {
     const authorize = new URL(route.request().url());
+    browserDiagnostics.push({ event: "controlled_provider_authorize", path: authorize.pathname });
     await route.fulfill({ status: 302, headers: { Location: providerOrigin + "/authorize" + authorize.search } });
   });
-  context.on("page", (page) => page.on("pageerror", (error) => pageErrors.push(error.message)));
+  context.on("page", page => {
+    page.on("pageerror", error => pageErrors.push(error.message));
+    page.on("requestfailed", request => {
+      const url = new URL(request.url());
+      browserDiagnostics.push({ event: "requestfailed", origin: url.origin, path: url.pathname, error: request.failure()?.errorText });
+    });
+  });
   context.on("response", (response) => {
     const url = new URL(response.url());
     if (url.origin === hubOrigin && url.pathname.startsWith("/oauth/"))
@@ -162,6 +173,7 @@ globalThis.fetch = (input, init) => {
   const network = await context.newCDPSession(page);
   await network.send("Network.enable");
   await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1, connectionType: "ethernet" });
+  stage = "private initialization provider sign-in";
   const initialize = await context.newPage();
   await initialize.goto(hubOrigin + "/initialize?" + new URLSearchParams({ token: initialization.token }));
   assert.equal(new URL(initialize.url()).searchParams.has("token"), false, "Private initialization token is removed from the address");
@@ -171,6 +183,7 @@ globalThis.fetch = (input, init) => {
   assert.match(await initialize.getByText("Signed in as", { exact: false }).textContent(), /· Owner/, "Verified initialization identity becomes Owner");
   await initialize.close();
   pass("Private single-use initialization assigns Owner through controlled Feishu provider sign-in without account seeding");
+  stage = "client provider popup and PKCE";
   await page.goto(frontendOrigin);
   await page.getByRole("button", { name: "Add hub", exact: true }).click();
   await page.getByLabel("Hub address", { exact: true }).fill(hubOrigin);
@@ -184,6 +197,7 @@ globalThis.fetch = (input, init) => {
   assert.ok(oauthResponses.some((response) => response.path === "/oauth/token" && response.method === "POST" && response.status === 200), "Real PKCE code exchange succeeded");
   pass("Standalone frontend completes actual popup provider login and PKCE exchange against the exported Hub");
 
+  stage = "browser Computer mutation";
   await page.locator("summary").filter({ hasText: "Installed package Hub" }).click();
   await page.getByRole("button", { name: "Add computer", exact: true }).click();
   await page.getByLabel("Computer name", { exact: true }).fill("OAuth package computer");
@@ -191,6 +205,7 @@ globalThis.fetch = (input, init) => {
   await page.getByRole("heading", { name: "OAuth package computer", exact: true }).waitFor();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   pass("OAuth credential authorizes a real Hub management mutation through the frontend");
+  stage = "reload persistence";
   await page.reload();
   const sidebarToggle = page.getByRole("button", { name: "Toggle sidebar", exact: true });
   await sidebarToggle.waitFor({ state: "visible" });
@@ -207,6 +222,15 @@ globalThis.fetch = (input, init) => {
   passed = true;
 } catch (error) {
   failure = error instanceof Error ? error.message : String(error);
+  // Capture visible page state before teardown; never record URL queries,
+  // hidden form fields, cookies or access credentials.
+  for (const context of browser?.contexts() ?? []) for (const page of context.pages()) {
+    try {
+      const url = new URL(page.url());
+      browserDiagnostics.push({ event: "failure_page", origin: url.origin, path: url.pathname,
+        title: await page.title(), visibleText: (await page.locator("body").innerText()).slice(0, 2000) });
+    } catch {}
+  }
   throw error;
 } finally {
   await browser?.close();
@@ -214,5 +238,5 @@ globalThis.fetch = (input, init) => {
   for (const child of children.reverse()) await stop(child);
   await rm(home, { recursive: true, force: true });
   await mkdir(dirname(output), { recursive: true });
-  await writeFile(output, JSON.stringify({ passed, providerBoundary: "Controlled Feishu browser page and HTTPS fetch transport; real installed provider adapter/state/PKCE/tenant/initialization and Hub-client OAuth; no live provider acceptance or seeded accounts", commit: release.commit, packageRoots: { frontend: frontendRoot, hub: hubRoot }, checks, oauthResponses, pageErrors, ...(failure ? { error: failure } : {}) }, null, 2) + "\n");
+  await writeFile(output, JSON.stringify({ passed, stage, browserDiagnostics, providerDiagnostics, providerBoundary: "Controlled Feishu browser page and HTTPS fetch transport; real installed provider adapter/state/PKCE/tenant/initialization and Hub-client OAuth; no live provider acceptance or seeded accounts", commit: release.commit, packageRoots: { frontend: frontendRoot, hub: hubRoot }, checks, oauthResponses, pageErrors, ...(failure ? { error: failure } : {}) }, null, 2) + "\n");
 }
