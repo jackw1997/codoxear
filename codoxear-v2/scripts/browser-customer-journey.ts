@@ -720,9 +720,14 @@ try {
   await shot(memberPage, 'member-explicitly-joined-hub');
   await dialog(memberPage, 'Joined Hub').getByRole('button', { name: 'View Hub', exact: true }).click();
   await home(memberPage); await memberPage.getByText('Member', { exact: true }).waitFor();
+  await dialog(memberPage, 'Hubs & computers').locator('.connectionHub summary').getByText('Customer Hub', { exact: true }).waitFor();
   await dialog(memberPage, 'Hubs & computers').getByText('No computers are available to these identities. Ask a Hub owner or admin for allowlist access.', { exact: true }).waitFor();
   assert.equal(await dialog(memberPage, 'Hubs & computers').getByRole('button', { name: /Computer A/ }).count(), 0);
   await shot(memberPage, 'member-joined-no-computers');
+  await closeConnections(memberPage);
+  await memberPage.getByText('No accessible agents or Computers. Ask a Hub Owner or Admin for Computer access.', { exact: true }).first().waitFor();
+  assert.equal(await memberPage.getByText('Connect a hub to discover sessions.', { exact: true }).first().isVisible().catch(() => false), false);
+  await shot(memberPage, 'member-joined-awaiting-computer-access');
   await rejectInvitationLink(invitation, 'already used', 'recipient-used-link-denied');
   unavailable.push('Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests');
   pass('Owner creates invitation links before recipient exists, revokes a pending link, cannot join its own Hub, and recipient chooses Feishu then explicitly joins Member with no Computer grant; fresh browsers reject revoked and reused links');
