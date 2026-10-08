@@ -85,6 +85,52 @@ test("Older named profiles rediscover only the explicit provider matching the sa
     assert.equal(JSON.stringify((await read()).catalog).includes("rotated-caller-key"), false);
   } finally { await rm(home, { recursive: true, force: true }); }
 });
+test("Named Codex Details retains its own cached models and effort capabilities without borrowing a custom provider cache", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-codex-details-catalog-"));
+  try {
+    const codex = join(home, ".codex");
+    await mkdir(codex, { recursive: true });
+    await writeFile(join(codex, "config.toml"), 'model_provider="openai"\nmodel="configured"\nmodel_reasoning_effort="low"\n');
+    await writeFile(join(codex, "auth.json"), JSON.stringify({ auth_mode: "chatgpt", tokens: { access_token: "private-token" } }));
+    await writeFile(join(codex, "models_cache.json"), JSON.stringify({ models: [{ slug: "configured", supported_reasoning_levels: [{ effort: "low" }, { effort: "high" }] }, { slug: "alternative", supported_reasoning_levels: [{ effort: "high" }, { effort: "max" }] }, { slug: "hidden", visibility: "hide", supported_reasoning_levels: [{ effort: "max" }] }] }));
+    const launch = { model_provider: "openai", model: "configured", reasoning_effort: "low", preferred_auth_method: "chatgpt" };
+    const input = { home, stateHome: home, cwd: home, backend: "codex" as const, model: "configured", effort: "low", launch };
+    const prepared = await prepareProfile(input);
+    const read = () => savedSettings(home, prepared.profile, "codex", "alternative", "max", launch, home);
+    const settings = await read();
+    assert.equal(settings.model, "alternative", "The configured default never replaces the authoritative current model");
+    assert.equal(settings.provider, "openai");
+    assert.deepEqual(settings.catalog.models.map((entry) => entry.id), ["configured", "alternative"]);
+    assert.deepEqual(settings.catalog.models.find((entry) => entry.id === "alternative")!.runtime_reasoning_efforts, ["high", "max"]);
+    assert.equal(settings.request, null, "ChatGPT authentication does not become an unrelated provider API key");
+    await writeFile(join(codex, "config.toml"), 'model_provider="unrelated"\nmodel="unrelated-default"\n');
+    await writeFile(join(codex, "models_cache.json"), JSON.stringify({ models: [{ slug: "other-account-model" }] }));
+    assert.deepEqual((await read()).catalog, settings.catalog, "Saved capabilities remain scoped to the original selected provider");
+    assert.equal(JSON.stringify(settings.catalog).includes("private-token"), false);
+    const other = await prepareProfile({ ...input, launch: { model_provider: "unrelated", model: "unrelated-default" }, model: "unrelated-default" });
+    const otherSettings = await savedSettings(home, other.profile, "codex", "unrelated-default", "low", { model_provider: "unrelated", model: "unrelated-default" }, home);
+    assert.deepEqual(otherSettings.catalog.models.map((entry) => entry.id), ["unrelated-default"]);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
+test("Named Claude Details uses saved configured capabilities while retaining the authoritative session selection", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-claude-details-catalog-"));
+  try {
+    const claude = join(home, ".claude");
+    await mkdir(claude, { recursive: true });
+    await writeFile(join(claude, "settings.json"), JSON.stringify({ model: "configured-claude", effortLevel: "high", env: { ANTHROPIC_BASE_URL: "https://selected.invalid", ANTHROPIC_API_KEY: "private-claude-key" } }));
+    const launch = { model_provider: "selected.invalid", model: "configured-claude", reasoning_effort: "high" };
+    const prepared = await prepareProfile({ home, stateHome: home, cwd: home, backend: "cc", model: launch.model, effort: "high", launch });
+    await writeFile(join(claude, "settings.json"), JSON.stringify({ model: "unrelated-claude", effortLevel: "low", env: { ANTHROPIC_BASE_URL: "https://unrelated.invalid", ANTHROPIC_API_KEY: "unrelated-key" } }));
+    const settings = await savedSettings(home, prepared.profile, "cc", "continued-claude", "medium", launch, home);
+    assert.equal(settings.provider, "selected.invalid");
+    assert.equal(settings.model, "continued-claude");
+    assert.deepEqual(settings.catalog.models.map((entry) => entry.id), ["configured-claude", "continued-claude"]);
+    assert.deepEqual(settings.catalog.models[0]!.runtime_reasoning_efforts, ["high"]);
+    assert.deepEqual(settings.catalog.models[1]!.runtime_reasoning_efforts, ["medium"]);
+    assert.equal(settings.request?.api_key, "private-claude-key");
+    assert.equal(JSON.stringify(settings.catalog).includes("private-claude-key"), false);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
 test("Pi explicit models inherit the configured provider, including cold reopen", async () => {
   const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
   try {

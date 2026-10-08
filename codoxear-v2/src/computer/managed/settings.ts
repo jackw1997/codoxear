@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Launch, ProviderCatalog, ProviderCatalogRequest } from "../../contracts/tunnel.js";
-import { piThinkingLevels } from "../native/launch-defaults.js";
+import { piThinkingLevels, readLaunchDefaults, type LaunchBackendDefaults } from "../native/launch-defaults.js";
 import { catalogCredential, configuredCatalogCredentials } from "../provider-catalog.js";
 import { backendHomes } from "../native/homes.js";
 import type { ManagedBackend } from "./driver.js";
@@ -68,12 +68,44 @@ export async function savedSettings(stateHome: string, profile: string | null, b
   const entries = activeProvider ? models.providers?.[activeProvider]?.models : undefined;
   const current = canonicalModel(model, launch, privateActive ? "codoxear_private" : provider);
   const known = Array.isArray(entries) ? entries : [];
-  const catalog = ProviderCatalog.parse({ metadata_available: false, models: known.map((entry: any) => ({
+  let catalog = ProviderCatalog.parse({ metadata_available: false, models: known.map((entry: any) => ({
     id: entry.id, supports_reasoning: typeof entry.reasoning === "boolean" ? entry.reasoning : null,
     supported_reasoning_efforts: null, runtime_reasoning_efforts: piThinkingLevels(entry),
   })) });
+  if (backend !== "pi") {
+    let retained = false;
+    if (directory) {
+      try {
+        const source = JSON.parse(await readFile(join(directory, "catalog-known.json"), "utf8"));
+        if (typeof source.provider === "string" && (!provider || provider === source.provider)) {
+          provider = source.provider;
+          catalog = ProviderCatalog.parse(source.catalog);
+          retained = true;
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw Error("Cannot read this session's saved model capabilities");
+      }
+    }
+    if (!retained && home && launch?.model_provider && !launch.provider_config?.base_url) {
+      const defaults = readLaunchDefaults(home, launch.cwd, { ...process.env, ...launch.env_vars }).backends[backend];
+      const configured = configuredKnownCatalog(defaults, launch.model_provider);
+      if (configured) catalog = configured;
+    }
+  }
   if (current && !catalog.models.some((entry) => entry.id === current)) catalog.models.push({ id: current, supports_reasoning: null, supported_reasoning_efforts: null, ...(effort ? { runtime_reasoning_efforts: [effort] } : {}) });
   return { provider, request, catalog, model: current, provenanceRequired: privateActive && !request };
+}
+
+/** The creation producer's cache belongs only to its selected provider/auth mode. */
+export function configuredKnownCatalog(defaults: LaunchBackendDefaults, provider: string | null) {
+  if (!provider || defaults.model_provider !== provider) return null;
+  const choice = defaults.provider_choice ?? provider;
+  const ids = defaults.provider_models[choice] ?? defaults.provider_models[provider] ?? [];
+  const known = [...new Set([...ids, ...(defaults.model ? [defaults.model] : [])])];
+  return ProviderCatalog.parse({ metadata_available: false, models: known.map((id) => ({
+    id, supports_reasoning: null, supported_reasoning_efforts: null,
+    runtime_reasoning_efforts: defaults.reasoning_efforts_by_model[`${choice}/${id}`] ?? defaults.reasoning_efforts_by_model[`${provider}/${id}`] ?? defaults.reasoning_efforts_by_model[id] ?? (id === defaults.model ? defaults.reasoning_efforts : []),
+  })) });
 }
 
 export function canonicalModel(model: string | null, launch?: ReturnType<typeof Launch.parse>, provider?: string | null) {

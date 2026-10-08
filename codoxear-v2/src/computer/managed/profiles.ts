@@ -17,6 +17,7 @@ import { atomicJson } from "../../persistence/files.js";
 import { backendHomes } from "../native/homes.js";
 import { readLaunchDefaults } from "../native/launch-defaults.js";
 import { ManagedSetupError, type ManagedOpen } from "./driver.js";
+import { configuredKnownCatalog } from "./settings.js";
 
 /** Credentials are Computer-local, never part of the Hub catalogue or receipts. */
 export async function prepareProfile(input: ManagedOpen) {
@@ -285,6 +286,10 @@ export async function prepareProfile(input: ManagedOpen) {
     const choices = readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
     const selected = launch.provider_config?.base_url ? new URL(launch.provider_config.base_url).host
       : launch.model_provider ?? (input.backend === "pi" && model ? choices.provider_choices.find((provider) => model!.startsWith(provider + "/")) : undefined) ?? choices.model_provider;
+    if (input.backend !== "pi") {
+      const catalog = configuredKnownCatalog(choices, selected);
+      if (catalog) await atomicJson(join(directory, "catalog-known.json"), { provider: selected, catalog });
+    }
     try {
       const credentials = launch.provider_config?.base_url
         ? { base: launch.provider_config.base_url, key: launch.provider_config.api_key, api: launch.provider_config.api }

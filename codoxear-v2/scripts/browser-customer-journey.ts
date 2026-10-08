@@ -90,7 +90,7 @@ class ControlledManagedSession {
   async abort() { clearTimeout(this.pendingPrompt); this.observer?.({ kind: 'frame', seq: this.sequence++, sessionId: this.id, receivedAt: Date.now(), agentPath: [], body: { events: [{ kind: 'turn_ended', outcome: { kind: 'aborted' } }] } }); return { kind: 'accepted' }; }
   async dispose() { clearTimeout(this.pendingPrompt); this.observer = undefined; }
 }
-const factory = { async open(options) { const profile = await prepareProfile(options); return new ControlledManagedSession(options.resume ?? randomUUID(), profile.id); } };
+const factory = { async open(options) { const profile = await prepareProfile(options); return new ControlledManagedSession(options.resume ?? randomUUID(), profile.profile); } };
 const services = [];
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox', '--disable-dev-shm-usage'] });

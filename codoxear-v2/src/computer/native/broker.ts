@@ -746,12 +746,13 @@ async function control(request: BrokerRequest): Promise<unknown> {
     }
     case "settings/read": {
       const editable = input.backend === "codex" && !!codexControl && !!meta.thread_id && meta.readiness === "ready" && !meta.busy;
-      const ids = selectedProvider ? launchDefaults.provider_models?.[selectedProvider] ?? [] : [];
+      const choice = launchDefaults.model_provider === selectedProvider ? launchDefaults.provider_choice ?? selectedProvider : selectedProvider;
+      const ids = choice ? launchDefaults.provider_models?.[choice] ?? [] : [];
       const known = [...new Set([...ids, ...(meta.model ? [meta.model] : [])])];
       return { model: meta.model, reasoning_effort: meta.reasoning_effort, provider: selectedProvider,
         editable, reason: editable ? null : meta.busy ? "Wait until the agent is idle before changing runtime settings" : "This terminal runtime cannot confirm model and thinking effort together; use its native commands",
         catalog: { metadata_available: false, models: known.map((id) => ({ id, supports_reasoning: null, supported_reasoning_efforts: null,
-          runtime_reasoning_efforts: launchDefaults.reasoning_efforts_by_model?.[`${selectedProvider}/${id}`] ?? (meta.reasoning_effort ? [meta.reasoning_effort] : []) })) } };
+          runtime_reasoning_efforts: launchDefaults.reasoning_efforts_by_model?.[`${choice}/${id}`] ?? launchDefaults.reasoning_efforts_by_model?.[id] ?? (id === launchDefaults.model ? launchDefaults.reasoning_efforts : id === meta.model && meta.reasoning_effort ? [meta.reasoning_effort] : []) })) } };
     }
     case "settings": {
       if (meta.readiness !== "ready") throw Error(readinessError());
