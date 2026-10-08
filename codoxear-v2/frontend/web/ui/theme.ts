@@ -18,6 +18,8 @@ export const sharedThemeCSS = `
 .ui-dropdown[hidden] {display:none!important;}
 .ui-dropdown--field {width:100%;}
 .ui-dropdown-trigger {display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);width:100%;min-width:0;min-height:44px;text-align:left;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--radius-control);padding:var(--space-3) var(--space-4);font:var(--font-md)/1.4 var(--font-ui);}
+/* Page button layouts cannot center field values or move their chevrons. */
+:root .ui-dropdown > .ui-dropdown-trigger {display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);text-align:left;}
 .ui-dropdown--inline .ui-dropdown-trigger {width:auto;background:transparent;border-color:transparent;padding:var(--space-1) var(--space-2);font:inherit;}
 .ui-dropdown--inline .ui-dropdown-trigger:hover {background:var(--wash);}
 .ui-dropdown-label {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
