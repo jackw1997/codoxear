@@ -1,0 +1,3 @@
+# Rejected browser run
+
+This run passed 8 checks against deployed `77714b33`, then failed a selector for the post-revocation message. Inspection of the masked failure screenshot confirmed the exact no-access message was visible in the owned discovery-status panel, while the obsolete `.sidebarEmptyHint` target was absent. The later committed assertion targets `.sessionDiscoveryStatus`, retains the exact message and preserves both no-Computer/no-agent denial checks. This run is not counted as final acceptance. All owned resources closed normally, exit 1. The local failure screenshot is retained in the verification artifacts.

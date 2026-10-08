@@ -2,13 +2,21 @@
 
 Current draft: [Rewrite v2 in TypeScript with isolated Computer–Hub–Client services and Hub-owned sign-in](https://github.com/jackw1997/codoxear/pull/1).
 
-Current authentication follows R54: the client starts with an Add Hub URL field, each Hub advertises its own separate provider buttons, and a private initialization URL assigns the first verified allowed-provider identity as Owner. Routine access uses revocable Hub sessions, without client device signing keys or password/email login. All saved identities remain active. Owner/Admin/Member roles govern administration, while every human needs an explicit Computer allowlist grant and file access needs its separate workspace grant.
+Current authentication follows R54 and R57: the client starts with an Add Hub URL field, each Hub advertises its own separate provider buttons, and a private initialization URL assigns the first verified allowed-provider identity as Owner. Routine access uses revocable Hub sessions, without client device signing keys or password/email login. All saved identities remain active. Owner/Admin/Member roles govern administration, while every human needs an explicit Computer allowlist grant and file access needs its separate workspace grant.
 
-The implementation and validation paragraphs below record earlier named snapshots. Their counts and old login mechanisms are historical evidence, not acceptance of the latest tree. The current customer run and deployment are recorded separately in the daily browser evidence.
+The implementation and validation paragraphs below record named snapshots. Historical counts and superseded login mechanisms are not acceptance of the current tree. R57 corrects the Hub invitation flow; its final public browser evidence is recorded separately.
 
-## Current daily-use acceptance
+## Current invitation and daily-use acceptance (R57)
 
-Product snapshot `9740d7ef` is deployed at the [auth demo](https://codoxear.gzeek.com:8444/?release=8cb9a63a0b4e7090) and Work Hub. The full final backend run passed **361/361**, the real-public-client customer journey passed **24/24** with **59 screenshots**, the update-notice browser run passed **2/2**, and all **three** pruned role images passed startup checks as UID 1000. TypeScript and component-boundary checks passed. These are distinct runs, not summed historical totals.
+The corrected Hub invitation is a shareable, expiring, single-use Member link created before the recipient exists. Sign-in only authenticates; the recipient explicitly chooses Join Hub. Membership grants no Computer/workspace access or Admin role. Managers revoke pending links, and obsolete targeted Hub creation/acceptance APIs reject in both independent Hub and compatibility Server. The Owner cannot accept its own invitation. Joined Members see the verified Hub name and separate-access guidance.
+
+Deployed Hub/frontend product `77714b33`, asset `b973cd6ddae05395`: **24/24 public browser checks, 69 masked screenshots**. Full backend **367/367** at `462df6db`; backend/tests/dependencies are unchanged in the deployed product. Three pruned Hub/Server/frontend images pass UID 1000 startup; independent TypeScript and closure checks pass. Final committed customer harness `de4bd5f0` runs without overlays. These distinct checks are not summed with prior snapshots.
+
+[Browser-readable invitation/gallery](evidence/hub-invitation-links/) · [Exact counts/provenance/boundaries](evidence/hub-invitation-links/verification.json) · [Deployed demo](https://codoxear.gzeek.com:8444/?release=b973cd6ddae05395). Controlled OAuth/model responses and external Computer bootstrap are disclosed. Failed expectations/selectors are retained separately and corrected without removing access-denial assertions. Work Computer stays online on `9740d7ef` with archived session/private Pi-LiteLLM/Owner/grant preserved; Home and unrelated services are untouched. This is scoped invitation/customer acceptance, not every platform or roadmap item.
+
+## Previous daily-use acceptance (R56)
+
+Historical product snapshot `9740d7ef` was deployed at the [auth demo](https://codoxear.gzeek.com:8444/?release=8cb9a63a0b4e7090) and Work Hub. The full final backend run passed **361/361**, the real-public-client customer journey passed **24/24** with **59 screenshots**, the update-notice browser run passed **2/2**, and all **three** pruned role images passed startup checks as UID 1000. TypeScript and component-boundary checks passed. These are distinct runs, not summed historical totals.
 
 [Browser-readable screenshots](evidence/customer-daily/) start with both reported phone layouts and document the Owner/Member two-Computer flow and daily agent/file actions. [Exact records and boundaries](evidence/customer-daily/verification.json) disclose controlled OAuth/model transports, external Computer enrollment/start and the assertion-only harness overlay. The Work Computer remains online with its archived session, private provider configuration and explicit access grant preserved; all three updated services report no OOM kill or restart. Home services remain untouched.
 

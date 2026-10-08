@@ -78,7 +78,7 @@ After setup, enter the Hub URL in the client and sign in using the same provider
 
 ## Members, administrators and Computers
 
-The Owner controls provider policy and can invite/remove members, promote a member to Admin, demote an Admin, or remove an Admin. Admins can invite and remove ordinary members, but cannot remove or demote the Owner or another Admin. Identities display their Hub role. An ordinary sign-in without membership displays a clear signed-in nonmember state with an invitation action.
+The Owner controls provider policy and can invite/remove members, promote a member to Admin, demote an Admin, or remove an Admin. Admins can invite and remove ordinary members, but cannot remove or demote the Owner or another Admin. Identities display their Hub role. An ordinary sign-in without membership displays a clear signed-in nonmember state and guidance to open a shared invitation link. A joined Member without Computer access sees the verified Hub name and a message explaining the separate Computer grant.
 
 Owners and Admins see every Computer and manage its allowlist. Members see only allowlisted Computers. **Everyone, including the Hub Owner, Admins and the Computer owner, must be explicitly allowlisted before using the Computer or creating/using its agents.** Computer creation and ownership do not add automatic execution rights. An Owner/Admin can explicitly add themselves. Agent shares and retained access cannot bypass this requirement.
 
