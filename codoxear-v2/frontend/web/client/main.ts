@@ -20,6 +20,10 @@ import {
   workspaceAccessContext,
 } from "../shared/workspace-selection.js";
 import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
+import { enhanceUI } from "../ui/index.js";
+// The page owns the shared primitives; controllers keep their existing form/state contracts.
+const pageUI = enhanceUI(document);
+window.addEventListener("beforeunload", () => pageUI.destroy(), { once: true });
 const pendingHubInvitation = captureHubInvitation();
 async function startClient() {
   let switching = false;

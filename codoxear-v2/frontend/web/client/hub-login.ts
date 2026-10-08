@@ -1,5 +1,8 @@
 import { appearance } from "../shared/ui.js";
 import { esc, message, loginHeading } from "./views.js";
+import { enhanceUI } from "../ui/index.js";
+const pageUI = enhanceUI(document);
+window.addEventListener("beforeunload", () => pageUI.destroy(), { once: true });
 const root = document.querySelector<HTMLElement>("#hubLogin")!;
 const query = new URLSearchParams(location.search),
   continuation = query.get("continue");

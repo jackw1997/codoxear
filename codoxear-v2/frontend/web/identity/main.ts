@@ -5,6 +5,9 @@ import {
   placementDialog,
   escapeHtml,
 } from "../shared/ui.js";
+import { enhanceUI } from "../ui/index.js";
+const pageUI = enhanceUI(document);
+window.addEventListener("beforeunload", () => pageUI.destroy(), { once: true });
 void appearance();
 /** The portal contains no access/refresh/provider tokens. Authentication uses its HTTPOnly cookie. */
 function accountPortal() {

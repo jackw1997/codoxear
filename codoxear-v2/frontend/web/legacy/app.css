@@ -3576,102 +3576,42 @@ select {
         width: 100%;
       }
       .agentSettingRow {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: var(--space-5);
-        align-items: center;
-        padding: var(--space-4) 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-1);
+        padding: var(--space-2) 0;
+        min-width: 0;
       }
       .agentSettingLabel {
         color: var(--muted);
         font-size: var(--font-sm);
       }
-      .agentSettingCurrent {
-        margin-top: 5px;
-        font: 500 var(--font-xl)/1.4 var(--font-ui);
-        overflow-wrap: anywhere;
+      .agentSettingRow .ui-dropdown {
+        max-width: 100%;
+        font: 500 var(--font-lg)/1.4 var(--font-ui);
       }
-      .diagViewer .agentSettings button,
-      .diagViewer .agentDetailsAction {
-        position: relative;
-        isolation: isolate;
-        flex: 0 0 auto;
-        align-self: flex-start;
-        width: auto;
-        min-width: 0;
-        height: var(--ctl);
+      .agentSettingRow .ui-dropdown-trigger {
         min-height: var(--ctl);
-        max-width: none;
-        padding: 0 var(--space-5);
-        border: 0;
-        border-radius: var(--radius-control);
-        background: transparent;
-        color: var(--text);
-        font: 400 var(--font-md)/1.2 var(--font-ui);
-        white-space: nowrap;
+        max-width: 100%;
       }
-      .diagViewer .agentSettings button::before,
-      .diagViewer .agentDetailsAction::before {
-        content: "";
-        position: absolute;
-        inset: 2px 0;
-        z-index: -1;
-        border: 1px solid var(--hairline);
-        border-radius: var(--radius-control);
-        background: var(--paper);
-      }
-      .diagViewer .agentSettings button.primary {
-        color: var(--on-accent);
-      }
-      .diagViewer .agentSettings button.primary::before {
-        border-color: var(--accent-strong, var(--ink));
-        background: var(--accent-strong, var(--ink));
-      }
-      .diagViewer .agentSettings button:disabled,
-      .diagViewer .agentDetailsAction:disabled {
-        opacity: 0.5;
-      }
-      .agentSettingsProvider {
-        margin: 0;
-        font: var(--font-sm)/1.4 var(--font-ui);
-        overflow-wrap: anywhere;
-      }
-      .agentSettings form,
-      .agentSettings label {
-        display: grid;
-        gap: var(--space-5);
-        min-width: 0;
-      }
-      .agentSettings form[hidden],
-      .agentSettings label[hidden],
-      .agentDiagnosticsRows[hidden] { display: none; }
       .agentSettings form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
         margin: 0;
-        padding: var(--space-5);
+        padding: 0;
         border: 0;
-        border-radius: var(--radius-control);
-        background: var(--surface-subtle);
-      }
-      .agentSettings label {
-        font-size: var(--font-md);
-        color: var(--muted);
-      }
-      .agentSettings select,
-      .agentSettings input[data-model-input] {
-        width: 100%;
+        background: transparent;
         min-width: 0;
-        height: var(--ctl);
-        min-height: var(--ctl);
-        padding: 0 var(--space-5);
-        border-color: var(--hairline);
-        font-family: var(--font-ui);
-        font-size: var(--font-lg) !important;
       }
       .agentSettingsActions {
         display: flex;
         flex-wrap: wrap;
         gap: var(--space-3);
       }
+      .agentSettingsActions[hidden],
+      .agentDiagnosticsRows[hidden] { display: none; }
       .agentSettingsHint,
       .agentSettingsError {
         margin: 0;
@@ -3680,7 +3620,6 @@ select {
         overflow-wrap: anywhere;
       }
       .agentSettingsHint { color: var(--muted); }
-      .agentSettings [data-apply-hint] { font-size: var(--font-sm); }
       .agentSettingsError { color: var(--danger); }
       .agentSettingsHint:empty,
       .agentSettingsError:empty { display: none; }

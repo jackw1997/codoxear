@@ -8,6 +8,9 @@ import { conversationCache } from "./cache.js";
 import { clearAccountStorage } from "./storage.js";
 import { selectedWorkspace, updateWorkspaceSelection, workspaceAccessContext } from "../shared/workspace-selection.js";
 import { configureFileAccessContext } from "../legacy/app_file_access_context.js";
+import { enhanceUI } from "../ui/index.js";
+const pageUI = enhanceUI(document);
+window.addEventListener("beforeunload", () => pageUI.destroy(), { once: true });
 configureFileAccessContext(workspaceAccessContext);
 if (!location.pathname.startsWith("/workspace/")) {
   const context = JSON.parse(

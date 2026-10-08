@@ -44,6 +44,8 @@ await build({
     },
   ],
 });
+// Shared component styles are bundled with their owning UI library, so its
+// JavaScript and CSS source changes both invalidate immutable page assets.
 const versionHash = createHash("sha256").update(
   await readFile(resolve(destination, "dist/app.bundle.js")),
 );
@@ -72,7 +74,6 @@ await build({
   outfile: resolve("dist/identity/account.js"),
 });
 await cp(resolve("web/help/cache-design.html"), resolve("dist/identity/cache-design.html"));
-await cp(resolve("web/identity/index.html"), resolve("dist/identity/index.html"));
 // Share the established theme engine and styles verbatim across account and hub UI.
 for (const root of ["dist/client/appearance", "dist/identity/appearance"]) {
   await mkdir(root, { recursive: true });
@@ -81,6 +82,18 @@ for (const root of ["dist/client/appearance", "dist/identity/appearance"]) {
   await cp(resolve("web/shared/shell.css"), resolve(root, "shell.css"));
   await cp(resolve("web/client/views.css"), resolve(root, "connections.css"));
 }
+const identityVersion = createHash("sha256")
+  .update(await readFile("dist/identity/account.js"))
+  .update(await readFile("web/shared/shell.css"))
+  .update(assetVersion)
+  .digest("hex")
+  .slice(0, 16);
+await writeFile(
+  "dist/identity/index.html",
+  (await readFile("web/identity/index.html", "utf8"))
+    .replaceAll('/account.js"', `/account.js?v=${identityVersion}"`)
+    .replace(/(\/appearance\/[^"?]+)"/g, `$1?v=${identityVersion}"`),
+);
 
 // The independent client is just the original UI plus a local multi-hub transport.
 await cp(destination, resolve("dist/client"), { recursive: true });
@@ -162,7 +175,18 @@ await build({
   target: "es2022",
   outfile: resolve("dist/client/hub-login.js"),
 });
-await cp(resolve("web/client/hub-login.html"), resolve("dist/client/hub-login.html"));
+const hubLoginVersion = createHash("sha256")
+  .update(await readFile("dist/client/hub-login.js"))
+  .update(await readFile("web/client/views.css"))
+  .update(assetVersion)
+  .digest("hex")
+  .slice(0, 16);
+await writeFile(
+  "dist/client/hub-login.html",
+  (await readFile("web/client/hub-login.html", "utf8"))
+    .replaceAll('/hub-login.js"', `/hub-login.js?v=${hubLoginVersion}"`)
+    .replace(/(\/appearance\/[^"?]+)"/g, `$1?v=${hubLoginVersion}"`),
+);
 
 await build({
   entryPoints: [resolve("web/client/callback.ts")],

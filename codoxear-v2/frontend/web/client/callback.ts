@@ -1,5 +1,8 @@
 import { createThemeController } from "../legacy/app_theme.js";
 import { loginHeading } from "./views.js";
+import { enhanceUI } from "../ui/index.js";
+const pageUI = enhanceUI(document);
+window.addEventListener("beforeunload", () => pageUI.destroy(), { once: true });
 createThemeController({
   documentTarget: document,
   storageGetItem: (key: string) => localStorage.getItem(key),

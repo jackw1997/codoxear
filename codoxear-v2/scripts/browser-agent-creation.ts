@@ -1,6 +1,7 @@
 // @ts-nocheck -- Behavioral browser fixtures retain their dynamic Playwright contracts.
 import "./testing/frontend-artifact.js";
 import assert from "node:assert/strict";
+import { chooseDropdown, nativeSelect } from "./browser-ui.js";
 import { existsSync } from "node:fs";
 import { writeFile, mkdir } from "node:fs/promises";
 import { build } from "esbuild";
@@ -181,7 +182,7 @@ app.get("/setup", async (_r, reply) =>
 const harness = await build({
   stdin: {
     contents:
-      'import {placementDialog} from "./frontend/web/shared/ui.js"; window.openCreation = () => placementDialog(window.placements, async (p, values) => { const r = await fetch(`/api/computers/${p.computerId}/agents`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values)}); if(!r.ok) throw new Error((await r.json()).error); }); document.querySelector("button").onclick = window.openCreation;',
+      'import {placementDialog} from "./frontend/web/shared/ui.js"; import {enhanceUI} from "./frontend/web/ui/index.js"; const ui = enhanceUI(document); window.addEventListener("beforeunload", () => ui.destroy(), {once:true}); window.openCreation = () => placementDialog(window.placements, async (p, values) => { const r = await fetch(`/api/computers/${p.computerId}/agents`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(values)}); if(!r.ok) throw new Error((await r.json()).error); }); document.querySelector("button").onclick = window.openCreation;',
     resolveDir: process.cwd(),
   },
   bundle: true,
@@ -231,6 +232,8 @@ const pass = (text) => {
 };
 const dialog = () =>
   page.getByRole("dialog", { name: "New agent", exact: true });
+const creationSelect = (label, root = dialog()) =>
+  nativeSelect(root.getByLabel(label, { exact: true }));
 async function assertEventually(predicate) {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (predicate()) return;
@@ -327,39 +330,36 @@ try {
   await page.locator("#newBtn").click();
   await ready();
   assert.deepEqual(
-    await dialog()
-      .getByLabel("Runtime", { exact: true })
+    await creationSelect("Runtime")
       .locator("option")
       .allTextContents(),
     ["Pi", "Codex", "Claude Code"],
   );
   assert.equal(
-    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    await creationSelect("Provider").inputValue(),
     "local",
   );
   assert.equal(
-    await dialog().getByLabel("Model", { exact: true }).inputValue(),
+    await creationSelect("Model").inputValue(),
     "pi-default",
   );
   assert.equal(
-    await dialog().getByLabel("Reasoning", { exact: true }).inputValue(),
+    await creationSelect("Reasoning").inputValue(),
     "off",
   );
   await dialog().getByText("The Computer’s model configuration does not advertise reasoning levels beyond Off.", { exact: true }).waitFor();
-  assert.deepEqual(await dialog().getByLabel("Reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off"]);
+  assert.deepEqual(await creationSelect("Reasoning").locator("option").allTextContents(), ["Choose a reasoning level", "Off"]);
   pass("Configured non-reasoning model exposes only Off and explains its Computer metadata constraint");
   await page.screenshot({ path: "artifacts/creation-pi-off-metadata.png" });
   for (const field of ["Provider", "Model", "Reasoning"]) {
-    const options = await dialog()
-      .getByLabel(field, { exact: true })
+    const options = await creationSelect(field)
       .locator("option")
       .allTextContents();
     assert.ok(
       options.every((label) => !/Configured|Runtime default/.test(label)),
     );
   }
-  const providerPlaceholder = dialog()
-    .getByLabel("Provider", { exact: true })
+  const providerPlaceholder = creationSelect("Provider")
     .locator('option[value=""]');
   assert.deepEqual(
     await providerPlaceholder.evaluate((option) => ({
@@ -372,30 +372,24 @@ try {
     "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",
   );
   await dialog().getByLabel("Agent name").fill("Phone agent");
-  await dialog()
-    .getByLabel("Provider", { exact: true })
-    .selectOption("anthropic");
+  await chooseDropdown(creationSelect("Provider"), "anthropic");
   assert.deepEqual(
-    await dialog()
-      .getByLabel("Model", { exact: true })
+    await creationSelect("Model")
       .locator("option")
       .allTextContents(),
     ["Choose a model", "pi-reasoner", "Custom…"],
   );
-  await dialog()
-    .getByLabel("Model", { exact: true })
-    .selectOption("pi-reasoner");
+  await chooseDropdown(creationSelect("Model"), "pi-reasoner");
   await dialog().getByText("More", { exact: true }).click();
   assert.deepEqual(
-    await dialog()
-      .getByLabel("Reasoning", { exact: true })
+    await creationSelect("Reasoning")
       .locator("option")
       .allTextContents(),
     ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"],
   );
   assert.equal(await dialog().getByText("The Computer’s model configuration does not advertise reasoning levels beyond Off.", { exact: true }).isVisible(), false);
   pass("Configured reasoning model receives the producer-derived standard levels without an explicit thinking-level map");
-  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("high");
+  await chooseDropdown(creationSelect("Reasoning"), "high");
   assert.equal(await dialog().getByLabel("Fast mode").isVisible(), false);
   await page.screenshot({ path: "artifacts/creation-pi-desktop.png" });
   assert.deepEqual((await submit()).body, {
@@ -409,24 +403,17 @@ try {
   pass(
     "Independent client opens Pi/Codex/Claude creation; provider-specific Pi models and reasoning reach the service worker launch request",
   );
-  await dialog().getByLabel("Runtime", { exact: true }).selectOption("codex");
-  await dialog()
-    .getByLabel("Provider", { exact: true })
-    .selectOption("chatgpt");
-  await dialog()
-    .getByLabel("Model", { exact: true })
-    .selectOption("codex-model");
-  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("ultra");
-  await dialog()
-    .getByLabel("Model", { exact: true })
-    .selectOption("codex-small");
+  await chooseDropdown(creationSelect("Runtime"), "codex");
+  await chooseDropdown(creationSelect("Provider"), "chatgpt");
+  await chooseDropdown(creationSelect("Model"), "codex-model");
+  await chooseDropdown(creationSelect("Reasoning"), "ultra");
+  await chooseDropdown(creationSelect("Model"), "codex-small");
   assert.equal(
-    await dialog().getByLabel("Reasoning", { exact: true }).inputValue(),
+    await creationSelect("Reasoning").inputValue(),
     "",
   );
   assert.equal(
-    await dialog()
-      .getByLabel("Reasoning", { exact: true })
+    await creationSelect("Reasoning")
       .locator("option[value=ultra]")
       .count(),
     0,
@@ -437,12 +424,11 @@ try {
     .click();
   assert.equal(received.length, beforeMissingEffort);
   assert.equal(
-    await dialog()
-      .getByLabel("Reasoning", { exact: true })
+    await creationSelect("Reasoning")
       .evaluate((el) => el.validity.valueMissing),
     true,
   );
-  await dialog().getByLabel("Reasoning", { exact: true }).selectOption("low");
+  await chooseDropdown(creationSelect("Reasoning"), "low");
   await dialog().getByText("Fast mode", { exact: true }).click();
   assert.equal(await dialog().getByLabel("Fast mode").isChecked(), true);
   assert.deepEqual((await submit()).body, {
@@ -458,15 +444,13 @@ try {
   pass(
     "Codex maps ChatGPT authentication and Fast correctly; changing models removes unsupported reasoning",
   );
-  await dialog().getByLabel("Runtime", { exact: true }).selectOption("cc");
+  await chooseDropdown(creationSelect("Runtime"), "cc");
   assert.equal(
-    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    await creationSelect("Provider").inputValue(),
     "anthropic",
   );
   assert.equal(await dialog().getByLabel("Fast mode").isVisible(), true);
-  await dialog()
-    .getByLabel("Model", { exact: true })
-    .selectOption("__custom__");
+  await chooseDropdown(creationSelect("Model"), "__custom__");
   await dialog().getByLabel("Custom model", { exact: true }).fill("   ");
   const beforeInvalid = received.length;
   await dialog()
@@ -492,9 +476,7 @@ try {
   await dialog()
     .getByLabel("Custom model", { exact: true })
     .fill("claude-custom");
-  await dialog()
-    .getByLabel("Reasoning", { exact: true })
-    .selectOption("medium");
+  await chooseDropdown(creationSelect("Reasoning"), "medium");
   assert.deepEqual((await submit()).body, {
     name: "Phone agent",
     agent_backend: "cc",
@@ -506,34 +488,40 @@ try {
   pass(
     "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
   );
-  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
-  await dialog().getByLabel("Provider", { exact: true }).selectOption("anthropic");
+  await chooseDropdown(creationSelect("Runtime"), "pi");
+  await chooseDropdown(creationSelect("Provider"), "anthropic");
   discoveryMode = "anthropic-unsupported";
   await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
   await dialog().locator("[data-discovery-status]").filter({ hasText: "1 caller-key-visible models" }).waitFor();
   assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "anthropic" } });
-  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-anthropic");
-  const advertised = dialog().getByLabel("Requested reasoning", { exact: true });
+  await chooseDropdown(creationSelect("Model"), "caller-anthropic");
+  const advertised = creationSelect("Requested reasoning");
+  const advertisedTrigger = advertised.locator("..").getByRole("combobox");
   assert.deepEqual(await advertised.locator("option").allTextContents(), ["Choose a reasoning level", "Low (unavailable for this runtime/API)", "High (unavailable for this runtime/API)", "Maximum (unavailable for this runtime/API)"]);
   for (const value of ["low", "high", "max"]) assert.equal(await advertised.locator(`option[value="${value}"]`).evaluate(option => option.disabled), true);
-  await advertised.focus();
-  await advertised.press("ArrowDown");
-  await advertised.press("End");
+  await advertisedTrigger.focus();
+  await advertisedTrigger.press("ArrowDown");
+  await advertisedTrigger.press("End");
+  await advertisedTrigger.press("Enter");
+  await advertisedTrigger.press("Escape");
+  assert.equal(await advertisedTrigger.evaluate(el => el === document.activeElement), true);
   assert.equal(await advertised.inputValue(), "", "Keyboard navigation cannot select any incompatible advertised level");
   await dialog().getByText("This runtime/API cannot submit any of this model's advertised levels.", { exact: false }).waitFor();
-  assert.equal(await dialog().getByLabel("Model", { exact: true }).inputValue(), "caller-anthropic");
+  assert.equal(await creationSelect("Model").inputValue(), "caller-anthropic");
   await page.screenshot({ path: "artifacts/creation-anthropic-unsupported.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   discoveryMode = "anthropic-supported";
   await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
   await dialog().locator("[data-discovery-status]").filter({ hasText: "1 caller-key-visible models" }).waitFor();
-  assert.equal(await dialog().getByLabel("Model", { exact: true }).inputValue(), "caller-anthropic");
+  assert.equal(await creationSelect("Model").inputValue(), "caller-anthropic");
   assert.deepEqual(await advertised.locator("option").allTextContents(), ["Choose a reasoning level", "Low", "High", "Maximum"]);
   assert.equal(await advertised.inputValue(), "");
   for (const value of ["low", "high", "max"]) assert.equal(await advertised.locator(`option[value="${value}"]`).evaluate(option => option.disabled), false);
-  await advertised.focus();
-  await advertised.press("End");
+  await advertisedTrigger.focus();
+  await advertisedTrigger.press("End");
+  await advertisedTrigger.press("Enter");
+  assert.equal(await advertisedTrigger.evaluate(el => el === document.activeElement), true);
   assert.equal(await advertised.inputValue(), "max", "Keyboard navigation selects the enabled exact maximum value");
-  await advertised.selectOption("max");
+  await chooseDropdown(advertised, "max");
   const anthropicLaunch = (await submit()).body;
   assert.equal(anthropicLaunch.provider_catalog, true);
   assert.equal(anthropicLaunch.model_provider, "anthropic");
@@ -543,24 +531,24 @@ try {
   await page.screenshot({ path: "artifacts/creation-anthropic-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   pass("Configured Anthropic discovery preserves advertised disabled levels and selected model, then producer compatibility enables exact explicit Max without copying private credentials");
   discoveryMode = "success";
-  await dialog().getByLabel("Provider", { exact: true }).selectOption("local");
+  await chooseDropdown(creationSelect("Provider"), "local");
   await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
   await dialog().locator("[data-discovery-status]").filter({ hasText: "3 caller-key-visible models" }).waitFor();
   assert.deepEqual(discoveryCalls.at(-1), { computer: "laptop", body: { backend: "pi", provider: "local" } });
-  assert.deepEqual(await dialog().getByLabel("Model", { exact: true }).locator("option").allTextContents(), ["Choose a model", "caller-reasoner", "caller-unknown", "caller-missing", "Custom…"]);
-  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
-  assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).locator('option[value="unsupported-level"]').evaluate(option => option.disabled), true);
+  assert.deepEqual(await creationSelect("Model").locator("option").allTextContents(), ["Choose a model", "caller-reasoner", "caller-unknown", "caller-missing", "Custom…"]);
+  await chooseDropdown(creationSelect("Model"), "caller-reasoner");
+  assert.deepEqual(await creationSelect("Requested reasoning").locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
+  assert.equal(await creationSelect("Requested reasoning").locator('option[value="unsupported-level"]').evaluate(option => option.disabled), true);
   for (const model of ["caller-unknown", "caller-missing"]) {
-    await dialog().getByLabel("Model", { exact: true }).selectOption(model);
+    await chooseDropdown(creationSelect("Model"), model);
     await dialog().getByText("LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.", { exact: true }).waitFor();
-    assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
+    assert.deepEqual(await creationSelect("Requested reasoning").locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
     if (model === "caller-unknown") await page.screenshot({ path: "artifacts/creation-discovery-unknown.png", mask: [dialog().getByLabel("API key", { exact: true })] });
-    await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
-    assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).inputValue(), "low");
+    await chooseDropdown(creationSelect("Requested reasoning"), "low");
+    assert.equal(await creationSelect("Requested reasoning").inputValue(), "low");
   }
   pass("Configured-provider discovery sends only the selected provider, replaces global models, intersects exact advertised effort requests, and leaves null/missing metadata explicitly unknown");
-  await dialog().getByLabel("Provider", { exact: true }).selectOption("__custom_api__");
+  await chooseDropdown(creationSelect("Provider"), "__custom_api__");
   await dialog().getByLabel("API URL", { exact: true }).fill("https://caller.test/v1");
   await dialog().getByLabel("API key", { exact: true }).fill("caller-discovery-private-key");
   discoveryMode = "denied";
@@ -572,10 +560,10 @@ try {
   await dialog().locator("[data-discovery-status]").filter({ hasText: "3 caller-key-visible models" }).waitFor();
   assert.equal(await dialog().locator("[data-discovery-status]").textContent().then(t => t.includes("caller-discovery-private-key")), false);
   assert.equal(await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]).includes("caller-discovery-private-key")), false);
-  await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
-  assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
-  assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).locator('option[value="unsupported-level"]').evaluate(option => option.disabled), true);
-  await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("max");
+  await chooseDropdown(creationSelect("Model"), "caller-reasoner");
+  assert.deepEqual(await creationSelect("Requested reasoning").locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Maximum", "unsupported-level (unavailable for this runtime/API)"]);
+  assert.equal(await creationSelect("Requested reasoning").locator('option[value="unsupported-level"]').evaluate(option => option.disabled), true);
+  await chooseDropdown(creationSelect("Requested reasoning"), "max");
   await page.screenshot({ path: "artifacts/creation-discovery-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   const discoveredLaunch = (await submit()).body;
   assert.equal(discoveredLaunch.provider_catalog, true);
@@ -589,24 +577,22 @@ try {
     await dialog().getByRole("button", { name: "Discover models", exact: true }).click();
     // Wait for the controlled endpoint to receive the request, without supplying a browser result.
     await assertEventually(() => typeof releaseDiscovery === "function");
-    if (change === "provider") await dialog().getByLabel("Provider", { exact: true }).selectOption("local");
-    else await dialog().getByLabel("Computer & hub", { exact: true }).selectOption("1");
+    if (change === "provider") await chooseDropdown(creationSelect("Provider"), "local");
+    else await chooseDropdown(creationSelect("Computer & hub"), "1");
     const staleDelivered = page.waitForEvent("response", { predicate: response => response.url().includes("provider-catalog"), timeout: 5000 }).catch(() => null);
     releaseDiscovery(); await staleDelivered;
     if (change === "placement") await ready();
-    assert.equal(await dialog().getByLabel("Model", { exact: true }).locator('option[value="caller-reasoner"]').count(), 0);
+    assert.equal(await creationSelect("Model").locator('option[value="caller-reasoner"]').count(), 0);
     assert.equal(await dialog().getByLabel("API key", { exact: true }).inputValue(), "");
   }
   discoveryMode = "success";
-  await dialog().getByLabel("Computer & hub", { exact: true }).selectOption("0"); await ready();
+  await chooseDropdown(creationSelect("Computer & hub"), "0"); await ready();
   pass("Provider and Computer changes cancel in-flight discovery and reject late models while clearing caller credentials");
   for (const runtime of ["pi", "codex", "cc"]) {
-    await dialog().getByLabel("Runtime", { exact: true }).selectOption(runtime);
-    await dialog()
-      .getByLabel("Provider", { exact: true })
-      .selectOption("__custom_api__");
+    await chooseDropdown(creationSelect("Runtime"), runtime);
+    await chooseDropdown(creationSelect("Provider"), "__custom_api__");
     await dialog().getByText("These levels are requests understood by the runtime. The provider or model may reject the requested level.", { exact: true }).waitFor();
-    if (runtime === "pi") assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
+    if (runtime === "pi") assert.deepEqual(await creationSelect("Requested reasoning").locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
     assert.equal(
       await dialog().getByLabel("Custom model", { exact: true }).isVisible(),
       true,
@@ -620,7 +606,7 @@ try {
     await dialog()
       .getByLabel("Custom model", { exact: true })
       .fill("PrivateModel");
-    await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
+    await chooseDropdown(creationSelect("Requested reasoning"), "low");
     if (runtime === "pi") await page.screenshot({ path: "artifacts/creation-pi-custom-request.png" });
     assert.equal(
       await dialog()
@@ -629,9 +615,7 @@ try {
       "password",
     );
     if (runtime === "pi") {
-      await dialog()
-        .getByLabel("API compatibility")
-        .selectOption("anthropic-messages");
+      await chooseDropdown(creationSelect("API compatibility"), "anthropic-messages");
       await dialog().getByText("Image support", { exact: true }).click();
       assert.equal(
         await dialog().getByLabel("Image support").isChecked(),
@@ -668,15 +652,10 @@ try {
     assert.equal(request.service_tier, runtime === "cc" ? "fast" : undefined);
     assert.equal(request.model_provider, undefined);
     await dialog().getByText("Advanced", { exact: true }).click();
-    await dialog()
-      .getByLabel("Provider", { exact: true })
-      .selectOption(
-        runtime === "pi"
-          ? "local"
-          : runtime === "codex"
-            ? "chatgpt"
-            : "anthropic",
-      );
+    await chooseDropdown(
+      creationSelect("Provider"),
+      runtime === "pi" ? "local" : runtime === "codex" ? "chatgpt" : "anthropic",
+    );
     assert.equal(
       await dialog().getByLabel("API key", { exact: true }).inputValue(),
       "",
@@ -689,14 +668,12 @@ try {
       `${runtime}: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials`,
     );
   }
-  await dialog()
-    .getByLabel("Provider", { exact: true })
-    .selectOption("__custom_api__");
+  await chooseDropdown(creationSelect("Provider"), "__custom_api__");
   await dialog()
     .getByLabel("API URL", { exact: true })
     .fill("https://private.test");
   await dialog().getByLabel("API key", { exact: true }).fill("fixture-key");
-  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  await chooseDropdown(creationSelect("Runtime"), "pi");
   assert.equal(
     await dialog().getByLabel("API key", { exact: true }).inputValue(),
     "",
@@ -707,9 +684,7 @@ try {
   );
   assert.equal(await dialog().getByLabel("Variable name").count(), 0);
   assert.equal(await dialog().getByLabel("Fast mode").isChecked(), false);
-  await dialog()
-    .getByLabel("Provider", { exact: true })
-    .selectOption("__custom_api__");
+  await chooseDropdown(creationSelect("Provider"), "__custom_api__");
   await dialog()
     .getByLabel("API URL", { exact: true })
     .fill("https://private.test");
@@ -717,11 +692,9 @@ try {
   await dialog()
     .getByLabel("Working directory", { exact: true })
     .fill("/old-computer");
-  await dialog()
-    .getByLabel("Computer & hub", { exact: true })
-    .selectOption("1");
+  await chooseDropdown(creationSelect("Computer & hub"), "1");
   await ready();
-  await dialog().getByLabel("Runtime", { exact: true }).selectOption("pi");
+  await chooseDropdown(creationSelect("Runtime"), "pi");
   assert.equal(
     await dialog().getByLabel("API key", { exact: true }).inputValue(),
     "",
@@ -737,14 +710,13 @@ try {
     "",
   );
   assert.deepEqual(
-    await dialog()
-      .getByLabel("Provider", { exact: true })
+    await creationSelect("Provider")
       .locator("option")
       .allTextContents(),
     ["Choose a provider", "work-provider", "Custom API"],
   );
   assert.equal(
-    await dialog().getByLabel("Provider", { exact: true }).inputValue(),
+    await creationSelect("Provider").inputValue(),
     "",
   );
   const beforeUnknown = received.length;
@@ -753,21 +725,17 @@ try {
     .click();
   assert.equal(received.length, beforeUnknown);
   assert.equal(
-    await dialog()
-      .getByLabel("Provider", { exact: true })
+    await creationSelect("Provider")
       .evaluate((el) => el.validity.valueMissing),
     true,
   );
-  await dialog()
-    .getByLabel("Provider", { exact: true })
-    .selectOption("work-provider");
+  await chooseDropdown(creationSelect("Provider"), "work-provider");
   await dialog()
     .getByRole("button", { name: "Create agent", exact: true })
     .click();
   assert.equal(received.length, beforeUnknown);
   assert.equal(
-    await dialog()
-      .getByLabel("Model", { exact: true })
+    await creationSelect("Model")
       .evaluate((el) => el.validity.valueMissing),
     true,
   );
@@ -775,9 +743,7 @@ try {
     "Unknown configured provider or model stays unselected and cannot create an agent with empty launch values",
   );
   delayLaptop = true;
-  await dialog()
-    .getByLabel("Computer & hub", { exact: true })
-    .selectOption("0");
+  await chooseDropdown(creationSelect("Computer & hub"), "0");
   await dialog()
     .getByRole("button", { name: "Loading choices…", exact: true })
     .waitFor();
@@ -792,18 +758,15 @@ try {
     .getByText("Loading choices from this computer…")
     .waitFor();
   for (const label of ["Runtime", "Provider", "Model"])
-    assert.equal(await dialog().getByLabel(label, { exact: true }).isDisabled(), true);
+    assert.equal(await creationSelect(label).isDisabled(), true);
   assert.equal(await dialog().getByRole("button", { name: "Cancel", exact: true }).isEnabled(), true);
-  await dialog()
-    .getByLabel("Computer & hub", { exact: true })
-    .selectOption("1");
+  await chooseDropdown(creationSelect("Computer & hub"), "1");
   await ready();
   for (const label of ["Runtime", "Provider", "Model"])
-    assert.equal(await dialog().getByLabel(label, { exact: true }).isEnabled(), true);
+    assert.equal(await creationSelect(label).isEnabled(), true);
   await page.waitForTimeout(800);
   assert.equal(
-    await dialog()
-      .getByLabel("Provider", { exact: true })
+    await creationSelect("Provider")
       .locator("option[value=anthropic]")
       .count(),
     0,
@@ -874,7 +837,7 @@ try {
     .getByRole("button", { name: "Creating agent…", exact: true })
     .waitFor();
   assert.equal(
-    await dialog().getByLabel("Runtime", { exact: true }).isDisabled(),
+    await creationSelect("Runtime").isDisabled(),
     true,
   );
   assert.equal(
@@ -907,12 +870,10 @@ try {
   });
   await page.setViewportSize({ width: 390, height: 844 });
   for (const runtime of ["pi", "codex", "cc"]) {
-    await dialog().getByLabel("Runtime", { exact: true }).selectOption(runtime);
+    await chooseDropdown(creationSelect("Runtime"), runtime);
     if (runtime === "pi")
       await dialog().getByText("More", { exact: true }).click();
-    await dialog()
-      .getByLabel("Provider", { exact: true })
-      .selectOption("__custom_api__");
+    await chooseDropdown(creationSelect("Provider"), "__custom_api__");
     await dialog()
       .getByLabel("API URL", { exact: true })
       .fill("https://private.test/v1");
@@ -950,17 +911,15 @@ try {
   await ready();
   const resume = page.locator("dialog.agent-creation");
   await resume.getByLabel("Agent name").fill("Continue saved work");
-  await resume.getByLabel("Runtime", { exact: true }).selectOption("codex");
-  await resume.getByLabel("Start", { exact: true }).selectOption("resume");
+  await chooseDropdown(creationSelect("Runtime", resume), "codex");
+  await chooseDropdown(creationSelect("Start", resume), "resume");
   await resume
     .getByLabel("Session working directory", { exact: true })
     .fill("/saved/workspace");
   await resume
     .getByRole("button", { name: "Find saved sessions", exact: true })
     .click();
-  await resume
-    .getByLabel("Saved sessions", { exact: true })
-    .selectOption({ label: "Saved work" });
+  await chooseDropdown(creationSelect("Saved sessions", resume), { label: "Saved work" });
   assert.equal(
     await resume.getByLabel("Session ID", { exact: true }).inputValue(),
     "saved-laptop-codex",
@@ -975,7 +934,7 @@ try {
   );
   assert.equal(received.at(-1).body.launch.cwd, "/saved/workspace");
   assert.equal(received.at(-1).body.launch.provider_config, undefined);
-  await resume.getByLabel("Runtime", { exact: true }).selectOption("pi");
+  await chooseDropdown(creationSelect("Runtime", resume), "pi");
   assert.equal(
     await resume.getByLabel("Session ID", { exact: true }).inputValue(),
     "",
