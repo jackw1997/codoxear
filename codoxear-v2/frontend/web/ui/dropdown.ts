@@ -266,6 +266,9 @@ export function mountDropdown(select: HTMLSelectElement, options: DropdownOption
   listen(trigger, "click", () => { if (opened) close(true); else open(); });
   listen(popup, "pointerdown", (event) => event.preventDefault());
   listen(popup, "click", (event) => {
+    // A popup inside a wrapping label must not forward activation to its trigger.
+    event.preventDefault();
+    event.stopPropagation();
     const node = (event.target as Element).closest<HTMLElement>(".ui-option");
     if (node?.dataset.index !== undefined) choose(Number(node.dataset.index));
   });
