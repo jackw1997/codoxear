@@ -2,6 +2,7 @@
 // Copied into a clean package container from the same reviewed commit.
 // Uses only Node built-ins and the installed package's public compiled entries.
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import {
@@ -139,8 +140,6 @@ try {
     const database = join(temporary, "catalog.sqlite");
     const env = {
       ...process.env,
-      CODOXEAR_BOOTSTRAP_EMAIL: "owner@isolation.invalid",
-      CODOXEAR_BOOTSTRAP_PASSWORD: "isolation-fixture-password",
       CODOXEAR_INSECURE_LOCAL_HTTP: "1",
     };
     let entry = "dist/server/" + role + "/main.js";
@@ -150,6 +149,7 @@ try {
         JSON.stringify({
           origin,
           hubId: "isolation-hub",
+          initialization: { token: randomBytes(32).toString("base64url"), expiresAt: Date.now() + 3600000 },
           otpKey: "isolation-only-key".repeat(4),
           database,
           listenPort: port,
@@ -171,6 +171,8 @@ try {
       );
       env.CODOXEAR_IDENTITY_CONFIG = config;
     } else if (role === "server") {
+      env.CODOXEAR_BOOTSTRAP_EMAIL = "owner@isolation.invalid";
+      env.CODOXEAR_BOOTSTRAP_PASSWORD = "isolation-fixture-password";
       env.CODOXEAR_V2_DATABASE = database;
       env.CODOXEAR_V2_PORT = String(port);
     } else {

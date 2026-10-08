@@ -3,8 +3,9 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -28,6 +29,7 @@ const checks = [];
 const pageErrors = [];
 const oauthResponses = [];
 let browser;
+let controlledProvider;
 let passed = false;
 let failure;
 const pass = (name) => { checks.push(name); console.log("PASS", name); };
@@ -40,8 +42,8 @@ async function port() {
   await new Promise((done) => server.close(done));
   return value;
 }
-function start(entry, cwd, environment) {
-  const child = spawn(process.execPath, [entry], {
+function start(entry, cwd, environment, preload) {
+  const child = spawn(process.execPath, [...(preload ? ["--import", preload] : []), entry], {
     cwd, env: { ...process.env, ...environment }, stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";
@@ -72,8 +74,57 @@ try {
   const hubOrigin = `http://127.0.0.1:${hubPort}`;
   const frontendOrigin = `http://127.0.0.1:${frontendPort}`;
   const configFile = join(home, "hub.json");
-  const password = randomBytes(24).toString("base64url");
+  const initialization = { token: randomBytes(32).toString("base64url"), expiresAt: Date.now() + 3600000 };
+  const providerSecret = randomBytes(32).toString("base64url");
+  const codes = new Map(), providerTokens = new Set();
+  const escape = value => String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  // Only provider transport is controlled. The installed Hub still validates
+  // OAuth state, provider PKCE/tenant, initialization and its client PKCE flow.
+  controlledProvider = createHttpServer(async (request, response) => {
+    try {
+      const url = new URL(request.url, "http://127.0.0.1");
+      const json = (status, body) => { response.writeHead(status, { "Content-Type": "application/json" }); response.end(JSON.stringify(body)); };
+      if (url.pathname === "/authorize") {
+        assert.equal(url.searchParams.get("client_id"), "package-feishu");
+        assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+        response.writeHead(200, { "Content-Type": "text/html" });
+        response.end(`<!doctype html><title>Controlled Feishu provider</title><h1>Controlled Feishu provider</h1><p>Isolated package fixture; no live provider acceptance.</p><form action="/choose" method="get">${[...url.searchParams].map(([name, value]) => `<input type="hidden" name="${escape(name)}" value="${escape(value)}">`).join("")}<button>Sign in as Package Owner</button></form>`);
+      } else if (url.pathname === "/choose") {
+        const redirect = new URL(url.searchParams.get("redirect_uri"));
+        assert.equal(redirect.origin, hubOrigin);
+        const code = randomBytes(32).toString("base64url");
+        codes.set(code, { challenge: url.searchParams.get("code_challenge"), redirect: redirect.href });
+        redirect.searchParams.set("state", url.searchParams.get("state"));
+        redirect.searchParams.set("code", code);
+        response.writeHead(302, { Location: redirect.href }); response.end();
+      } else if (url.pathname === "/open-apis/authen/v2/oauth/token") {
+        let text = ""; for await (const chunk of request) text += chunk;
+        const body = JSON.parse(text), proof = codes.get(body.code);
+        assert.ok(proof, "Controlled provider code exists and is single-use");
+        assert.equal(body.client_id, "package-feishu"); assert.equal(body.client_secret, providerSecret);
+        assert.equal(body.grant_type, "authorization_code"); assert.equal(body.redirect_uri, proof.redirect);
+        assert.equal(createHash("sha256").update(body.code_verifier).digest("base64url"), proof.challenge);
+        codes.delete(body.code);
+        const access = randomBytes(32).toString("base64url"); providerTokens.add(access);
+        json(200, { access_token: access });
+      } else if (url.pathname === "/open-apis/authen/v1/user_info") {
+        assert.ok(providerTokens.has(String(request.headers.authorization).replace(/^Bearer /, "")));
+        json(200, { code: 0, data: { open_id: "package-owner", tenant_key: "package-organization", name: "Package Owner" } });
+      } else json(404, { error: "Not found" });
+    } catch { response.writeHead(400, { "Content-Type": "application/json" }); response.end(JSON.stringify({ error: "Controlled provider rejected request" })); }
+  });
+  controlledProvider.listen(0, "127.0.0.1"); await once(controlledProvider, "listening");
+  const providerOrigin = "http://127.0.0.1:" + controlledProvider.address().port;
+  const preload = join(home, "controlled-provider-fetch.mjs");
+  await writeFile(preload, `const nativeFetch = globalThis.fetch;
+globalThis.fetch = (input, init) => {
+  const url = new URL(typeof input === "string" ? input : input.url ?? input.href);
+  if (url.origin === "https://open.feishu.cn" && ["/open-apis/authen/v2/oauth/token", "/open-apis/authen/v1/user_info"].includes(url.pathname)) return nativeFetch(${JSON.stringify(providerOrigin)} + url.pathname, init);
+  return nativeFetch(input, init);
+};
+`, { mode: 0o600 });
   await writeFile(configFile, JSON.stringify({
+    initialization, providers: [{ kind: "feishu", id: "package-feishu", clientId: "package-feishu", clientSecret: providerSecret, tenant: "package-organization" }],
     origin: hubOrigin, independent: true, hubId: "package-oauth-hub", name: "Installed package Hub",
     database: join(home, "hub.sqlite"), otpKey: randomBytes(32).toString("hex"),
     listenPort: hubPort, secureCookies: false, clientOrigins: [frontendOrigin],
@@ -81,8 +132,8 @@ try {
     frontendAssetsRoot: join(frontendRoot, "dist"),
   }), { mode: 0o600 });
   const hub = start(join(hubRoot, "dist/server/hub/main.js"), hubRoot, {
-    CODOXEAR_HUB_CONFIG: configFile, CODOXEAR_BOOTSTRAP_EMAIL: "owner@example.test", CODOXEAR_BOOTSTRAP_PASSWORD: password,
-  });
+    CODOXEAR_HUB_CONFIG: configFile,
+  }, preload);
   const frontend = start(join(frontendRoot, "serve.mjs"), frontendRoot, {
     CODOXEAR_CLIENT_PORT: String(frontendPort), CODOXEAR_CLIENT_HOST: "127.0.0.1",
   });
@@ -96,6 +147,10 @@ try {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright");
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ["--no-sandbox", "--disable-dev-shm-usage"] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await context.route("https://accounts.feishu.cn/open-apis/authen/v1/authorize?*", async route => {
+    const authorize = new URL(route.request().url());
+    await route.fulfill({ status: 302, headers: { Location: providerOrigin + "/authorize" + authorize.search } });
+  });
   context.on("page", (page) => page.on("pageerror", (error) => pageErrors.push(error.message)));
   context.on("response", (response) => {
     const url = new URL(response.url());
@@ -107,19 +162,27 @@ try {
   const network = await context.newCDPSession(page);
   await network.send("Network.enable");
   await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1, connectionType: "ethernet" });
+  const initialize = await context.newPage();
+  await initialize.goto(hubOrigin + "/initialize?" + new URLSearchParams({ token: initialization.token }));
+  assert.equal(new URL(initialize.url()).searchParams.has("token"), false, "Private initialization token is removed from the address");
+  await initialize.getByRole("link", { name: "Continue with Feishu", exact: true }).click();
+  await initialize.getByRole("button", { name: "Sign in as Package Owner", exact: true }).click();
+  await initialize.getByText("Signed in as", { exact: false }).waitFor();
+  assert.match(await initialize.getByText("Signed in as", { exact: false }).textContent(), /· Owner/, "Verified initialization identity becomes Owner");
+  await initialize.close();
+  pass("Private single-use initialization assigns Owner through controlled Feishu provider sign-in without account seeding");
   await page.goto(frontendOrigin);
   await page.getByRole("button", { name: "Add hub", exact: true }).click();
   await page.getByLabel("Hub address", { exact: true }).fill(hubOrigin);
-  const popupReady = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Connect hub", exact: true }).click();
+  const popupReady = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Continue with Feishu", exact: true }).click();
   const popup = await popupReady;
   popup.setDefaultTimeout(20000);
-  await popup.getByLabel("Email", { exact: true }).fill("owner@example.test");
-  await popup.getByLabel("Password", { exact: true }).fill(password);
-  await popup.getByRole("button", { name: "Sign in", exact: true }).click();
+  await popup.getByRole("button", { name: "Sign in as Package Owner", exact: true }).click();
   await page.locator("summary").filter({ hasText: "Installed package Hub" }).waitFor();
   assert.ok(oauthResponses.some((response) => response.path === "/oauth/token" && response.method === "POST" && response.status === 200), "Real PKCE code exchange succeeded");
-  pass("Standalone frontend completes actual popup password login and PKCE exchange against the exported Hub");
+  pass("Standalone frontend completes actual popup provider login and PKCE exchange against the exported Hub");
 
   await page.locator("summary").filter({ hasText: "Installed package Hub" }).click();
   await page.getByRole("button", { name: "Add computer", exact: true }).click();
@@ -147,8 +210,9 @@ try {
   throw error;
 } finally {
   await browser?.close();
+  if (controlledProvider) await new Promise(done => controlledProvider.close(done));
   for (const child of children.reverse()) await stop(child);
   await rm(home, { recursive: true, force: true });
   await mkdir(dirname(output), { recursive: true });
-  await writeFile(output, JSON.stringify({ passed, commit: release.commit, packageRoots: { frontend: frontendRoot, hub: hubRoot }, checks, oauthResponses, pageErrors, ...(failure ? { error: failure } : {}) }, null, 2) + "\n");
+  await writeFile(output, JSON.stringify({ passed, providerBoundary: "Controlled Feishu browser page and HTTPS fetch transport; real installed provider adapter/state/PKCE/tenant/initialization and Hub-client OAuth; no live provider acceptance or seeded accounts", commit: release.commit, packageRoots: { frontend: frontendRoot, hub: hubRoot }, checks, oauthResponses, pageErrors, ...(failure ? { error: failure } : {}) }, null, 2) + "\n");
 }
