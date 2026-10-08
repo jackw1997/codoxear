@@ -1,10 +1,10 @@
-import {providerCatalog} from "../provider-catalog.js";
+import {providerCatalog, resolveCatalogLaunch} from "../provider-catalog.js";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, chmodSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, join, basename, extname } from "node:path";
-import { Launch, type Operation } from "../../contracts/tunnel.js";
+import { Launch, ProviderCatalog, type Operation } from "../../contracts/tunnel.js";
 import { DomainError } from "../../contracts/model.js";
 import type { Runtime, WorkspaceRuntime } from "../runtime.js";
 import type { Notification } from "../../protocol/notifications.js";
@@ -23,6 +23,8 @@ import { readUnattendedPrompt } from "../native/workspace/unattended.js";
 import { NativeSidebar } from "../native/workspace/sidebar.js";
 import { openFile, pinnedParent } from "../native/workspace/files.js";
 import type { Attachment } from "../native/types.js";
+import { savedLaunch, savedSettings, canonicalModel, canonicalEffort } from "./settings.js";
+import { atomicJson } from "../../persistence/files.js";
 
 type Unattended = {
   enabled: boolean; request: string; cooldown_minutes: number;
@@ -151,6 +153,7 @@ export class ManagedRuntime implements Runtime {
       CREATE TABLE IF NOT EXISTS managed_unattended(local_id TEXT PRIMARY KEY,settings TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS managed_read(local_id TEXT,actor_id TEXT,event_id TEXT,PRIMARY KEY(local_id,actor_id));
       CREATE TABLE IF NOT EXISTS managed_capabilities(local_id TEXT PRIMARY KEY,images INTEGER,steer INTEGER);
+      CREATE TABLE IF NOT EXISTS managed_setting_catalog(local_id TEXT PRIMARY KEY,catalog TEXT);
       CREATE TABLE IF NOT EXISTS managed_attachments(id TEXT PRIMARY KEY,local_id TEXT,actor_id TEXT,payload TEXT);
       CREATE TABLE IF NOT EXISTS managed_uploads(id TEXT PRIMARY KEY,local_id TEXT,actor_id TEXT,payload TEXT);
       UPDATE managed_sessions SET state='unknown' WHERE state IN ('opening','running');
@@ -553,7 +556,7 @@ export class ManagedRuntime implements Runtime {
           );
     }
   }
-  private async open(id: string): Promise<Resident> {
+  private async open(id: string, settings?: { model: string | null; effort: string | null }): Promise<Resident> {
     const current = this.residents.get(id);
     if (current && !current.closing) return current;
     return this.admit(async () => {
@@ -592,8 +595,8 @@ export class ManagedRuntime implements Runtime {
         home: this.home,
         stateHome: this.stateHome,
         ...(row.profile ? { profile: row.profile } : {}),
-        ...(row.model ? { model: row.model } : {}),
-        ...(row.effort ? { effort: row.effort } : {}),
+        ...((settings ? settings.model : row.model) ? { model: (settings ? settings.model : row.model)! } : {}),
+        ...((settings ? settings.effort : row.effort) ? { effort: (settings ? settings.effort : row.effort)! } : {}),
         ...(row.native_id ? { resume: row.native_id } : {}),
         ...(launch?.env_vars ? { env: launch.env_vars } : {}),
         ...(this.options.permissionPolicy
@@ -1226,6 +1229,21 @@ export class ManagedRuntime implements Runtime {
     if (id) {
       const value = (body ?? {}) as Record<string, unknown>;
       const actor = typeof value.actorId === "string" ? value.actorId : "";
+      if (["settings", "provider-models"].includes(operation ?? "") && method === "GET") {
+        const row = this.row(id);
+        const launch = await savedLaunch(this.stateHome, row.profile, this.launchMemory.get(id));
+        const settings = await savedSettings(this.stateHome, row.profile, row.backend, row.model, row.effort, launch, this.home);
+        const retained = this.db.prepare("SELECT catalog FROM managed_setting_catalog WHERE local_id=?").get(id) as { catalog: string } | undefined;
+        if (retained) settings.catalog = ProviderCatalog.parse(JSON.parse(retained.catalog));
+        if (operation === "provider-models") {
+          if (!settings.request) throw new DomainError(409, "catalog_unavailable", "This session has no saved provider endpoint and API key for discovery");
+          return providerCatalog(this.home, settings.request);
+        }
+        const editable = ["idle", "archived"].includes(row.state) && !settings.provenanceRequired;
+        return { model: settings.model, reasoning_effort: canonicalEffort(row.effort, settings.model, settings.catalog), provider: settings.provider, editable,
+          reason: editable ? null : settings.provenanceRequired ? "This session's explicit provider no longer matches its saved endpoint and API; restore that configuration before changing settings" : "Wait until the agent is idle and any uncertain outcome is reviewed before changing runtime settings",
+          catalog: settings.catalog };
+      }
       if (operation === "attachments" && method === "GET") {
         this.row(id);
         return this.attachmentState(id, actor);
@@ -1276,24 +1294,57 @@ export class ManagedRuntime implements Runtime {
           const before = this.row(id);
           if (!["idle", "archived"].includes(before.state))
             throw new DomainError(409, "not_dispatched", "Wait until the agent is idle and any uncertain outcome is reviewed before changing runtime settings");
-          const field = typeof value.model === "string" ? "model" : typeof value.reasoning_effort === "string" ? "reasoning_effort" : null;
-          const setting = field ? String(value[field]).trim() : "";
-          if (!field || !setting || setting === "default" || (typeof value.model === "string" && typeof value.reasoning_effort === "string") || setting.length > 200 || /[\r\n\0]/.test(setting))
+          const hasModel = Object.hasOwn(value, "model"), hasEffort = Object.hasOwn(value, "reasoning_effort");
+          const valid = (setting: unknown, max: number) => typeof setting === "string" && !!setting.trim() && setting.trim() !== "default" && setting.length <= max && !/[\r\n\0]/.test(setting);
+          if ((!hasModel && !hasEffort) || (hasModel && !valid(value.model, 200)) || (hasEffort && value.reasoning_effort !== null && !valid(value.reasoning_effort, 100)))
             throw new DomainError(400, "invalid_setting", "Choose a valid model or reasoning effort");
           const previousLaunch = this.launchMemory.get(id);
+          const storedLaunch = await savedLaunch(this.stateHome, before.profile, previousLaunch);
+          const settings = await savedSettings(this.stateHome, before.profile, before.backend, before.model, before.effort, storedLaunch, this.home);
+          if (settings.provenanceRequired) throw new DomainError(409, "setting_refused", "This session's explicit provider no longer matches its saved endpoint and API; restore that configuration before changing settings");
+          let model = hasModel ? String(value.model).trim() : before.model;
+          let effort = hasEffort ? value.reasoning_effort === null ? null : String(value.reasoning_effort).trim() : before.effort;
+          let nextLaunch: LaunchOptions | undefined = storedLaunch ? { ...storedLaunch, model: model ?? undefined, reasoning_effort: effort ?? undefined } : undefined;
+          let nextCatalog: ReturnType<typeof ProviderCatalog.parse> | undefined;
+          if (hasEffort && value.reasoning_effort === null && (!settings.request || before.backend !== "pi"))
+            throw new DomainError(400, "invalid_setting", "This runtime requires an explicit thinking effort");
+          // Atomic Details edits revalidate the exact saved caller-key catalogue.
+          // Existing manual slash requests remain usable without a catalogue.
+          if (settings.request && (hasModel && hasEffort || storedLaunch?.provider_catalog)) {
+            const resolved = await resolveCatalogLaunch(this.home, before.backend, {
+              ...nextLaunch, provider_catalog: true, model: model ?? undefined,
+              reasoning_effort: effort ?? undefined, model_provider: undefined,
+              provider_config: { ...storedLaunch?.provider_config, base_url: settings.request.base_url, api_key: settings.request.api_key!, api: settings.request.api },
+            });
+            model = resolved.launch.model ?? model;
+            effort = resolved.launch.reasoning_effort ?? null;
+            nextLaunch = resolved.launch;
+            nextCatalog = resolved.catalogue;
+            if (hasEffort && value.reasoning_effort === null && nextCatalog?.models.find((entry) => entry.id === model)?.supports_reasoning !== false)
+              throw new DomainError(400, "invalid_setting", "Choose an explicit thinking effort for this model");
+            if (hasEffort && value.reasoning_effort === null) {
+              effort = "off";
+              nextLaunch = { ...nextLaunch, reasoning_effort: "off" };
+            }
+          }
           // OAR's pinned adapters explicitly apply and read back model/effort
           // overrides on cold resume. Never replace a worker during a turn.
           await this.release(id);
-          if (previousLaunch) this.launchMemory.set(id, previousLaunch);
-          const column = field === "model" ? "model" : "effort";
-          this.db.prepare(`UPDATE managed_sessions SET ${column}=? WHERE id=?`).run(setting, id);
+          if (nextLaunch) this.launchMemory.set(id, nextLaunch);
           try {
-            await this.open(id);
+            if (before.profile && nextLaunch) await atomicJson(join(this.stateHome, "managed-profiles", before.profile, "launch.json"), nextLaunch);
+            await this.open(id, { model, effort });
             if (["unknown", "attention"].includes(this.row(id).state))
               throw new DomainError(409, "setting_refused", "Runtime initialization requires review");
-            return { ok: true, accepted: true, [field]: field === "model" ? this.row(id).model : this.row(id).effort };
+            this.db.prepare("UPDATE managed_sessions SET model=?,effort=? WHERE id=?").run(model, effort, id);
+            if (nextCatalog) this.db.prepare("INSERT INTO managed_setting_catalog VALUES(?,?) ON CONFLICT(local_id) DO UPDATE SET catalog=excluded.catalog").run(id, JSON.stringify(nextCatalog));
+            const confirmedModel = canonicalModel(this.row(id).model, nextLaunch, settings.provider);
+            return { ok: true, accepted: true, model: confirmedModel, reasoning_effort: canonicalEffort(this.row(id).effort, confirmedModel, nextCatalog ?? settings.catalog) };
           } catch {
             await this.release(id);
+            if (before.profile && storedLaunch) await atomicJson(join(this.stateHome, "managed-profiles", before.profile, "launch.json"), storedLaunch);
+            if (previousLaunch) this.launchMemory.set(id, previousLaunch);
+            else this.launchMemory.delete(id);
             const state = this.row(id).state;
             this.db.prepare("UPDATE managed_sessions SET model=?,effort=?,state=? WHERE id=?").run(before.model, before.effort, ["unknown", "attention"].includes(state) ? state : "archived", id);
             throw new DomainError(409, "setting_refused", "The runtime could not confirm this setting. The previous model and reasoning effort have been retained");
@@ -1324,7 +1375,7 @@ export class ManagedRuntime implements Runtime {
           this.db.exec("BEGIN IMMEDIATE");
           try {
             this.db.prepare("DELETE FROM managed_events WHERE stream IN (SELECT id FROM managed_streams WHERE local_id=?)").run(id);
-            for (const table of ["managed_streams", "managed_messages", "managed_receipts", "managed_notifications", "managed_unattended", "managed_read", "managed_capabilities", "managed_attachments", "managed_uploads"])
+            for (const table of ["managed_streams", "managed_messages", "managed_receipts", "managed_notifications", "managed_unattended", "managed_read", "managed_capabilities", "managed_setting_catalog", "managed_attachments", "managed_uploads"])
               this.db.prepare(`DELETE FROM ${table} WHERE local_id=?`).run(id);
             this.db.prepare("DELETE FROM managed_sessions WHERE id=?").run(id);
             this.db.exec("COMMIT");

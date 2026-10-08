@@ -246,6 +246,34 @@ for (const backend of ["pi", "codex", "cc"] as const) {
   });
 }
 
+test("Details applies model and effort together and returns both retained authoritative values on reload", async () => {
+  const f = fixture();
+  try {
+    const { localId } = await f.runtime.execute({ ...create(), launch: { model: "first-model", reasoning_effort: "low" } }) as { localId: string };
+    const path = `/api/sessions/${localId}/settings`;
+    const settings = await f.runtime.request(path);
+    assert.equal(settings.model, "first-model");
+    assert.equal(settings.reasoning_effort, "low");
+    assert.equal(settings.editable, true);
+    const changed = await f.runtime.request(path, "POST", { model: "second-model", reasoning_effort: "high" });
+    assert.deepEqual(changed, { ok: true, accepted: true, model: "second-model", reasoning_effort: "high" });
+    assert.equal(f.factory.opens.length, 2);
+    assert.equal(f.factory.opens[1]!.model, "second-model");
+    assert.equal(f.factory.opens[1]!.effort, "high");
+    assert.equal((await f.runtime.request(path)).reasoning_effort, "high");
+    f.factory.setupError = true;
+    await assert.rejects(f.runtime.request(path, "POST", { model: "third-model", reasoning_effort: "max" }), /previous model and reasoning effort/);
+    const retained = await f.runtime.request(path);
+    assert.equal(retained.model, "second-model");
+    assert.equal(retained.reasoning_effort, "high");
+    f.factory.setupError = false;
+    await f.runtime.request(`/api/sessions/${localId}/send`, "POST", { text: "Work" });
+    assert.equal((await f.runtime.request(path)).editable, false);
+    await assert.rejects(f.runtime.request(path, "POST", { model: "third-model", reasoning_effort: "max" }), /Wait until the agent is idle/);
+    assert.equal(f.factory.opens.length, 3);
+  } finally { await f.runtime.close(); rmSync(f.path, { recursive: true, force: true }); }
+});
+
 test("managed HTTP attachments are actor scoped and delivered once as native images and accessible file references", async () => {
   const f = fixture();
   const http = new NativeHttpTarget(f.runtime, f.path);

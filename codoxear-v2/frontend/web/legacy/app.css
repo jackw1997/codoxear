@@ -3495,6 +3495,106 @@ select {
       .detailsValue.mono {
         font-size: var(--font-sm);
       }
+      .agentSettings {
+        padding: var(--space-4);
+        min-width: 0;
+      }
+      .agentSettings h3 {
+        margin: 0 0 var(--space-3);
+        font-size: var(--font-lg);
+      }
+      .agentDetailsName {
+        margin: var(--space-4) var(--space-4) 0;
+        font-size: var(--font-xl);
+        overflow-wrap: anywhere;
+      }
+      .agentDetailsSection h3 {
+        margin: var(--space-4);
+        font-size: var(--font-lg);
+      }
+      .agentDetailsSection .agentSettingsHint {
+        margin: var(--space-4);
+      }
+      .agentSettingRow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+        gap: var(--space-4);
+        align-items: center;
+        padding: var(--space-3) 0;
+      }
+      .agentSettingLabel {
+        color: var(--muted);
+        font-size: var(--font-sm);
+      }
+      .agentSettingCurrent {
+        margin-top: var(--space-1);
+        font: var(--font-lg)/1.4 var(--font-mono);
+        overflow-wrap: anywhere;
+      }
+      .agentSettingRow button {
+        min-height: 44px;
+        white-space: normal;
+        max-width: 150px;
+      }
+      .agentSettingsProvider {
+        margin: 0 0 var(--space-4);
+        font: var(--font-sm)/1.4 var(--font-mono);
+        overflow-wrap: anywhere;
+      }
+      .agentSettings form,
+      .agentSettings label {
+        display: grid;
+        gap: var(--space-3);
+        min-width: 0;
+      }
+      .agentSettings form[hidden] { display: none; }
+      .agentSettings form {
+        margin: var(--space-4) 0;
+        padding: var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-control);
+        background: var(--wash);
+      }
+      .agentSettings label {
+        font-size: var(--font-md);
+        color: var(--muted);
+      }
+      .agentSettings select {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        font-family: var(--font-mono);
+        font-size: var(--font-lg);
+      }
+      .agentSettingsActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .agentSettingsActions button,
+      .agentDiagnostics summary {
+        min-height: 44px;
+      }
+      .agentSettingsHint,
+      .agentSettingsError {
+        margin: 0;
+        font-size: var(--font-sm);
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .agentSettingsHint { color: var(--muted); }
+      .agentSettingsError { color: var(--danger); }
+      .agentSettingsHint:empty,
+      .agentSettingsError:empty { display: none; }
+      .agentDiagnostics {
+        border-top: 1px solid var(--hairline);
+      }
+      .agentDiagnostics summary {
+        padding: var(--space-4);
+        box-sizing: border-box;
+        cursor: pointer;
+        font-size: var(--font-md);
+      }
       .queueHeader {
         display: flex;
         align-items: center;

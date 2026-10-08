@@ -102,7 +102,7 @@ export class NativeRuntime implements Runtime {
               "Native broker response timed out. Check the transcript before sending again.",
             ),
           ),
-        15000,
+        operation === "provider-models" ? 30_000 : 15000,
       );
       socket.setEncoding("utf8");
       socket.on("connect", () =>
@@ -858,6 +858,8 @@ export class NativeRuntime implements Runtime {
       };
     }
     if (action === "diagnostics") return { runtime: "native", session: meta };
+    if (action === "settings" && method === "GET") return this.control(id, "settings/read", value);
+    if (action === "provider-models" && method === "GET") return this.control(id, "provider-models", value);
     if (
       [
         "state",

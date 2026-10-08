@@ -1,4 +1,4 @@
-import { resolveCatalogLaunch } from "../provider-catalog.js";
+import { resolveCatalogLaunch, configuredCatalogCredentials } from "../provider-catalog.js";
 import {
   mkdir,
   readFile,
@@ -31,13 +31,15 @@ export async function prepareProfile(input: ManagedOpen) {
         JSON.parse(await readFile(join(directory, "launch.json"), "utf8")),
       )
     : Launch.strict().parse(input.launch ?? {});
-  if (!input.profile) await atomicJson(join(directory, "launch.json"), launch);
   const resolved = await resolveCatalogLaunch(input.home, input.backend, {
     ...launch,
     model: input.model ?? launch.model,
     reasoning_effort: input.effort ?? launch.reasoning_effort,
   });
   launch = resolved.launch;
+  // Bind discovered sessions to the endpoint and caller key selected at launch.
+  // A later Computer configuration edit must not change their provider identity.
+  if (!input.profile) await atomicJson(join(directory, "launch.json"), launch);
   const homes = backendHomes(input.home);
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -184,14 +186,25 @@ export async function prepareProfile(input: ManagedOpen) {
       env.OAR_PI_AGENT_DIR = agentDir;
       env.PI_CODING_AGENT_DIR = agentDir;
       env.CODOXEAR_PROVIDER_API_KEY = provider.api_key;
+      const savedModels = await readFile(join(agentDir, "models.json"), "utf8")
+        .then((value) => JSON.parse(value)).catch((error) => {
+          if (error.code === "ENOENT") return {};
+          throw error;
+        });
+      const previousProvider = savedModels.providers?.codoxear_private ?? {};
       await atomicJson(join(agentDir, "models.json"), {
+        ...savedModels,
         providers: {
+          ...savedModels.providers,
           codoxear_private: {
+            ...previousProvider,
             baseUrl: provider.base_url,
             apiKey: "$CODOXEAR_PROVIDER_API_KEY",
             api: provider.api ?? "openai-completions",
             models: [
+              ...(previousProvider.models ?? []).filter((entry: any) => entry.id !== model),
               {
+                ...(previousProvider.models ?? []).find((entry: any) => entry.id === model),
                 id: model,
                 name: model,
                 reasoning:
@@ -204,9 +217,9 @@ export async function prepareProfile(input: ManagedOpen) {
                     }
                   : {}),
                 input: provider.image_support ? ["text", "image"] : ["text"],
-                cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-                contextWindow: 128000,
-                maxTokens: 16384,
+                cost: (previousProvider.models ?? []).find((entry: any) => entry.id === model)?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+                contextWindow: (previousProvider.models ?? []).find((entry: any) => entry.id === model)?.contextWindow ?? 128000,
+                maxTokens: (previousProvider.models ?? []).find((entry: any) => entry.id === model)?.maxTokens ?? 16384,
               },
             ],
           },
@@ -267,6 +280,20 @@ export async function prepareProfile(input: ManagedOpen) {
         throw new ManagedSetupError("An API URL is required for this provider");
       env[key] = provider.api_key;
     }
+  }
+  if (!input.profile) {
+    const choices = readLaunchDefaults(input.home, input.cwd, env).backends[input.backend];
+    const selected = launch.provider_config?.base_url ? new URL(launch.provider_config.base_url).host
+      : launch.model_provider ?? (input.backend === "pi" && model ? choices.provider_choices.find((provider) => model!.startsWith(provider + "/")) : undefined) ?? choices.model_provider;
+    try {
+      const credentials = launch.provider_config?.base_url
+        ? { base: launch.provider_config.base_url, key: launch.provider_config.api_key, api: launch.provider_config.api }
+        : selected ? configuredCatalogCredentials(input.home, { backend: input.backend, provider: selected }, env) : null;
+      if (credentials) await atomicJson(join(directory, "catalog-source.json"), {
+        provider: selected,
+        request: { backend: input.backend, base_url: credentials.base, api_key: credentials.key, api: credentials.api },
+      });
+    } catch { /* OAuth or built-in providers may have no HTTP caller-key catalogue. */ }
   }
   return {
     profile,

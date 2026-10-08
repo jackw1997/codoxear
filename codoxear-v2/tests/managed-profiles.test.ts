@@ -6,11 +6,85 @@ import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { prepareProfile } from "../src/computer/managed/profiles.js";
+import { savedLaunch, savedSettings } from "../src/computer/managed/settings.js";
 
 assert.ok(
   existsSync("/.dockerenv"),
   "Provider/runtime verification runs only in Docker",
 );
+test("Discovered managed profiles retain their original caller key and private definitions across model and effort changes", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-details-profile-"));
+  const fetcher = globalThis.fetch;
+  const seen: { url: string; key: string }[] = [];
+  globalThis.fetch = (async (url: URL, options: any) => {
+    seen.push({ url: String(url), key: options.headers.Authorization });
+    return new Response(JSON.stringify({ data: url.pathname.endsWith("/models") ? [{ id: "first" }, { id: "second" }, { id: "plain" }] : [...["first", "second"].map((model_group) => ({ model_group, supports_reasoning: true, supported_reasoning_efforts: ["high", "max"] })), { model_group: "plain", supports_reasoning: false, supported_reasoning_efforts: [] }] }));
+  }) as typeof fetch;
+  try {
+    const native = join(home, ".pi", "agent");
+    await mkdir(native, { recursive: true });
+    const original = { providers: { gateway: { api: "anthropic-messages", baseUrl: "https://original.invalid/v1", apiKey: "original-private-key", models: [{ id: "first", reasoning: true }] }, unrelated: { api: "openai-completions", models: [{ id: "retained", contextWindow: 777 }] } }, customOption: "retained" };
+    await writeFile(join(native, "models.json"), JSON.stringify(original));
+    await writeFile(join(native, "settings.json"), JSON.stringify({ theme: "dark", proxy: "https://proxy.invalid" }));
+    const input = { home, stateHome: home, cwd: home, backend: "pi" as const };
+    const first = await prepareProfile({ ...input, model: "first", effort: "high", launch: { provider_catalog: true, model_provider: "gateway", model: "first", reasoning_effort: "high" } });
+    const launch = (await savedLaunch(home, first.profile))!;
+    assert.equal(launch.provider_config?.api_key, "original-private-key");
+    await writeFile(join(native, "models.json"), JSON.stringify({ providers: { gateway: { ...original.providers.gateway, baseUrl: "https://changed.invalid/v1", apiKey: "changed-private-key" } } }));
+    seen.length = 0;
+    const changed = await prepareProfile({ ...input, profile: first.profile, model: "second", effort: "max" });
+    assert.equal(changed.model, "codoxear_private/second");
+    assert.equal(changed.effort, "max");
+    assert.ok(seen.length >= 2);
+    assert.ok(seen.every((entry) => entry.url.startsWith("https://original.invalid/") && entry.key === "Bearer original-private-key"));
+    const privateModels = JSON.parse(await readFile(join(first.env.OAR_PI_AGENT_DIR!, "models.json"), "utf8"));
+    assert.deepEqual(privateModels.providers.unrelated, original.providers.unrelated);
+    assert.deepEqual(privateModels.providers.gateway, original.providers.gateway);
+    assert.equal(privateModels.customOption, "retained");
+    assert.equal(privateModels.providers.codoxear_private.models.length, 2);
+    assert.equal(privateModels.providers.codoxear_private.models.find((entry: any) => entry.id === "second").thinkingLevelMap.max, "max");
+    assert.deepEqual(JSON.parse(await readFile(join(first.env.OAR_PI_AGENT_DIR!, "settings.json"), "utf8")), { theme: "dark", proxy: "https://proxy.invalid" });
+    const settings = await savedSettings(home, first.profile, "pi", changed.model!, "max", launch);
+    assert.equal(settings.request?.api_key, "original-private-key");
+    assert.ok(settings.catalog.models.find((entry) => entry.id === "second")!.runtime_reasoning_efforts!.includes("max"));
+    assert.equal(JSON.stringify(settings.catalog).includes("original-private-key"), false);
+    const disabled = await prepareProfile({ ...input, profile: first.profile, model: "plain", effort: "off" });
+    assert.equal(disabled.effort, "off", "Cold resume explicitly disables the previous high/max thinking selection");
+    const disabledModels = JSON.parse(await readFile(join(first.env.OAR_PI_AGENT_DIR!, "models.json"), "utf8"));
+    assert.equal(disabledModels.providers.codoxear_private.models.find((entry: any) => entry.id === "plain").reasoning, false);
+  } finally { globalThis.fetch = fetcher; await rm(home, { recursive: true, force: true }); }
+});
+test("Older named profiles rediscover only the explicit provider matching the saved private endpoint and model API", async () => {
+  const home = await mkdtemp(join(tmpdir(), "managed-older-details-profile-"));
+  try {
+    const profile = "a".repeat(32), directory = join(home, "managed-profiles", profile);
+    await mkdir(join(directory, "pi"), { recursive: true });
+    const launch = { provider_catalog: true as const, model_provider: "gateway", model: "saved", reasoning_effort: "max" };
+    await writeFile(join(directory, "launch.json"), JSON.stringify(launch));
+    await writeFile(join(directory, "pi", "models.json"), JSON.stringify({ providers: { codoxear_private: { baseUrl: "https://saved.invalid/v1", api: "anthropic-messages", apiKey: "$CODOXEAR_PROVIDER_API_KEY", models: [{ id: "saved", reasoning: true, thinkingLevelMap: { off: null, minimal: null, low: "low", medium: null, high: "high", xhigh: null, max: "max" } }] } } }));
+    await writeFile(join(directory, "pi", "auth.json"), "{}");
+    await mkdir(join(home, ".pi", "agent"), { recursive: true });
+    const path = join(home, ".pi", "agent", "models.json");
+    const configured = { providers: { gateway: { baseUrl: "https://saved.invalid/v1", api: "openai-completions", apiKey: "rotated-caller-key", models: [{ id: "saved", api: "anthropic-messages" }] }, unrelated: { baseUrl: "https://saved.invalid/v1", api: "anthropic-messages", apiKey: "unrelated-admin-key" } } };
+    await writeFile(path, JSON.stringify(configured));
+    const read = () => savedSettings(home, profile, "pi", "codoxear_private/saved", "max", launch, home);
+    const settings = await read();
+    assert.equal(settings.model, "saved");
+    assert.equal(settings.provider, "gateway");
+    assert.equal(settings.request?.api_key, "rotated-caller-key");
+    assert.deepEqual(settings.catalog.models[0]!.runtime_reasoning_efforts, ["low", "high", "max"]);
+    assert.equal(settings.provenanceRequired, false);
+    configured.providers.gateway.baseUrl = "https://changed.invalid/v1";
+    await writeFile(path, JSON.stringify(configured));
+    assert.equal((await read()).request, null);
+    assert.equal((await read()).provenanceRequired, true);
+    configured.providers.gateway.baseUrl = "https://saved.invalid/v1";
+    configured.providers.gateway.models[0]!.api = "openai-completions";
+    await writeFile(path, JSON.stringify(configured));
+    assert.equal((await read()).request, null);
+    assert.equal(JSON.stringify((await read()).catalog).includes("rotated-caller-key"), false);
+  } finally { await rm(home, { recursive: true, force: true }); }
+});
 test("Pi explicit models inherit the configured provider, including cold reopen", async () => {
   const home = await mkdtemp(join(tmpdir(), "managed-provider-"));
   try {

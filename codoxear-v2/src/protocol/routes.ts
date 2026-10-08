@@ -23,6 +23,8 @@ const reads = new Set([
   "queue",
   "attachments",
   "unattended",
+  "settings",
+  "provider-models",
 ]);
 const controls = new Set([
   "enqueue",

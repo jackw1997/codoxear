@@ -25,7 +25,7 @@ function piWireEfforts(api: string): readonly string[] {
       ? ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
       : [];
 }
-function credential(
+export function catalogCredential(
   value: unknown,
   env: NodeJS.ProcessEnv,
 ): string | undefined {
@@ -77,7 +77,7 @@ export function configuredCatalogCredentials(
     }
     key = merged.ANTHROPIC_AUTH_TOKEN ?? merged.ANTHROPIC_API_KEY;
   }
-  const resolved = credential(key, env);
+  const resolved = catalogCredential(key, env);
   if (typeof base !== "string" || !resolved)
     throw new Error(
       "Configured provider discovery requires an endpoint and API key",
@@ -240,7 +240,7 @@ export async function resolveCatalogLaunch(
   launch: z.infer<typeof Launch>,
   fetcher: typeof fetch = fetch,
 ) {
-  if (!launch.provider_catalog) return { launch };
+  if (!launch.provider_catalog) return { launch, catalogue: undefined };
   const request = ProviderCatalogRequest.parse(
     launch.provider_config?.base_url
       ? {
@@ -273,7 +273,7 @@ export async function resolveCatalogLaunch(
   if (
     effort &&
     ((model.supports_reasoning === false && effort !== "off") ||
-      (declared !== null &&
+      (declared !== null && model.supports_reasoning !== false &&
         !declared.includes(effort) &&
         !(effort === "off" && declared.includes("none"))))
   )
@@ -317,6 +317,7 @@ export async function resolveCatalogLaunch(
     else if (effort === "none") map.off = "none";
   }
   return {
+    catalogue,
     launch: {
       ...launch,
       model: id,

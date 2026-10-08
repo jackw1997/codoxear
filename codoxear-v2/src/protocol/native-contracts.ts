@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { Id, Action } from "../contracts/model.js";
 import { WorkspaceContext } from "../contracts/workspaces.js";
+import { ProviderCatalog } from "../contracts/tunnel.js";
 
 const count = z.number().int().nonnegative(),
   text = z.string(),
@@ -577,13 +578,12 @@ export function nativeDetail(method: string, path: string): NativeDetail {
     };
   if (action === "interrupt") return { body: empty, response: InterruptAck };
   if (action === "settings")
-    return {
-      body: z.union([
-        z.object({ model: text }),
-        z.object({ reasoning_effort: text }),
-      ]),
-      response: SendAck,
-    };
+    return post ? {
+      body: z.object({ model: text.optional(), reasoning_effort: nullableText.optional() })
+        .refine((value) => value.model !== undefined || value.reasoning_effort !== undefined, "Choose a model or reasoning effort"),
+      response: SendAck.extend({ model: nullableText.optional(), reasoning_effort: nullableText.optional() }),
+    } : { response: z.object({ model: nullableText, reasoning_effort: nullableText, provider: nullableText, editable: z.boolean(), reason: nullableText, catalog: ProviderCatalog.nullable() }) };
+  if (action === "provider-models") return { response: ProviderCatalog };
   if (action === "edit")
     return {
       body: z.object({

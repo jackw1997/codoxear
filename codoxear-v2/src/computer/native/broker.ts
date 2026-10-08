@@ -27,6 +27,8 @@ import {
 import { startCodexControl, codexRpc } from "./codex-control.js";
 import { backendCommand, startupState } from "./backend.js";
 import { readTranscript, attributedLog, scanLogs } from "./logs.js";
+import { providerCatalog, configuredCatalogCredentials, resolveCatalogLaunch } from "../provider-catalog.js";
+import { readLaunchDefaults } from "./launch-defaults.js";
 import type {
   Attachment,
   BrokerLaunch,
@@ -56,6 +58,17 @@ const socketPath = nativeSocketPath(
   metadataPath = join(directory, input.sessionId + ".json"),
   statePath = join(directory, input.sessionId + ".state.json");
 const command = backendCommand(input, !process.argv.includes("--terminal"));
+const launchDefaults = readLaunchDefaults(input.home, input.cwd, command.env).backends[input.backend];
+const selectedProvider = input.launch.model_provider ?? launchDefaults.model_provider;
+// Resolve once while this broker owns the launch, never from a later Computer default.
+const savedCatalogRequest = (() => {
+  try {
+    const provider = input.launch.provider_config;
+    const credentials = provider?.base_url ? { base: provider.base_url, key: provider.api_key, api: provider.api }
+      : selectedProvider ? configuredCatalogCredentials(input.home, { backend: input.backend, provider: selectedProvider }, command.env) : null;
+    return credentials ? { backend: input.backend, base_url: credentials.base, api_key: credentials.key, api: credentials.api } : null;
+  } catch { return null; }
+})();
 const codexSocket = nativeSocketPath(
   input.storageHome ?? input.home,
   input.sessionId,
@@ -727,12 +740,41 @@ async function control(request: BrokerRequest): Promise<unknown> {
         persist();
       }
       return { ...unattended, commit_unknown: unattendedAttempt };
+    case "provider-models": {
+      if (!savedCatalogRequest) throw new DomainError(409, "catalog_unavailable", "This session has no saved provider endpoint and API key for discovery");
+      return providerCatalog(input.home, savedCatalogRequest);
+    }
+    case "settings/read": {
+      const editable = input.backend === "codex" && !!codexControl && !!meta.thread_id && meta.readiness === "ready" && !meta.busy;
+      const ids = selectedProvider ? launchDefaults.provider_models?.[selectedProvider] ?? [] : [];
+      const known = [...new Set([...ids, ...(meta.model ? [meta.model] : [])])];
+      return { model: meta.model, reasoning_effort: meta.reasoning_effort, provider: selectedProvider,
+        editable, reason: editable ? null : meta.busy ? "Wait until the agent is idle before changing runtime settings" : "This terminal runtime cannot confirm model and thinking effort together; use its native commands",
+        catalog: { metadata_available: false, models: known.map((id) => ({ id, supports_reasoning: null, supported_reasoning_efforts: null,
+          runtime_reasoning_efforts: launchDefaults.reasoning_efforts_by_model?.[`${selectedProvider}/${id}`] ?? (meta.reasoning_effort ? [meta.reasoning_effort] : []) })) } };
+    }
     case "settings": {
       if (meta.readiness !== "ready") throw Error(readinessError());
       if (meta.busy)
         throw Error(
           "Wait until the agent is idle before changing runtime settings",
         );
+      if (typeof body.model === "string" && Object.hasOwn(body, "reasoning_effort")) {
+        if (input.backend !== "codex" || !codexControl || !meta.thread_id)
+          throw new DomainError(409, "setting_refused", "This terminal runtime cannot confirm model and thinking effort together; use its native commands");
+        if (typeof body.reasoning_effort !== "string" || !body.model.trim() || !body.reasoning_effort.trim() || body.model === "default" || /[\r\n\0]/.test(body.model + body.reasoning_effort))
+          throw new DomainError(400, "invalid_setting", "Choose a valid model and reasoning effort");
+        if (savedCatalogRequest) await resolveCatalogLaunch(input.home, input.backend, {
+          provider_catalog: true, model: body.model, reasoning_effort: body.reasoning_effort,
+          provider_config: { base_url: savedCatalogRequest.base_url, api_key: savedCatalogRequest.api_key },
+        });
+        const response = await codexRpc(codexSocket, "thread/settings/update", { threadId: meta.thread_id, model: body.model, effort: body.reasoning_effort });
+        if (response.error) throw new DomainError(409, "setting_refused", "Codex rejected the requested runtime settings");
+        meta.model = body.model;
+        meta.reasoning_effort = body.reasoning_effort;
+        persist();
+        return { ok: true, accepted: true, model: meta.model, reasoning_effort: meta.reasoning_effort };
+      }
       const field =
         typeof body.model === "string"
           ? "model"

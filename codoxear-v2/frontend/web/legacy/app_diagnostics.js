@@ -1,5 +1,6 @@
 import * as CodoxearModal from "./app_modal.js";
 import * as CodoxearSessionHelpers from "./app_session_helpers.js";
+import { createAgentSettingsEditor } from "../shared/agent-settings.js";
 
 
 // Details/diagnostics modal authority. Owns every piece of Details/diagnostics
@@ -56,6 +57,9 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     const sessionState = options.sessionState;
     if (!sessionState || typeof sessionState.get !== "function" || typeof sessionState.subscribe !== "function") throw new TypeError("diagnostics dependency missing: sessionState");
     const getSessionInfo = requireFunction(options.getSessionInfo, "getSessionInfo");
+    const sessionCatalog = options.sessionCatalog;
+    if (!sessionCatalog || typeof sessionCatalog.subscribe !== "function") throw new TypeError("diagnostics dependency missing: sessionCatalog");
+    const refreshSessions = requireFunction(options.refreshSessions, "refreshSessions");
     const api = requireFunction(options.api, "api");
     const setToast = requireFunction(options.setToast, "setToast");
     const copyToClipboard = requireFunction(options.copyToClipboard, "copyToClipboard");
@@ -63,6 +67,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     const recoveryDetailsText = requireFunction(options.recoveryDetailsText, "recoveryDetailsText");
     const redactedLaunchErrorText = requireFunction(options.redactedLaunchErrorText, "redactedLaunchErrorText");
     const sessionLaunchLabel = requireFunction(options.sessionLaunchLabel, "sessionLaunchLabel");
+    const sessionDisplayName = requireFunction(options.sessionDisplayName, "sessionDisplayName");
     const agentBackendDisplayName = requireFunction(options.agentBackendDisplayName, "agentBackendDisplayName");
     const diagnosticsProviderDisplay = requireFunction(options.diagnosticsProviderDisplay, "diagnosticsProviderDisplay");
     const diagnosticsCopyText = requireFunction(options.diagnosticsCopyText, "diagnosticsCopyText");
@@ -80,6 +85,26 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     let diagReturnFocusEl = null;
     let diagCopyText = "";
     let diagConversationCopyReady = false;
+    let epoch = 0;
+    let detailsBody = diagContent;
+    let overviewBody = null;
+    let contextBody = null;
+    const settingsEditor = createAgentSettingsEditor({
+      api,
+      sessionState,
+      sessionCatalog,
+      getSessionInfo,
+      onSaved: async (sid) => {
+        const current = epoch;
+        await refreshSessions();
+        const d = await api(`/api/sessions/${encodeURIComponent(sid)}/diagnostics`);
+        if (epoch !== current || sessionState.get("selected") !== sid || !isModalTargetOpen(diagViewer)) return;
+        detailsBody.replaceChildren();
+        overviewBody.replaceChildren();
+        contextBody.replaceChildren();
+        renderLiveRows(sid, d);
+      },
+    });
 
     function resetActionButtonState() {
       diagCopyConversationBtn.disabled = true;
@@ -128,7 +153,13 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       diagStatus.textContent = "";
       const now = Date.now() / 1000;
       const diagRows = [];
-      const addRow = (label, value, opts = {}) => addRowTo(diagContent, diagRows, label, value, opts);
+      const overview = new Set(["Agent", "Provider", "Busy", "Queue", "CWD", "Branch"]);
+      const addRow = (label, value, opts = {}) => {
+        // Current editable values have one authoritative settings widget.
+        if (label === "Model" || label === "Reasoning") { diagRows.push([label, value]); return; }
+        const target = label === "Context" ? contextBody : overview.has(label) ? overviewBody : detailsBody;
+        addRowTo(target, diagRows, label, value, opts);
+      };
       const age = (ts) => {
         const t = Number(ts);
         if (!Number.isFinite(t) || t <= 0) return "";
@@ -193,6 +224,7 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
           addRow("Context", txt);
         }
       }
+      if (!contextBody.childElementCount) contextBody.appendChild(el("p", { class: "agentSettingsHint", text: "No context usage reported yet." }));
       diagCopyText = diagnosticsCopyText(sid, diagRows);
       diagConversationCopyReady = true;
       applyActionButtonState();
@@ -208,6 +240,8 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
     async function show({ opener = null } = {}) {
       const sid = sessionState.get("selected");
       if (!sid) return;
+      const current = ++epoch;
+      settingsEditor.close();
       diagReturnFocusEl = opener instanceof HTMLElement ? opener : document.activeElement instanceof HTMLElement ? document.activeElement : null;
       prepareModalOpen();
       diagContent.innerHTML = "";
@@ -221,20 +255,41 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
       focusModalSurface(diagViewer, requestFrame);
       const selectedInfo = getSessionInfo(sid) || null;
       if (sessionLaunchFailed(selectedInfo)) {
+        detailsBody = diagContent;
         renderFailedLaunchRows(sid, selectedInfo);
         return;
       }
+      diagContent.appendChild(el("h2", { class: "agentDetailsName", text: sessionDisplayName(selectedInfo) || "Agent" }));
+      diagContent.appendChild(settingsEditor.element);
+      const overview = el("section", { class: "agentDetailsSection", "aria-label": "Session" });
+      overview.appendChild(el("h3", { text: "Session" }));
+      overviewBody = el("div", { class: "agentOverviewRows" });
+      overview.appendChild(overviewBody);
+      diagContent.appendChild(overview);
+      const context = el("section", { class: "agentDetailsSection", "aria-label": "Context usage" });
+      context.appendChild(el("h3", { text: "Context usage" }));
+      contextBody = el("div", { class: "agentContextRows" });
+      context.appendChild(contextBody);
+      diagContent.appendChild(context);
+      const diagnostics = el("details", { class: "agentDiagnostics" });
+      diagnostics.appendChild(el("summary", { text: "Technical details" }));
+      detailsBody = el("div", { class: "agentDiagnosticsRows" });
+      diagnostics.appendChild(detailsBody);
+      diagContent.appendChild(diagnostics);
+      settingsEditor.open(sid);
       try {
         const d = await api(`/api/sessions/${sid}/diagnostics`);
-        if (sessionState.get("selected") !== sid) return;
+        if (epoch !== current || sessionState.get("selected") !== sid || !isModalTargetOpen(diagViewer)) return;
         renderLiveRows(sid, d);
       } catch (e) {
-        if (sessionState.get("selected") !== sid) return;
+        if (epoch !== current || sessionState.get("selected") !== sid || !isModalTargetOpen(diagViewer)) return;
         showErrorState(e);
       }
     }
 
     function hide({ restoreFocus = true } = {}) {
+      epoch++;
+      settingsEditor.close();
       const wasOpen = isModalTargetOpen(diagViewer);
       const focusTarget = diagReturnFocusEl;
       diagReturnFocusEl = null;
@@ -280,12 +335,15 @@ import * as CodoxearSessionHelpers from "./app_session_helpers.js";
 
     function syncAvailability() {
       diagBtn.disabled = !sessionState.get("selected");
+      if (isModalTargetOpen(diagViewer)) hide({ restoreFocus: false });
     }
     const unsubscribeSelected = sessionState.subscribe("selected", syncAvailability);
     syncAvailability();
 
     function dispose() {
       unsubscribeSelected();
+      epoch++;
+      settingsEditor.dispose();
       diagReturnFocusEl = null;
       diagCopyText = "";
       diagConversationCopyReady = false;
