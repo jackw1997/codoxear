@@ -1,0 +1,13 @@
+{
+  "image": "codoxear-v2-oar:details-b8534473",
+  "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "mode": "public",
+  "limits": {
+    "memory": 2147483648,
+    "memorySwap": 2147483648,
+    "nanoCpus": 2000000000,
+    "pids": 512
+  },
+  "exitCode": 0,
+  "oomKilled": false
+}
