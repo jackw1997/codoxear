@@ -517,6 +517,7 @@ try {
     await dialog().getByLabel("Model", { exact: true }).selectOption(model);
     await dialog().getByText("LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.", { exact: true }).waitFor();
     assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off", "Minimal", "Low", "Medium", "High"]);
+    if (model === "caller-unknown") await page.screenshot({ path: "artifacts/creation-discovery-unknown.png", mask: [dialog().getByLabel("API key", { exact: true })] });
     await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
     assert.equal(await dialog().getByLabel("Requested reasoning", { exact: true }).inputValue(), "low");
   }
@@ -536,6 +537,7 @@ try {
   await dialog().getByLabel("Model", { exact: true }).selectOption("caller-reasoner");
   assert.deepEqual(await dialog().getByLabel("Requested reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "None", "Low", "High", "Max"]);
   await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("max");
+  await page.screenshot({ path: "artifacts/creation-discovery-max.png", mask: [dialog().getByLabel("API key", { exact: true })] });
   const discoveredLaunch = (await submit()).body;
   assert.equal(discoveredLaunch.provider_catalog, true);
   assert.equal(discoveredLaunch.model, "caller-reasoner");

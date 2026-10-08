@@ -53,6 +53,18 @@ hub.get('/controlled-provider/choose', async (request, reply) => {
   const code = randomUUID(); codes.set(code, identity);
   return reply.redirect('/auth/' + identity.connection + '/callback?' + new URLSearchParams({ state: request.query.state, code }));
 });
+// Controlled provider HTTP boundary only; discovery still traverses the actual authenticated Hub tunnel and Computer fetch.
+for (const route of ['/controlled-models/v1/models', '/controlled-models/model_group/info']) {
+  hub.get(route, async (request, reply) => {
+    if (request.headers.authorization !== 'Bearer controlled-no-live-secret') return reply.code(403).send({ error: 'Controlled caller key required' });
+    return route.endsWith('/models')
+      ? { data: [{ id: 'journey-model' }, { id: 'journey-unknown' }] }
+      : { data: [
+          { model_group: 'journey-model', supports_reasoning: true, supported_reasoning_efforts: ['low', 'high', 'max'] },
+          { model_group: 'journey-unknown', supports_reasoning: null, supported_reasoning_efforts: null },
+        ] };
+  });
+}
 await hub.listen({ host: '127.0.0.1', port: 19964 });
 const staticClient = process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? undefined : createStaticServer();
 if (staticClient) await new Promise(resolve => staticClient.listen(19965, '127.0.0.1', resolve));
@@ -311,10 +323,22 @@ async function createAgent(page, computer, name, workspace) {
   await create.locator('[data-catalog-status]').getByText('Provider and model choices were read from this computer’s configuration.', { exact: true }).waitFor();
   await create.getByLabel('Runtime', { exact: true }).selectOption('pi');
   await create.getByLabel('Provider', { exact: true }).selectOption({ label: 'Custom API' });
-  await create.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
+  await create.getByLabel('API URL', { exact: true }).fill(origin + '/controlled-models/v1');
   await create.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
-  await create.getByLabel('Custom model', { exact: true }).fill('journey-model');
+  stage = name + ': caller-key model discovery';
+  await create.getByRole('button', { name: 'Discover models', exact: true }).click();
+  await create.locator('[data-discovery-status]').filter({ hasText: '2 caller-key-visible models' }).waitFor();
+  assert.deepEqual(await create.getByLabel('Model', { exact: true }).locator('option').allTextContents(), ['Choose a model', 'journey-model', 'journey-unknown', 'Custom…']);
+  await create.getByLabel('Model', { exact: true }).selectOption('journey-unknown');
+  await create.getByText('LiteLLM reasoning metadata is unknown. These are runtime request levels from this Computer; provider acceptance is not verified.', { exact: true }).waitFor();
+  await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-unknown');
+  await create.getByLabel('Model', { exact: true }).selectOption('journey-model');
+  assert.deepEqual(await create.getByLabel('Requested reasoning', { exact: true }).locator('option').allTextContents(), ['Choose a reasoning level', 'Low', 'High', 'Max']);
   await create.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
+  await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-desktop');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await shot(page, name.replaceAll(' ', '-').toLowerCase() + '-discovery-portrait');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await create.getByLabel('Agent name', { exact: true }).fill(name);
   await create.getByText('More', { exact: true }).click();
   await create.getByLabel('Working directory', { exact: true }).fill(workspace);
@@ -605,7 +629,7 @@ async function dailyCustomer(workspaceA) {
     await copy.getByLabel('Runtime', { exact: true }).selectOption('pi');
     await copy.getByLabel('Provider', { exact: true }).selectOption({ label: 'Custom API' });
     assert.equal(await copy.getByLabel('API key', { exact: true }).inputValue(), '', 'Duplicate must require re-entry rather than copy saved secrets');
-    await copy.getByLabel('API URL', { exact: true }).fill('https://controlled.invalid/v1');
+    await copy.getByLabel('API URL', { exact: true }).fill(origin + '/controlled-models/v1');
     await copy.getByLabel('API key', { exact: true }).fill('controlled-no-live-secret');
     await copy.getByLabel('Custom model', { exact: true }).fill('journey-model');
     await copy.getByLabel('Requested reasoning', { exact: true }).selectOption('low');
@@ -839,7 +863,7 @@ try {
     clientBuild,
     applicationActions: 'Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding',
     oauthBoundary: 'Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance',
-    runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance',
+    runtimeBoundary: 'Real ManagedRuntime, ComputerService and NativeHttpTarget; browser model discovery traverses the actual Hub tunnel and Computer HTTP fetch to controlled caller-key model/metadata endpoints; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR profile/image acceptance',
     externalBootstrap, browserPermissionSetup: process.env.CODOXEAR_CUSTOMER_CLIENT_ORIGIN ? 'Public-origin local-network-access and clipboard permissions granted to automated browser; no application grants injected' : 'Clipboard permissions only',
     physicalBootstrapBoundary: 'Computer attachment and start are external infrastructure operations, not browser-only product support', cleanup: [] };
   const saveResult = () => writeFileSync(join(artifacts, 'results.json'), JSON.stringify(result, null, 2));
