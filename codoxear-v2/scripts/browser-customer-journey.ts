@@ -447,6 +447,9 @@ async function dailyCustomer(workspaceA) {
   const copyDetails = dialog(ownerPage, 'Details');
   await copyDetails.getByRole('button', { name: 'Show technical details', exact: true }).click();
   await copyDetails.locator('.agentDiagnosticsRows').waitFor({ state: 'visible' });
+  await copyDetails.getByRole('button', { name: 'Copy details', exact: true }).click();
+  assert.ok((await ownerPage.evaluate(() => navigator.clipboard.readText())).includes('Session ID'));
+
   await copyDetails.getByRole('button', { name: 'Hide technical details', exact: true }).click();
   await copyDetails.locator('.agentDiagnosticsRows').waitFor({ state: 'hidden' });
   await copyDetails.getByRole('button', { name: 'Copy conversation', exact: true }).click();

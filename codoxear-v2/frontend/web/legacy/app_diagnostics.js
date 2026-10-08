@@ -53,6 +53,11 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
     const diagCopyConversationBtn = requireNode(options.diagCopyConversationBtn, "diagCopyConversationBtn");
     const diagCopyBtn = requireNode(options.diagCopyBtn, "diagCopyBtn");
 
+    // Copy details remains available within expanded technical details.
+    diagCopyBtn.remove();
+    diagCopyBtn.className = "agentDetailsAction";
+    diagCopyBtn.textContent = "Copy details";
+
     // App-level runtime state accessors and effects.
     const sessionState = options.sessionState;
     if (!sessionState || typeof sessionState.get !== "function" || typeof sessionState.subscribe !== "function") throw new TypeError("diagnostics dependency missing: sessionState");
@@ -215,6 +220,7 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
       // The settings widget owns the visible current values; the complete
       // diagnostics copy still includes the producer's reported values.
       diagRows.push(["Model", d && d.model || "Not reported"], ["Reasoning effort", d && d.reasoning_effort || "Not reported"]);
+      detailsBody.appendChild(diagCopyBtn);
       diagCopyText = diagnosticsCopyText(sid, diagRows);
       diagConversationCopyReady = true;
       applyActionButtonState();
@@ -248,6 +254,7 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
         detailsBody = diagContent;
         renderFailedLaunchRows(sid, selectedInfo);
         diagContent.appendChild(diagCopyConversationBtn);
+        diagContent.appendChild(diagCopyBtn);
         return;
       }
       const settingsSection = el("section", { class: "agentSettingsSection" });
