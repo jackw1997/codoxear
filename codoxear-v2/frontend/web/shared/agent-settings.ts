@@ -23,8 +23,17 @@ export function createAgentSettingsEditor(options: {
   const element = document.createElement("section");
   element.className = "agentSettings";
   element.setAttribute("aria-label", "Agent settings");
-  element.innerHTML = `<div class="agentSettingRow"><div><span class="agentSettingLabel">Model</span><div class="agentSettingCurrent" id="diagCurrentModel">Not reported</div></div><button type="button" id="diagChangeModel" data-change-model>Change model</button></div><div class="agentSettingRow"><div><span class="agentSettingLabel">Reasoning effort</span><div class="agentSettingCurrent" id="diagCurrentEffort">Not reported</div></div><button type="button" id="diagChangeEffort" data-change-effort>Change reasoning effort</button></div><form hidden><h3 data-editor-title>Change model</h3><p class="agentSettingsProvider" hidden></p><label data-model-field>Model<select id="diagModelSelect" aria-label="Model" name="model"></select><input type="text" data-model-input aria-label="Model name" placeholder="Model name" autocomplete="off" spellcheck="false"></label><label data-effort-field hidden>Reasoning effort<select id="diagEffortSelect" aria-label="Reasoning effort" name="effort"></select></label><div class="agentSettingsDiscover"><button type="button" data-discover>Discover models</button></div><p class="agentSettingsHint" data-effort-hint></p><p class="agentSettingsHint" data-apply-hint></p><div class="agentSettingsActions"><button type="submit" class="primary" data-save>Apply change</button><button type="button" data-cancel>Cancel change</button></div></form><p class="agentSettingsHint" id="diagSettingsStatus" role="status" aria-live="polite" data-status></p><p class="agentSettingsError" id="diagSettingsError" role="alert" data-error></p><button type="button" data-reload hidden>Reload settings</button>`;
+  element.innerHTML = `<div class="agentSettingRow"><div><span class="agentSettingLabel">Model</span><div class="agentSettingCurrent" id="diagCurrentModel">Not reported</div></div><button type="button" id="diagChangeModel" data-change-model>Change model</button></div><div class="agentSettingRow"><div><span class="agentSettingLabel">Reasoning effort</span><div class="agentSettingCurrent" id="diagCurrentEffort">Not reported</div></div><button type="button" id="diagChangeEffort" data-change-effort>Change reasoning effort</button></div><form hidden><h3 data-editor-title>Change model</h3><p class="agentSettingsProvider" hidden></p><label data-model-field><select id="diagModelSelect" aria-label="Model" name="model"></select><input type="text" data-model-input aria-label="Model name" placeholder="Model name" autocomplete="off" spellcheck="false"></label><label data-effort-field hidden><select id="diagEffortSelect" aria-label="Reasoning effort" name="effort"></select></label><div class="agentSettingsDiscover"><button type="button" data-discover>Discover models</button></div><p class="agentSettingsHint" data-effort-hint></p><p class="agentSettingsHint" data-apply-hint></p><div class="agentSettingsActions"><button type="submit" class="primary" data-save>Apply change</button><button type="button" data-cancel>Cancel change</button></div></form><p class="agentSettingsHint" id="diagSettingsStatus" role="status" aria-live="polite" data-status></p><p class="agentSettingsError" id="diagSettingsError" role="alert" data-error></p><button type="button" data-reload hidden>Reload settings</button>`;
 
+  const providerElement = document.createElement("div");
+  providerElement.className = "detailsRow";
+  const providerLabel = document.createElement("div");
+  providerLabel.className = "detailsLabel";
+  providerLabel.textContent = "Provider";
+  const providerValue = document.createElement("div");
+  providerValue.className = "detailsValue";
+  providerValue.textContent = "Loading…";
+  providerElement.append(providerLabel, providerValue);
   const form = element.querySelector("form")!;
   const model = element.querySelector<HTMLSelectElement>("[name=model]")!;
   const effort = element.querySelector<HTMLSelectElement>("[name=effort]")!;
@@ -88,6 +97,7 @@ export function createAgentSettingsEditor(options: {
     choices(model, values, draft?.model ?? snapshot?.model ?? null, "Choose model");
     modelInput.value = model.value;
     provider.textContent = `Provider: ${snapshot?.provider || "Unknown"}`;
+    providerValue.textContent = snapshot?.provider || "Not available";
     currentModel.textContent = snapshot?.model || "Not reported";
     currentEffort.textContent = snapshot?.reasoning_effort || (catalog?.models.find(row => row.id === snapshot?.model)?.supports_reasoning === false ? "Not supported" : "Not reported");
     populateEffort(draft?.effort ?? snapshot?.reasoning_effort ?? null);
@@ -145,6 +155,7 @@ export function createAgentSettingsEditor(options: {
     } catch (cause) {
       if (!active(id, epoch) || controller.signal.aborted) return;
       snapshot = undefined;
+      providerValue.textContent = "Not available";
       currentModel.textContent = "Unavailable";
       currentEffort.textContent = "Unavailable";
       error.textContent = `Could not load agent settings: ${cause instanceof Error ? cause.message : "unknown error"}`;
@@ -273,8 +284,10 @@ export function createAgentSettingsEditor(options: {
   ];
   return Object.freeze({
     element,
-    open(id: string) { close(); sid = id; wasBusy = busy(); choices(model, [], null, "Loading models…"); choices(effort, [], null, "Loading thinking effort…"); currentModel.textContent = "Loading…"; currentEffort.textContent = "Loading…"; provider.textContent = ""; hint.textContent = ""; void load(); },
+    providerElement,
+    confirmedProvider: () => snapshot?.provider ?? null,
+    open(id: string) { close(); sid = id; wasBusy = busy(); choices(model, [], null, "Loading models…"); choices(effort, [], null, "Loading thinking effort…"); providerValue.textContent = "Loading…"; currentModel.textContent = "Loading…"; currentEffort.textContent = "Loading…"; provider.textContent = ""; hint.textContent = ""; void load(); },
     close,
-    dispose() { close(); for (const stop of unsubscribe) stop(); element.remove(); },
+    dispose() { close(); for (const stop of unsubscribe) stop(); element.remove(); providerElement.remove(); },
   });
 }

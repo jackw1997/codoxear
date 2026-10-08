@@ -571,6 +571,7 @@ async function dailyCustomer(workspaceA) {
       assert.equal(style.whiteSpace, 'nowrap', 'Harmony setting actions stay on one line');
       assert.equal(style.fontSize, '13px', 'Harmony setting actions use compact 13px text');
     }
+    assert.equal(await effort.evaluate(node => getComputedStyle(node).fontSize), '14px', 'Harmony selector keeps its 14px type');
     await shot(ownerPage, 'details-model-effort-portrait');
     const saved = ownerPage.waitForResponse(response => response.request().method() === 'POST' && /\/settings(?:\?|$)/.test(new URL(response.url()).pathname));
     void saved.catch(() => {});
@@ -581,6 +582,7 @@ async function dailyCustomer(workspaceA) {
     assert.equal(accepted.model, 'journey-model');
     assert.equal(accepted.reasoning_effort, 'max');
     await ownerPage.waitForFunction(() => document.querySelector('#diagCurrentModel')?.textContent === 'journey-model' && document.querySelector('#diagCurrentEffort')?.textContent === 'max');
+    await details.locator('.agentOverviewRows .detailsValue').filter({ hasText: /^controlled-anthropic$/ }).waitFor();
     await shot(ownerPage, 'details-model-effort-saved');
     await details.getByRole('button', { name: 'Copy conversation', exact: true }).scrollIntoViewIfNeeded();
     await shot(ownerPage, 'details-harmony-actions-portrait');
