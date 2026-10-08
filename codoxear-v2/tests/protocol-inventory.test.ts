@@ -23,6 +23,7 @@ import { NativeRuntime } from "../src/computer/native/runtime.js";
 import { NativeHttpTarget } from "../src/computer/native/http.js";
 import { relayContract } from "../src/protocol/inventory.js";
 import { backendGateway } from "../scripts/backend-gateway.js";
+import { processIdentity, type NativeProcessIdentity } from "./support/native-launch-fixture.js";
 
 assert.ok(
   existsSync("/.dockerenv"),
@@ -821,10 +822,27 @@ test(
       );
       await service.stop();
       target.close();
-      if (id)
+      const ownedProcesses: NativeProcessIdentity[] = [];
+      if (id) {
+        const state = await runtime.request(`/api/sessions/${id}/state`).catch(() => undefined);
+        for (const pid of [state?.broker_pid, state?.pid]) {
+          if (!Number.isSafeInteger(pid) || pid <= 0) continue;
+          try { ownedProcesses.push(processIdentity(pid)); }
+          catch (error) {
+            if (!["ENOENT", "ESRCH"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
+          }
+        }
         await runtime
           .request(`/api/sessions/${id}/delete`, "POST", {})
           .catch(() => {});
+        await until(() => ownedProcesses.every(identity => {
+          try { return processIdentity(identity.pid).startTicks !== identity.startTicks; }
+          catch (error) {
+            if (["ENOENT", "ESRCH"].includes((error as NodeJS.ErrnoException).code ?? "")) return true;
+            throw error;
+          }
+        }));
+      }
       runtime.close();
       tunnels.close();
       await hub.close();
