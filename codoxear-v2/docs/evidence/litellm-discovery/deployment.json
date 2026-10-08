@@ -1,0 +1,61 @@
+{
+  "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+  "privateSettingsPreserved": true,
+  "unrelatedServicesPreserved": true,
+  "sessionsBefore": [
+    {
+      "state": "archived",
+      "count": 1
+    }
+  ],
+  "related": [
+    {
+      "name": "codoxear-v2-fresh-auth-client-1",
+      "image": "codoxear-frontend:litellm-bc9d05ff",
+      "imageId": "sha256:abd65ff5b3ea1f369045543c38d92bb7d53c392984cd1cdb2748ce482d2e6c92",
+      "running": true,
+      "oomKilled": false,
+      "restarts": 0
+    },
+    {
+      "name": "codoxear-v2-fresh-hub-1-1",
+      "image": "codoxear-hub:litellm-bc9d05ff",
+      "imageId": "sha256:9056b944eb05176f1473e3b15ff4683845328dae23454e8190a51f3e0284001c",
+      "running": true,
+      "oomKilled": false,
+      "restarts": 0
+    },
+    {
+      "name": "codoxear-work-computer-1",
+      "image": "codoxear-computer:litellm-bc9d05ff",
+      "imageId": "sha256:e996bd9dad4a257e4c62548e1636de6ccb68d569370b0dc6b59599fc1d22adfe",
+      "running": true,
+      "oomKilled": false,
+      "restarts": 0
+    }
+  ],
+  "computerStatus": {
+    "attached": true,
+    "hubId": "a768c336-de52-4195-8101-dcd512fec6fc",
+    "computerId": "683b30e5-d430-40b6-b711-f63e3673171f",
+    "runtime": "oar",
+    "binding": 1,
+    "running": true,
+    "lastObserved": {
+      "state": "online",
+      "computerId": "683b30e5-d430-40b6-b711-f63e3673171f",
+      "hubId": "a768c336-de52-4195-8101-dcd512fec6fc",
+      "runtime": "oar",
+      "updatedAt": 1791435869643,
+      "detail": "Connected"
+    },
+    "pendingTransfer": null
+  },
+  "sessionsAfter": [
+    {
+      "state": "archived",
+      "count": 1
+    }
+  ],
+  "clientAssetVersion": "854cc70bfc9ef6fa"
+}

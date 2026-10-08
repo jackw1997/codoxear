@@ -1,0 +1,13 @@
+{
+  "image": "codoxear-v2-oar:litellm-release",
+  "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+  "mode": "local",
+  "limits": {
+    "memory": 2147483648,
+    "memorySwap": 2147483648,
+    "nanoCpus": 2000000000,
+    "pids": 512
+  },
+  "exitCode": 0,
+  "oomKilled": false
+}

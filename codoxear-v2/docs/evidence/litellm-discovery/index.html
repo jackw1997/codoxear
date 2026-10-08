@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LiteLLM discovery — browser evidence</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,sans-serif}body{max-width:1120px;margin:auto;padding:24px;line-height:1.55}h1,h2{line-height:1.2}a{color:inherit}nav{display:flex;gap:20px;flex-wrap:wrap}section{margin-top:32px}figure{margin:20px 0 36px}img{display:block;max-width:100%;height:auto;border:1px solid #888}figcaption{margin-top:8px}.portrait{max-width:440px}aside{border:1px solid #888;padding:16px}code{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<h1>LiteLLM discovery: browser evidence</h1>
+<nav aria-label="Evidence records"><a href="verification.json">Verification and boundaries</a><a href="results.json">Browser results</a><a href="../../integrations/litellm.md">Integration notes</a></nav>
+<p>Run outcomes, the deployed release and artifact provenance belong to the linked records. This gallery does not independently establish a passing run. Screenshot links are populated from the final reviewed public-client run.</p>
+<aside aria-label="Fixture boundaries"><strong>Capture scope:</strong> the actual deployed frontend, controlled OAuth and model HTTP provider fixtures, and real Hub–Computer discovery transport. Managed responses are controlled. These captures do not establish live Google/Feishu acceptance, live model inference, or physical mobile/Safari acceptance. Invitation capabilities and credentials must remain masked in published captures.</aside>
+<section aria-labelledby="discovery"><h2 id="discovery">Caller-key model discovery</h2>
+<p>The form displays models visible to the caller key, advertised reasoning metadata and the runtime request boundary. Missing metadata remains unknown.</p>
+<figure><a href="owner-agent-a-discovery-desktop.png"><img src="owner-agent-a-discovery-desktop.png" alt="Owner New agent model discovery at a desktop viewport" loading="lazy"></a><figcaption>Desktop discovery form.</figcaption></figure>
+<figure class="portrait"><a href="owner-agent-a-discovery-effort-portrait.png"><img src="owner-agent-a-discovery-effort-portrait.png" alt="Owner New agent reasoning effort selector fully visible at a portrait viewport" loading="lazy"></a><figcaption>Portrait viewport with the effort selector in view; this is not physical phone acceptance.</figcaption></figure>
+<figure><a href="owner-agent-a-discovery-unknown.png"><img src="owner-agent-a-discovery-unknown.png" alt="Discovery form showing unavailable or unknown reasoning metadata" loading="lazy"></a><figcaption>Unknown reasoning metadata is shown explicitly.</figcaption></figure>
+</section>
+<section aria-labelledby="membership"><h2 id="membership">Invitation and separate Computer access</h2>
+<p>A manager shares a single-use Member invitation link. Joining does not grant Computer or workspace access.</p>
+<figure><a href="owner-created-invitation.png"><img src="owner-created-invitation.png" alt="Owner invitation-link creation form with the private capability masked" loading="lazy"></a><figcaption>Shareable Member invitation; private link masked.</figcaption></figure>
+<figure><a href="member-joined-awaiting-computer-access.png"><img src="member-joined-awaiting-computer-access.png" alt="Joined Member awaiting an explicit Computer access grant" loading="lazy"></a><figcaption>Connected Member without Computer access.</figcaption></figure>
+</section>
+<section aria-labelledby="authorization"><h2 id="authorization">Explicit Computer authorization</h2>
+<figure class="portrait"><a href="customer-computer-allowlist-portrait.png"><img src="customer-computer-allowlist-portrait.png" alt="Computer allowlist management at a portrait viewport" loading="lazy"></a><figcaption>Computer allowlist on a portrait viewport.</figcaption></figure>
+<figure><a href="computer-b-write.png"><img src="computer-b-write.png" alt="Computer B write access grant" loading="lazy"></a><figcaption>Explicit write access for Computer B.</figcaption></figure>
+<figure><a href="computer-b-read.png"><img src="computer-b-read.png" alt="Computer B read access grant" loading="lazy"></a><figcaption>Computer B access reduced to read.</figcaption></figure>
+<figure><a href="computer-b-revoked.png"><img src="computer-b-revoked.png" alt="Computer B access revoked" loading="lazy"></a><figcaption>Computer B access revoked.</figcaption></figure>
+</section>
+</body>
+</html>

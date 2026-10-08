@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-08T04:18:06.586Z",
+  "endpoint": "https://litellm.dex-gem.ai",
+  "credentialSource": "Existing Work Computer Pi provider; caller key, no administrator substitution",
+  "readOnly": true,
+  "inference": false,
+  "records": [
+    {
+      "path": "/v1/models",
+      "status": 200,
+      "models": 24,
+      "kimi": {
+        "id": "kimi-k3"
+      }
+    },
+    {
+      "path": "/model_group/info",
+      "status": 200,
+      "models": 24,
+      "kimi": {
+        "id": "kimi-k3",
+        "supports_reasoning": true,
+        "supported_reasoning_efforts": [
+          "low",
+          "high",
+          "max"
+        ]
+      }
+    }
+  ]
+}

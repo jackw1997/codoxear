@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+  "results": [
+    {
+      "role": "computer",
+      "image": "codoxear-computer:litellm-bc9d05ff",
+      "imageId": "sha256:e996bd9dad4a257e4c62548e1636de6ccb68d569370b0dc6b59599fc1d22adfe",
+      "exitCode": 0,
+      "oomKilled": false,
+      "memory": 2147483648,
+      "memorySwap": 2147483648,
+      "nanoCpus": 2000000000,
+      "pids": 512
+    },
+    {
+      "role": "hub",
+      "image": "codoxear-hub:litellm-bc9d05ff",
+      "imageId": "sha256:9056b944eb05176f1473e3b15ff4683845328dae23454e8190a51f3e0284001c",
+      "exitCode": 0,
+      "oomKilled": false,
+      "memory": 2147483648,
+      "memorySwap": 2147483648,
+      "nanoCpus": 2000000000,
+      "pids": 512
+    },
+    {
+      "role": "frontend",
+      "image": "codoxear-frontend:litellm-bc9d05ff",
+      "imageId": "sha256:abd65ff5b3ea1f369045543c38d92bb7d53c392984cd1cdb2748ce482d2e6c92",
+      "exitCode": 0,
+      "oomKilled": false,
+      "memory": 2147483648,
+      "memorySwap": 2147483648,
+      "nanoCpus": 2000000000,
+      "pids": 512
+    }
+  ]
+}
