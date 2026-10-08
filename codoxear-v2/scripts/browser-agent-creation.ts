@@ -328,6 +328,7 @@ try {
   await dialog().getByText("The Computer’s model configuration does not advertise reasoning levels beyond Off.", { exact: true }).waitFor();
   assert.deepEqual(await dialog().getByLabel("Reasoning", { exact: true }).locator("option").allTextContents(), ["Choose a reasoning level", "Off"]);
   pass("Configured non-reasoning model exposes only Off and explains its Computer metadata constraint");
+  await page.screenshot({ path: "artifacts/creation-pi-off-metadata.png" });
   for (const field of ["Provider", "Model", "Reasoning"]) {
     const options = await dialog()
       .getByLabel(field, { exact: true })
@@ -506,6 +507,7 @@ try {
       .getByLabel("Custom model", { exact: true })
       .fill("PrivateModel");
     await dialog().getByLabel("Requested reasoning", { exact: true }).selectOption("low");
+    if (runtime === "pi") await page.screenshot({ path: "artifacts/creation-pi-custom-request.png" });
     assert.equal(
       await dialog()
         .getByLabel("API key", { exact: true })

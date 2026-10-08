@@ -224,7 +224,7 @@ globalThis.fetch = (input, init) => {
   await sidebarToggle.waitFor({ state: "visible" });
   if (!(await page.evaluate(() => document.body.classList.contains("sidebar-open"))))
     await sidebarToggle.click();
-  await page.getByRole("button", { name: "Hubs & computers", exact: true }).click();
+  await page.getByRole("contentinfo").getByRole("button", { name: "Hubs & computers", exact: true }).click();
   const summary = page.locator("summary").filter({ hasText: "Installed package Hub" });
   await summary.waitFor();
   await summary.click();
