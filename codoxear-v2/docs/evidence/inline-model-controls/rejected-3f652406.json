@@ -1,0 +1,48 @@
+{
+  "passed": false,
+  "checks": [
+    {
+      "name": "native backing is hidden while owned controls remain accessible",
+      "passed": true
+    },
+    {
+      "name": "pointer selection emits one native input/change pair and submits its value",
+      "passed": true
+    },
+    {
+      "name": "Arrow keys skip disabled options and keyboard Enter commits",
+      "passed": true
+    },
+    {
+      "name": "Home and End navigate enabled choices",
+      "passed": true
+    },
+    {
+      "name": "typeahead selects the matching option",
+      "passed": true
+    },
+    {
+      "name": "disabled options and disabled groups remain visible and reject clicks",
+      "passed": true
+    },
+    {
+      "name": "programmatic value, index, and selected-option changes sync without fake change events",
+      "passed": true
+    },
+    {
+      "name": "option replacement and add retain native controller contracts",
+      "passed": true
+    },
+    {
+      "name": "mutating an option's disabled state updates the owned popup",
+      "passed": true
+    },
+    {
+      "name": "native form reset restores displayed selection without new change events",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'Beta' !== 'Alpha'\n"
+    }
+  ],
+  "errors": [],
+  "fixture": "Actual source-owned frontend UI library; controlled local fixture; Chromium phone viewport; no provider/customer acceptance claimed."
+}

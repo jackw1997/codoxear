@@ -1,0 +1,28 @@
+# Review paths, copy to a systemd user-unit directory with the .example suffix
+# removed, and install codoxear-v2-computers.slice alongside it. Not auto-enabled.
+[Unit]
+Description=Codoxear managed Computer %i
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=2
+
+[Service]
+Type=simple
+Slice=codoxear-v2-computers.slice
+WorkingDirectory=/ABSOLUTE/PATH/codoxear-v2
+Environment=CODOXEAR_COMPUTER_HOME=%h/.local/share/codoxear-v2/computers/%i
+ExecStart=/ABSOLUTE/PATH/NODE24/node /ABSOLUTE/PATH/codoxear-v2/dist/server/computer/main.js start
+MemoryAccounting=yes
+MemoryHigh=1G
+MemoryMax=1536M
+MemorySwapMax=0
+TasksMax=256
+OOMPolicy=stop
+KillMode=control-group
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=15
+UMask=0077
+
+[Install]
+WantedBy=default.target

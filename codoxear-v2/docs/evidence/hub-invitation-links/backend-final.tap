@@ -1,0 +1,2235 @@
+TAP version 13
+# Subtest: provider/model catalogs preserve namespaces and constrain reasoning to the selected model
+ok 1 - provider/model catalogs preserve namespaces and constrain reasoning to the selected model
+  ---
+  duration_ms: 2.099365
+  type: 'test'
+  ...
+# Subtest: provider, model and supported reasoning must be explicit
+ok 2 - provider, model and supported reasoning must be explicit
+  ---
+  duration_ms: 0.806657
+  type: 'test'
+  ...
+# Subtest: Codex auth and Fast settings map to CLI options; unsupported Fast never leaks
+ok 3 - Codex auth and Fast settings map to CLI options; unsupported Fast never leaks
+  ---
+  duration_ms: 0.235274
+  type: 'test'
+  ...
+# Subtest: pi accepts a private endpoint and key without computer configuration
+ok 4 - pi accepts a private endpoint and key without computer configuration
+  ---
+  duration_ms: 0.430762
+  type: 'test'
+  ...
+# Subtest: codex accepts a private endpoint and key without computer configuration
+ok 5 - codex accepts a private endpoint and key without computer configuration
+  ---
+  duration_ms: 0.904033
+  type: 'test'
+  ...
+# Subtest: cc accepts a private endpoint and key without computer configuration
+ok 6 - cc accepts a private endpoint and key without computer configuration
+  ---
+  duration_ms: 0.239164
+  type: 'test'
+  ...
+# Subtest: Configured Pi provider keys and compatibility options are forwarded
+ok 7 - Configured Pi provider keys and compatibility options are forwarded
+  ---
+  duration_ms: 0.234688
+  type: 'test'
+  ...
+# Subtest: configured identities remain precise and empty catalogs cannot synthesize provider/model defaults
+ok 8 - configured identities remain precise and empty catalogs cannot synthesize provider/model defaults
+  ---
+  duration_ms: 0.392959
+  type: 'test'
+  ...
+# Subtest: agent shares cannot bypass explicit Computer allowlists or upgrade read access
+ok 9 - agent shares cannot bypass explicit Computer allowlists or upgrade read access
+  ---
+  duration_ms: 9.296556
+  type: 'test'
+  ...
+# Subtest: share role changes and explicit revocation do not inherit retention rights
+ok 10 - share role changes and explicit revocation do not inherit retention rights
+  ---
+  duration_ms: 0.754363
+  type: 'test'
+  ...
+# Subtest: shares remain capped by explicit computer membership and are fenced by ownership and binding
+ok 11 - shares remain capped by explicit computer membership and are fenced by ownership and binding
+  ---
+  duration_ms: 0.935749
+  type: 'test'
+  ...
+# Subtest: legacy state loads with no shares; new explicit shares survive a schema reload
+ok 12 - legacy state loads with no shares; new explicit shares survive a schema reload
+  ---
+  duration_ms: 7.777065
+  type: 'test'
+  ...
+# Subtest: conversation cache evicts least recently used agents and bounds event payloads
+ok 13 - conversation cache evicts least recently used agents and bounds event payloads
+  ---
+  duration_ms: 25.466327
+  type: 'test'
+  ...
+# Subtest: directory removal drops cached content and rejects late responses
+ok 14 - directory removal drops cached content and rejects late responses
+  ---
+  duration_ms: 0.25076
+  type: 'test'
+  ...
+# Subtest: local budget rejects oversized writes without evicting unsent drafts
+ok 15 - local budget rejects oversized writes without evicting unsent drafts
+  ---
+  duration_ms: 0.684188
+  type: 'test'
+  ...
+# Subtest: account gateway keeps hub grants server-side and rejects unauthenticated, cross-origin and unknown routes
+ok 16 - account gateway keeps hub grants server-side and rejects unauthenticated, cross-origin and unknown routes
+  ---
+  duration_ms: 362.943318
+  type: 'test'
+  ...
+# Subtest: workspace resolves global agents, forwards bodies, and rejects removed agents
+ok 17 - workspace resolves global agents, forwards bodies, and rejects removed agents
+  ---
+  duration_ms: 213.542276
+  type: 'test'
+  ...
+# Subtest: catalog distinguishes an unreachable computer from empty sessions and revalidates authorization
+ok 18 - catalog distinguishes an unreachable computer from empty sessions and revalidates authorization
+  ---
+  duration_ms: 18.664146
+  type: 'test'
+  ...
+# Subtest: native coordinator completes actual PKCE, discovers authorized hubs/computers and keeps credentials in the vault
+ok 19 - native coordinator completes actual PKCE, discovers authorized hubs/computers and keeps credentials in the vault
+  ---
+  duration_ms: 242.406899
+  type: 'test'
+  ...
+# Subtest: concurrent native requests rotate the installation refresh token once and persist the new credential
+ok 20 - concurrent native requests rotate the installation refresh token once and persist the new credential
+  ---
+  duration_ms: 41.921767
+  type: 'test'
+  ...
+# Subtest: lost refresh acknowledgement clears native credentials and never retries the consumed token
+ok 21 - lost refresh acknowledgement clears native credentials and never retries the consumed token
+  ---
+  duration_ms: 45.398381
+  type: 'test'
+  ...
+# Subtest: actual hub subscription API isolates account, installation and computer and never returns provider tokens
+ok 22 - actual hub subscription API isolates account, installation and computer and never returns provider tokens
+  ---
+  duration_ms: 58.619581
+  type: 'test'
+  ...
+# Subtest: profile, credential and recovery keys fence account/hub/computer and direct mode
+ok 23 - profile, credential and recovery keys fence account/hub/computer and direct mode
+  ---
+  duration_ms: 1.692246
+  type: 'test'
+  ...
+# Subtest: switching context rejects stale responses and never forwards a saved direct cookie to a hub
+ok 24 - switching context rejects stale responses and never forwards a saved direct cookie to a hub
+  ---
+  duration_ms: 24.596794
+  type: 'test'
+  ...
+# Subtest: loss of a mutation response is reported once as unknown without retry or direct fallback
+ok 25 - loss of a mutation response is reported once as unknown without retry or direct fallback
+  ---
+  duration_ms: 0.483042
+  type: 'test'
+  ...
+# Subtest: switching context cancels an already-open streaming response
+ok 26 - switching context cancels an already-open streaming response
+  ---
+  duration_ms: 2.008139
+  type: 'test'
+  ...
+# Subtest: Computer closure permits declared contracts, protocol, and generic persistence sources
+ok 27 - Computer closure permits declared contracts, protocol, and generic persistence sources
+  ---
+  duration_ms: 9.368037
+  type: 'test'
+  ...
+# Subtest: Computer closure rejects Hub, Identity, and frontend sources
+ok 28 - Computer closure rejects Hub, Identity, and frontend sources
+  ---
+  duration_ms: 1.109711
+  type: 'test'
+  ...
+# Subtest: Computer closure does not inherit auth, domain, or presentation libraries
+ok 29 - Computer closure does not inherit auth, domain, or presentation libraries
+  ---
+  duration_ms: 0.822921
+  type: 'test'
+  ...
+# Subtest: a declared shared library cannot hide a transitive backedge into another component
+ok 30 - a declared shared library cannot hide a transitive backedge into another component
+  ---
+  duration_ms: 0.505097
+  type: 'test'
+  ...
+# Subtest: Hub and Identity may use their declared auth/domain/presentation libraries
+ok 31 - Hub and Identity may use their declared auth/domain/presentation libraries
+  ---
+  duration_ms: 0.732604
+  type: 'test'
+  ...
+# Subtest: closure follows type import edges into peer components
+ok 32 - closure follows type import edges into peer components
+  ---
+  duration_ms: 1.246767
+  type: 'test'
+  ...
+# Subtest: closure follows CommonJS require edges into peer components
+ok 33 - closure follows CommonJS require edges into peer components
+  ---
+  duration_ms: 0.782247
+  type: 'test'
+  ...
+# Subtest: closure follows dynamic import edges into peer components
+ok 34 - closure follows dynamic import edges into peer components
+  ---
+  duration_ms: 0.490429
+  type: 'test'
+  ...
+# Subtest: shared libraries reject backedges into their consuming component even when already visited
+ok 35 - shared libraries reject backedges into their consuming component even when already visited
+  ---
+  duration_ms: 0.464686
+  type: 'test'
+  ...
+# Subtest: AST extraction ignores import-like strings and comments
+ok 36 - AST extraction ignores import-like strings and comments
+  ---
+  duration_ms: 0.777276
+  type: 'test'
+  ...
+# Subtest: static client starts without hub/account/computer configuration
+ok 37 - static client starts without hub/account/computer configuration
+  ---
+  duration_ms: 166.83335
+  type: 'test'
+  ...
+# Subtest: two independent hub processes own separate accounts and survive sibling shutdown
+ok 38 - two independent hub processes own separate accounts and survive sibling shutdown
+  ---
+  duration_ms: 1834.781579
+  type: 'test'
+  ...
+# Subtest: Computers sharing CLI authentication keep independent native session catalogs
+ok 39 - Computers sharing CLI authentication keep independent native session catalogs
+  ---
+  duration_ms: 9.955691
+  type: 'test'
+  ...
+# Subtest: concurrent owner approvals and lazy initialization across registry instances preserve every stable root
+ok 40 - concurrent owner approvals and lazy initialization across registry instances preserve every stable root
+  ---
+  duration_ms: 33.777578
+  type: 'test'
+  ...
+# Subtest: multiple Computer-approved stable roots enforce individual paths, hardlink/symlink and directory identity fences
+ok 41 - multiple Computer-approved stable roots enforce individual paths, hardlink/symlink and directory identity fences
+  ---
+  duration_ms: 77.597658
+  type: 'test'
+  ...
+# Subtest: Git is a separate complete-repository capability, rejects external object stores and cannot expose Git internals as working files
+ok 42 - Git is a separate complete-repository capability, rejects external object stores and cannot expose Git internals as working files
+  ---
+  duration_ms: 125.10688
+  type: 'test'
+  ...
+# Subtest: attachment uploads use separate actor/grant storage, reject arbitrary path injection and pass actor fences to native broker
+ok 43 - attachment uploads use separate actor/grant storage, reject arbitrary path injection and pass actor fences to native broker
+  ---
+  duration_ms: 29.364845
+  type: 'test'
+  ...
+# Subtest: video processing needs explicit capability, allowed source and scoped cache; range and cancellation stay enforced
+ok 44 - video processing needs explicit capability, allowed source and scoped cache; range and cancellation stay enforced
+  ---
+  duration_ms: 329.580816
+  type: 'test'
+  ...
+# Subtest: grant schema rejects path traversal, absolute paths and ambiguous segments
+ok 45 - grant schema rejects path traversal, absolute paths and ambiguous segments
+  ---
+  duration_ms: 0.66773
+  type: 'test'
+  ...
+# Subtest: running pre-isolation brokers preserve owner attachments and refuse delegated attachment mutation or consuming sends
+ok 46 - running pre-isolation brokers preserve owner attachments and refuse delegated attachment mutation or consuming sends
+  ---
+  duration_ms: 11.168361
+  type: 'test'
+  ...
+# Subtest: owner root removal cancels an already-open native download before its next chunk
+ok 47 - owner root removal cancels an already-open native download before its next chunk
+  ---
+  duration_ms: 13.292225
+  type: 'test'
+  ...
+# Subtest: delegation revalidates native sign-in revocation, target create membership and source binding
+ok 48 - delegation revalidates native sign-in revocation, target create membership and source binding
+  ---
+  duration_ms: 166.694668
+  type: 'test'
+  ...
+# Subtest: delegated rich launches retain owner authority and reserved child ID commits exactly once
+ok 49 - delegated rich launches retain owner authority and reserved child ID commits exactly once
+  ---
+  duration_ms: 121.487439
+  type: 'test'
+  ...
+# Subtest: real Hub routes use machine credential plus scoped sign-in and refuse native targets before dispatch
+ok 50 - real Hub routes use machine credential plus scoped sign-in and refuse native targets before dispatch
+  ---
+  duration_ms: 339.080688
+  type: 'test'
+  ...
+# Subtest: private delegation bridge verifies exact tool registration and rejects forged capabilities/expired grants
+ok 51 - private delegation bridge verifies exact tool registration and rejects forged capabilities/expired grants
+  ---
+  duration_ms: 95.631305
+  type: 'test'
+  ...
+# Subtest: spawn preserves runtime/model/effort/cwd but rejects secret launch fields and reflected Hub credentials
+ok 52 - spawn preserves runtime/model/effort/cwd but rejects secret launch fields and reflected Hub credentials
+  ---
+  duration_ms: 31.741528
+  type: 'test'
+  ...
+# Subtest: Agent access enables/revokes scoped delegation and ignores stale responses
+ok 53 - Agent access enables/revokes scoped delegation and ignores stale responses
+  ---
+  duration_ms: 985.636628
+  type: 'test'
+  ...
+# Subtest: delegation HTTP client fixes source/parent route and sends capabilities only as headers
+ok 54 - delegation HTTP client fixes source/parent route and sends capabilities only as headers
+  ---
+  duration_ms: 62.222403
+  type: 'test'
+  ...
+# Subtest: untrusted origins, redirects and oversized responses are refused without retry or credential disclosure
+ok 55 - untrusted origins, redirects and oversized responses are refused without retry or credential disclosure
+  ---
+  duration_ms: 2.959261
+  type: 'test'
+  ...
+# Subtest: Pi installer exposes bounded delegation arguments, never transport credentials
+ok 56 - Pi installer exposes bounded delegation arguments, never transport credentials
+  ---
+  duration_ms: 1.692963
+  type: 'test'
+  ...
+# Subtest: delegation requires both Computer authentication and a parent scoped grant; rejects foreign targets
+ok 57 - delegation requires both Computer authentication and a parent scoped grant; rejects foreign targets
+  ---
+  duration_ms: 144.511306
+  type: 'test'
+  ...
+# Subtest: concurrent identical spawn retries reserve one child and dispatch once; conflicts refuse a second launch
+ok 58 - concurrent identical spawn retries reserve one child and dispatch once; conflicts refuse a second launch
+  ---
+  duration_ms: 16.601057
+  type: 'test'
+  ...
+# Subtest: Hub restart preserves unknown receipt and reconciles without repeating create
+ok 59 - Hub restart preserves unknown receipt and reconciles without repeating create
+  ---
+  duration_ms: 46.470079
+  type: 'test'
+  ...
+# Subtest: policy revocation, source transfer and expiry block retries and child controls
+ok 60 - policy revocation, source transfer and expiry block retries and child controls
+  ---
+  duration_ms: 21.26797
+  type: 'test'
+  ...
+# Subtest: list and controls only address durable children of the grant parent
+ok 61 - list and controls only address durable children of the grant parent
+  ---
+  duration_ms: 9.127981
+  type: 'test'
+  ...
+# Subtest: parent child limit is durable across principals; child depth is derived by Hub
+ok 62 - parent child limit is durable across principals; child depth is derived by Hub
+  ---
+  duration_ms: 7.744891
+  type: 'test'
+  ...
+# Subtest: receipt persistence stores no capability token or provider API key
+ok 63 - receipt persistence stores no capability token or provider API key
+  ---
+  duration_ms: 37.79178
+  type: 'test'
+  ...
+# Subtest: SQLite claims fence independent Hub processes and late results cannot erase ready state
+ok 64 - SQLite claims fence independent Hub processes and late results cannot erase ready state
+  ---
+  duration_ms: 20.523131
+  type: 'test'
+  ...
+# Subtest: unconfirmed native launches and absent control capabilities refuse controls explicitly
+ok 65 - unconfirmed native launches and absent control capabilities refuse controls explicitly
+  ---
+  duration_ms: 15.241189
+  type: 'test'
+  ...
+# Subtest: private grant installation exposes metadata only; live digest and dormant authorization are distinct
+ok 66 - private grant installation exposes metadata only; live digest and dormant authorization are distinct
+  ---
+  duration_ms: 7.482519
+  type: 'test'
+  ...
+# Subtest: inherited delegation remains downscoped, source-bound and root-expiring; scope replacement revokes descendants
+ok 67 - inherited delegation remains downscoped, source-bound and root-expiring; scope replacement revokes descendants
+  ---
+  duration_ms: 7.160402
+  type: 'test'
+  ...
+# Subtest: revocation racing tool delivery cannot resurrect an installed grant or child authority
+ok 68 - revocation racing tool delivery cannot resurrect an installed grant or child authority
+  ---
+  duration_ms: 5.473573
+  type: 'test'
+  ...
+# Subtest: child launch stays ready after known tool refusal; scoped answer reads are bounded and explicit
+ok 69 - child launch stays ready after known tool refusal; scoped answer reads are bounded and explicit
+  ---
+  duration_ms: 45.352197
+  type: 'test'
+  ...
+# Subtest: new frontend/default Hub and exact legacy Computer paths route transparently
+ok 70 - new frontend/default Hub and exact legacy Computer paths route transparently
+  ---
+  duration_ms: 81.975794
+  type: 'test'
+  ...
+# Subtest: legacy default preserves new explicit Computer and key routes with backend authorization
+ok 71 - legacy default preserves new explicit Computer and key routes with backend authorization
+  ---
+  duration_ms: 29.235194
+  type: 'test'
+  ...
+# Subtest: explicit public signing-key hint routes old bearer APIs while backend denial remains authoritative
+ok 72 - explicit public signing-key hint routes old bearer APIs while backend denial remains authoritative
+  ---
+  duration_ms: 11.40316
+  type: 'test'
+  ...
+# Subtest: real Computer WebSocket upgrades preserve headers, survive listener drain and reconnect to the old Hub
+ok 73 - real Computer WebSocket upgrades preserve headers, survive listener drain and reconnect to the old Hub
+  ---
+  duration_ms: 16.263604
+  type: 'test'
+  ...
+# Subtest: SSE first bytes and CORS stream immediately; downstream cancellation reaches the Unix backend
+ok 74 - SSE first bytes and CORS stream immediately; downstream cancellation reaches the Unix backend
+  ---
+  duration_ms: 10.679153
+  type: 'test'
+  ...
+# Subtest: upload chunks reach the Unix backend before the request body ends
+ok 75 - upload chunks reach the Unix backend before the request body ends
+  ---
+  duration_ms: 9.376565
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=null role=viewer
+ok 76 - revocation hub=null computer=null role=viewer
+  ---
+  duration_ms: 7.418414
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=null role=operator
+ok 77 - revocation hub=null computer=null role=operator
+  ---
+  duration_ms: 0.545362
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=retain role=viewer
+ok 78 - revocation hub=null computer=retain role=viewer
+  ---
+  duration_ms: 0.561047
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=retain role=operator
+ok 79 - revocation hub=null computer=retain role=operator
+  ---
+  duration_ms: 0.498718
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=read_only role=viewer
+ok 80 - revocation hub=null computer=read_only role=viewer
+  ---
+  duration_ms: 0.518191
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=read_only role=operator
+ok 81 - revocation hub=null computer=read_only role=operator
+  ---
+  duration_ms: 0.402257
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=none role=viewer
+ok 82 - revocation hub=null computer=none role=viewer
+  ---
+  duration_ms: 0.335428
+  type: 'test'
+  ...
+# Subtest: revocation hub=null computer=none role=operator
+ok 83 - revocation hub=null computer=none role=operator
+  ---
+  duration_ms: 0.323175
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=null role=viewer
+ok 84 - revocation hub=retain computer=null role=viewer
+  ---
+  duration_ms: 0.35808
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=null role=operator
+ok 85 - revocation hub=retain computer=null role=operator
+  ---
+  duration_ms: 0.488772
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=retain role=viewer
+ok 86 - revocation hub=retain computer=retain role=viewer
+  ---
+  duration_ms: 0.286319
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=retain role=operator
+ok 87 - revocation hub=retain computer=retain role=operator
+  ---
+  duration_ms: 0.270316
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=read_only role=viewer
+ok 88 - revocation hub=retain computer=read_only role=viewer
+  ---
+  duration_ms: 0.245543
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=read_only role=operator
+ok 89 - revocation hub=retain computer=read_only role=operator
+  ---
+  duration_ms: 0.254052
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=none role=viewer
+ok 90 - revocation hub=retain computer=none role=viewer
+  ---
+  duration_ms: 0.236339
+  type: 'test'
+  ...
+# Subtest: revocation hub=retain computer=none role=operator
+ok 91 - revocation hub=retain computer=none role=operator
+  ---
+  duration_ms: 0.249632
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=null role=viewer
+ok 92 - revocation hub=read_only computer=null role=viewer
+  ---
+  duration_ms: 0.259661
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=null role=operator
+ok 93 - revocation hub=read_only computer=null role=operator
+  ---
+  duration_ms: 0.280396
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=retain role=viewer
+ok 94 - revocation hub=read_only computer=retain role=viewer
+  ---
+  duration_ms: 0.23858
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=retain role=operator
+ok 95 - revocation hub=read_only computer=retain role=operator
+  ---
+  duration_ms: 0.23996
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=read_only role=viewer
+ok 96 - revocation hub=read_only computer=read_only role=viewer
+  ---
+  duration_ms: 0.238295
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=read_only role=operator
+ok 97 - revocation hub=read_only computer=read_only role=operator
+  ---
+  duration_ms: 0.228979
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=none role=viewer
+ok 98 - revocation hub=read_only computer=none role=viewer
+  ---
+  duration_ms: 0.297026
+  type: 'test'
+  ...
+# Subtest: revocation hub=read_only computer=none role=operator
+ok 99 - revocation hub=read_only computer=none role=operator
+  ---
+  duration_ms: 0.268864
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=null role=viewer
+ok 100 - revocation hub=none computer=null role=viewer
+  ---
+  duration_ms: 0.261716
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=null role=operator
+ok 101 - revocation hub=none computer=null role=operator
+  ---
+  duration_ms: 0.264799
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=retain role=viewer
+ok 102 - revocation hub=none computer=retain role=viewer
+  ---
+  duration_ms: 0.250121
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=retain role=operator
+ok 103 - revocation hub=none computer=retain role=operator
+  ---
+  duration_ms: 0.222248
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=read_only role=viewer
+ok 104 - revocation hub=none computer=read_only role=viewer
+  ---
+  duration_ms: 0.212105
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=read_only role=operator
+ok 105 - revocation hub=none computer=read_only role=operator
+  ---
+  duration_ms: 0.2111
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=none role=viewer
+ok 106 - revocation hub=none computer=none role=viewer
+  ---
+  duration_ms: 0.248678
+  type: 'test'
+  ...
+# Subtest: revocation hub=none computer=none role=operator
+ok 107 - revocation hub=none computer=none role=operator
+  ---
+  duration_ms: 0.265116
+  type: 'test'
+  ...
+# Subtest: Computer owner cannot manage Hub allowlists without Hub admin role
+ok 108 - Computer owner cannot manage Hub allowlists without Hub admin role
+  ---
+  duration_ms: 0.770883
+  type: 'test'
+  ...
+# Subtest: invitations are recipient-bound, single-use and invalid after ownership transfer
+ok 109 - invitations are recipient-bound, single-use and invalid after ownership transfer
+  ---
+  duration_ms: 0.414109
+  type: 'test'
+  ...
+# Subtest: transaction rollback and reopen preserve ownership
+ok 110 - transaction rollback and reopen preserve ownership
+  ---
+  duration_ms: 35.502865
+  type: 'test'
+  ...
+# Subtest: typed computer API persists one attachment, hides credential, and excludes simultaneous service mutation
+ok 111 - typed computer API persists one attachment, hides credential, and excludes simultaneous service mutation
+  ---
+  duration_ms: 79.721717
+  type: 'test'
+  ...
+# Subtest: download handoff preserves attachment and uses a one-use body credential
+ok 112 - download handoff preserves attachment and uses a one-use body credential
+  ---
+  duration_ms: 121.749582
+  type: 'test'
+  ...
+# Subtest: handoff rejects wrong origin, duplicate queries and unrelated operations
+ok 113 - handoff rejects wrong origin, duplicate queries and unrelated operations
+  ---
+  duration_ms: 13.715914
+  type: 'test'
+  ...
+# Subtest: expiration and current session or actor revocation fence prepared downloads
+ok 114 - expiration and current session or actor revocation fence prepared downloads
+  ---
+  duration_ms: 14.232036
+  type: 'test'
+  ...
+# Subtest: an already-open browser handoff stream terminates after current access is revoked
+ok 115 - an already-open browser handoff stream terminates after current access is revoked
+  ---
+  duration_ms: 1043.309882
+  type: 'test'
+  ...
+# Subtest: personal drafts survive restart without leaking to another user, session or hub attachment
+ok 116 - personal drafts survive restart without leaking to another user, session or hub attachment
+  ---
+  duration_ms: 49.046586
+  type: 'test'
+  ...
+# Subtest: draft HTTP handling requires the tunnel actor; read-only agent access may save personal unsent text
+ok 117 - draft HTTP handling requires the tunnel actor; read-only agent access may save personal unsent text
+  ---
+  duration_ms: 2.634717
+  type: 'test'
+  ...
+# Subtest: real Feishu adapter callback accepts no-code token success, preserves OAuth continuation and initializes only through the private browser-bound link
+ok 118 - real Feishu adapter callback accepts no-code token success, preserves OAuth continuation and initializes only through the private browser-bound link
+  ---
+  duration_ms: 227.592733
+  type: 'test'
+  ...
+# Subtest: fresh generation preserves origins and provider defaults without importing state
+ok 119 - fresh generation preserves origins and provider defaults without importing state
+  ---
+  duration_ms: 108.771452
+  type: 'test'
+  ...
+# Subtest: backend APIs start without frontend artifacts and UI routes report their absence
+ok 120 - backend APIs start without frontend artifacts and UI routes report their absence
+  ---
+  duration_ms: 255.655145
+  type: 'test'
+  ...
+# Subtest: separate absolute frontend artifact supplies UI assets and fences traversal
+ok 121 - separate absolute frontend artifact supplies UI assets and fences traversal
+  ---
+  duration_ms: 122.092182
+  type: 'test'
+  ...
+# Subtest: independently built frontend accepts the backend push wire payload and rejects invalid identity
+ok 122 - independently built frontend accepts the backend push wire payload and rejects invalid identity
+  ---
+  duration_ms: 7.005669
+  type: 'test'
+  ...
+# Subtest: actual Harmony ApiClient keeps direct login working and routes JSON/binary/SSE/media through selected hub
+ok 123 - actual Harmony ApiClient keeps direct login working and routes JSON/binary/SSE/media through selected hub
+  ---
+  duration_ms: 131.292489
+  type: 'test'
+  ...
+# Subtest: actual Harmony client rejects responses from the previous account and does not retry a send
+ok 124 - actual Harmony client rejects responses from the previous account and does not retry a send
+  ---
+  duration_ms: 31.536215
+  type: 'test'
+  ...
+# Subtest: actual Harmony workspace connects in relay mode and scopes recovery files and notification targets to the account and computer
+ok 125 - actual Harmony workspace connects in relay mode and scopes recovery files and notification targets to the account and computer
+  ---
+  duration_ms: 183.918516
+  type: 'test'
+  ...
+# Subtest: multiplexed uploads/downloads preserve bytes and headers with concurrent streams
+ok 126 - multiplexed uploads/downloads preserve bytes and headers with concurrent streams
+  ---
+  duration_ms: 181.299795
+  type: 'test'
+  ...
+# Subtest: slow consumer bounds producer and does not block other streams
+ok 127 - slow consumer bounds producer and does not block other streams
+  ---
+  duration_ms: 161.378105
+  type: 'test'
+  ...
+# Subtest: lost tunnel cancels local work and reports mutation uncertainty without retry
+ok 128 - lost tunnel cancels local work and reports mutation uncertainty without retry
+  ---
+  duration_ms: 83.084835
+  type: 'test'
+  ...
+# Subtest: wrong epochs cannot complete streams; idle streams release capacity
+ok 129 - wrong epochs cannot complete streams; idle streams release capacity
+  ---
+  duration_ms: 202.212966
+  type: 'test'
+  ...
+# Subtest: local route policy blocks authentication, global file escape, traversal and unexpected methods
+ok 130 - local route policy blocks authentication, global file escape, traversal and unexpected methods
+  ---
+  duration_ms: 0.97339
+  type: 'test'
+  ...
+# Subtest: sixteen saturated streams stay bounded while heartbeat control remains responsive; capacity recovers after cancellation
+ok 131 - sixteen saturated streams stay bounded while heartbeat control remains responsive; capacity recovers after cancellation
+  ---
+  duration_ms: 180.025749
+  type: 'test'
+  ...
+# Subtest: HTTP relay preserves large binary/multipart/range/ETag/HLS and closes streams on revoked access
+ok 132 - HTTP relay preserves large binary/multipart/range/ETag/HLS and closes streams on revoked access
+  ---
+  duration_ms: 4957.722404
+  type: 'test'
+  ...
+# Subtest: Hub administration never implicitly grants Computer execution
+ok 133 - Hub administration never implicitly grants Computer execution
+  ---
+  duration_ms: 4.605997
+  type: 'test'
+  ...
+# Subtest: Computer allowlist caps sharing and retained permissions
+ok 134 - Computer allowlist caps sharing and retained permissions
+  ---
+  duration_ms: 1.445389
+  type: 'test'
+  ...
+# Subtest: Admins cannot promote or kick admins; owner can demote; kick clears Computer grants
+ok 135 - Admins cannot promote or kick admins; owner can demote; kick clears Computer grants
+  ---
+  duration_ms: 0.566557
+  type: 'test'
+  ...
+# Subtest: Hub provider configuration has one Feishu application and singular tenant, with extensible independent login policy
+ok 136 - Hub provider configuration has one Feishu application and singular tenant, with extensible independent login policy
+  ---
+  duration_ms: 6.4726
+  type: 'test'
+  ...
+# Subtest: configured Feishu tenant rejects foreign callbacks before recording an account or consuming initialization
+ok 137 - configured Feishu tenant rejects foreign callbacks before recording an account or consuming initialization
+  ---
+  duration_ms: 160.085292
+  type: 'test'
+  ...
+# Subtest: Google may initialize a Hub with Feishu configured without granting any subsequent visitor membership
+ok 138 - Google may initialize a Hub with Feishu configured without granting any subsequent visitor membership
+  ---
+  duration_ms: 35.635349
+  type: 'test'
+  ...
+# Subtest: binding Feishu rejects already-issued foreign sessions, refreshes and cached Hub tokens
+ok 139 - binding Feishu rejects already-issued foreign sessions, refreshes and cached Hub tokens
+  ---
+  duration_ms: 44.211073
+  type: 'test'
+  ...
+# Subtest: same Hub independent Google and Feishu accounts receive only their own explicitly assigned membership and Computer grants
+ok 140 - same Hub independent Google and Feishu accounts receive only their own explicitly assigned membership and Computer grants
+  ---
+  duration_ms: 55.730533
+  type: 'test'
+  ...
+# Subtest: owner account-type selection is configured, persistent, and cannot remove its acting proof
+ok 141 - owner account-type selection is configured, persistent, and cannot remove its acting proof
+  ---
+  duration_ms: 37.865345
+  type: 'test'
+  ...
+# Subtest: account-type policy rejects existing cookies, refreshes and tokens and preserves their independent grants if reallowed
+ok 142 - account-type policy rejects existing cookies, refreshes and tokens and preserves their independent grants if reallowed
+  ---
+  duration_ms: 39.151666
+  type: 'test'
+  ...
+# Subtest: owner selects Google only after explicit proof linking and disabled Feishu sessions cannot act
+ok 143 - owner selects Google only after explicit proof linking and disabled Feishu sessions cannot act
+  ---
+  duration_ms: 20.481506
+  type: 'test'
+  ...
+# Subtest: generic identity authority retains separate immutable provider/tenant identities without independent-Hub policy
+ok 144 - generic identity authority retains separate immutable provider/tenant identities without independent-Hub policy
+  ---
+  duration_ms: 1.383107
+  type: 'test'
+  ...
+# Subtest: direct Hub provider setup preserves independent state and permits secret rotation
+ok 145 - direct Hub provider setup preserves independent state and permits secret rotation
+  ---
+  duration_ms: 29.237473
+  type: 'test'
+  ...
+# Subtest: provider setup rejects multiple Feishu organizations and application or tenant replacement
+ok 146 - provider setup rejects multiple Feishu organizations and application or tenant replacement
+  ---
+  duration_ms: 10.381765
+  type: 'test'
+  ...
+# Subtest: new Hub has no public first-visitor ownership and rejects invalid or expired initialization links
+ok 147 - new Hub has no public first-visitor ownership and rejects invalid or expired initialization links
+  ---
+  duration_ms: 19.20978
+  type: 'test'
+  ...
+# Subtest: initialization accepts either allowed Google or Feishu proof and transfers only deployment-reserved ownership
+ok 148 - initialization accepts either allowed Google or Feishu proof and transfers only deployment-reserved ownership
+  ---
+  duration_ms: 4.687815
+  type: 'test'
+  ...
+# Subtest: competing initialization callbacks consume once and roll back the losing account and session atomically
+ok 149 - competing initialization callbacks consume once and roll back the losing account and session atomically
+  ---
+  duration_ms: 1.616274
+  type: 'test'
+  ...
+# Subtest: expired links and stale, disabled or mismatched proof cannot complete initialization
+ok 150 - expired links and stale, disabled or mismatched proof cannot complete initialization
+  ---
+  duration_ms: 5.905483
+  type: 'test'
+  ...
+# Subtest: single-use OTP is transaction bound, attempt limited and expires
+ok 151 - single-use OTP is transaction bound, attempt limited and expires
+  ---
+  duration_ms: 61.924632
+  type: 'test'
+  ...
+# Subtest: queue permits only authorize their current actor, session, agent and computer binding
+ok 152 - queue permits only authorize their current actor, session, agent and computer binding
+  ---
+  duration_ms: 176.43132
+  type: 'test'
+  ...
+# Subtest: matching email does not merge accounts; explicit linking requires fresh proof and uniqueness
+ok 153 - matching email does not merge accounts; explicit linking requires fresh proof and uniqueness
+  ---
+  duration_ms: 74.389777
+  type: 'test'
+  ...
+# Subtest: refresh reuse revokes one installation; refresh preserves provider authentication age
+ok 154 - refresh reuse revokes one installation; refresh preserves provider authentication age
+  ---
+  duration_ms: 77.375471
+  type: 'test'
+  ...
+# Subtest: signed tokens bind issuer, type and exactly one hub audience
+ok 155 - signed tokens bind issuer, type and exactly one hub audience
+  ---
+  duration_ms: 102.19516
+  type: 'test'
+  ...
+# Subtest: login requirement challenges linked personal context and accepts only verified required organization
+ok 156 - login requirement challenges linked personal context and accepts only verified required organization
+  ---
+  duration_ms: 85.095117
+  type: 'test'
+  ...
+# Subtest: pairing is single-use; transfer fences old credentials and drops old grants and catalog by explicit choice
+ok 157 - pairing is single-use; transfer fences old credentials and drops old grants and catalog by explicit choice
+  ---
+  duration_ms: 75.693203
+  type: 'test'
+  ...
+# Subtest: independent hub servers reject each other’s tokens and fail closed when identity goes offline
+ok 158 - independent hub servers reject each other’s tokens and fail closed when identity goes offline
+  ---
+  duration_ms: 303.266117
+  type: 'test'
+  ...
+# Subtest: authorization code validates exact redirect and PKCE and cannot be redeemed twice
+ok 159 - authorization code validates exact redirect and PKCE and cannot be redeemed twice
+  ---
+  duration_ms: 77.803916
+  type: 'test'
+  ...
+# Subtest: local import and computer-wide files/settings require the computer owner, and import is idempotent
+ok 160 - local import and computer-wide files/settings require the computer owner, and import is idempotent
+  ---
+  duration_ms: 151.065983
+  type: 'test'
+  ...
+# Subtest: provider account linking fails without an existing authenticated browser
+ok 161 - provider account linking fails without an existing authenticated browser
+  ---
+  duration_ms: 49.080636
+  type: 'test'
+  ...
+# Subtest: transfer to a differently owned hub requires scoped single-use owner admission and fences old access
+ok 162 - transfer to a differently owned hub requires scoped single-use owner admission and fences old access
+  ---
+  duration_ms: 151.127415
+  type: 'test'
+  ...
+# Subtest: workspace grants are separate from agent roles and end on revocation, ownership or binding changes
+ok 163 - workspace grants are separate from agent roles and end on revocation, ownership or binding changes
+  ---
+  duration_ms: 154.739263
+  type: 'test'
+  ...
+# Subtest: account agent directory spans authorized hubs, omits restricted agents and updates after revocation
+ok 164 - account agent directory spans authorized hubs, omits restricted agents and updates after revocation
+  ---
+  duration_ms: 153.013548
+  type: 'test'
+  ...
+# Subtest: settings Computer creation requires the hub owner and returns only one-time enrollment
+ok 165 - settings Computer creation requires the hub owner and returns only one-time enrollment
+  ---
+  duration_ms: 120.456094
+  type: 'test'
+  ...
+# Subtest: independent hub Google/Feishu Computer invitations flow through the public API without linking email
+ok 166 - independent hub Google/Feishu Computer invitations flow through the public API without linking email
+  ---
+  duration_ms: 438.907102
+  type: 'test'
+  ...
+# Subtest: selective agent shares enforce creation, queue, push and live-stream revocation
+ok 167 - selective agent shares enforce creation, queue, push and live-stream revocation
+  ---
+  duration_ms: 2221.298534
+  type: 'test'
+  ...
+# Subtest: agent creation forwards runtime selections and preserves write/capability boundaries
+ok 168 - agent creation forwards runtime selections and preserves write/capability boundaries
+  ---
+  duration_ms: 249.394521
+  type: 'test'
+  ...
+# Subtest: independent hubs authenticate, authorize and revoke without any remote authority
+ok 169 - independent hubs authenticate, authorize and revoke without any remote authority
+  ---
+  duration_ms: 219.257216
+  type: 'test'
+  ...
+# Subtest: hub-local PKCE login issues client credentials and rejects replay and unregistered clients
+ok 170 - hub-local PKCE login issues client credentials and rejects replay and unregistered clients
+  ---
+  duration_ms: 143.509996
+  type: 'test'
+  ...
+# Subtest: provider claims do not merge owners by email; explicit proof links identities locally
+ok 171 - provider claims do not merge owners by email; explicit proof links identities locally
+  ---
+  duration_ms: 102.737547
+  type: 'test'
+  ...
+# Subtest: a newcomer can accept hub and computer invitations without an existing hub grant
+ok 172 - a newcomer can accept hub and computer invitations without an existing hub grant
+  ---
+  duration_ms: 192.470871
+  type: 'test'
+  ...
+# Subtest: migration isolates hub state while retaining live Computer and agent bindings
+ok 173 - migration isolates hub state while retaining live Computer and agent bindings
+  ---
+  duration_ms: 108.860024
+  type: 'test'
+  ...
+# Subtest: private providers cross both creation APIs without being stored in agent records
+ok 174 - private providers cross both creation APIs without being stored in agent records
+  ---
+  duration_ms: 215.813051
+  type: 'test'
+  ...
+# Subtest: write-allowlisted Members read launch configuration and create explicit agents without local import or history authority
+ok 175 - write-allowlisted Members read launch configuration and create explicit agents without local import or history authority
+  ---
+  duration_ms: 194.363867
+  type: 'test'
+  ...
+# Subtest: saved-session candidates require Computer ownership and recheck it after dispatch
+ok 176 - saved-session candidates require Computer ownership and recheck it after dispatch
+  ---
+  duration_ms: 119.96707
+  type: 'test'
+  ...
+# Subtest: independent transfer retries a lost detach reply without dual binding or repeated admission
+ok 177 - independent transfer retries a lost detach reply without dual binding or repeated admission
+  ---
+  duration_ms: 555.133586
+  type: 'test'
+  ...
+# Subtest: independent transfer retries a lost redeem-transfer reply without dual binding or repeated admission
+ok 178 - independent transfer retries a lost redeem-transfer reply without dual binding or repeated admission
+  ---
+  duration_ms: 264.602341
+  type: 'test'
+  ...
+# Subtest: destination admission validation fails before revoking source, and service lock blocks a transfer
+ok 179 - destination admission validation fails before revoking source, and service lock blocks a transfer
+  ---
+  duration_ms: 248.417934
+  type: 'test'
+  ...
+# Subtest: a lost source receipt remains recoverable after destination admission renewal
+ok 180 - a lost source receipt remains recoverable after destination admission renewal
+  ---
+  duration_ms: 252.192712
+  type: 'test'
+  ...
+# Subtest: Owner creates shareable link before recipient exists; public preview and explicit provider acceptance grant only Member once
+ok 181 - Owner creates shareable link before recipient exists; public preview and explicit provider acceptance grant only Member once
+  ---
+  duration_ms: 406.680954
+  type: 'test'
+  ...
+# Subtest: Invitation creation is bounded per issuer and retains accepted token fences after reload
+ok 182 - Invitation creation is bounded per issuer and retains accepted token fences after reload
+  ---
+  duration_ms: 123.603039
+  type: 'test'
+  ...
+# Subtest: Admin may create and revoke Member links; revocation and changed issuer authority fence acceptance
+ok 183 - Admin may create and revoke Member links; revocation and changed issuer authority fence acceptance
+  ---
+  duration_ms: 156.016598
+  type: 'test'
+  ...
+# Subtest: Acceptance enforces allowed provider and bound Feishu organization without spending the link
+ok 184 - Acceptance enforces allowed provider and bound Feishu organization without spending the link
+  ---
+  duration_ms: 131.942024
+  type: 'test'
+  ...
+# Subtest: Links expire precisely, survive reload, keep existing roles, and cap active creation
+ok 185 - Links expire precisely, survive reload, keep existing roles, and cap active creation
+  ---
+  duration_ms: 196.068862
+  type: 'test'
+  ...
+# Subtest: phone invitation requires the current verified phone and remains single-use
+ok 186 - phone invitation requires the current verified phone and remains single-use
+  ---
+  duration_ms: 6.144055
+  type: 'test'
+  ...
+# Subtest: google invitations bind connection, subject, tenant and method
+ok 187 - google invitations bind connection, subject, tenant and method
+  ---
+  duration_ms: 1.6137
+  type: 'test'
+  ...
+# Subtest: feishu invitations bind connection, subject, tenant and method
+ok 188 - feishu invitations bind connection, subject, tenant and method
+  ---
+  duration_ms: 0.880401
+  type: 'test'
+  ...
+# Subtest: wechat invitations bind connection, subject, tenant and method
+ok 189 - wechat invitations bind connection, subject, tenant and method
+  ---
+  duration_ms: 2.726649
+  type: 'test'
+  ...
+# Subtest: oidc invitations bind connection, subject, tenant and method
+ok 190 - oidc invitations bind connection, subject, tenant and method
+  ---
+  duration_ms: 0.825169
+  type: 'test'
+  ...
+# Subtest: phone/provider invites preserve expiry and ownership revision checks
+ok 191 - phone/provider invites preserve expiry and ownership revision checks
+  ---
+  duration_ms: 1.383964
+  type: 'test'
+  ...
+# Subtest: new recipient records and legacy email-only invitations survive schema reload
+ok 192 - new recipient records and legacy email-only invitations survive schema reload
+  ---
+  duration_ms: 9.99441
+  type: 'test'
+  ...
+# Subtest: invitation requests reject ambiguous targets, unknown fields and invalid international numbers
+ok 193 - invitation requests reject ambiguous targets, unknown fields and invalid international numbers
+  ---
+  duration_ms: 2.872427
+  type: 'test'
+  ...
+# Subtest: different organizations keep distinct accounts and refreshed email claims replace obsolete invitation proofs
+ok 194 - different organizations keep distinct accounts and refreshed email claims replace obsolete invitation proofs
+  ---
+  duration_ms: 14.361144
+  type: 'test'
+  ...
+# Subtest: native downloads larger than the upload limit stream intact with bounded buffers, ranges and cancellation
+ok 195 - native downloads larger than the upload limit stream intact with bounded buffers, ranges and cancellation
+  ---
+  duration_ms: 3522.964734
+  type: 'test'
+  ...
+# Subtest: absent configuration has no invented provider, model, auth or backend selection
+ok 196 - absent configuration has no invented provider, model, auth or backend selection
+  ---
+  duration_ms: 17.09627
+  type: 'test'
+  ...
+# Subtest: Pi exposes exact dynamic provider identities, configured model and off thinking without secrets
+ok 197 - Pi exposes exact dynamic provider identities, configured model and off thinking without secrets
+  ---
+  duration_ms: 6.810197
+  type: 'test'
+  ...
+# Subtest: Pi workspace selection and model-specific thinking override global settings
+ok 198 - Pi workspace selection and model-specific thinking override global settings
+  ---
+  duration_ms: 6.30505
+  type: 'test'
+  ...
+# Subtest: Codex reads active profile scalars and does not confuse nested keys or multiline strings with root settings
+ok 199 - Codex reads active profile scalars and does not confuse nested keys or multiline strings with root settings
+  ---
+  duration_ms: 5.803216
+  type: 'test'
+  ...
+# Subtest: Codex exposes known authentication and its cached model capabilities only for OpenAI
+ok 200 - Codex exposes known authentication and its cached model capabilities only for OpenAI
+  ---
+  duration_ms: 6.837547
+  type: 'test'
+  ...
+# Subtest: Claude resolves configured endpoint identity, nested env sources and model without exposing keys
+ok 201 - Claude resolves configured endpoint identity, nested env sources and model without exposing keys
+  ---
+  duration_ms: 5.153075
+  type: 'test'
+  ...
+# Subtest: installed pi launch survives Computer SIGKILL at before-dispatch without replay
+ok 202 - installed pi launch survives Computer SIGKILL at before-dispatch without replay
+  ---
+  duration_ms: 357.691741
+  type: 'test'
+  ...
+# Subtest: installed pi launch survives Computer SIGKILL at before-receipt without replay
+ok 203 - installed pi launch survives Computer SIGKILL at before-receipt without replay
+  ---
+  duration_ms: 1782.960291
+  type: 'test'
+  ...
+# Subtest: installed pi launch survives Computer SIGKILL at after-receipt without replay
+ok 204 - installed pi launch survives Computer SIGKILL at after-receipt without replay
+  ---
+  duration_ms: 1669.965021
+  type: 'test'
+  ...
+# Subtest: installed codex launch survives Computer SIGKILL at before-dispatch without replay
+ok 205 - installed codex launch survives Computer SIGKILL at before-dispatch without replay
+  ---
+  duration_ms: 256.57707
+  type: 'test'
+  ...
+# Subtest: installed codex launch survives Computer SIGKILL at before-receipt without replay
+ok 206 - installed codex launch survives Computer SIGKILL at before-receipt without replay
+  ---
+  duration_ms: 1415.096086
+  type: 'test'
+  ...
+# Subtest: installed codex launch survives Computer SIGKILL at after-receipt without replay
+ok 207 - installed codex launch survives Computer SIGKILL at after-receipt without replay
+  ---
+  duration_ms: 1140.189374
+  type: 'test'
+  ...
+# Subtest: installed Claude launch survives Computer SIGKILL at before-dispatch without replay
+ok 208 - installed Claude launch survives Computer SIGKILL at before-dispatch without replay
+  ---
+  duration_ms: 231.330173
+  type: 'test'
+  ...
+# Subtest: installed Claude launch survives Computer SIGKILL at before-receipt without replay
+ok 209 - installed Claude launch survives Computer SIGKILL at before-receipt without replay
+  ---
+  duration_ms: 1398.422077
+  type: 'test'
+  ...
+# Subtest: installed Claude launch survives Computer SIGKILL at after-receipt without replay
+ok 210 - installed Claude launch survives Computer SIGKILL at after-receipt without replay
+  ---
+  duration_ms: 1127.552562
+  type: 'test'
+  ...
+# Subtest: launch receipts survive lost replies/restart, reject duplicates, and stay within their attachment
+ok 211 - launch receipts survive lost replies/restart, reject duplicates, and stay within their attachment
+  ---
+  duration_ms: 26.044443
+  type: 'test'
+  ...
+# Subtest: uncertain and concurrent launches are never automatically retried, including prototype-like IDs
+ok 212 - uncertain and concurrent launches are never automatically retried, including prototype-like IDs
+  ---
+  duration_ms: 0.927949
+  type: 'test'
+  ...
+# Subtest: opaque durable receipts map to stable distinct OAR UUIDs
+ok 213 - opaque durable receipts map to stable distinct OAR UUIDs
+  ---
+  duration_ms: 1.234575
+  type: 'test'
+  ...
+# Subtest: Pi explicit models inherit the configured provider, including cold reopen
+ok 214 - Pi explicit models inherit the configured provider, including cold reopen
+  ---
+  duration_ms: 80.924246
+  type: 'test'
+  ...
+# Subtest: Pi bare models without a configured provider produce an actionable setup error
+ok 215 - Pi bare models without a configured provider produce an actionable setup error
+  ---
+  duration_ms: 5.495007
+  type: 'test'
+  ...
+# Subtest: managed Pi retains native settings in an isolated profile without delegation
+ok 216 - managed Pi retains native settings in an isolated profile without delegation
+  ---
+  duration_ms: 9.789416
+  type: 'test'
+  ...
+# Subtest: managed OAR executable pins honor native CLI configuration
+ok 217 - managed OAR executable pins honor native CLI configuration
+  ---
+  duration_ms: 6.441157
+  type: 'test'
+  ...
+# Subtest: explicit managed provider and authentication selections must match saved runtime configuration
+ok 218 - explicit managed provider and authentication selections must match saved runtime configuration
+  ---
+  duration_ms: 17.552864
+  type: 'test'
+  ...
+# Subtest: private Pi delegation extension loads from its installed entry
+ok 219 - private Pi delegation extension loads from its installed entry
+  ---
+  duration_ms: 29.9705
+  type: 'test'
+  ...
+# Subtest: Pi private providers have separate homes and survive cold reopen without duplicating provider prefixes
+ok 220 - Pi private providers have separate homes and survive cold reopen without duplicating provider prefixes
+  ---
+  duration_ms: 17.953598
+  type: 'test'
+  ...
+# Subtest: Codex private endpoint has an isolated config with an environment key reference
+ok 221 - Codex private endpoint has an isolated config with an environment key reference
+  ---
+  duration_ms: 6.736804
+  type: 'test'
+  ...
+# Subtest: managed profiles refuse policy-changing environment and unsupported launch options
+ok 222 - managed profiles refuse policy-changing environment and unsupported launch options
+  ---
+  duration_ms: 7.769146
+  type: 'test'
+  ...
+# Subtest: managed unattended mode persists settings, respects cooldown and queue, spends a bounded budget and stops after interruption
+ok 223 - managed unattended mode persists settings, respects cooldown and queue, spends a bounded budget and stops after interruption
+  ---
+  duration_ms: 249.039502
+  type: 'test'
+  ...
+# Subtest: uncertain unattended dispatch remains disabled and review fenced after restart without replay
+ok 224 - uncertain unattended dispatch remains disabled and review fenced after restart without replay
+  ---
+  duration_ms: 181.814524
+  type: 'test'
+  ...
+# Subtest: managed state home cannot depend on the invoking working directory
+ok 225 - managed state home cannot depend on the invoking working directory
+  ---
+  duration_ms: 0.323297
+  type: 'test'
+  ...
+# Subtest: pi idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+ok 226 - pi idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+  ---
+  duration_ms: 208.443844
+  type: 'test'
+  ...
+# Subtest: codex idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+ok 227 - codex idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+  ---
+  duration_ms: 216.635178
+  type: 'test'
+  ...
+# Subtest: cc idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+ok 228 - cc idle settings reopen the same native conversation, reject busy changes and retain prior configuration on refusal
+  ---
+  duration_ms: 239.077237
+  type: 'test'
+  ...
+# Subtest: managed HTTP attachments are actor scoped and delivered once as native images and accessible file references
+ok 229 - managed HTTP attachments are actor scoped and delivered once as native images and accessible file references
+  ---
+  duration_ms: 545.46631
+  type: 'test'
+  ...
+# Subtest: another actor's staged files cannot block authorized queued or unattended work and own staging stays protected
+ok 230 - another actor's staged files cannot block authorized queued or unattended work and own staging stays protected
+  ---
+  duration_ms: 222.400035
+  type: 'test'
+  ...
+# Subtest: settings refusal preserves runtime review state raised during cold initialization
+ok 231 - settings refusal preserves runtime review state raised during cold initialization
+  ---
+  duration_ms: 168.672949
+  type: 'test'
+  ...
+# Subtest: managed sidebar edits survive restart and deleting one conversation disposes only its owned worker
+ok 232 - managed sidebar edits survive restart and deleting one conversation disposes only its owned worker
+  ---
+  duration_ms: 185.807812
+  type: 'test'
+  ...
+# Subtest: archived saved transcripts retain one binding across catalogue, state and tail after restart
+ok 233 - archived saved transcripts retain one binding across catalogue, state and tail after restart
+  ---
+  duration_ms: 206.921223
+  type: 'test'
+  ...
+# Subtest: managed conversation survives quiescence/restart with native identity and a fresh stream
+ok 234 - managed conversation survives quiescence/restart with native identity and a fresh stream
+  ---
+  duration_ms: 170.611844
+  type: 'test'
+  ...
+# Subtest: uncertain submission is durable and duplicate request or new input never replays it
+ok 235 - uncertain submission is durable and duplicate request or new input never replays it
+  ---
+  duration_ms: 110.957121
+  type: 'test'
+  ...
+# Subtest: durable request receipt deduplicates accepted input while native completion stays distinct
+ok 236 - durable request receipt deduplicates accepted input while native completion stays distinct
+  ---
+  duration_ms: 128.84125
+  type: 'test'
+  ...
+# Subtest: admission refuses a third running worker and releases an idle worker for later creation
+ok 237 - admission refuses a third running worker and releases an idle worker for later creation
+  ---
+  duration_ms: 204.68928
+  type: 'test'
+  ...
+# Subtest: runtime approval requests stop execution with attention instead of automatic approval
+ok 238 - runtime approval requests stop execution with attention instead of automatic approval
+  ---
+  duration_ms: 101.111468
+  type: 'test'
+  ...
+# Subtest: event quota stops the owned worker and retains an explicit evidence gap
+ok 239 - event quota stops the owned worker and retains an explicit evidence gap
+  ---
+  duration_ms: 112.258884
+  type: 'test'
+  ...
+# Subtest: launch secrets are passed to the driver but never stored in managed SQLite metadata
+ok 240 - launch secrets are passed to the driver but never stored in managed SQLite metadata
+  ---
+  duration_ms: 98.141159
+  type: 'test'
+  ...
+# Subtest: live transcript cursor changes for deltas updating an existing assistant message
+ok 241 - live transcript cursor changes for deltas updating an existing assistant message
+  ---
+  duration_ms: 120.190021
+  type: 'test'
+  ...
+# Subtest: managed saved transcript search is literal, case insensitive, paginated and opens matching windows without a worker
+ok 242 - managed saved transcript search is literal, case insensitive, paginated and opens matching windows without a worker
+  ---
+  duration_ms: 167.700189
+  type: 'test'
+  ...
+# Subtest: an empty evicted Pi conversation opens fresh rather than resuming an unwritten native file
+ok 243 - an empty evicted Pi conversation opens fresh rather than resuming an unwritten native file
+  ---
+  duration_ms: 127.881132
+  type: 'test'
+  ...
+# Subtest: owned worker death after acceptance marks an unknown outcome and blocks fresh input
+ok 244 - owned worker death after acceptance marks an unknown outcome and blocks fresh input
+  ---
+  duration_ms: 111.78112
+  type: 'test'
+  ...
+# Subtest: idle cleanup rechecks lifecycle after queued prompt admission and preserves active work
+ok 245 - idle cleanup rechecks lifecycle after queued prompt admission and preserves active work
+  ---
+  duration_ms: 102.007923
+  type: 'test'
+  ...
+# Subtest: managed worker uses the injected package from an unrelated workspace
+ok 246 - managed worker uses the injected package from an unrelated workspace
+  ---
+  duration_ms: 197.845502
+  type: 'test'
+  ...
+# Subtest: Computer loader rejects a changed OAR pin before evaluating that runtime
+ok 247 - Computer loader rejects a changed OAR pin before evaluating that runtime
+  ---
+  duration_ms: 10.680656
+  type: 'test'
+  ...
+# Subtest: managed factory refuses relative loader injection
+ok 248 - managed factory refuses relative loader injection
+  ---
+  duration_ms: 0.38948
+  type: 'test'
+  ...
+# Subtest: native presenter completes exact per-Hub system-browser callbacks, cancel/restart and two-account selection with actual independent OAuth
+ok 249 - native presenter completes exact per-Hub system-browser callbacks, cancel/restart and two-account selection with actual independent OAuth
+  ---
+  duration_ms: 729.617517
+  type: 'test'
+  ...
+# Subtest: delivered native account presenter restores the collection and Computer choices and clears presentation on device lock
+ok 250 - delivered native account presenter restores the collection and Computer choices and clears presentation on device lock
+  ---
+  duration_ms: 311.901849
+  type: 'test'
+  ...
+# Subtest: delivered native project has no missing or outside-project imports
+ok 251 - delivered native project has no missing or outside-project imports
+  ---
+  duration_ms: 98.804223
+  type: 'test'
+  ...
+# Subtest: delivered native ApiClient refreshes scoped credentials before invocation and fences a switched account before any mutation
+ok 252 - delivered native ApiClient refreshes scoped credentials before invocation and fences a switched account before any mutation
+  ---
+  duration_ms: 301.786646
+  type: 'test'
+  ...
+# Subtest: OS secure vault locks preserve credentials; rotation is serialized per account and a lost result requires new login
+ok 253 - OS secure vault locks preserve credentials; rotation is serialized per account and a lost result requires new login
+  ---
+  duration_ms: 281.563242
+  type: 'test'
+  ...
+# Subtest: native registration collection refreshes both independent Hubs and removing one account preserves the other installation subscription
+ok 254 - native registration collection refreshes both independent Hubs and removing one account preserves the other installation subscription
+  ---
+  duration_ms: 340.23661
+  type: 'test'
+  ...
+# Subtest: Native file reads and compare-and-save preserve bytes and reject stale versions
+ok 255 - Native file reads and compare-and-save preserve bytes and reject stale versions
+  ---
+  duration_ms: 31.282464
+  type: 'test'
+  ...
+# Subtest: Workspace grants reject symlink traversal, writes without write grants, mismatched sessions and repository history
+ok 256 - Workspace grants reject symlink traversal, writes without write grants, mismatched sessions and repository history
+  ---
+  duration_ms: 27.215596
+  type: 'test'
+  ...
+# Subtest: Downloads stream ranges with byte-identical content and conditional responses
+ok 257 - Downloads stream ranges with byte-identical content and conditional responses
+  ---
+  duration_ms: 5.269947
+  type: 'test'
+  ...
+# Subtest: Owner Git changed files, diff and versions use native Git while grants deny history
+ok 258 - Owner Git changed files, diff and versions use native Git while grants deny history
+  ---
+  duration_ms: 69.747485
+  type: 'test'
+  ...
+# Subtest: Voice settings redact secrets and preserve existing keys when a blank key is posted
+ok 259 - Voice settings redact secrets and preserve existing keys when a blank key is posted
+  ---
+  duration_ms: 6.285755
+  type: 'test'
+  ...
+# Subtest: Raw byte filenames roundtrip through tokens without changing their bytes
+ok 260 - Raw byte filenames roundtrip through tokens without changing their bytes
+  ---
+  duration_ms: 9.43596
+  type: 'test'
+  ...
+# Subtest: Git changed-file identities use repository root when the session cwd is nested
+ok 261 - Git changed-file identities use repository root when the session cwd is nested
+  ---
+  duration_ms: 58.503841
+  type: 'test'
+  ...
+# Subtest: UTF-8 replacement views remain readable but cannot overwrite undecodable originals
+ok 262 - UTF-8 replacement views remain readable but cannot overwrite undecodable originals
+  ---
+  duration_ms: 4.600086
+  type: 'test'
+  ...
+# hint: Using 'master' as the name for the initial branch. This default branch name
+# hint: is subject to change. To configure the initial branch name to use in all
+# hint: of your new repositories, which will suppress this warning, call:
+# hint:
+# hint: \\tgit config --global init.defaultBranch <name>
+# hint:
+# hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+# hint: 'development'. The just-created branch can be renamed via this command:
+# hint:
+# hint: \\tgit branch -m <name>
+# Subtest: Owner Git preserves raw filename tokens across status, versions and diff
+ok 263 - Owner Git preserves raw filename tokens across status, versions and diff
+  ---
+  duration_ms: 76.743307
+  type: 'test'
+  ...
+# Subtest: Directory suggestions honor prefixes and unattended prompt reset restores the default
+ok 264 - Directory suggestions honor prefixes and unattended prompt reset restores the default
+  ---
+  duration_ms: 8.663226
+  type: 'test'
+  ...
+# Subtest: Notification feed, text and state resolve the matching native completion
+ok 265 - Notification feed, text and state resolve the matching native completion
+  ---
+  duration_ms: 3.020197
+  type: 'test'
+  ...
+# Subtest: JSON attachments stage byte-identical private files and reject invalid payloads
+ok 266 - JSON attachments stage byte-identical private files and reject invalid payloads
+  ---
+  duration_ms: 4.921229
+  type: 'test'
+  ...
+# Subtest: Secure file platform gate reports unsupported hosts explicitly
+ok 267 - Secure file platform gate reports unsupported hosts explicitly
+  ---
+  duration_ms: 0.594573
+  type: 'test'
+  ...
+# Subtest: Non-repository Git feedback identifies the reason used by the file menu
+ok 268 - Non-repository Git feedback identifies the reason used by the file menu
+  ---
+  duration_ms: 5.406
+  type: 'test'
+  ...
+# Subtest: Unsupported-platform file requests return actionable 501 rather than missing-file errors
+ok 269 - Unsupported-platform file requests return actionable 501 rather than missing-file errors
+  ---
+  duration_ms: 3.400642
+  type: 'test'
+  ...
+# Subtest: Git text versions reject binary working files without returning lossy content
+ok 270 - Git text versions reject binary working files without returning lossy content
+  ---
+  duration_ms: 25.50083
+  type: 'test'
+  ...
+# Subtest: Native PTY file and image uploads retain browser staging metadata across acknowledgement, list and delete
+ok 271 - Native PTY file and image uploads retain browser staging metadata across acknowledgement, list and delete
+  ---
+  duration_ms: 339.661278
+  type: 'test'
+  ...
+# Subtest: Native image dimensions and original video routes retain file metadata
+ok 272 - Native image dimensions and original video routes retain file metadata
+  ---
+  duration_ms: 351.858457
+  type: 'test'
+  ...
+# Subtest: Native configured TTS produces actual HLS segments or reports the missing external encoder
+ok 273 - Native configured TTS produces actual HLS segments or reports the missing external encoder
+  ---
+  duration_ms: 1311.228531
+  type: 'test'
+  ...
+# Subtest: Voice requires an active listener and uses the configured narration summarization and speech models
+ok 274 - Voice requires an active listener and uses the configured narration summarization and speech models
+  ---
+  duration_ms: 3212.74001
+  type: 'test'
+  ...
+# Subtest: Voice settings reject non-boolean toggles and mask fixture secrets after blank-key saves
+ok 275 - Voice settings reject non-boolean toggles and mask fixture secrets after blank-key saves
+  ---
+  duration_ms: 8.734583
+  type: 'test'
+  ...
+# Subtest: Disabling the final listener aborts pending speech without publishing stale audio
+ok 276 - Disabling the final listener aborts pending speech without publishing stale audio
+  ---
+  duration_ms: 1060.142758
+  type: 'test'
+  ...
+# Subtest: Disabling the final listener aborts pending summary without publishing stale audio
+ok 277 - Disabling the final listener aborts pending summary without publishing stale audio
+  ---
+  duration_ms: 1060.56146
+  type: 'test'
+  ...
+# Subtest: Pi bootstrap headers and stale markers cannot admit a direct or queued prompt before submission is enabled
+ok 278 - Pi bootstrap headers and stale markers cannot admit a direct or queued prompt before submission is enabled
+  ---
+  duration_ms: 4316.729441
+  type: 'test'
+  ...
+# Subtest: native unified queue preserves one local/remote order through authorization outage and restart
+ok 279 - native unified queue preserves one local/remote order through authorization outage and restart
+  ---
+  duration_ms: 1870.883404
+  type: 'test'
+  ...
+# Subtest: terminal edit during remote authorization rejects the stale dispatch and stale browser version
+ok 280 - terminal edit during remote authorization rejects the stale dispatch and stale browser version
+  ---
+  duration_ms: 783.099094
+  type: 'test'
+  ...
+# Subtest: historical pending and uncertain queues migrate by stable ID and retain old-binding barriers
+ok 281 - historical pending and uncertain queues migrate by stable ID and retain old-binding barriers
+  ---
+  duration_ms: 377.928192
+  type: 'test'
+  ...
+# Subtest: real foreground PTY exposes local and remote queue list/edit/move/delete and detaches without terminating the broker
+ok 282 - real foreground PTY exposes local and remote queue list/edit/move/delete and detaches without terminating the broker
+  ---
+  duration_ms: 1056.892823
+  type: 'test'
+  ...
+# Subtest: hard broker death after paste persists a non-replayable queue barrier
+ok 283 - hard broker death after paste persists a non-replayable queue barrier
+  ---
+  duration_ms: 367.970809
+  type: 'test'
+  ...
+# Subtest: broker attachment ownership, changed grants and send receipts remain isolated across actors
+ok 284 - broker attachment ownership, changed grants and send receipts remain isolated across actors
+  ---
+  duration_ms: 830.445951
+  type: 'test'
+  ...
+# Subtest: failed durable queue writes roll back edits and keep post-dispatch uncertainty blocking
+ok 285 - failed durable queue writes roll back edits and keep post-dispatch uncertainty blocking
+  ---
+  duration_ms: 1.299136
+  type: 'test'
+  ...
+# Subtest: native state home cannot depend on the invoking working directory
+ok 286 - native state home cannot depend on the invoking working directory
+  ---
+  duration_ms: 1.624218
+  type: 'test'
+  ...
+# Subtest: native model processes receive provider credentials without Computer service configuration
+ok 287 - native model processes receive provider credentials without Computer service configuration
+  ---
+  duration_ms: 1.388865
+  type: 'test'
+  ...
+# Subtest: unattended hard death spends its durable budget, blocks replay and requires transcript review
+ok 288 - unattended hard death spends its durable budget, blocks replay and requires transcript review
+  ---
+  duration_ms: 2557.172895
+  type: 'test'
+  ...
+# Subtest: native unattended waits for final-turn idle cooldown and injects an optional-request prompt once
+ok 289 - native unattended waits for final-turn idle cooldown and injects an optional-request prompt once
+  ---
+  duration_ms: 2353.264703
+  type: 'test'
+  ...
+# Subtest: detached native PTY survives runtime close/reopen, sends once and resumes native history
+ok 290 - detached native PTY survives runtime close/reopen, sends once and resumes native history
+  ---
+  duration_ms: 1379.612652
+  type: 'test'
+  ...
+# Subtest: native launch rejects invalid paths/resume and reserved environment before dispatch
+ok 291 - native launch rejects invalid paths/resume and reserved environment before dispatch
+  ---
+  duration_ms: 6.044393
+  type: 'test'
+  ...
+# Subtest: provider routing is child-local and Claude setup fails before dispatch
+ok 292 - provider routing is child-local and Claude setup fails before dispatch
+  ---
+  duration_ms: 6.217893
+  type: 'test'
+  ...
+# Subtest: native transcript parser preserves tools/narration and final completion distinction
+ok 293 - native transcript parser preserves tools/narration and final completion distinction
+  ---
+  duration_ms: 2.504012
+  type: 'test'
+  ...
+# Subtest: two PTYs in the same directory bind only their own descriptors and live cursors do not replay
+ok 294 - two PTYs in the same directory bind only their own descriptors and live cursors do not replay
+  ---
+  duration_ms: 1462.376327
+  type: 'test'
+  ...
+# Subtest: long Computer state paths use private sockets and terminal attach/detach leaves PTY alive
+ok 295 - long Computer state paths use private sockets and terminal attach/detach leaves PTY alive
+  ---
+  duration_ms: 841.612482
+  type: 'test'
+  ...
+# Subtest: Claude binds its predetermined session UUID after native log file descriptors close
+ok 296 - Claude binds its predetermined session UUID after native log file descriptors close
+  ---
+  duration_ms: 813.175741
+  type: 'test'
+  ...
+# Subtest: Codex native 0.160 editor is recognized after permissions are initialized
+ok 297 - Codex native 0.160 editor is recognized after permissions are initialized
+  ---
+  duration_ms: 0.423889
+  type: 'test'
+  ...
+# Subtest: a delayed native Codex resume trust frame blocks first use and never accepts trust
+ok 298 - a delayed native Codex resume trust frame blocks first use and never accepts trust
+  ---
+  duration_ms: 566.873491
+  type: 'test'
+  ...
+# Subtest: a delayed native Codex new-session trust frame blocks first use and never accepts trust
+ok 299 - a delayed native Codex new-session trust frame blocks first use and never accepts trust
+  ---
+  duration_ms: 594.158436
+  type: 'test'
+  ...
+# Subtest: ordinary native output quoting the trust UI does not demote a ready Codex session
+ok 300 - ordinary native output quoting the trust UI does not demote a ready Codex session
+  ---
+  duration_ms: 757.748824
+  type: 'test'
+  ...
+# Subtest: Claude background Agent remains running until its producer task notification
+ok 301 - Claude background Agent remains running until its producer task notification
+  ---
+  duration_ms: 2.684847
+  type: 'test'
+  ...
+# Subtest: Codex live reasoning usage delta follows only new native producer rows
+ok 302 - Codex live reasoning usage delta follows only new native producer rows
+  ---
+  duration_ms: 4.584058
+  type: 'test'
+  ...
+# Subtest: native file and image staging preserves browser attachment identity and actual size
+ok 303 - native file and image staging preserves browser attachment identity and actual size
+  ---
+  duration_ms: 250.691432
+  type: 'test'
+  ...
+# Subtest: native Escape interruption keeps busy until producer acknowledges aborted turn
+ok 304 - native Escape interruption keeps busy until producer acknowledges aborted turn
+  ---
+  duration_ms: 1777.054897
+  type: 'test'
+  ...
+# Subtest: terminal drafts fence idle-only sends until a new producer turn proves idle
+ok 305 - terminal drafts fence idle-only sends until a new producer turn proves idle
+  ---
+  duration_ms: 2837.232704
+  type: 'test'
+  ...
+# Subtest: send receipts await submission and deduplicate concurrent request IDs while serializing separate prompts
+ok 306 - send receipts await submission and deduplicate concurrent request IDs while serializing separate prompts
+  ---
+  duration_ms: 813.365188
+  type: 'test'
+  ...
+# Subtest: terminal input during queued paste returns uncertain without writing Enter
+ok 307 - terminal input during queued paste returns uncertain without writing Enter
+  ---
+  duration_ms: 395.758311
+  type: 'test'
+  ...
+# Subtest: interrupt during queued paste returns uncertain without writing Enter
+ok 308 - interrupt during queued paste returns uncertain without writing Enter
+  ---
+  duration_ms: 406.050528
+  type: 'test'
+  ...
+# Subtest: a previous completion cannot clear busy before the new producer user row arrives
+ok 309 - a previous completion cannot clear busy before the new producer user row arrives
+  ---
+  duration_ms: 2273.370487
+  type: 'test'
+  ...
+# Subtest: Claude interrupt waits for a fresh producer idle title and clears only its restored remote prompt
+ok 310 - Claude interrupt waits for a fresh producer idle title and clears only its restored remote prompt
+  ---
+  duration_ms: 1141.830872
+  type: 'test'
+  ...
+# Subtest: current Codex retained user messages render without environment or duplicate final replies
+ok 311 - current Codex retained user messages render without environment or duplicate final replies
+  ---
+  duration_ms: 1.823383
+  type: 'test'
+  ...
+# Subtest: native process death after paste and before Enter returns uncertain instead of an accepted receipt
+ok 312 - native process death after paste and before Enter returns uncertain instead of an accepted receipt
+  ---
+  duration_ms: 393.929091
+  type: 'test'
+  ...
+# Subtest: session metadata edits persist, project priority and never dispatch a conversation send
+ok 313 - session metadata edits persist, project priority and never dispatch a conversation send
+  ---
+  duration_ms: 47.38631
+  type: 'test'
+  ...
+# Subtest: unattended requires an idle final assistant turn and respects injection cooldown
+ok 314 - unattended requires an idle final assistant turn and respects injection cooldown
+  ---
+  duration_ms: 0.353687
+  type: 'test'
+  ...
+# Subtest: completion hints survive restart, deduplicate acknowledgements and stay within their attachment
+ok 315 - completion hints survive restart, deduplicate acknowledgements and stay within their attachment
+  ---
+  duration_ms: 58.346133
+  type: 'test'
+  ...
+# Subtest: durable hub inbox deduplicates reconnects and rechecks current rights before provider dispatch
+ok 316 - durable hub inbox deduplicates reconnects and rechecks current rights before provider dispatch
+  ---
+  duration_ms: 40.426243
+  type: 'test'
+  ...
+# Subtest: token changes during authorization are fenced; invalid tokens do not erase a replacement
+ok 317 - token changes during authorization are fenced; invalid tokens do not erase a replacement
+  ---
+  duration_ms: 1.478901
+  type: 'test'
+  ...
+# Subtest: Harmony provider signs its service account request and sends only scoped generic notification hints
+ok 318 - Harmony provider signs its service account request and sends only scoped generic notification hints
+  ---
+  duration_ms: 123.862482
+  type: 'test'
+  ...
+# Subtest: tunnel acknowledges only accepted hints and fences superseded connection epochs
+ok 319 - tunnel acknowledges only accepted hints and fences superseded connection epochs
+  ---
+  duration_ms: 181.29039
+  type: 'test'
+  ...
+# Subtest: ordinary Hub OAuth sessions refresh without device keys, retain proof age and revoke only the selected installation
+ok 320 - ordinary Hub OAuth sessions refresh without device keys, retain proof age and revoke only the selected installation
+  ---
+  duration_ms: 237.607225
+  type: 'test'
+  ...
+# Subtest: shared schemas preserve nested validation and original named components
+ok 321 - shared schemas preserve nested validation and original named components
+  ---
+  duration_ms: 11.974692
+  type: 'test'
+  ...
+# Subtest: schema collection keeps property maps and data annotations inline
+ok 322 - schema collection keeps property maps and data annotations inline
+  ---
+  duration_ms: 0.5648
+  type: 'test'
+  ...
+# Subtest: component resolution decodes pointers and rejects broken or recursive references
+ok 323 - component resolution decodes pointers and rejects broken or recursive references
+  ---
+  duration_ms: 0.313566
+  type: 'test'
+  ...
+# Subtest: 8-character pairing codes last exactly 15 minutes, normalize typing and remain single-use
+ok 324 - 8-character pairing codes last exactly 15 minutes, normalize typing and remain single-use
+  ---
+  duration_ms: 107.042978
+  type: 'test'
+  ...
+# Subtest: renewal invalidates earlier codes and long tokens issued before upgrade remain redeemable
+ok 325 - renewal invalidates earlier codes and long tokens issued before upgrade remain redeemable
+  ---
+  duration_ms: 85.838308
+  type: 'test'
+  ...
+# Subtest: public redemption accepts short codes and rate-limits guesses
+ok 326 - public redemption accepts short codes and rate-limits guesses
+  ---
+  duration_ms: 245.465761
+  type: 'test'
+  ...
+# Subtest: independent Hub administrative and account responses conform to exact registered success contracts
+ok 327 - independent Hub administrative and account responses conform to exact registered success contracts
+  ---
+  duration_ms: 707.282574
+  type: 'test'
+  ...
+# Subtest: all authority dispatcher operations have their own argument and actual unwrapped response schema
+ok 328 - all authority dispatcher operations have their own argument and actual unwrapped response schema
+  ---
+  duration_ms: 676.522125
+  type: 'test'
+  ...
+# Subtest: shared-authority compatibility publishes precise registration, admission, account directory and transfer receipts
+ok 329 - shared-authority compatibility publishes precise registration, admission, account directory and transfer receipts
+  ---
+  duration_ms: 240.875283
+  type: 'test'
+  ...
+# Subtest: account and authorization schemas reject missing structured fields and private signing-key material
+ok 330 - account and authorization schemas reject missing structured fields and private signing-key material
+  ---
+  duration_ms: 7.884734
+  type: 'test'
+  ...
+# Subtest: explicit inventory matches every actual Hub and authority registered method
+ok 331 - explicit inventory matches every actual Hub and authority registered method
+  ---
+  duration_ms: 272.342449
+  type: 'test'
+  ...
+# Subtest: public specs use exact inner methods even where the outer independent router forwards broadly
+ok 332 - public specs use exact inner methods even where the outer independent router forwards broadly
+  ---
+  duration_ms: 136.237264
+  type: 'test'
+  ...
+# Subtest: delegation authority request schemas reject malformed scope at the actual handlers
+ok 333 - delegation authority request schemas reject malformed scope at the actual handlers
+  ---
+  duration_ms: 120.971969
+  type: 'test'
+  ...
+# Subtest: actual anonymous metadata and current account envelopes satisfy generated response schemas
+ok 334 - actual anonymous metadata and current account envelopes satisfy generated response schemas
+  ---
+  duration_ms: 126.420889
+  type: 'test'
+  ...
+# Subtest: generated structural request limits agree with real handlers for auth, push, transfer, workspace and download
+ok 335 - generated structural request limits agree with real handlers for auth, push, transfer, workspace and download
+  ---
+  duration_ms: 136.509419
+  type: 'test'
+  ...
+# Subtest: pairing advertises the actual 15-minute lifetime and redeems normalized short codes once
+ok 336 - pairing advertises the actual 15-minute lifetime and redeems normalized short codes once
+  ---
+  duration_ms: 103.853639
+  type: 'test'
+  ...
+# Subtest: documented relay methods preserve capability distinctions and deny method/path escalation
+ok 337 - documented relay methods preserve capability distinctions and deny method/path escalation
+  ---
+  duration_ms: 12.333808
+  type: 'test'
+  ...
+# Subtest: Computer tunnel rejects unsupported majors through the actual WebSocket upgrade interface
+ok 338 - Computer tunnel rejects unsupported majors through the actual WebSocket upgrade interface
+  ---
+  duration_ms: 118.125295
+  type: 'test'
+  ...
+# Subtest: every established relay route publishes typed JSON, binary/document or SSE output with faithful method semantics
+ok 339 - every established relay route publishes typed JSON, binary/document or SSE output with faithful method semantics
+  ---
+  duration_ms: 74.065184
+  type: 'test'
+  ...
+# Subtest: published native producer schemas validate actual installed Pi, independent Hub, workspace, queue, upload and streamed media responses
+ok 340 - published native producer schemas validate actual installed Pi, independent Hub, workspace, queue, upload and streamed media responses
+  ---
+  duration_ms: 4285.185495
+  type: 'test'
+  ...
+# Subtest: only configured Google/Feishu connections with valid IDs and credentials are accepted
+ok 341 - only configured Google/Feishu connections with valid IDs and credentials are accepted
+  ---
+  duration_ms: 4.882378
+  type: 'test'
+  ...
+# Subtest: Google uses discovery, state, nonce, PKCE and validates signed identity
+ok 342 - Google uses discovery, state, nonce, PKCE and validates signed identity
+  ---
+  duration_ms: 103.04313
+  type: 'test'
+  ...
+# Subtest: Google rejects forged signature, issuer, audience, nonce and expired tokens
+ok 343 - Google rejects forged signature, issuer, audience, nonce and expired tokens
+  ---
+  duration_ms: 434.216324
+  type: 'test'
+  ...
+# Subtest: Google callback issuer must match discovery and be present
+ok 344 - Google callback issuer must match discovery and be present
+  ---
+  duration_ms: 67.007033
+  type: 'test'
+  ...
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-team-b","stage":"user_info","reason":"identity_rejected"}
+# Subtest: Google unverified email does not become identity and provider diagnostics stay private
+ok 345 - Google unverified email does not become identity and provider diagnostics stay private
+  ---
+  duration_ms: 44.950887
+  type: 'test'
+  ...
+# Subtest: Feishu organization connections expose labels and reject another tenant
+ok 346 - Feishu organization connections expose labels and reject another tenant
+  ---
+  duration_ms: 5.889673
+  type: 'test'
+  ...
+# Subtest: Feishu current user-token endpoint exchanges JSON PKCE and binds app connection, tenant and open_id without email
+ok 347 - Feishu current user-token endpoint exchanges JSON PKCE and binds app connection, tenant and open_id without email
+  ---
+  duration_ms: 2.202931
+  type: 'test'
+  ...
+# Subtest: Feishu accepts a successful OAuth token response without an API code
+ok 348 - Feishu accepts a successful OAuth token response without an API code
+  ---
+  duration_ms: 1.319992
+  type: 'test'
+  ...
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-pkce","stage":"token","reason":"provider_response","httpStatus":400,"providerCode":20049}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"provider_response","httpStatus":200,"providerCode":20002}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"provider_response","httpStatus":200,"providerCode":20002}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"user_info","reason":"provider_response","httpStatus":200,"providerCode":20021}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"user_info","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"user_info","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# {"event":"provider_exchange_failed","provider":"feishu","connection":"feishu-main","stage":"token","reason":"invalid_response"}
+# Subtest: Feishu rejects provider code 20049 after one PKCE exchange without retrying or changing endpoints
+ok 349 - Feishu rejects provider code 20049 after one PKCE exchange without retrying or changing endpoints
+  ---
+  duration_ms: 1.907803
+  type: 'test'
+  ...
+# Subtest: Feishu rejects provider errors, absent token, missing tenant and invalid identities
+ok 350 - Feishu rejects provider errors, absent token, missing tenant and invalid identities
+  ---
+  duration_ms: 7.915047
+  type: 'test'
+  ...
+# Subtest: Feishu failure diagnostics expose only static stage, HTTP status and numeric provider code
+ok 351 - Feishu failure diagnostics expose only static stage, HTTP status and numeric provider code
+  ---
+  duration_ms: 1.733463
+  type: 'test'
+  ...
+# Subtest: removed Hub identities cannot display, open or renew notifications
+ok 352 - removed Hub identities cannot display, open or renew notifications
+  ---
+  duration_ms: 29.968166
+  type: 'test'
+  ...
+# Subtest: a local turn starting during authorization keeps remote work pending
+ok 353 - a local turn starting during authorization keeps remote work pending
+  ---
+  duration_ms: 3.669009
+  type: 'test'
+  ...
+# Subtest: only a broker-proven rejection before dispatch permits a fresh queue retry
+ok 354 - only a broker-proven rejection before dispatch permits a fresh queue retry
+  ---
+  duration_ms: 1.078612
+  type: 'test'
+  ...
+# Subtest: durable queue survives restart, checks current access before dispatch and fences attachment changes
+ok 355 - durable queue survives restart, checks current access before dispatch and fences attachment changes
+  ---
+  duration_ms: 63.60834
+  type: 'test'
+  ...
+# Subtest: ambiguous sends block later queue items across restart until explicitly reviewed
+ok 356 - ambiguous sends block later queue items across restart until explicitly reviewed
+  ---
+  duration_ms: 32.69811
+  type: 'test'
+  ...
+# Subtest: editing or deleting a queue item during authorization prevents stale dispatch
+ok 357 - editing or deleting a queue item during authorization prevents stale dispatch
+  ---
+  duration_ms: 1.68516
+  type: 'test'
+  ...
+# Subtest: retained old brokers never receive remote migration or enqueue without the unified capability
+ok 358 - retained old brokers never receive remote migration or enqueue without the unified capability
+  ---
+  duration_ms: 1.161155
+  type: 'test'
+  ...
+# Subtest: Compatibility server rejects targeted Hub creation and role-changing acceptance while preserving Computer invitations
+ok 359 - Compatibility server rejects targeted Hub creation and role-changing acceptance while preserving Computer invitations
+  ---
+  duration_ms: 310.443585
+  type: 'test'
+  ...
+# Subtest: Computer reconnect retains runtime; revoked credential blocks reconnection
+ok 360 - Computer reconnect retains runtime; revoked credential blocks reconnection
+  ---
+  duration_ms: 2190.307127
+  type: 'test'
+  ...
+# Subtest: lost mutation acknowledgement is unknown and is never replayed onto a new connection
+ok 361 - lost mutation acknowledgement is unknown and is never replayed onto a new connection
+  ---
+  duration_ms: 176.427709
+  type: 'test'
+  ...
+# Subtest: explicit pre-dispatch refusal stays definite; unclassified launch failures stay unknown
+ok 362 - explicit pre-dispatch refusal stays definite; unclassified launch failures stay unknown
+  ---
+  duration_ms: 106.001992
+  type: 'test'
+  ...
+# Subtest: API rejects cross-origin writes and authentication cannot use a computer token
+ok 363 - API rejects cross-origin writes and authentication cannot use a computer token
+  ---
+  duration_ms: 96.047563
+  type: 'test'
+  ...
+# Subtest: encrypted delivery decrypts independently and VAPID signs the exact provider audience
+ok 364 - encrypted delivery decrypts independently and VAPID signs the exact provider audience
+  ---
+  duration_ms: 64.895039
+  type: 'test'
+  ...
+# Subtest: registration rejects private endpoints, malformed keys and mismatched VAPID credentials
+ok 365 - registration rejects private endpoints, malformed keys and mismatched VAPID credentials
+  ---
+  duration_ms: 1.947599
+  type: 'test'
+  ...
+# Subtest: durable subscription fences session, client, binding, token rotation and revocation on browser authorization
+ok 366 - durable subscription fences session, client, binding, token rotation and revocation on browser authorization
+  ---
+  duration_ms: 2.913602
+  type: 'test'
+  ...
+# Subtest: HTTP subscription API masks capabilities, binds current account and refuses stale computer attachment
+ok 367 - HTTP subscription API masks capabilities, binds current account and refuses stale computer attachment
+  ---
+  duration_ms: 151.080996
+  type: 'test'
+  ...
+1..367
+# tests 367
+# suites 0
+# pass 367
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 127510.27617

@@ -1,0 +1,196 @@
+{
+  "at": "2026-10-07T15:33:47.912Z",
+  "runtimeCommit": "a6f870f8c4f8d813daf9b1567462874783d951d7",
+  "requirements": [
+    "R52: Hub-owned OAuth, one organization and at most one Feishu app per Hub",
+    "R53: all saved identities contribute concurrently under owner-selected provider types"
+  ],
+  "backendTests": {
+    "passed": 351,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "browsers": {
+    "totalChecks": 51,
+    "core": {
+      "at": "2026-10-07T15:30:44.170Z",
+      "steps": [
+        {
+          "name": "Two independent browser accounts sign in",
+          "passed": true
+        },
+        {
+          "name": "Owner creates a hub and downloads pairing; real Computer CLI attaches and connects outbound",
+          "passed": true
+        },
+        {
+          "name": "Agent creation and live conversation traverse the outbound computer connection",
+          "passed": true
+        },
+        {
+          "name": "Computer shutdown preserves the browser draft and reports offline",
+          "passed": true
+        },
+        {
+          "name": "Computer restart restores persisted agent history and sending",
+          "passed": true
+        },
+        {
+          "name": "Hub membership alone does not expose computer agents",
+          "passed": true
+        },
+        {
+          "name": "Separate hub and computer invitations enable member creation and sending",
+          "passed": true
+        },
+        {
+          "name": "Removing computer membership immediately makes an open agent read-only",
+          "passed": true
+        },
+        {
+          "name": "Explicit hub retain policy overrides the computer read-only rule",
+          "passed": true
+        },
+        {
+          "name": "Retained rights exclude new agents and never grant creation",
+          "passed": true
+        },
+        {
+          "name": "Hub none policy removes retained access",
+          "passed": true
+        },
+        {
+          "name": "Two computers attach independently to one hub and route to distinct runtimes",
+          "passed": true
+        },
+        {
+          "name": "Mobile computer drawer opens and closes; viewport has no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "No uncaught browser JavaScript errors",
+          "passed": true
+        }
+      ],
+      "errors": [],
+      "syntheticRuntime": true
+    },
+    "registration": {
+      "passed": true,
+      "checks": [
+        "Mobile provider registration preserves OAuth continuation and stores a nonextractable private key only on the client; registration grants no access",
+        "Reload retains the signing key and expired transport credentials recover by signing a real Hub challenge",
+        "A temporary 503 key challenge outage retains saved credentials and signing keys; retry recovers without signing in again",
+        "Owner invitations grant the registered viewer its Computer and read-only agent; operator placement is unavailable",
+        "Adding Google keeps the existing Feishu identity connected; the same Hub agent remains visible without duplicate entries",
+        "All saved identities contribute their available rights while each request uses one proof; shared Computer and agent entries are deduplicated",
+        "Fresh OAuth reauthentication rotates only the same identity's device key, preserves the other account, and does not accumulate active keys",
+        "Revoking a client key prevents that saved account from reconnecting",
+        "Revoking one identity leaves the other independently authorized identity connected and preserves its Computer access",
+        "The owner configures Google-only or both; a blocked saved Feishu key is retained and resumes automatically when allowed again",
+        "Fresh Google registration preserves pending setup continuation; one-time owner proof claims the Hub and pre-provisioned Computer before device key enrollment"
+      ],
+      "errors": [],
+      "provider": "Controlled Google/Feishu identity fixture; live provider credentials are not used"
+    },
+    "distributed": {
+      "at": "2026-10-07T15:31:03.281Z",
+      "steps": [
+        "Fixture authenticated session, PKCE hub cookie exchange, single-use enrollment and relayed conversation",
+        "One account uses two independently running hubs without sharing agent state",
+        "Returning to a hub restores only its own unsent draft",
+        "Second account sees only its invited hub and no ungranted computers",
+        "Optional authority sign-in has no password/code fallback and reports missing provider configuration",
+        "No uncaught browser errors in the separate-service flow"
+      ],
+      "errors": [],
+      "syntheticRuntime": true
+    },
+    "creation": {
+      "passed": true,
+      "checks": [
+        "An already-controlled tab upgrades the old worker before rendering; Hubs & computers loads working controls instead of the static-client error",
+        "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",
+        "Independent client opens Pi/Codex/Claude creation; provider-specific Pi models and reasoning reach the service worker launch request",
+        "Codex maps ChatGPT authentication and Fast correctly; changing models removes unsupported reasoning",
+        "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
+        "pi: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "codex: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "cc: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+        "Unknown configured provider or model stays unselected and cannot create an agent with empty launch values",
+        "Switching computers clears previous selections and paths; late catalog responses cannot replace current choices",
+        "Keyboard focus wraps within creation; Escape preserves dialog; invalid names focus their associated alert; pending launch announces status and locks choices",
+        "Account/workspace form submits the actual configured provider, model and reasoning; all three runtime forms fit 390px and cancel restores focus",
+        "Resume selects a scoped saved session or explicit ID, clears IDs on runtime changes, and sends no saved credentials"
+      ],
+      "errors": []
+    },
+    "invitations": {
+      "passed": true,
+      "checks": [
+        "Owner creates Google and tenant-specific Feishu invitations using the actual mobile Manage access form",
+        "No provider account gains access before accepting an invitation; malformed codes display an error",
+        "An unrelated Google identity cannot redeem a Feishu invitation",
+        "Google and Feishu users accept through the actual invitation screen with verified provider identities",
+        "Reusing a redeemed code displays an error without another membership change",
+        "Two browser accounts verify single-agent viewer/operator sharing and revocation without computer membership, private-agent visibility or creation rights",
+        "Actual hub Sign-in methods copies the exact connection, identity and tenant for an invitation"
+      ],
+      "errors": []
+    }
+  },
+  "packages": {
+    "roles": [
+      "hub",
+      "identity",
+      "frontend"
+    ],
+    "independentBuild": true,
+    "prunedRuntimeSmoke": true,
+    "runAsUid": 1000,
+    "backendStartsWithoutFrontend": true,
+    "frontendStartsWithoutBackend": true
+  },
+  "limits": {
+    "memoryBytes": 2147483648,
+    "swapBytes": 0,
+    "cpus": 2,
+    "pids": 512,
+    "serialized": true
+  },
+  "live": {
+    "preview": "https://codoxear.gzeek.com:8444/",
+    "workHub": "https://codoxear.gzeek.com:8447",
+    "preservedHomeDemo": "https://codoxear.gzeek.com:8445/",
+    "providerHandoff": {
+      "passed": true,
+      "at": "2026-10-07T15:32:55.140Z",
+      "origin": "https://codoxear.gzeek.com:8447",
+      "checks": [
+        "Public HTTPS Hub advertises its sole configured Feishu app",
+        "Mobile browser displays Hub-owned provider login",
+        "Provider handoff uses Hub callback and PKCE without exposing secret"
+      ],
+      "providerLogin": "Not performed: intercepted at provider handoff; actual user authorization still required"
+    },
+    "realProviderSignIn": false,
+    "googleConfigured": false,
+    "notes": [
+      "Work Hub and separate auth preview use the reviewed release. Existing Home Hub, main frontend and Computer processes remain on their prior release to preserve session access.",
+      "Team Feishu app configured privately; real user authorization and provider console callback confirmation remain external acceptance. Home Google application credentials have not been supplied.",
+      "Controlled Google/Feishu fixtures validate concurrent access and owner policy through the real browser interface; they do not establish real-provider acceptance."
+    ],
+    "previewBrowser": {
+      "passed": true,
+      "at": "2026-10-07T15:34:43.468Z",
+      "origin": "https://codoxear.gzeek.com:8444",
+      "checks": [
+        "Public separate frontend loads at390px without uncaught errors",
+        "Hubs & computers advertises configured Work Hub",
+        "Public configuration contains Hub origin without provider app secrets"
+      ],
+      "providerAuthorization": "Not performed"
+    }
+  }
+}

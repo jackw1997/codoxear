@@ -1,0 +1,14 @@
+{
+  "role": "server",
+  "entries": [
+    "src/server/main.ts"
+  ],
+  "sharedLibraries": [
+    "src/contracts",
+    "src/domain",
+    "src/persistence",
+    "src/protocol",
+    "src/presentation"
+  ],
+  "runtimeFiles": []
+}

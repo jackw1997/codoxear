@@ -1,0 +1,10 @@
+{
+  "issuer": "https://accounts.example.com",
+  "database": "./state/identity.sqlite",
+  "signingKey": "./state/identity-signing-key.json",
+  "listenHost": "127.0.0.1",
+  "listenPort": 17420,
+  "secureCookies": true,
+  "providers": [],
+  "clients": []
+}

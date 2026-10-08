@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.request"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "head": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "HEAD",
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH"
+              ]
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            },
+            "headers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            },
+            "actorId": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+            },
+            "actorIsOwner": {
+              "type": "boolean"
+            },
+            "workspace": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                },
+                "access": {
+                  "type": "string",
+                  "enum": [
+                    "read",
+                    "write"
+                  ]
+                },
+                "paths": {
+                  "minItems": 1,
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  }
+                },
+                "git": {
+                  "type": "boolean"
+                },
+                "uploads": {
+                  "type": "boolean"
+                },
+                "transcode": {
+                  "type": "boolean"
+                },
+                "binding": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "ownerRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "grantRevision": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,100}$"
+                }
+              },
+              "required": [
+                "id",
+                "access"
+              ]
+            },
+            "queuePermit": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "method",
+            "path",
+            "headers"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "head"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.response"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "head": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            },
+            "headers": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            }
+          },
+          "required": [
+            "status",
+            "headers"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "head"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.chunk"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response"
+          ]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "data": {
+          "type": "string",
+          "maxLength": 87384
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "direction",
+        "sequence",
+        "data"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.end"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response"
+          ]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "direction",
+        "sequence"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.credit"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "request",
+            "response"
+          ]
+        },
+        "bytes": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 1048576
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "direction",
+        "bytes"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "http.cancel"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "epoch": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,80}$"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "epoch",
+        "reason"
+      ]
+    }
+  ]
+}

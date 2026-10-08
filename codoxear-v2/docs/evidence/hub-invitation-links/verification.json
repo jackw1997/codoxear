@@ -1,0 +1,141 @@
+{
+  "productSource": "77714b3374d5e7a31fb588ff7a69a954c82b7776",
+  "backend": {
+    "tests": 367,
+    "passed": 367,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "source": "462df6dbbdfab808b1b0ad0df84418a34416a22e",
+    "backendClosureUnchangedInProduct": true,
+    "provenance": "backend-provenance.json",
+    "log": "backend-final.tap"
+  },
+  "customer": {
+    "checks": 24,
+    "passed": 24,
+    "failures": 0,
+    "screenshots": 69,
+    "exitCode": 0,
+    "results": "results.json",
+    "surface": "Public deployed frontend",
+    "build": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "b973cd6ddae05395",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "b973cd6ddae05395"
+    },
+    "harnessSource": "de4bd5f0ed71a5c9db37440600db10a31ecdb896",
+    "productSourceUnchangedFromDeployed": true,
+    "sourceOverlays": false,
+    "harnessOverlays": false,
+    "imageProvenance": "image-provenance.json",
+    "cleanup": [
+      "Closing browser",
+      "Closed browser",
+      "Closing Hub tunnels",
+      "Closed Hub tunnels",
+      "Closing Computer service 0",
+      "Closed Computer service 0",
+      "Closing Computer service 1",
+      "Closed Computer service 1",
+      "Closing Hub server",
+      "Closed Hub server",
+      "Closing Hub identity",
+      "Closed Hub identity",
+      "Closing databases",
+      "Closed databases",
+      "Closing scratch workspace",
+      "Closed scratch workspace"
+    ]
+  },
+  "roleImages": {
+    "checks": 3,
+    "passed": 3,
+    "roles": [
+      "hub",
+      "server",
+      "frontend"
+    ],
+    "source": "77714b3374d5e7a31fb588ff7a69a954c82b7776",
+    "results": "role-image-smoke.jsonl",
+    "manifests": "release-images.json"
+  },
+  "typechecks": {
+    "root": true,
+    "backend": true,
+    "frontend": true,
+    "componentBoundaries": true,
+    "source": "de4bd5f0ed71a5c9db37440600db10a31ecdb896",
+    "log": "build-typecheck.log",
+    "originalBuildLogSha256": "af7c298ddcd010d1f202d7f4ceb6b235808cdda83916ea9298c4f56ddbbdccdf",
+    "formatting": "Trailing whitespace normalized; checks unchanged"
+  },
+  "containerLimits": {
+    "memory": "2GiB",
+    "swap": "disabled",
+    "cpus": 2,
+    "pids": 512,
+    "browserSharedMemory": "256MiB",
+    "serialized": true
+  },
+  "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+  "oauthBoundary": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+  "runtimeBoundary": "Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance",
+  "externalBootstrap": [
+    {
+      "computer": "Computer A",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+      "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+    },
+    {
+      "computer": "Computer B",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+      "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+    }
+  ],
+  "browserPermissionSetup": "Public-origin local-network-access and clipboard permissions granted to automated browser; no application grants injected",
+  "infrastructureClarification": "Prepared Computers and fixtures ran in controlled container infrastructure. The unchanged result phrase physical Computer means the prepared workspace, not physical-hardware acceptance.",
+  "notExercised": [
+    "Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests",
+    "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+    "Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained",
+    "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+    "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+  ],
+  "diagnostics": "Raw browser diagnostics retained, including expected denied requests and background polling with no authorized selection. Passing journey assertions does not claim a silent browser console.",
+  "separateHistoricalRuns": [
+    {
+      "record": "local-predeploy/results.json",
+      "source": "7210c791",
+      "checks": 9,
+      "screenshots": 41,
+      "scope": "Local static client only; not final/public acceptance"
+    },
+    {
+      "record": "earlier-public-7210/results.json",
+      "source": "7210c791",
+      "checks": 24,
+      "screenshots": 68,
+      "scope": "Before compatibility/sign-in/name/no-access cleanup; not current acceptance"
+    }
+  ],
+  "rejectedRuns": [
+    {
+      "record": "rejected-public-stale-expectation/results.json",
+      "passedBeforeFailure": 8,
+      "exitCode": 1,
+      "reason": "Old exact empty-state text after deliberate product copy correction"
+    },
+    {
+      "record": "rejected-public-stale-selector/results.json",
+      "passedBeforeFailure": 8,
+      "exitCode": 1,
+      "reason": "Old sidebarEmptyHint selector did not target actual visible owned discovery-status message; precise selector corrected, denial assertions retained"
+    }
+  ],
+  "earlierBackendAttempts": "Initial runs rejected fixture/provider-binding/count/teardown expectations and one transient native Codex hard-fault catalog failure. Corrected committed fixtures and exact owned-process teardown; native hard-fault assertions were not weakened. Final complete367 test run passes; this record does not claim the transient cause was proven. Historical passes/failures are not aggregated.",
+  "deployment": "deployment.json"
+}

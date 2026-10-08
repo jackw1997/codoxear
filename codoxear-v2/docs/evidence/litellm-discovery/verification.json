@@ -1,0 +1,130 @@
+{
+  "productSource": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+  "backend": {
+    "source": "f0924d1b845e7c015c7c759830a93ed666836947",
+    "tests": 379,
+    "pass": 379,
+    "fail": 0,
+    "originalOverallPipelineExitCode": 1,
+    "scope": "Backend suite passed; original overall pipeline rejected stale Duplicate harness. No claim of full-pipeline green. Subsequent source changes through bc9d were harness-only."
+  },
+  "local": {
+    "source": "ef4208f971af6c70805ae51d02717377da6e22e6",
+    "checks": 24,
+    "screenshots": 77
+  },
+  "creation": {
+    "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+    "checks": 20
+  },
+  "updates": {
+    "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+    "checks": 2
+  },
+  "public": {
+    "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+    "checks": 24,
+    "screenshots": 77,
+    "clientBuild": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "854cc70bfc9ef6fa",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "854cc70bfc9ef6fa"
+    }
+  },
+  "packages": {
+    "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+    "roles": 5,
+    "checks": 7,
+    "browserChecks": 7
+  },
+  "boundaries": {
+    "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+    "oauth": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+    "runtime": "Real ManagedRuntime, ComputerService and NativeHttpTarget; browser model discovery traverses the actual Hub tunnel and Computer HTTP fetch to controlled caller-key model/metadata endpoints; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR profile/image acceptance",
+    "externalBootstrap": [
+      {
+        "computer": "Computer A",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      },
+      {
+        "computer": "Computer B",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      }
+    ],
+    "unavailable": [
+      "Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests",
+      "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+      "Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained",
+      "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+      "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+    ],
+    "note": "Controlled OAuth and model HTTP fixtures; real authenticated Hub-to-Computer discovery transport. Deterministic ManagedFactory does not establish live provider inference or native OAR profile acceptance. Production Work provider configuration remains unchanged; separate read-only evidence preserved."
+  },
+  "inputs": {
+    "backend": {
+      "path": "/tmp/codoxear-litellm-attempts/backend-f092.tap",
+      "sha256": "d4b91924eadcdb41f559584014b30e988bf99d511fc110dfebf597ec595f40a9"
+    },
+    "local": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/customer-journey/results.json",
+      "sha256": "86c71649837be789c0fc7e2a9f25aa4639d0b6e325e02c3fdb6baf4dc06547e5"
+    },
+    "localContainer": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/litellm-browser-local-container.json",
+      "sha256": "d83f572e6fbed108cc1ec3415a08df8cd945879579b906bd2ae0ff38aade1d55"
+    },
+    "creation": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/agent-creation-results.json",
+      "sha256": "282294aef1b4e6e18cc8b90fecdfb637f3ebeacdb3685531ea4592d8c878cd15"
+    },
+    "updates": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/client-updates/results.json",
+      "sha256": "582ab3fadd282442d1be742b457c6a06403b99477db7334991e628d61d76e966"
+    },
+    "packages": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/package-isolation.json",
+      "sha256": "f6b50f5471d8570c896ac4f166742d1817beeee1e5651535c5a4f63cd534ec3b"
+    },
+    "public": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/customer-public-litellm/results.json",
+      "sha256": "99e7160ce4a23f20c076d214f412adae4a7c51e4d77f5851f707e6317fbb9528"
+    },
+    "publicContainer": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/litellm-browser-public-container.json",
+      "sha256": "51bfbe032b965655b9600120de389dd092803f262fcb5c636e4ddcd01645e973"
+    },
+    "roles": {
+      "path": "/home/codoxear/projects/codoxear/codoxear-v2/artifacts/litellm-role-image-smoke.json",
+      "sha256": "1dbdb61efa35f5bc410f709425f20cf544ed6fb2c24cd16348dc4a024dd4a9b7"
+    }
+  },
+  "deployment": {
+    "source": "bc9d05fffce29cd06299137b6a40b1f796f17674",
+    "clientAssetVersion": "854cc70bfc9ef6fa",
+    "privateSettingsPreserved": true,
+    "unrelatedServicesPreserved": true,
+    "sessionsBefore": [
+      {
+        "state": "archived",
+        "count": 1
+      }
+    ],
+    "sessionsAfter": [
+      {
+        "state": "archived",
+        "count": 1
+      }
+    ],
+    "computerOnline": true,
+    "record": "deployment.json"
+  },
+  "roleImages": "role-image-smoke.json",
+  "liveGatewayReadOnly": "work-provider-read-only.json"
+}

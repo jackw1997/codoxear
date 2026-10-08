@@ -1,0 +1,58 @@
+{
+  "observedAt": "2026-10-08T01:59:20.719Z",
+  "productSource": "77714b3374d5e7a31fb588ff7a69a954c82b7776",
+  "clientOrigin": "https://codoxear.gzeek.com:8444",
+  "hubOrigin": "https://codoxear.gzeek.com:8447",
+  "publicClientRelease": "b973cd6ddae05395",
+  "releaseStatus": 200,
+  "services": [
+    {
+      "name": "codoxear-v2-fresh-auth-client-1",
+      "image": "codoxear-frontend:77714b33",
+      "imageId": "sha256:73773df2e9f473c977098db9e65fbb14d4e8f6bf911147fa4e791189927777d6",
+      "state": "running",
+      "oomKilled": false,
+      "restarts": 0
+    },
+    {
+      "name": "codoxear-v2-fresh-hub-1-1",
+      "image": "codoxear-hub:77714b33",
+      "imageId": "sha256:74fdbcec86bba21dec9ff5341d9da97e5b5776000540a7676a8867535060d043",
+      "state": "running",
+      "oomKilled": false,
+      "restarts": 0
+    },
+    {
+      "name": "codoxear-work-computer-1",
+      "image": "codoxear-computer:9740d7ef",
+      "imageId": "sha256:45f33f6224217844757a899764ae28e6f6b8b70974bf7b4b24618d91596d46bf",
+      "state": "running",
+      "oomKilled": false,
+      "restarts": 0
+    }
+  ],
+  "workComputer": {
+    "attached": true,
+    "running": true,
+    "state": "online",
+    "sessions": [
+      {
+        "state": "archived",
+        "count": 1
+      }
+    ]
+  },
+  "computerSource": "9740d7efffcb7c93132483562b0b56d89267e961",
+  "updatedServices": [
+    "auth-client",
+    "hub-1"
+  ],
+  "preserved": [
+    "Existing Feishu Owner and explicit allowlist grant",
+    "Archived Work managed session",
+    "Private Pi/LiteLLM configuration",
+    "Home client/Hub/two Computers",
+    "Gateway and unrelated services"
+  ],
+  "configuration": "Private release configuration retained outside Git; no secrets in evidence"
+}

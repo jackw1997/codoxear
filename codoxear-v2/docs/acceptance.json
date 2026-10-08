@@ -1,0 +1,244 @@
+{
+  "design": "../docs/multi-server-relay/final-design.html revision 8, superseded for hub authority by docs/independent-hubs.html; agent creation and access amendments",
+  "baseline": "fa8c54ad",
+  "rule": "A gate is complete only when its implementation and required behavioral evidence exist. Contract fixtures do not count as live provider, real inference or physical-device acceptance. Statuses distinguish verified scope from remaining external or platform acceptance.",
+  "gates": [
+    {
+      "id": "baseline",
+      "requirement": "Integrate HarmonyOS handoff without losing saved login or composer fixes",
+      "status": "historical-only",
+      "evidence": "Historical Harmony handoff baseline; it does not establish current Harmony SDK or device acceptance. Current scoped Harmony contract evidence is recorded by harmony-account-lifecycle in work-progress.json."
+    },
+    {
+      "id": "computer",
+      "requirement": "Typed Computer API, one hub attachment, lifecycle and reconnect independence",
+      "status": "verified-local",
+      "evidence": "tests/domain.test.ts and tests/transport.test.ts"
+    },
+    {
+      "id": "ownership",
+      "requirement": "Single owners, separate invitations, dual membership creation, hub-first retention",
+      "status": "verified-local",
+      "evidence": "32 policy combinations plus browser live changes"
+    },
+    {
+      "id": "identity",
+      "requirement": "Hub-local accounts and identity bindings; optional shared authority only when explicitly configured",
+      "status": "verified-local",
+      "evidence": "Independent Hub account/database/signing-key ownership is exercised by isolated Hub and browser checks. Explicit linking and provider/PKCE fixtures cover Hub-local identities; the optional shared-authority coordinator remains compatible but is not an independent-Hub dependency. Live provider delivery remains separate."
+    },
+    {
+      "id": "providers",
+      "requirement": "Feishu, WeChat, email and phone sign-in on actual integrations",
+      "status": "needs-configuration"
+    },
+    {
+      "id": "multi-hub",
+      "requirement": "Independent hubs, exact token audience, scoped discovery, fail-closed policy decisions",
+      "status": "verified-local",
+      "evidence": "Independent Hub processes with separate accounts, databases and signing keys; 5 distributed browser checkpoints; exact audience isolation and fail-closed policy outage tests. Shared-authority compatibility tests are separate from this independent-Hub evidence."
+    },
+    {
+      "id": "pairing",
+      "requirement": "Owner-bound single-use enrollment and transfer fencing within the configured authority",
+      "status": "verified-local",
+      "evidence": "Independent-Hub transfer passes17 durable fencing tests and5 actual installed-Pi public-API checks. Source revocation precedes destination admission; journal checkpoints and retry nonces fence lost replies."
+    },
+    {
+      "id": "relay",
+      "requirement": "Bounded streaming uploads, binary downloads, ranges, SSE, cancellation and media paths",
+      "status": "verified-local",
+      "evidence": "Four one-use authenticated download tests and2 real browser checks pass for257MiB+37 bytes with matching SHA-256, mounted application and successful next turn. Physical Safari/device acceptance remains separate."
+    },
+    {
+      "id": "runtime",
+      "requirement": "Real isolated CLI continues across hub and client loss; terminal sessions import",
+      "status": "verified-local",
+      "evidence": "Nine installed-CLI browser checks cover Pi/Claude saved resume, Codex/Claude terminal import and interruption, service/tunnel reconnect and untrusted Codex setup. Separate nine exact Computer SIGKILL launch-boundary checks pass across installed Pi, Codex and Claude. Live Kimi/LiteLLM Pi tools, interruption, outage, reconnect and transfer pass; an actual Claude Messages tool call succeeded. Codex Responses streaming succeeds, but native Codex shell-tool execution remains unproven. Broker/queue/Hub mutation fault coverage remains open."
+    },
+    {
+      "id": "web-parity",
+      "requirement": "Files, git, uploads, queues, settings, search, voice and scoped recovery",
+      "status": "verified-local",
+      "evidence": "Delegated multiple-root/path/Git/upload/transcode acceptance passes5 independent-client Chrome checks. Unified terminal/browser durable queue passes5 installed-Pi browser checks; existing brokers need explicit upgraded resume. One-use browser download evidence is recorded under relay. Accessibility checks cover8 grouped workflows, nine family/mode appearances,18 touch targets/groups and13 font invariants; contrast minima are4.514 light and5.196 dark. Remaining external/browser limits are listed separately. Physical assistive-technology/device and production operational acceptance remain open."
+    },
+    {
+      "id": "direct",
+      "requirement": "Explicit direct profile with no automatic fallback and regression coverage",
+      "status": "verified-contracts",
+      "evidence": "Harmony ApiClient direct login, no fallback and stale-response behavior pass with mocked OS networking. Native/device acceptance remains tracked separately."
+    },
+    {
+      "id": "queue",
+      "requirement": "Computer-owned durable queued prompts reauthorize the actor before dispatch and never replay uncertain sends",
+      "status": "verified-local",
+      "evidence": "One durable ordered queue serves terminal and browser; five installed-Pi browser checks and39 native tests cover edits, dispatch and persistence. On ambiguous broker death after paste, the durable uncertainty barrier prevents replay. Existing brokers retain their previous safe queue until explicit upgraded resume."
+    },
+    {
+      "id": "personal-drafts",
+      "requirement": "Unsent remote drafts remain private to their account and Computer attachment",
+      "status": "verified-local",
+      "evidence": "Computer-owned private SQLite storage, actor-specific catalog timestamps and tombstones; tests cover restart, account/session/attachment isolation and size bounds. Two actual browser accounts sharing one real Pi session cannot read or overwrite each other’s drafts."
+    },
+    {
+      "id": "launch-recovery",
+      "requirement": "Recover a completed launch after a lost reply without starting a duplicate process",
+      "status": "verified-local",
+      "evidence": "Computer commits an uncertainty barrier before launch and saves the result by agent and attachment. Read-only receipt lookup survives restart and rejects duplicate launches. Actual browser recovers an existing Pi agent after a simulated lost central result; local process count stays at two. Late failures cannot erase the recovered result. If the Computer never saved a result, explicit owner inspection/import remains necessary."
+    },
+    {
+      "id": "push",
+      "requirement": "Durable completion outbox, deduplication, access checks and provider delivery",
+      "status": "verified-local",
+      "evidence": "Nine Web Push protocol checks and nine actual Chrome worker checks cover controlled-endpoint encryption, show/click and scope/revocation. Actual vendor delivery, physical OS click, Safari/mobile acceptance remain open."
+    },
+    {
+      "id": "harmony",
+      "requirement": "Native relay login, context, media, secure credentials, device lifecycle and push",
+      "status": "verified-local",
+      "evidence": "Self-contained ArkTS SDK scaffold and mocked OS contracts cover login, vault, refresh loss fences, account switching and multi-Hub subscriptions against two real independent Hub APIs. Workspace/native/identity/Harmony suite passes52 tests. No SDK compile, signing, physical build or Push Kit delivery is claimed."
+    },
+    {
+      "id": "network",
+      "requirement": "Client cannot reach computers; outbound-only relay works under faults and load",
+      "status": "verified-local",
+      "evidence": "Separate Docker front/back networks verify client isolation and Computer-initiated WSS. Bounded native load/fault evidence and post-ACK lost-reply/restart nonreplay are recorded in artifacts/native-load-fault-results.json; production SLO soak and the full fault matrix remain open."
+    },
+    {
+      "id": "protocol",
+      "requirement": "Versioned OpenAPI, tunnel schemas and shared native conformance fixtures",
+      "status": "verified-local",
+      "evidence": "Actual registration matches143 Hub and66 authority methods. All published operations carry explicit success/document/stream/upgrade metadata:99 Hub,48 authority,8 internal and110 relay entries (intentional overlap). Native Pi validated97 responses/74 operations/3 SSE. Administrative conformance checked73 observations/37 HTTP leaves/all24 dispatcher operations with161 standalone published-schema validations. All8 generated artifacts match the Docker output. Physical-platform and vendor extension coverage remain separately scoped."
+    },
+    {
+      "id": "runtime-incarnation",
+      "requirement": "Runtime identities must never attach old permissions or recovery state to a new instance",
+      "status": "verified-local",
+      "evidence": "Native brokers retain UUID identities through restart, log binding and resume; legacy PID-only relay targets are rejected. Detached PTY sessions survive Computer restart and two sessions in the same cwd bind only their own producer logs."
+    },
+    {
+      "id": "future",
+      "requirement": "iOS/Android and OAR interfaces and adoption gates specified",
+      "status": "scope-unresolved",
+      "evidence": "iOS/Android scope remains separate. R45/R46 accept OAR as current refactor work; its first implementation is unverified and requires a separate Node24 Computer runtime and explicit local-trust policy."
+    },
+    {
+      "id": "workspace-grants",
+      "requirement": "Owner grants delegated read/write access to the Computer-configured workspace; membership loss removes files independently of transcript retention",
+      "status": "verified-local",
+      "evidence": "Native TypeScript secure pinned file-descriptor access, CAS, symlink/hardlink and root boundaries verified in Docker; owner-issued workspace read/write grants and immediate revocation checked through the browser. Linux accepted; macOS secure adapter pending."
+    },
+    {
+      "id": "invitation-targets",
+      "requirement": "Owner invitations addressed to email, verified phone or exact provider identity without requiring linked email",
+      "status": "verified-local",
+      "evidence": "tests/invitations.test.ts; independent-hub public API checks; mobile Manage access and Accept invitation browser flows with phone and tenant-specific Feishu identities; copied invitation details. Live provider delivery is a separate gate."
+    },
+    {
+      "id": "agent-sharing",
+      "requirement": "Selective viewer/operator access to concrete agents independently of computer membership, with explicit revocation and no new-agent creation",
+      "status": "verified-local",
+      "evidence": "tests/agent-sharing.test.ts; independent-hub API verifies private/future agent exclusion, owner-only sharing, workspace/creation boundaries, queued dispatch and notification authorization, stream downgrade and closure. Two-account mobile browser shares, sends, downgrades/revokes via actual Agent access screen."
+    },
+    {
+      "id": "standalone-typescript",
+      "requirement": "Self-contained v2 with TypeScript native PTY/runtime and tests, no Python or original package dependency, explicit component boundaries",
+      "status": "verified-local",
+      "evidence": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped. Boundary guard passes with no Python or legacy application dependency. Linux accepted; secure macOS support remains unsupported."
+    }
+  ],
+  "lastEvidence": "Final frozen production build, all235 registered TypeScript tests and46 generic browser checks; specialized installed-CLI/live/accessibility suites remain separately scoped.",
+  "remainingWork": {
+    "engineering": [
+      "Production-scale soak and broader network/mutation fault acceptance beyond the measured Linux slice"
+    ],
+    "externalSetup": [
+      "Live Feishu/WeChat/OIDC app registrations, approved callbacks and credentials",
+      "Real email/SMS delivery accounts",
+      "HarmonyOS SDK compilation, signing, Push Kit registration and connected device",
+      "Actual vendor push plus physical Safari/mobile OS and assistive-technology acceptance",
+      "Codex native shell-tool proof; authenticated Responses streaming alone does not establish it",
+      "macOS secure workspace adapter and acceptance"
+    ],
+    "laterStage": [
+      "iOS/Android platform scope remains separate. OAR moved into current engineering under R45/R46; see oar-cutover.html."
+    ],
+    "platformImplementation": [
+      "macOS secure workspace adapter requires a macOS execution environment; current migration scope is Linux"
+    ]
+  },
+  "milestone": {
+    "name": "M1 — Interactive web relay demo",
+    "contract": "docs/milestone.json",
+    "guide": "docs/demo.html",
+    "decision": "Demo acceptance only; full release remains No-Go",
+    "demoEvidence": "artifacts/demo-results.json"
+  },
+  "noGoRegister": "docs/milestone.json: active open rows have state, reason, exit condition and owner; resolved sharing/discovery slices are in completedItems. Audit rationale: docs/requirements-reconciliation.md",
+  "prReview": {
+    "scope": "Linux v2 native TypeScript migration; separate Computer, Hub and Client",
+    "tests": {
+      "passed": 235,
+      "failed": 0,
+      "skipped": 0
+    },
+    "regressionsFixed": [
+      "Persistent session name, priority, snooze and dependency edits without conversation dispatch",
+      "Unattended final-assistant idle cooldown, attachment protection and injection exhaustion",
+      "Native queued-send idle/authorization race and ambiguous paste-to-Enter outcomes",
+      "Claude canceled multiline prompt cleanup and producer-backed interruption completion",
+      "Current Codex user log normalization and late workspace-trust readiness",
+      "Independent Hub EventSource CORS headers and real HLS narration/settings cancellation"
+    ],
+    "cleanInstall": "npm ci and production build with npm configured to an unavailable Python path; packaged PTY import passed",
+    "dependencyAudit": "Zero npm audit vulnerabilities",
+    "ci": ".github/workflows/codoxear-v2.yml",
+    "description": "docs/pr-readiness.md",
+    "genericBrowserChecks": 46,
+    "verifierExitCode": 0,
+    "branch": "v2/typescript-architecture-pr",
+    "validationLimits": [
+      "Historical test count predates final schema/fault additions; final integrated count pending root update.",
+      "Updated Dockerfile image and hosted GitHub workflow not executed here; equivalent isolated verifier ran with an available media encoder.",
+      "Codex native shell-tool execution, live identity vendors, physical-device/platform behavior and production SLO acceptance remain open."
+    ],
+    "nativeLifecycleBrowserChecks": 9,
+    "voiceSettingsBrowserChecks": 8,
+    "previewChecks": 6,
+    "preview": "https://codoxear.gzeek.com:8445/",
+    "github": {
+      "published": false,
+      "reason": "GitHub integration rejects repository writes with403 Resource not accessible by integration"
+    },
+    "previewPublicTLS": "Trusted certificate verified by actual Docker client and both Hubs with rejectUnauthorized:true, plus Chrome130 mobile browser with ignoreHTTPSErrors:false and no SPKI exception. Issuer YE2, expiry 2027-01-02 08:27:03 GMT. Full trusted endpoint mobile flow passes6/6; evidence in artifacts/native-preview-results.json, artifacts/native-preview-mobile.png and artifacts/trusted-endpoint-tls-results.json. Earlier six checks used fixture SPKI trust against superseded self-signed8471 route.",
+    "trustedPreviewDeployment": {
+      "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+      "client": "https://codoxear.gzeek.com:8445/",
+      "homeHub": "https://codoxear.gzeek.com:8446",
+      "workHub": "https://codoxear.gzeek.com:8447",
+      "guide": "https://codoxear.gzeek.com:8444/guide",
+      "routerChecks": "5/5",
+      "build": "Docker production build, full TypeScript check and boundaries pass across438 modules",
+      "preservedContainerProcesses": "96/96 tracked processes in the six existing containers retained their PIDs and start ticks",
+      "sessionScope": "Configured legacy Computer streams and old bearer-kid requests remain routed; native v2 uses fresh account/session state and does not claim automatic legacy-session restoration.",
+      "browserChecks": 6,
+      "browserEvidence": "artifacts/native-preview-results.json",
+      "mobileScreenshot": "artifacts/native-preview-mobile.png",
+      "tlsEvidence": "artifacts/trusted-endpoint-tls-results.json",
+      "browserConditions": "Chrome130,390×844,ignoreHTTPSErrors:false,no SPKI exception",
+      "result": "PASS 6/6: two-Hub OAuth, native Pi import and shell proof.txt, reload transcript/no overflow/page errors, HTTPS source SHA-256, then-current readable report with37 decision details",
+      "processEvidence": "artifacts/trusted-endpoint-process-results.json",
+      "mobileLimits": "Huawei device not retested; final report has38 decisions while the browser run covered the prior37-decision version."
+    }
+  },
+  "updatedAt": "2026-10-06T02:07:53.719Z",
+  "currentRegression": {
+    "scope": "Existing session visibility after trusted endpoint reuse",
+    "state": "Open; fix prepared, not deployed",
+    "existingCatalogAgentCount": 19,
+    "newNativeBaselineAgentCount": 2,
+    "staticTypecheck": "passed",
+    "finalBrowserRecovery": "blocked by current Docker socket permission denial",
+    "note": "Earlier6/6 native preview checks did not establish continuity of the original Hub catalog."
+  }
+}

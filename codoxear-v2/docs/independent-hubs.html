@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Codoxear — independent hubs</title
+  ><style>
+    body {
+      max-width: 980px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font: 16px/1.6 system-ui;
+      color: #302b26;
+      background: #faf8f2;
+    }
+    h1,
+    h2 {
+      line-height: 1.2;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    td,
+    th {
+      padding: 12px;
+      border: 1px solid #d5cbbd;
+      text-align: left;
+    }
+    code {
+      overflow-wrap: anywhere;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+    }
+    a {
+      color: #89513c;
+    }
+  </style>
+  <h1>Independent hubs, local identities</h1>
+  <p>
+    This design supersedes the mandatory central account service in the earlier
+    relay design. No Codoxear-operated account database, registry, gateway,
+    subscription, or hosted service is required.
+  </p>
+  <svg
+    viewBox="0 0 960 400"
+    role="img"
+    aria-label="A client connects directly to two independent hubs. Computers establish outbound connections to their assigned hub. Providers authenticate at each hub."
+  >
+    <defs>
+      <marker
+        id="arrow"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="7"
+        markerHeight="7"
+        orient="auto-start-reverse"
+      >
+        <path d="M0 0L10 5L0 10" fill="#825039" />
+      </marker>
+    </defs>
+    <g fill="#f0e8dc" stroke="#825039">
+      <rect x="15" y="145" width="230" height="100" rx="12" />
+      <rect x="375" y="60" width="230" height="100" rx="12" />
+      <rect x="375" y="250" width="230" height="100" rx="12" />
+      <rect x="745" y="65" width="200" height="80" rx="12" />
+      <rect x="745" y="265" width="200" height="80" rx="12" />
+    </g>
+    <g
+      font-family="system-ui"
+      font-size="17"
+      text-anchor="middle"
+      fill="#302b26"
+    >
+      <text x="130" y="175">Client</text>
+      <text x="130" y="201">Local identities / sessions</text>
+      <text x="130" y="226">Original agent interface</text>
+      <text x="490" y="90">Hub A</text>
+      <text x="490" y="116">Own identities + permissions</text>
+      <text x="490" y="142">Own database + signing key</text>
+      <text x="490" y="280">Hub B</text>
+      <text x="490" y="306">Own identities + permissions</text>
+      <text x="490" y="332">Own database + signing key</text>
+      <text x="845" y="97">Computer A</text>
+      <text x="845" y="123">Agents / files / tools</text>
+      <text x="845" y="297">Computer B</text>
+      <text x="845" y="323">Agents / files / tools</text>
+      <text x="480" y="210">All signed-in Hub identities</text>
+    </g>
+    <g stroke="#825039" stroke-width="2" fill="none" marker-end="url(#arrow)">
+      <path d="M245 171L375 111" />
+      <path d="M245 219L375 301" />
+      <path d="M745 105L605 105" />
+      <path d="M745 305L605 305" />
+    </g>
+    <g font-family="system-ui" font-size="13" fill="#655648">
+      <text x="262" y="133">HTTPS + hub session</text>
+      <text x="262" y="293">HTTPS + hub session</text>
+      <text x="628" y="90">Outbound tunnel</text>
+      <text x="628" y="288">Outbound tunnel</text>
+    </g>
+  </svg>
+  <h2>Ownership and authorization</h2>
+  <p>
+    Every hub and Computer has one person owner. Each Computer belongs to one
+    hub. Hubs bind proven identities to hub-local people. A person can own or
+    join several hubs; there is no global user ID. Owners and Admins invite other people.
+    Creating an agent requires hub access and Computer operator access together,
+    under the same verified hub-local person. Every user, including owners and admins, requires explicit Computer allowlist access. Retained rights never bypass the allowlist.
+  </p>
+  <p>
+    A client may retain several authenticated methods for a hub-local person.
+    All saved identities contribute authorized access concurrently. The client deduplicates shared resources and
+    chooses one eligible identity for each action. Cached conversations still require current access. Permissions remain
+    server decisions on every request. Identity tokens cannot be combined to
+    invent ownership, or used across hubs. Matching email claims never
+    automatically merge accounts. An existing identity attached to another local
+    account cannot be reassigned by a login.
+  </p>
+  <h2>Hub roles and Computer allowlists</h2><p>Owners manage administrators and members. Admins can invite or remove ordinary members, but cannot remove admins or the owner. Owners and admins see all Computers and manage their allowlists. Members see only allowlisted Computers. Everyone must be explicitly allowlisted to use a Computer or create its agents, including owners and admins.</p><h2>Choose a Hub and sign in</h2>
+  <ol>
+    <li>Enter the Hub address; no preset Hub suggestions are provided. The client displays enabled Google and Feishu options as independent, parallel choices; configured Feishu does not force a Google owner to use Feishu.</li>
+    <li>The selected Hub verifies your provider sign-in. No existing Codoxear account or password is required.</li>
+    <li>The Hub issues an ordinary revocable login session. There are no client device signing keys.</li>
+    <li>The private one-time initialization link assigns Owner during the first successful provider callback. Ordinary sign-in alone grants no membership or Computer access.</li>
+    <li>Save multiple independent accounts on the same Hub. All contribute access at once; shared Computers and agents appear once, and each action uses an identity authorized for it.</li>
+  </ol>
+  <h2>One organization per Hub</h2>
+  <p>Each organization operates its own Hub with at most one Feishu application and one verified tenant. Its app secret stays in private Hub configuration. Other organizations deploy their own Hubs/apps. Optional Google identities remain subject to the Hub's invitations and Computer permissions.</p>
+  <p>There is no global login service or enrollment broker. The Hub-owned design supersedes the earlier R51 broker proposal. R53 removes exclusive account switching: all saved identities contribute concurrently. Provider connection, verified tenant and stable subject distinguish accounts; matching email or display name never merges them. The Hub owner permits Feishu, Google, or both in Hub settings. This also controls existing sessions; blocked local identities remain saved for later re-enabling. Password and verification-code login are removed.</p>
+  <p>
+    The web client uses IndexedDB, with short-lived access credentials and
+    rotating refresh credentials. It never stores passwords or provider secrets,
+    and never puts bearer credentials in URLs. Browser storage is
+    <strong>not an OS secure credential vault</strong>: trusted client-origin
+    scripts, malicious extensions or a compromised browser profile can access
+    it. The static client host remains a trusted software supplier even though
+    it stores no user accounts. Native clients should use their platform
+    credential store; native implementations must be tested separately.
+  </p>
+  <h2>Trust boundaries and security limits</h2>
+  <p>
+    Use separate hostnames for hubs operated by different people. Browser
+    cookies are scoped to hostnames, not ports; separate ports on one hostname
+    do not isolate mutually untrusted login servers. The demo uses one operator
+    for all its ports. Every hub administrator is trusted with that hub's
+    identities, permissions and relayed content. The relay is protected by TLS
+    but is not end-to-end encrypted against its hub operator.
+  </p>
+  <p>
+    Revocation stops subsequent authorized access and removes cached previews on
+    the next permission refresh. It cannot recall a downloaded file, screenshot
+    or other copy. Refresh-token rotation and explicit issuer checking protect
+    important boundaries; passing tests is not a complete security audit or
+    production certification.
+  </p>
+  <h2>One webpage, direct hub connections</h2>
+  <p>
+    The original sidebar, New session dialog, theme engine and Settings dialog
+    are reused. Hub/Computer placement appears in agent metadata and the New
+    session placement field. “Hubs &amp; computers” opens a secondary page with
+    an expandable hub list. Each hub expands to its computers and an Add
+    computer button. Add hub sits in the header; Add hub and Add computer open
+    separate pages with Back navigation. Login and connection pages use the same
+    theme engine, tokens and control treatment as HarmonyOS. Switching agents
+    retains the page and shell.
+  </p>
+  <p>
+    A service worker inside the browser routes the existing UI's API, SSE and
+    file requests to the selected independent hub, attaching the appropriate
+    local credential. It is not a server-side gateway. The page URL remains on
+    the static-client origin, while network requests go directly to the hubs.
+    Each hub explicitly allows its chosen client origins and OAuth callbacks.
+    Any HTTPS static host can serve the client; it has no API proxy or identity
+    database. Browser trust/storage belongs to the chosen client origin.
+  </p>
+  <h2>Shared page structure</h2>
+  <p>
+    All connection pages share one panel: a 60px header, explicit Back control,
+    20px content inset, 44px controls and the existing theme tokens. Larger
+    screens use a bounded 520px paper surface over the undimmed agent interface;
+    phones use the full screen. Forms, detail rows, errors and actions use the
+    same components for hubs, computers, pairing, invitations and access rules.
+    Clay, Slate and Paper retain their light and dark palettes.
+  </p>
+  <p>
+    Login, sign-in methods, callback recovery and logout use the same centered
+    420px authentication layout and Codoxear mark. Signed-out users can
+    reconnect directly. The original agent workspace, flat Settings dialog, file
+    viewer and New session dialog keep their established layout and theme
+    engine. Opening or closing connection pages preserves the mounted
+    conversation.
+  </p>
+  <p>
+    The browser checks include the exact signed-out state, narrow phones,
+    foldable-sized and short landscape viewports, all six theme/mode
+    combinations, separate add pages and nested access flows. Existing tabs keep
+    their loaded JavaScript until refreshed; HTML and login scripts revalidate
+    on a new load.
+  </p>
+  <h2>Attach a Computer</h2>
+  <p>
+    Open Hubs &amp; computers, expand a hub you own, then select Add computer.
+    Name the computer and open its Pair computer page. It includes a
+    downloadable source package, an installation guide, and a copyable attach
+    command. Install Node.js 24, sign in to Codex, Pi or Claude Code
+    locally, attach, then run Computer start. The native TypeScript runtime runs
+    directly inside Computer; no Python package or local HTTP server is required.
+    The guide contains the exact commands and troubleshooting checks.
+  </p>
+  <p>
+    Pairing codes contain eight uppercase letters/digits (excluding I, O, 0 and
+    1) and expire after 15 minutes. They are single-use, stored only as hashes,
+    and rate-limited at redemption. New code invalidates the previous one.
+    Lowercase or a separator between the two groups of four is accepted. The
+    long-lived Computer credential remains a separate high-entropy secret on the
+    computer.
+  </p>
+  <p>
+    Computer attach accepts <code>--hub</code> and <code>--code</code> and
+    configures the selected workspace for the native runtime. Install and
+    authenticate the chosen CLI locally, then review workspace trust on the
+    Computer. The advanced private JSON configuration remains supported. No
+    local runtime address or runtime password is required; no inbound connection
+    or port forwarding to the Computer is required.
+  </p>
+  <h2>Authenticated runtime verification</h2>
+  <p>
+    On 4 October 2026, the deployed browser created and attached
+    <strong>Authenticated Computer</strong> under Home demo. Both
+    <strong>Codex · authenticated</strong> and
+    <strong>Pi · authenticated</strong> used real ChatGPT OAuth credentials and
+    gpt-6.1-sol inference, executed shell write/read operations, streamed their
+    replies through the hub, and displayed their generated files in the browser.
+    The checks ran in an isolated Docker Computer with verified TLS to the real
+    provider; credentials stayed outside the repository and downloadable
+    package.
+  </p>
+  <p>
+    The other demo Computers still use scripted model responses. The
+    authenticated examples remain available in the same agent list. This
+    verification covers the browser → hub → Computer → CLI path; it does not
+    claim Claude or native mobile acceptance, or a complete production security
+    review.
+  </p>
+  <h2>Deployment</h2>
+  <p>
+    <code>npm run hub</code> defaults to an independent hub. Its private config
+    supplies <code>origin</code>, <code>hubId</code>, <code>catalog</code>,
+    <code>database</code>, <code>signingKey</code>, <code>otpKey</code>, allowed
+    <code>clientOrigins</code> and registered <code>clients</code>. First start
+    requires a private expiring initialization URL and configured Hub-local Google/Feishu authentication. <code>npm run client</code> serves static files;
+    it does not run an account service.
+  </p>
+  <p>The owner waived migration. Initial setup uses fresh Hub accounts and a private single-use initialization link; preserved Computer runtime configuration and public URLs do not require importing former user credentials. Legacy shared-authority behavior is historical compatibility, not the independent-Hub login design.</p>
+  <h2>Invitations and selective sharing — local implementation</h2>
+  <p>
+    Owners and admins create expiring, single-use Member invitation links.
+    The recipient opens the link in the current client, signs in with an allowed
+    Google or Feishu identity, then explicitly joins. No existing account or
+    exchange of internal identity IDs is required. Pending links can be revoked.
+    Only Owners manage Admin roles. Agent sharing with a Hub member does not
+    bypass the mandatory Computer allowlist. Working-file paths, Git history,
+    uploads and video processing require separate approved workspace grants.
+    <a href="../README.html">Current setup and browser workflow</a>. Controlled
+    provider browser checks do not establish live Google or Feishu acceptance.
+  </p>
+  <h2>Release limits and No-Go reasons</h2>
+  <table>
+    <tr>
+      <th>Feature</th>
+      <th>No-Go until</th>
+      <th>Reason</th>
+    </tr>
+    <tr>
+      <td>Large-file and cross-browser downloads</td>
+      <td>Validate native download behavior on each supported browser and real device</td>
+      <td>The current client prepares a single-use Hub ticket and submits it to an
+        isolated download frame. File bytes are streamed by the browser download
+        manager without buffering them in the mounted application. The tested
+        browser journey does not establish every browser or file-size scenario.</td>
+    </tr>
+    <tr>
+      <td>Live Feishu / Google login</td>
+      <td>
+        Hub operator registers applications/callbacks, supplies credentials, and
+        completes provider-specific live acceptance tests
+      </td>
+      <td>
+        Adapter and local identity checks cannot prove behavior with
+        unconfigured production providers. Google uses verified OpenID Connect identity tokens.
+      </td>
+    </tr>
+    <tr>
+      <td>Email / SMS code login — removed</td>
+      <td>Superseded by Google/Feishu-only authentication</td>
+      <td>
+        No mail or SMS delivery service is required by this design.
+      </td>
+    </tr>
+    <tr>
+      <td>Claiming browser storage is a hardware credential vault</td>
+      <td>Never claim this for the browser implementation</td>
+      <td>
+        Same-origin scripts can access web storage. Encryption with a key
+        available to those same scripts does not remove that trust.
+      </td>
+    </tr>
+    <tr>
+      <td>HarmonyOS / iOS / Android parity</td>
+      <td>
+        Native per-hub login collection, platform secure storage, callback
+        handling and device tests are completed
+      </td>
+      <td>
+        The browser implementation does not prove native lifecycle or keystore
+        behavior; existing HarmonyOS work is preserved.
+      </td>
+    </tr>
+    <tr>
+      <td>Safari / mobile browser production certification</td>
+      <td>
+        Real-device tests cover service workers, streaming, downloads, login
+        popups and persistence
+      </td>
+      <td>
+        Desktop Chromium and a mobile viewport do not prove platform behavior.
+      </td>
+    </tr>
+    <tr>
+      <td>Remote logout while a hub is offline</td>
+      <td>The hub can be reached to revoke the session</td>
+      <td>
+        Local disconnect can erase credentials immediately but cannot guarantee
+        offline server revocation.
+      </td>
+    </tr>
+    <tr>
+      <td>Automatic hub discovery / cloud identity sync</td>
+      <td>
+        Separately designed, optional, user-controlled discovery or export is
+        implemented
+      </td>
+      <td>
+        A mandatory global registry or account sync would contradict the
+        accepted architecture.
+      </td>
+    </tr>
+    <tr>
+      <td>Cross-hub Computer ownership transfer with live credentials</td>
+      <td>
+        A destination admission and source-detachment protocol is implemented
+        across independent databases
+      </td>
+      <td>
+        The old shared-database transfer command is not evidence of a cross-hub
+        transfer protocol.
+      </td>
+    </tr>
+  </table>
+  <p>
+    The earlier product feature register still applies to unrelated missing
+    capabilities. This document does not claim the complete product is finished.
+  </p>
+  <p>
+    Protocol references:
+    <a
+      href="https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation"
+      >OpenID Connect token validation</a
+    >
+    and
+    <a href="https://www.rfc-editor.org/rfc/rfc9700.html"
+      >OAuth security best current practice</a
+    >.
+  </p>
+</html>

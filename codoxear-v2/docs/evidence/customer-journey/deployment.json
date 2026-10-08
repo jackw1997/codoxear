@@ -1,0 +1,61 @@
+{
+  "updatedAt": "2026-10-07T18:49:27.243Z",
+  "frontend": {
+    "image": "codoxear-frontend:15ae60db",
+    "source": "15ae60dba15dd69d1002260c79c8922d315043d8",
+    "url": "https://codoxear.gzeek.com:8444/"
+  },
+  "hub": {
+    "image": "codoxear-hub:15ae60db",
+    "source": "15ae60dba15dd69d1002260c79c8922d315043d8",
+    "url": "https://codoxear.gzeek.com:8447"
+  },
+  "computer": {
+    "image": "codoxear-computer:6f57bd44",
+    "source": "6f57bd4486881526b8b295a30822b0b3929e1235",
+    "name": "wgz laptop",
+    "online": true,
+    "managedSessionsPreserved": 1
+  },
+  "independentImageSmoke": [
+    {
+      "role": "computer",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled Computer status/doctor",
+        "pinned OAR loads without sessions"
+      ]
+    },
+    {
+      "role": "hub",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled API health",
+        "account authentication",
+        "unattached UI 404"
+      ]
+    },
+    {
+      "role": "frontend",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "frontend health/page without backend"
+      ]
+    }
+  ],
+  "oomKilled": false,
+  "restarts": 0,
+  "preserved": [
+    "Home frontend and Hub",
+    "Other Computers and services",
+    "Work Computer persistent home, transcript and service binding",
+    "Private LiteLLM configuration"
+  ],
+  "publicAcceptance": "Read-only phone-viewport public demo/sign-in discovery smoke; not protected live-provider/model journey"
+}

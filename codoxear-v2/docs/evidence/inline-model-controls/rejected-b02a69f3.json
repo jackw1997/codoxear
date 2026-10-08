@@ -1,0 +1,32 @@
+{
+  "passed": false,
+  "checks": [
+    {
+      "name": "native backing is hidden while owned controls remain accessible",
+      "passed": true
+    },
+    {
+      "name": "pointer selection emits one native input/change pair and submits its value",
+      "passed": true
+    },
+    {
+      "name": "Arrow keys skip disabled options and keyboard Enter commits",
+      "passed": true
+    },
+    {
+      "name": "Home and End navigate enabled choices",
+      "passed": true
+    },
+    {
+      "name": "typeahead selects the matching option",
+      "passed": true
+    },
+    {
+      "name": "disabled options and disabled groups remain visible and reject clicks",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n'false' !== 'true'\n"
+    }
+  ],
+  "errors": [],
+  "fixture": "Actual source-owned frontend UI library; controlled local fixture; Chromium phone viewport; no provider/customer acceptance claimed."
+}

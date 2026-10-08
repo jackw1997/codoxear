@@ -1,0 +1,55 @@
+{
+  "name": "codoxear-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run check:boundaries && npm run typecheck && npm run build:backend && npm run build:frontend",
+    "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
+    "start": "node frontend/serve.mjs",
+    "computer": "node dist/server/computer/main.js",
+    "dev": "node frontend/serve.mjs",
+    "test:browser": "node --import tsx scripts/browser-customer-journey.ts",
+    "verify:docker": "node --experimental-strip-types scripts/verify-docker.ts",
+    "verify:managed": "node --experimental-strip-types scripts/verify-docker.ts --managed",
+    "identity": "node dist/server/identity/main.js",
+    "client": "node frontend/serve.mjs",
+    "hub": "node dist/server/hub/main.js",
+    "package:computer": "node scripts/package-computer.mjs",
+    "check:boundaries": "node --import tsx scripts/check-boundaries.ts",
+    "build:backend": "npm run typecheck:backend && node --import tsx scripts/generate-protocol.ts && tsup",
+    "typecheck:backend": "tsc --project tsconfig.backend.json --noEmit",
+    "build:frontend": "npm --prefix frontend run build && node scripts/build-workspace.mjs",
+    "verify:isolation": "node --experimental-strip-types scripts/verify-isolation.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/static": "^10.1.5",
+    "@fastify/websocket": "^11.2.0",
+    "@lydell/node-pty": "1.2.0-beta.15",
+    "fastify": "^5.12.5",
+    "jose": "^6.2.12",
+    "oauth4webapi": "^3.8.8",
+    "web-push": "3.6.7",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^22.19.0",
+    "@types/web-push": "3.6.4",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.9",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  }
+}

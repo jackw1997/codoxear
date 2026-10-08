@@ -1,0 +1,15 @@
+{
+  "role": "hub",
+  "entries": [
+    "src/hub/main.ts"
+  ],
+  "sharedLibraries": [
+    "src/auth",
+    "src/contracts",
+    "src/domain",
+    "src/persistence",
+    "src/presentation",
+    "src/protocol"
+  ],
+  "runtimeFiles": []
+}

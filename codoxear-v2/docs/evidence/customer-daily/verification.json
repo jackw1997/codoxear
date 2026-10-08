@@ -1,0 +1,92 @@
+{
+  "productSource": "9740d7efffcb7c93132483562b0b56d89267e961",
+  "backend": {
+    "tests": 361,
+    "passed": 361,
+    "failed": 0,
+    "skipped": 0,
+    "log": "backend-final.tap",
+    "frontendAssetsRootExplicit": true,
+    "writableArtifactsMount": true
+  },
+  "customer": {
+    "checks": 24,
+    "passed": 24,
+    "failures": 0,
+    "screenshots": 59,
+    "results": "results.json",
+    "surface": "Public deployed frontend",
+    "build": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "8cb9a63a0b4e7090",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "8cb9a63a0b4e7090"
+    }
+  },
+  "focusedGitVisual": {
+    "checks": 20,
+    "passed": 20,
+    "results": "git-visual-results.json",
+    "screenshot": "daily-git-diff-visual.png",
+    "scope": "Separate focused rerun stops at Git; waits for actual visible inserted-line decorations. Not additional full-journey acceptance."
+  },
+  "clientUpdates": {
+    "checks": 2,
+    "passed": 2,
+    "results": "client-update-results.json"
+  },
+  "roleImages": {
+    "checks": 3,
+    "passed": 3,
+    "results": "role-image-smoke.jsonl"
+  },
+  "staticClient": {
+    "checks": 1,
+    "passed": 1,
+    "source": "8373f5c0d372b61733a50efc9a0b492b64a54da4",
+    "log": "static-client-test.txt",
+    "scope": "Earlier snapshot checks for no-store assets, removed raw/alternate entrypoints, PDF module MIME and API/filesystem fences; not a final-source rerun."
+  },
+  "typecheck": {
+    "passed": true,
+    "log": "final-harness-typecheck.txt"
+  },
+  "containerLimits": {
+    "memory": "2GiB",
+    "swap": "disabled",
+    "cpus": 2,
+    "pids": 512,
+    "browserSharedMemory": "256MiB",
+    "serialized": true
+  },
+  "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+  "oauthBoundary": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+  "runtimeBoundary": "Real ManagedRuntime, ComputerService and NativeHttpTarget; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR image acceptance",
+  "externalBootstrap": [
+    {
+      "computer": "Computer A",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+      "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository in the externally prepared Computer workspace; file create/edit tests remain browser UI"
+    },
+    {
+      "computer": "Computer B",
+      "operation": "External Computer enroll and service start using the pairing code generated in browser",
+      "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+      "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository in the externally prepared Computer workspace; file create/edit tests remain browser UI"
+    }
+  ],
+  "browserPermissionSetup": "Public-origin local-network-access and clipboard permissions granted to automated browser; no application grants injected",
+  "harnessOverride": "Read-only compiled customer harness mounted into reviewed tools image for final assertion/visual-wait corrections; application source was not overlaid. See harness SHA and image provenance.",
+  "notExercised": [
+    "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+    "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+    "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+  ],
+  "diagnostics": "Raw browser console diagnostics are retained in results.json, including expected permission-denial requests and background polling with no selected/permitted agent. Zero journey assertion failures does not assert a silent browser console.",
+  "logFormatting": {
+    "operation": "Strip trailing whitespace and terminal blank lines for repository diff hygiene; test output and counts unchanged",
+    "originalBackendSha256": "7238a780180da49abf6260d4f2acd62a09438b408d6ab21cfa986463ea8096fe"
+  },
+  "infrastructureClarification": "Acceptance Computers ran in controlled container infrastructure. Original results.json is retained unchanged; its phrase physical Computer means the externally prepared Computer workspace, not physical hardware acceptance."
+}

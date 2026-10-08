@@ -1,0 +1,19 @@
+{
+  "providers": [
+    {
+      "kind": "google",
+      "id": "google-main",
+      "clientId": "YOUR_GOOGLE_WEB_CLIENT_ID",
+      "clientSecret": "YOUR_GOOGLE_WEB_CLIENT_SECRET",
+      "name": "Personal"
+    },
+    {
+      "kind": "feishu",
+      "id": "feishu-main",
+      "clientId": "YOUR_FEISHU_APP_ID",
+      "clientSecret": "YOUR_FEISHU_APP_SECRET",
+      "name": "Your organization",
+      "tenant": "YOUR_ORGANIZATION_TENANT_KEY"
+    }
+  ]
+}

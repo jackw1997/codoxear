@@ -1,0 +1,4039 @@
+      :root {
+        --ink: #2f2b26;
+        --paper: #ffffff;
+        --bg: #f6f5f1;
+        --wash: #efeee9;
+        --hairline: #dcdad4;
+        --panel: var(--paper);
+        --border: #2f2b26;
+        --text: var(--ink);
+        --muted: #6b6862;
+        --accent: #2f2b26;
+        --accent-weak: #efeee9;
+        --danger: #b91c1c;
+        /* The in-app dog-ear mark is Paper ink on Paper surfaces by default.
+           Families retune these semantic tokens rather than mutating the DOM. */
+        --brand-logo-page: var(--paper);
+        --brand-logo-outline: var(--ink);
+        --brand-logo-fold: var(--bg);
+        --brand-logo-terminal: var(--ink);
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        /* Appearance tokens. Paper values are today's literals: square
+           geometry, generic sans-serif, ink focus rings, no elevation. Theme
+           families override them in themes/<family>.css. */
+        --radius-control: 0;
+        --radius-card: 0;
+        --radius-bubble: 0;
+        --radius-pill: 0;
+        --radius-dot: 0;
+        --font-ui: sans-serif;
+        --font-prose: var(--font-ui);
+        --focus-ring: var(--ink);
+        --icon-muted-filter: grayscale(1) brightness(0) opacity(0.62);
+        --shadow-pop: none;
+        /* The paper rhythm uses a compact 4px-based spacing ladder. */
+        --space-1: 4px;
+        --space-2: 6px;
+        --space-3: 8px;
+        --space-4: 10px;
+        --space-5: 12px;
+        --space-6: 14px;
+        --space-7: 16px;
+        /* Text sizes are named by role, from compact labels to headings. */
+        --font-2xs: 10px;
+        --font-xs: 11px;
+        --font-sm: 12px;
+        --font-md: 13px;
+        --font-lg: 14px;
+        --font-xl: 16px;
+        --font-2xl: 18px;
+        --font-3xl: 20px;
+        --ctl: 44px;
+        --ctl-chrome: 32px;
+        --dialog-control-h: var(--ctl-chrome);
+        --dialog-group-gap: var(--space-5);
+        --sidebar-w: 320px;
+        --composer-band-h: 48px;
+        --bubble-user: #faf9f6;
+        --bubble-assistant: var(--paper);
+        --session-active: var(--wash);
+        /* Semantic surface and state tokens keep UI colors on the paper palette. */
+        --surface-subtle: #f8fafc;
+        --surface-muted: #f5f6f6;
+        --surface-error: #fef2f2;
+        --surface-danger: #f9eded;
+        --surface-warning: #fffbeb;
+        --surface-info: #f4f5f5;
+        --surface-code: #f1f1f2;
+        --surface-pdf: #f3f4f6;
+        --border-subtle: #e7e8ea;
+        --border-faint: #ececee;
+        --border-error: #e7b2b2;
+        --border-danger: #eec6c6;
+        --border-warning: #eacfba;
+        --text-subtle: #797d88;
+        --text-soft: #6b7079;
+        --text-error: #7f1d1d;
+        --text-warning: #92400e;
+        --state-pending: #f59e0b;
+        --on-accent: var(--paper);
+        --state-amber-border: #face85;
+        --focus-danger: #cd5c5c;
+        --ink-hover: #2a2624;
+        --ink-disabled: #b9b6ae;
+        --border-count: #dadfe6;
+        --text-effort-xhigh: #9f5f5f;
+        --text-effort-high: #9f7754;
+        --text-effort-medium: #8f7e58;
+        --text-effort-low: #668466;
+        --text-effort-max: #a9536c;
+        --text-effort-minimal: #6f8374;
+        --text-effort-off: #777777;
+        --text-danger-bright: #bf2e2e;
+        --border-amber: #f8c060;
+        --surface-amber: #fef5e7;
+        --border-amber-dark: #bf6d2e;
+        --text-danger-dark: #991b1b;
+        --border-danger-dark: #dc8e8e;
+        --surface-amber-light: #fef7eb;
+        --border-audio-error: #d26b6b;
+        --surface-audio-error: #f7e4e4;
+        --border-audio-active: #c43e3e;
+        --surface-audio-active: #f2d6d6;
+        --text-muted-blue: #888c93;
+        --text-timestamp: #7c8088;
+        --border-rule: #e2e3e5;
+        --border-quote: #caccd0;
+        --text-recovery: #713f12;
+        --border-recovery: #ecd2bf;
+        --text-placeholder: #acaeb3;
+        --text-picker-icon: #8d9097;
+        --surface-picker-section: #eeeff0;
+        --surface-highlight: #fdea9d;
+        --text-added: #15803d;
+        --video-bg: #000000;
+        --border-pdf: #e5e9ee;
+        --surface-queue: #f8fafc;
+        --border-queue: #e1e5eb;
+        --queue-hover: #f1f5f9;
+        --queue-border-hover: #c4cad3;
+        --text-queue-danger: #bc2525;
+        --border-queue-danger: #edc4c4;
+        --queue-danger-hover: #fee2e2;
+      }
+
+      @media (min-width: 881px) {
+        :root {
+          --sidebar-w: 380px;
+        }
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+	      html,
+	      body {
+        height: 100%;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        font-family: var(--font-ui);
+        font-optical-sizing: auto;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        background: var(--bg);
+        color: var(--text);
+	        overflow: hidden;
+	        overflow-x: hidden;
+	        overscroll-behavior: none;
+	      }
+
+      #root {
+        height: 100%;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      #bottomSentinel {
+        height: 1px;
+        width: 1px;
+      }
+
+	      .app {
+	        display: grid;
+	        grid-template-columns: var(--sidebar-w) 1fr;
+	        grid-template-rows: 1fr;
+	        position: fixed;
+	        top: var(--vvTop, 0px);
+	        left: 0;
+	        right: 0;
+	        width: 100vw;
+	        max-width: 100vw;
+        height: 100svh;
+        height: 100dvh;
+        height: var(--appH, 100dvh);
+        overflow: hidden;
+      }
+      body.sidebar-collapsed .app {
+        grid-template-columns: 1fr;
+      }
+      body.sidebar-collapsed .sidebar {
+        display: none;
+      }
+      @media (min-width: 881px) {
+        .app {
+          grid-template-columns: var(--sidebar-w) 1fr;
+        }
+        body.sidebar-collapsed .app {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--border);
+        background: var(--panel);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .sidebar header {
+        padding: var(--space-5) var(--space-6);
+        height: 56px;
+        box-sizing: border-box;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-5);
+      }
+      .sidebar header .title {
+        font-weight: 650;
+        letter-spacing: 0.2px;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .sidebarLogo {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+      .brandLogo .brandLogoPage {
+        fill: var(--brand-logo-page);
+        stroke: var(--brand-logo-outline);
+      }
+      .brandLogo .brandLogoFold {
+        fill: var(--brand-logo-fold);
+        stroke: var(--brand-logo-outline);
+      }
+      .brandLogo .brandLogoTerminal {
+        stroke: var(--brand-logo-terminal);
+      }
+      @media (min-width: 881px) {
+      }
+
+      .sidebar .sessions {
+        padding: var(--space-3) var(--space-3) calc(var(--space-3) + var(--composer-band-h, 48px));
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      .sidebarEmptyHint {
+        padding: var(--space-5) var(--space-6);
+        font-size: var(--font-md);
+      }
+      .sidebar footer {
+        /* Match the one-line composer band: 44px controls plus 3px above and below. */
+        padding: 3px var(--space-5);
+        border-top: 1px solid var(--hairline);
+        display: flex;
+        gap: var(--space-5);
+      }
+      .sidebar footer button {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+        height: var(--ctl);
+        border-radius: var(--radius-control);
+        font-weight: 500;
+        line-height: 1;
+      }
+      .sidebar footer .icon {
+        flex: 0 0 auto;
+      }
+      .sessionGroupHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+        padding: var(--space-4) var(--space-1) var(--space-2);
+        color: var(--text-subtle);
+        font-size: var(--font-xs);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .sessionGroupCount {
+        min-width: 20px;
+        padding: 1px 7px;
+        border: 1px solid var(--border-count);
+        border-radius: var(--radius-pill);
+        background: var(--surface-subtle);
+        color: var(--ink);
+        font-size: var(--font-xs);
+        line-height: 1.45;
+        text-align: center;
+        letter-spacing: 0;
+      }
+      .session {
+        position: relative;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        margin-bottom: var(--space-3);
+        cursor: pointer;
+        background: var(--paper);
+        display: block;
+        touch-action: pan-y;
+      }
+      .sessionSwipe {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        border-radius: var(--radius-card);
+      }
+      .sessionContent {
+        position: relative;
+        z-index: 2;
+        background: var(--paper);
+        /* Nested-radius rule: the content fill rounds itself, one border-width
+           tighter than the card, instead of depending on .sessionSwipe's
+           overflow clip. iOS Safari clips composited children (this element is
+           translate3d/will-change) badly, letting square fill corners poke
+           past the card's rounded border. */
+        border-radius: max(0px, calc(var(--radius-card) - 1px));
+        transform: translate3d(0px, 0, 0);
+        transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+        touch-action: pan-y;
+      }
+      .session.active .sessionContent {
+        background: var(--session-active);
+      }
+      .swipeHint {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: var(--font-sm);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      .sessionActions {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: 0 var(--space-4);
+        z-index: 1;
+        pointer-events: none;
+      }
+      .sessionActionsInline {
+        display: none;
+      }
+
+      .sessionActions .icon-btn {
+        pointer-events: auto;
+      }
+      .sessionActions.left {
+        left: 0;
+        justify-content: flex-start;
+        background: var(--surface-danger);
+      }
+      .sessionActions.right {
+        right: 0;
+        justify-content: flex-end;
+        background: var(--surface-muted);
+      }
+      .ownDot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-dot);
+        flex: 0 0 auto;
+        background: var(--ink);
+      }
+      .ownDot.owned {
+        background: var(--ink);
+      }
+      .stateDot {
+        width: 9px;
+        height: 9px;
+        border: 2px solid var(--ink);
+        border-radius: var(--radius-dot);
+        flex: 0 0 auto;
+        /* Idle is hollow; fill and motion distinguish active states without
+           depending on color. */
+        background: transparent;
+      }
+      .stateDot.busy,
+      .stateDot.suppressed,
+      .stateDot.pending {
+        border-color: var(--ink);
+        background: var(--stateDot-fill, var(--ink));
+      }
+      .stateDot.busy {
+        --stateDot-fill: var(--ink);
+        animation: stateDotPulse 1.8s ease-in-out infinite;
+      }
+      .stateDot.suppressed {
+        --stateDot-fill: var(--ink);
+      }
+      .stateDot.pending {
+        --stateDot-fill: var(--state-pending);
+        animation: stateDotPulse 1.8s ease-in-out infinite;
+      }
+      @keyframes stateDotPulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.55;
+          transform: scale(0.72);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stateDot.busy,
+        .stateDot.pending {
+          animation: none;
+        }
+        .msg-row.nav-pulse .msg {
+          animation: none;
+        }
+        .typingDot {
+          animation: none;
+        }
+      }
+      /* A selected card uses the same solid two-pixel perimeter on the
+         touch and desktop branches without changing its layout dimensions. */
+      .session.active {
+        border: 1px solid var(--ink);
+        border-left-width: 3px;
+        background: var(--session-active);
+        color: var(--ink);
+      }
+      .session.active .sessionContent {
+        background: var(--session-active);
+        color: inherit;
+      }
+      .session.active .muted,
+      .session.active .ownerBadge,
+      .session.active .sessionFastIcon {
+        color: var(--muted);
+      }
+      .session.active .sessionBackendStatusIcon {
+        filter: var(--icon-muted-filter);
+      }
+      .session.active .badge {
+        border-color: var(--ink);
+        background: var(--paper);
+        color: var(--muted);
+      }
+      .sessionMetaLine {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-width: 0;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        font-family: var(--font-ui);
+      }
+      .sidebarMetaData {
+        display: inline-flex;
+        align-items: baseline;
+        flex: 0 0 auto;
+        min-width: 0;
+        white-space: nowrap;
+      }
+      .sidebarMetaData > span:last-child {
+        flex: 0 0 auto;
+      }
+      .sidebarMetaLabel,
+      .sidebarMetaSeparator {
+        flex: 0 0 auto;
+        font-family: var(--font-ui);
+      }
+      .sidebarMetaSeparator {
+        padding: 0 var(--space-1);
+      }
+	      .ownerBadge {
+	        width: 18px;
+	        height: 18px;
+	        border-radius: var(--radius-control);
+	        border: 1px solid var(--border);
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        font-size: var(--font-2xs);
+	        font-weight: 700;
+	        line-height: 1;
+	        color: var(--muted);
+	        background: var(--paper);
+	        flex: 0 0 auto;
+	      }
+	      .ownerIconBadge {
+	        width: 12px;
+	        height: 12px;
+	        border: 0;
+	        border-radius: var(--radius-control);
+	        background: transparent;
+	        padding: 0;
+	      }
+	      .ownerIconBadge .icon {
+	        width: 12px;
+	        height: 12px;
+	      }
+	      .ownerBadge.owner-web {
+	        color: var(--muted);
+	      }
+	      .ownerBadge.owner-terminal {
+	        color: var(--muted);
+	      }
+	      .effortMark {
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        flex: 0 0 auto;
+	        min-width: 12px;
+	        height: 12px;
+	        font-size: var(--font-2xs);
+	        font-weight: 700;
+	        line-height: 12px;
+	        letter-spacing: 0.02em;
+	      }
+	      .effortMark.effort-xhigh {
+	        color: var(--text-effort-xhigh);
+	      }
+	      .effortMark.effort-high {
+	        color: var(--text-effort-high);
+	      }
+	      .effortMark.effort-medium {
+	        color: var(--text-effort-medium);
+	      }
+	      .effortMark.effort-low {
+	        color: var(--text-effort-low);
+	      }
+	      .effortMark.effort-max {
+	        color: var(--text-effort-max);
+	      }
+	      .effortMark.effort-minimal {
+	        color: var(--text-effort-minimal);
+	      }
+	      .effortMark.effort-off {
+	        color: var(--text-effort-off);
+	      }
+      .metaText {
+        display: flex;
+        align-items: baseline;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sessionInner {
+        padding: var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-width: 0;
+      }
+      .sessionTitleRow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+      }
+      .sessionBackendStatusIcon {
+        width: 10px;
+        height: 10px;
+        flex: 0 0 auto;
+        display: block;
+        object-fit: contain;
+        filter: var(--icon-muted-filter);
+      }
+      .sessionBadges {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: nowrap;
+        min-width: 0;
+      }
+      .rowRight {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+      }
+        .session.desktop .sessionSwipe {
+          overflow: visible;
+        }
+      @media (hover: hover) and (pointer: fine) and (min-width: 881px) {
+        .session.desktop .sessionContent {
+          transition: padding-right 140ms ease;
+        }
+        .session.desktop .sessionActionsInline {
+          position: absolute;
+          top: 50%;
+          right: var(--space-2);
+          z-index: 3;
+          transform: translateY(-50%);
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-1);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          padding: 0 var(--space-1);
+          transition:
+            opacity 140ms ease,
+            visibility 140ms step-end;
+        }
+        .session.desktop .sessionActionsInline .icon-btn {
+          width: var(--ctl-chrome);
+          height: var(--ctl-chrome);
+          min-width: var(--ctl-chrome);
+          min-height: var(--ctl-chrome);
+          /* Opaque paper fill: session title/meta text must not bleed
+             through the hover-revealed action buttons. */
+          background: var(--paper);
+        }
+        /* Keep the actions pinned only for keyboard focus (:focus-visible).
+           A mouse click also focuses the button, so plain :focus-within
+           would leave the group stuck visible after the pointer leaves. */
+        .session.desktop:hover .sessionContent,
+        .session.desktop:has(.sessionActionsInline :focus-visible) .sessionContent {
+          padding-right: calc(var(--ctl-chrome) * 3 + var(--space-4));
+        }
+
+        .session.desktop:hover .sessionActionsInline,
+        .session.desktop:has(.sessionActionsInline :focus-visible) .sessionActionsInline {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+          transition:
+            opacity 140ms ease,
+            visibility 0s linear;
+        }
+      }
+      .sessionAction {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+      }
+      .sessionFiles {
+        margin-top: var(--space-2);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .sessionFilesLabel {
+        font-size: var(--font-xs);
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .sessionFile {
+        text-align: left;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-control);
+        font-size: var(--font-sm);
+        line-height: 1.2;
+        border: 1px solid var(--border);
+        background: var(--paper);
+        color: var(--text);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        touch-action: manipulation;
+      }
+      .sessionFile:hover {
+        background: var(--surface-muted);
+      }
+      .sessionFilesMore {
+        font-size: var(--font-xs);
+      }
+      .sessionAction > .icon-btn {
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        padding: 0;
+      }
+      .row {
+        display: flex;
+        gap: var(--space-4);
+        align-items: center;
+        justify-content: space-between;
+      }
+      .danger {
+        color: var(--text-danger-bright);
+      }
+      .danger:hover {
+        background: var(--surface-danger);
+        border-color: var(--border-danger);
+      }
+      .titleLine {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-width: 0;
+        font-weight: 650;
+        font-size: var(--font-lg);
+        overflow: hidden;
+        max-width: 220px;
+      }
+      .titleText {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .sessionFastIcon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-soft);
+        flex: 0 0 auto;
+        opacity: 0.9;
+      }
+      .sessionFastIcon .icon {
+        width: 11px;
+        height: 11px;
+        stroke-width: 1.7;
+      }
+      .subLine {
+        margin-top: 3px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: var(--font-sm);
+      }
+      .badge {
+        font-size: var(--font-sm);
+        padding: 2px var(--space-3);
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        background: var(--paper);
+        white-space: nowrap;
+      }
+	      .badge.busy {
+	        color: var(--accent);
+	        border-color: var(--ink);
+	      }
+	      .badge.unattended {
+	        color: var(--paper);
+	        border-color: var(--ink);
+	        background: var(--ink);
+	      }
+	      .badge.queue {
+	        color: var(--state-pending);
+	        border-color: var(--state-amber-border);
+	      }
+      button.badge {
+        font: inherit;
+        cursor: pointer;
+      }
+      .badge.commitUnknown {
+        color: var(--text-warning);
+        border-color: var(--border-amber);
+        background: var(--surface-amber);
+      }
+      .badge.commitUnknown:hover,
+      .badge.commitUnknown:focus-visible {
+        border-color: var(--border-amber-dark);
+      }
+      .badge.launchFailed {
+        color: var(--text-danger-dark);
+        border-color: var(--border-danger-dark);
+        background: var(--surface-danger);
+      }
+      .badge.launchPending {
+        color: var(--text-warning);
+        border-color: var(--state-amber-border);
+        background: var(--surface-amber-light);
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        min-width: 0;
+      }
+      .topbar {
+        padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-5) var(--space-3) var(--space-5);
+        height: 56px;
+        box-sizing: border-box;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        align-items: center;
+        gap: var(--space-3);
+        overflow: hidden;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .titleWrap {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+      .titleRow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        min-width: 0;
+        flex-wrap: nowrap;
+      }
+      #threadTitle {
+        font-weight: 650;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: min(34vw, 420px);
+      }
+      .titleRow #threadTitle {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
+      }
+      .topMeta {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+      }
+      .toast {
+        position: fixed;
+        top: calc(56px + 44px + var(--space-2) + env(safe-area-inset-top));
+        right: var(--space-5);
+        z-index: 95;
+        margin: 0;
+        padding: var(--space-2) var(--space-5);
+        min-height: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        background: var(--paper);
+        color: var(--ink);
+        font-size: var(--font-md);
+        line-height: 1.4;
+        max-width: min(70vw, 520px);
+        pointer-events: none;
+      }
+      .toast:empty {
+        display: none;
+      }
+      .networkBanner {
+        align-self: stretch;
+        margin: var(--space-2) var(--space-5) 0 var(--space-5);
+        padding: var(--space-2) var(--space-5);
+        border: 1px solid var(--ink);
+        border-radius: var(--radius-card);
+        background: var(--wash);
+        color: var(--ink);
+        font-size: var(--font-md);
+        line-height: 1.4;
+      }
+      .networkBanner[hidden] {
+        display: none;
+      }
+      /* Chrome rows are never scroll containers. The 44px hit areas on
+         chrome .icon-btn::after (inset: -6px) and form controls (inset: -2px)
+         are absolutely positioned, so they inflate the scrollable overflow
+         area of any ancestor with non-visible overflow: a scrollable .actions
+         row gains permanent phantom scrollbars on both axes (overflow-x: auto
+         computes overflow-y to auto too) and clips anything painted outside a
+         button's border box. Buttons in these rows fit or wrap instead. */
+      .actions {
+        display: flex;
+        gap: var(--space-3);
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .topActions {
+        align-items: center;
+        gap: var(--space-1);
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .chatNavRail {
+        display: none;
+        position: absolute;
+        right: var(--space-5);
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 1;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius-card);
+        background: transparent;
+      }
+      .chatMessageNavControls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        margin-left: 0;
+        padding-left: 0;
+        border-left: 0;
+      }
+      button {
+        min-height: var(--ctl-chrome);
+        touch-action: manipulation;
+        border: 1px solid var(--border);
+        background: var(--paper);
+        color: var(--text);
+        border-radius: var(--radius-control);
+        padding: var(--space-4) var(--space-5);
+        font-family: inherit;
+        font-size: var(--font-md);
+        cursor: pointer;
+      }
+      button.primary,
+      .composer .icon-btn.primary {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+      }
+      /* Text primaries keep the 44px touch height as their visible size.
+         Composer primaries are compact icon squares: the ::after hit area
+         carries the touch target, so no min-height may leak in here. */
+      button.primary {
+        min-height: var(--ctl);
+      }
+      button.primary:hover,
+      .composer .icon-btn.primary:hover {
+        border-color: var(--ink-hover);
+        background: var(--ink-hover);
+        color: var(--paper);
+      }
+      button:disabled {
+        cursor: default;
+      }
+      button.primary:disabled,
+      button.primary:disabled:hover,
+      .composer .icon-btn.primary:disabled,
+      .composer .icon-btn.primary:disabled:hover {
+        border-color: var(--ink-disabled);
+        background: var(--ink-disabled);
+        color: var(--paper);
+        opacity: 1;
+        cursor: not-allowed;
+      }
+	      .icon-btn {
+	        width: var(--ctl-chrome);
+	        height: var(--ctl-chrome);
+	        padding: 0;
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        border: 1px solid var(--border);
+	        border-radius: var(--radius-control);
+	        background: transparent;
+	        position: relative;
+	      }
+      .topActions .icon-btn,
+      .pill > .icon-btn,
+      .sidebar header .icon-btn,
+      .chatNavRail .icon-btn {
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-width: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        position: relative;
+        border: 1px solid var(--border);
+      }
+      .composer .icon-btn::after,
+      .topActions .icon-btn::after,
+      .pill > .icon-btn::after,
+      .sidebar header .icon-btn::after,
+      .chatNavRail .icon-btn::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+      }
+      .icon-btn.active {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .icon-btn.active:disabled,
+      .icon-btn.active:disabled:hover {
+        border-color: var(--ink-disabled);
+        background: var(--ink-disabled);
+        color: var(--paper);
+        opacity: 1;
+        cursor: not-allowed;
+      }
+      /* Announcement audio/HLS error state (see app_voice.js updateVoiceUi).
+         The danger treatment distinguishes an armed-but-broken state from
+         both the inverted active state and default chrome. */
+      #announceBtn.error {
+        border-color: var(--border-audio-error);
+        background: var(--surface-audio-error);
+        color: var(--danger);
+      }
+      #announceBtn.error.active {
+        border-color: var(--border-audio-active);
+        background: var(--surface-audio-active);
+        color: var(--danger);
+      }
+      .icon-btn.text-btn {
+        width: auto;
+        min-width: 46px;
+        padding: 0 var(--space-4);
+        font-size: var(--font-md);
+        line-height: 1;
+      }
+	      .icon {
+	        width: 18px;
+	        height: 18px;
+	        display: inline-block;
+	      }
+      .attachBadge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 15px;
+        height: 15px;
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-pill);
+        background: var(--ink);
+        color: var(--paper);
+        font-size: var(--font-2xs);
+        line-height: 15px;
+        text-align: center;
+        display: none;
+      }
+      .queueBadge {
+        background: var(--state-pending);
+      }
+
+      .status-chip,
+      .chatTimeChip {
+        display: inline-flex;
+        align-items: center;
+        height: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        box-sizing: border-box;
+        padding: 0 var(--space-2);
+        border-radius: var(--radius-control);
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: var(--font-sm);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      button.status-chip {
+        appearance: none;
+        -webkit-appearance: none;
+        margin: 0;
+        font-family: var(--font-mono);
+        font-weight: inherit;
+        cursor: pointer;
+      }
+      .status-chip,
+      .chatTimeChip,
+      .ts {
+        font-family: var(--font-mono);
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      textarea:not(.monaco-editor textarea):focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      /* tabindex="-1" marks focus-management targets (modal surfaces focused
+         on open, hover-revealed copy buttons). They are unreachable by
+         keyboard by definition, so no focus indicator belongs on them — and
+         without this, the UA paints its own default ring (system blue in
+         Safari) on the focused dialog surface. */
+      [tabindex="-1"]:focus {
+        outline: none;
+      }
+      /* The composer band is the input surface; focus there is self-evident
+         (keyboard opens, cursor blinks) and a 2px ink outline reads as a
+         heavy box floating inside the band. */
+      .composer textarea:focus-visible {
+        outline: none;
+      }
+
+      .chatWrap {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        overflow: hidden;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .chatEmptyState {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-5);
+        text-align: center;
+        pointer-events: none;
+      }
+      .chatEmptyState > * {
+        pointer-events: auto;
+      }
+      .chatEmptyCopy {
+        font-size: var(--font-lg);
+      }
+      .chat {
+        order: 1;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
+        padding: var(--space-6) var(--space-5);
+        overflow: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      .chat {
+        overflow-x: hidden;
+      }
+      .chatInner {
+        max-width: 980px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+      }
+      .day-sep {
+        align-self: center;
+        margin: var(--space-6) 0 var(--space-3) 0;
+        padding: var(--space-2) var(--space-4);
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border-subtle);
+        background: transparent;
+        color: var(--muted);
+        font-size: var(--font-sm);
+        line-height: 1.1;
+      }
+      .olderWrap {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-2);
+        align-self: center;
+        margin: var(--space-1) 0 var(--space-3) 0;
+      }
+      .olderBtn {
+        padding: var(--space-2) var(--space-5);
+        border-radius: var(--radius-control);
+        font-size: var(--font-sm);
+        line-height: 1.1;
+        color: var(--muted);
+      }
+      .olderError {
+        display: none;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-card);
+        background: var(--surface-error);
+        color: var(--text-error);
+        font-size: var(--font-sm);
+        line-height: 1.2;
+      }
+      .olderRetryBtn {
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-control);
+        border-color: var(--border-danger);
+        color: var(--text-error);
+        font-size: var(--font-sm);
+        line-height: 1.1;
+      }
+      .chatHeader {
+        --chat-nav-rail-w: 120px;
+        order: 0;
+        flex: 0 0 auto;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--ctl);
+        padding: var(--space-2) var(--space-5) var(--space-3);
+      }
+      .chatTimeChip {
+        position: absolute;
+        left: var(--space-5);
+        right: calc(var(--space-5) + var(--chat-nav-rail-w));
+        display: none;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: var(--font-sm);
+        line-height: 1.1;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .chatSearchBar {
+        order: 0;
+        flex: 0 0 40px;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        width: 100%;
+        min-width: 0;
+        height: var(--ctl-chrome);
+        box-sizing: border-box;
+        margin: 0;
+        padding: var(--space-1) var(--space-5);
+        border: 0;
+        border-bottom: 1px solid var(--hairline);
+        background: var(--paper);
+      }
+      .chatSearchGlyph {
+        display: inline-flex;
+        flex: 0 0 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .chatSearchGlyph svg {
+        width: 18px;
+        height: 18px;
+      }
+      .chatSearchInput {
+        flex: 1 1 auto;
+        min-width: 0;
+        height: var(--ctl-chrome);
+        border: 0;
+        border-bottom: 1px solid var(--hairline);
+        border-radius: var(--radius-control);
+        padding: 5px var(--space-2);
+        font-size: var(--font-lg);
+        outline: none;
+        background: var(--paper);
+      }
+      .chatSearchInput:focus-visible {
+        border-color: var(--ink);
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 0;
+      }
+      .chatSearchStatus {
+        flex: 0 0 auto;
+        min-width: 0;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: var(--font-xs);
+        line-height: 1;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .chatSearchAllHint {
+        display: none;
+      }
+      .chatSearchBar .icon-btn {
+        flex: 0 0 32px;
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-width: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        border-radius: var(--radius-control);
+      }
+      .chatSearchBar .icon-btn::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+      }
+      mark.searchHit {
+        padding: 0;
+        border: 0;
+        background: var(--wash);
+        color: var(--ink);
+      }
+      mark.searchHit.searchHitCurrent {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .msg-row {
+        display: flex;
+        margin-top: var(--space-2);
+      }
+      .msg-row.user {
+        justify-content: flex-end;
+      }
+      .msg-row.assistant {
+        justify-content: flex-start;
+      }
+      .msg-row.nav-pulse .msg {
+        animation: navPulse 1.4s ease-out;
+      }
+      @keyframes navPulse {
+        0% {
+          outline: 2px solid var(--ink);
+          outline-offset: 4px;
+        }
+        100% {
+          outline: 2px solid var(--ink);
+          outline-offset: 1px;
+        }
+      }
+      .msg-shell {
+        position: relative;
+        display: inline-flex;
+        align-items: flex-end;
+        max-width: min(760px, 82%, calc(100% - 36px));
+        min-width: 0;
+      }
+      .msg {
+        max-width: min(760px, 82%);
+        min-width: 0;
+        padding: var(--space-4) var(--space-5) 18px var(--space-5);
+        border-radius: var(--radius-bubble);
+        border: 1px solid var(--ink);
+        position: relative;
+        white-space: normal;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+      .msg.user {
+        background: var(--bubble-user);
+        color: var(--text);
+      }
+      .msg.assistant {
+        background: var(--bubble-assistant);
+      }
+      .msg.assistant.error {
+        border-color: var(--border-error);
+        background: var(--surface-error);
+      }
+      .msg.transcript-error {
+        color: var(--text-error);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .transcriptRetryBtn.icon-btn.text-btn {
+        height: var(--ctl-chrome);
+        min-width: 0;
+        padding: 0 9px;
+        background: var(--paper);
+      }
+      .msg.assistant.warning {
+        border-color: var(--border-warning);
+        background: var(--surface-warning);
+      }
+      .msg.recovery-panel {
+        width: min(100%, 640px);
+        color: var(--text-recovery);
+        border-color: var(--border-recovery);
+        background: var(--surface-warning);
+      }
+      .recoveryPanelTitle {
+        font-weight: 800;
+        margin-bottom: var(--space-2);
+      }
+      .recoveryPanelList {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .recoveryPanelPreview {
+        max-height: 140px;
+        overflow: auto;
+        margin: var(--space-4) 0 0;
+        padding: var(--space-3);
+        white-space: pre-wrap;
+        word-break: break-word;
+        border-radius: var(--radius-card);
+        background: var(--paper);
+      }
+      .recoveryPanelActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        margin-top: var(--space-4);
+      }
+      .msg-shell .msg {
+        max-width: 100%;
+      }
+      .msg-copy-btn {
+        position: absolute;
+        right: -36px;
+        bottom: 0;
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-width: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-control);
+        background: var(--paper);
+        color: var(--ink);
+        opacity: 0;
+        pointer-events: none;
+      }
+      .msg-shell.user .msg-copy-btn {
+        right: auto;
+        left: -36px;
+      }
+      .msg-row.show-copy .msg-copy-btn {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .msg-row:hover .msg-copy-btn,
+        .msg-row:focus-within .msg-copy-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+      .msg-copy-btn.copied {
+        opacity: 1;
+        pointer-events: auto;
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .msg-copy-btn .icon {
+        width: 15px;
+        height: 15px;
+      }
+      .msg.typing {
+        display: inline-grid;
+        grid-template-columns: minmax(0, auto);
+        align-items: center;
+        padding: var(--space-3) var(--space-4);
+        min-width: 54px;
+      }
+      .msg.loading {
+        padding: 9px var(--space-5);
+        color: var(--muted);
+        background: var(--paper);
+      }
+      .typingDots {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        height: 14px;
+      }
+      .typingStats {
+        color: var(--text-muted-blue);
+        font-size: var(--font-xs);
+        line-height: 14px;
+        white-space: nowrap;
+      }
+      .typingStats:empty {
+        display: none;
+      }
+      .subagentDetails {
+        grid-column: 1 / -1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        margin-top: var(--space-2);
+        color: var(--muted);
+        font: var(--font-2xs)/1.4 var(--font-ui);
+      }
+      .subagentDetails:empty {
+        display: none;
+      }
+      .subagentDetailLine {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .subagentActivity {
+        display: inline-grid;
+        grid-template-columns: minmax(0, auto);
+        align-items: center;
+        padding: var(--space-3) var(--space-4);
+        color: var(--muted);
+        background: var(--wash);
+      }
+      .subagentActivityHeader {
+        display: inline-flex;
+        align-items: center;
+        justify-self: start;
+        gap: var(--space-3);
+        max-width: 100%;
+      }
+      .subagentActivitySquares {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        flex: 0 0 auto;
+      }
+      .subagentActivitySquare {
+        width: 5px;
+        height: 5px;
+        border-radius: var(--radius-dot);
+        background: var(--ink);
+      }
+      .subagentActivityText {
+        font-size: var(--font-xs);
+        line-height: 14px;
+        white-space: nowrap;
+      }
+      .typingDot {
+        width: 6px;
+        height: 6px;
+        border-radius: var(--radius-dot);
+        background: var(--ink);
+        animation: typingDot 1.2s infinite ease-in-out;
+      }
+      .typingDot:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      .typingDot:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes typingDot {
+        0%,
+        80%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.55;
+        }
+        40% {
+          transform: translateY(-4px);
+          opacity: 1;
+        }
+      }
+      .msg-row.grouped {
+        margin-top: 2px;
+      }
+      .ts {
+        position: absolute;
+        right: 10px;
+        bottom: 6px;
+        font-size: var(--font-xs);
+        line-height: 1.1;
+        color: var(--text-timestamp);
+        user-select: none;
+      }
+      .msg.user .ts {
+        color: var(--text-timestamp);
+      }
+      .md p {
+        margin: 0 0 var(--space-4) 0;
+      }
+      .md p:last-child {
+        margin-bottom: 0;
+      }
+      .md h1,
+      .md h2,
+      .md h3,
+      .md h4,
+      .md h5,
+      .md h6 {
+        margin: 0 0 var(--space-4) 0;
+        line-height: 1.15;
+      }
+      .md h1,
+      .md h2,
+      .md h3 {
+        font-family: var(--font-prose);
+      }
+      .md h1 {
+        font-size: var(--font-2xl);
+      }
+      .md h2 {
+        font-size: var(--font-xl);
+      }
+      .md h3,
+      .md h4,
+      .md h5,
+      .md h6 {
+        font-size: var(--font-lg);
+      }
+      .md a {
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
+      }
+      .md img {
+        max-width: 100%;
+        height: auto;
+      }
+      .md code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: var(--font-md);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-control);
+        background: var(--surface-code);
+        border: 1px solid var(--border-faint);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .codeBlockWrap {
+        position: relative;
+        margin: var(--space-4) 0 var(--space-5) 0;
+      }
+      .md pre {
+        margin: 0;
+        padding: var(--space-5);
+        border-radius: var(--radius-card);
+        overflow: auto;
+        max-width: 100%;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        box-sizing: border-box;
+        white-space: pre;
+        overflow-wrap: normal;
+        background: var(--surface-subtle);
+        color: var(--text);
+        border: 1px solid var(--border-subtle);
+      }
+      .md pre code {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        white-space: inherit;
+      }
+      .code-copy-btn {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        z-index: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-width: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        padding: 0;
+        border: 1px solid var(--ink);
+        border-radius: var(--radius-control);
+        background: var(--paper);
+        color: var(--ink);
+        opacity: 0;
+        pointer-events: none;
+      }
+      .code-copy-btn::before {
+        content: "⧉";
+        font-size: var(--font-xl);
+        line-height: 1;
+      }
+      .md .codeBlockWrap:hover > .code-copy-btn,
+      .md .codeBlockWrap:focus-within > .code-copy-btn,
+      .md .codeBlockWrap > pre.show-copy + .code-copy-btn,
+      .code-copy-btn.copied {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .code-copy-btn.copied {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .md ul,
+      .md ol {
+        margin: 0 0 var(--space-4) 20px;
+        padding: 0;
+      }
+      .md ol.md-literal-ol {
+        list-style: none;
+        margin-left: 0;
+      }
+      .md-list-line {
+        display: grid;
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: var(--space-3);
+        align-items: baseline;
+      }
+      .md-list-marker {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+      .md hr {
+        margin: var(--space-6) 0 var(--space-5) 0;
+        height: 0;
+        border: 0;
+        border-top: 1px solid var(--border-rule);
+      }
+      .md blockquote {
+        margin: var(--space-4) 0 var(--space-5) 0;
+        padding: var(--space-4) var(--space-5) var(--space-4) var(--space-6);
+        border-left: 3px solid var(--border-quote);
+        border-radius: 0 var(--radius-control) var(--radius-control) 0;
+        background: var(--surface-info);
+        color: var(--ink);
+      }
+      .md blockquote > :last-child {
+        margin-bottom: 0;
+      }
+      .md li {
+        margin: var(--space-1) 0;
+      }
+      .md-table-wrap {
+        margin: var(--space-4) 0 var(--space-5) 0;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .md table {
+        width: auto;
+        max-width: 100%;
+        table-layout: auto;
+        border-collapse: collapse;
+        font-size: var(--font-md);
+        line-height: 1.35;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        overflow: hidden;
+        background: var(--paper);
+      }
+      .md th,
+      .md td {
+        padding: var(--space-3) var(--space-4);
+        vertical-align: top;
+        border: 0;
+        border-bottom: 1px solid var(--hairline);
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .md tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .md th {
+        font-weight: 650;
+        border-bottom-color: var(--border);
+        background: var(--wash);
+      }
+      .md td {
+        background: var(--paper);
+      }
+      .md th p,
+      .md td p {
+        margin-bottom: 0;
+      }
+      .md img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: var(--space-4) auto var(--space-5) auto;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--border-subtle);
+        background: var(--paper);
+      }
+
+      /* Math (KaTeX) rendering */
+      .md .katex {
+        font-size: 1.04em;
+      }
+      .md .katex-display {
+        margin: var(--space-5) 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding: 2px 0;
+      }
+      .md .katex-display > .katex {
+        white-space: nowrap;
+      }
+      .md p > .katex-display {
+        margin: var(--space-4) 0;
+      }
+      .md-math-fallback {
+        font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 0.9em;
+        background: var(--surface-code);
+        border-radius: var(--radius-control);
+        padding: 0 var(--space-1);
+        white-space: nowrap;
+      }
+      .md-math-inline {
+        display: inline;
+      }
+      .md-math-display {
+        display: block;
+        margin: var(--space-4) 0 var(--space-5) 0;
+        padding: var(--space-3) var(--space-4);
+        text-align: center;
+        white-space: pre-wrap;
+        overflow-x: auto;
+      }
+
+      .composer {
+        --composerCtl: 32px;
+        --composer-picker-inset: 8px;
+        /* App chrome separators are uniform 1px ink rules (sidebar, header,
+           composer); the composer input itself has no second box. */
+        padding: var(--space-2) var(--space-5) calc(var(--space-2) + env(safe-area-inset-bottom));
+        background: var(--panel);
+        border-top: 1px solid var(--border);
+      }
+      .composer form {
+        position: relative;
+        max-width: 900px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-1);
+        padding: 3px var(--space-2);
+        transition: background 120ms ease-out;
+      }
+      .composer.drop-active form {
+        background: var(--wash);
+      }
+      .composer .icon-btn {
+        width: var(--composerCtl);
+        height: var(--composerCtl);
+        min-height: 0;
+        border: 0;
+        border-radius: var(--radius-control);
+      }
+      .composerInputRow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+      }
+      .composer .inputWrap {
+        flex: 1 1 auto;
+        min-width: 0;
+        position: relative;
+      }
+      .stagedAttachments {
+        display: none;
+        width: 100%;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        min-width: 0;
+      }
+      .stagedAttachmentChip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        height: var(--ctl-chrome);
+        min-width: 0;
+        max-width: min(280px, 100%);
+        border: 1px solid var(--hairline);
+        background: var(--wash);
+        color: var(--ink);
+        border-radius: var(--radius-pill);
+        padding: 0 var(--space-1) 0 var(--space-3);
+        font-size: var(--font-xs);
+      }
+      .stagedAttachmentName {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .stagedAttachmentMeta {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: var(--font-2xs);
+      }
+      .stagedAttachmentRemove,
+      .stagedAttachmentsClear {
+        min-height: 0;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        border-radius: var(--radius-control);
+        cursor: pointer;
+        font: inherit;
+      }
+      .stagedAttachmentRemove {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        line-height: 16px;
+      }
+      .stagedAttachmentsClear {
+        height: var(--ctl-chrome);
+        margin-left: auto;
+        padding: 0 var(--space-1);
+        font-size: var(--font-xs);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .composer .ph {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        padding: 0 var(--space-4);
+        color: var(--text-placeholder);
+        pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .composer form.multiline .ph {
+        align-items: flex-start;
+        padding: var(--space-2) var(--space-4);
+        white-space: normal;
+      }
+      .composer .modelPicker {
+        position: absolute;
+        z-index: 20;
+        left: 0;
+        right: 0;
+        bottom: calc(100% + 6px);
+        width: auto;
+        max-width: 420px;
+        max-height: min(50vh, 320px);
+        overflow-y: auto;
+        padding: var(--space-1);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        background: var(--paper);
+      }
+      .composer .modelPickerOption {
+        display: block;
+        width: 100%;
+        border: 0;
+        border-radius: var(--radius-control);
+        padding: 7px 9px;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        font-size: var(--font-md);
+        text-align: left;
+        cursor: pointer;
+      }
+      .composer .modelPickerOption:hover,
+      .composer .modelPickerOption.active {
+        background: var(--wash);
+      }
+textarea:not(.monaco-editor textarea),
+input[type="password"],
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="search"],
+input[type="number"],
+select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--text);
+        border-radius: var(--radius-control);
+        padding: var(--space-4) var(--space-5);
+        font-family: inherit;
+        font-size: var(--font-lg);
+        outline: none;
+      }
+      /* The composer is the one single-line-by-default textarea: it starts
+         at control height and its auto-grow code raises the inline height
+         and overflow as lines accumulate. That behavior belongs here, not on
+         the textarea element: every other textarea in the app is a real
+         multi-line field and gets its own treatment. */
+      .composer textarea {
+        flex: 1 1 auto;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        box-sizing: border-box;
+        line-height: 20px;
+        padding: calc((var(--composerCtl) - 20px) / 2) var(--space-4);
+        height: var(--composerCtl);
+        min-height: var(--composerCtl);
+        max-height: 140px;
+        resize: none;
+        overflow-y: hidden;
+        font-size: var(--font-xl);
+      }
+      .composer form.multiline textarea {
+        padding: var(--space-2) var(--space-4);
+        line-height: 20px;
+      }
+      .composer textarea:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .composer button {
+        flex: 0 0 auto;
+      }
+      .composer .icon-btn {
+        border: 0;
+        background: transparent;
+      }
+      .composer .icon-btn:hover {
+        background: var(--wash);
+      }
+      .composer .icon-btn:disabled,
+      .composer .icon-btn:disabled:hover {
+        opacity: 0.45;
+        background: transparent;
+        cursor: not-allowed;
+      }
+
+      .login {
+        width: min(92vw, 360px);
+        margin: 0;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        background: var(--panel);
+      }
+      .loginWrap {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--appH, 100dvh);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(26px + env(safe-area-inset-top)) var(--space-7) calc(26px + env(safe-area-inset-bottom)) var(--space-7);
+        box-sizing: border-box;
+      }
+      .login h1 {
+        margin: 2px 0 var(--space-6) 0;
+        font-size: var(--font-3xl);
+        text-align: center;
+      }
+      .login .err {
+        color: var(--danger);
+        font-size: var(--font-md);
+        margin-top: var(--space-4);
+      }
+      .login .row2 {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+      .login button {
+        width: 100%;
+      }
+	      .unattendedMenu {
+	        display: none;
+	        position: fixed;
+	        z-index: 60;
+	        width: min(92vw, 460px);
+	        background: var(--panel);
+	        border: 1px solid var(--border);
+	        border-radius: var(--radius-card);
+	        box-shadow: var(--shadow-pop);
+	        padding: var(--space-5);
+	      }
+	      .unattendedMenu .row {
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: var(--space-4);
+	        margin-bottom: var(--space-4);
+	      }
+	      .unattendedMenu .label {
+	        font-size: var(--font-md);
+	        color: var(--muted);
+	        margin: var(--space-2) 0 var(--space-3) 0;
+	      }
+	      .unattendedMenu .unattendedGrid {
+	        display: grid;
+	        grid-template-columns: repeat(2, minmax(0, 1fr));
+	        gap: var(--space-5);
+	        margin-bottom: var(--space-2);
+	      }
+	      .unattendedMenu label {
+	        position: relative;
+	        display: inline-flex;
+	        align-items: center;
+	        gap: var(--space-3);
+	        font-size: var(--font-md);
+	      }
+	      .unattendedMenu .row > label::after {
+	        content: "";
+	        position: absolute;
+	        left: -13px;
+	        top: 50%;
+	        width: var(--ctl);
+	        height: var(--ctl);
+	        transform: translateY(-50%);
+	      }
+	      .unattendedMenu input[type="checkbox"] {
+	        appearance: none;
+	        -webkit-appearance: none;
+	        width: 18px;
+	        height: 18px;
+	        margin: 0;
+	        flex: 0 0 18px;
+	        border: 1px solid var(--ink);
+	        border-radius: var(--radius-control);
+	        background: var(--paper);
+	        display: grid;
+	        place-content: center;
+	        cursor: pointer;
+	      }
+	      .unattendedMenu input[type="checkbox"]::after {
+	        content: "✓";
+	        color: var(--paper);
+	        font-size: var(--font-lg);
+	        font-weight: 700;
+	        line-height: 1;
+	        transform: scale(0);
+	      }
+	      .unattendedMenu input[type="checkbox"]:checked {
+	        background: var(--ink);
+	      }
+	      .unattendedMenu input[type="checkbox"]:checked::after {
+	        transform: scale(1);
+	      }
+	      .unattendedMenu input[type="checkbox"]:focus-visible {
+	        outline: 2px solid var(--focus-ring);
+	        outline-offset: 2px;
+	      }
+      .unattendedMenu input[type="number"] {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid var(--border);
+        background: var(--paper);
+        color: var(--text);
+        padding: var(--space-4) var(--space-5);
+        font-family: inherit;
+        border-radius: var(--radius-control);
+      }
+      .unattendedMenu textarea {
+        min-height: 160px;
+        height: 160px;
+        max-height: 320px;
+        overflow-y: auto;
+        border-radius: var(--radius-control);
+        resize: vertical;
+      }
+      .voiceMenuRow {
+        margin-bottom: var(--space-3);
+      }
+      .voiceMenuRow button {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .voiceStatusText {
+        margin: var(--space-1) 0 var(--space-4) 0;
+        line-height: 1.4;
+      }
+      #announceBtn.active {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--paper);
+      }
+      #notificationBtn.active {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--paper);
+      }
+      .modalBackdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: transparent;
+        z-index: 70;
+      }
+      .fileViewer {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 80;
+        width: min(92vw, 960px);
+        height: min(84vh, calc(var(--appH, 100dvh) - 24px));
+        max-height: calc(var(--appH, 100dvh) - 24px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        padding: var(--space-5);
+        flex-direction: column;
+        gap: var(--space-3);
+        box-sizing: border-box;
+      }
+      .fileViewerHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+      .fileViewerHeader .title {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .fileViewerHeader .actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .fileViewerHeader .icon-btn::after,
+      .queueHeader .icon-btn::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+      }
+      .fileVimMode {
+        display: inline-block;
+        border: 1px solid var(--border);
+        background: var(--ink);
+        color: var(--paper);
+        font-family: var(--font-mono);
+        font-size: var(--font-2xs);
+        line-height: 1.2;
+        letter-spacing: 0.04em;
+        padding: var(--space-1) var(--space-2);
+        text-transform: uppercase;
+      }
+      .fileVimMode[hidden] {
+        display: none;
+      }
+      #fileEditBtn {
+        min-width: var(--ctl-chrome);
+      }
+      #fileEditBtn.dirty {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .fileCandRow.hidden {
+        display: none;
+      }
+      .fileCandRow {
+        display: flex;
+        gap: var(--space-3);
+        align-items: center;
+        position: relative;
+      }
+      .filePickerField {
+        flex: 1 1 auto;
+        min-width: 0;
+        position: relative;
+      }
+      .filePickerInput {
+        padding-right: 40px;
+      }
+      .filePickerField.active .filePickerInput {
+        border-color: var(--ink);
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .filePickerIcon {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-picker-icon);
+        pointer-events: none;
+        z-index: 1;
+      }
+      .filePickerBtn {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: var(--space-4) var(--space-5);
+        border-radius: var(--radius-control);
+        border: 1px solid var(--border);
+        background: var(--paper);
+        color: var(--text);
+        font-family: inherit;
+        font-size: var(--font-lg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-5);
+        text-align: left;
+      }
+      .filePickerMenu {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 4;
+        display: none;
+        max-height: min(44vh, 360px);
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        background: var(--paper);
+      }
+      .filePickerMenu.open {
+        display: block;
+      }
+      .fileMenuSection {
+        padding: var(--space-3) var(--space-5) 5px var(--space-5);
+        font-size: var(--font-xs);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: var(--surface-subtle);
+        border-top: 1px solid var(--border-faint);
+      }
+      .filePickerMenu .fileMenuSection:first-child {
+        border-top: 0;
+      }
+      .fileMenuItem {
+        width: 100%;
+        border: 0;
+        border-radius: var(--radius-control);
+        background: transparent;
+        padding: 9px var(--space-5);
+        display: flex;
+        align-items: center;
+        gap: var(--space-5);
+        justify-content: space-between;
+        text-align: left;
+      }
+      .fileMenuItem + .fileMenuItem {
+        border-top: 1px solid var(--border-faint);
+      }
+      .fileMenuItem.active {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .fileMenuCreate {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .fileMenuPath {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cwdSuggestionSource {
+        flex: 0 0 auto;
+        border-radius: var(--radius-control);
+        padding: 2px var(--space-2);
+        font-size: var(--font-2xs);
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--text-soft);
+        background: var(--surface-picker-section);
+      }
+      .fileMenuMatch {
+        padding: 0 1px;
+        border-radius: var(--radius-control);
+        color: inherit;
+        background: var(--surface-highlight);
+      }
+      .fileMenuHint {
+        font-size: var(--font-sm);
+        color: var(--muted);
+      }
+      .fileMenuIdentity {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .fileMenuStat {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        font: var(--font-sm)/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        color: var(--muted);
+      }
+      .fileMenuAdd {
+        color: var(--text-added);
+      }
+      .fileMenuDel {
+        color: var(--danger);
+      }
+      .fileDiff {
+        flex: 1 1 auto;
+        min-height: 0;
+        border-radius: var(--radius-card);
+        border: 1px solid var(--border-subtle);
+        background: var(--paper);
+        overflow: auto;
+      }
+      .fileDiff .monaco-editor,
+      .fileDiff .monaco-diff-editor,
+      .fileDiff .overflow-guard {
+        border-radius: var(--radius-card);
+      }
+      .fileDiff .monaco-diff-editor .editor.original,
+      .fileDiff .monaco-diff-editor .editor.original .monaco-editor,
+      .fileDiff .monaco-diff-editor .editor.original .overflow-guard {
+        width: 0 !important;
+        min-width: 0 !important;
+      }
+      .fileMarkdownPreview {
+        min-height: 100%;
+        padding: var(--space-6) var(--space-7) 22px var(--space-7);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        background: var(--paper);
+      }
+      .filePlainFallback,
+      .filePlainEdit {
+        min-height: 100%;
+        background: var(--paper);
+      }
+      .filePlainEdit {
+        display: flex;
+        flex-direction: column;
+      }
+      .fileFallbackNotice {
+        padding: var(--space-5) var(--space-6);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--surface-subtle);
+      }
+      .fileFallbackNotice .title {
+        font-weight: 600;
+      }
+      .fileFallbackNotice p {
+        margin: var(--space-1) 0 0 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .filePlainFallbackText {
+        margin: 0;
+        padding: var(--space-6) var(--space-7) 22px var(--space-7);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: var(--font-sm)/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .filePlainEditTextarea {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 260px;
+        resize: none;
+        border: 0;
+        border-radius: var(--radius-control);
+        padding: var(--space-6) var(--space-7) 22px var(--space-7);
+        outline: none;
+        background: var(--paper);
+        color: var(--text);
+        font: var(--font-xl)/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        tab-size: 2;
+        white-space: pre;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .filePlainEditTextarea:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: -2px;
+      }
+      .filePlainEditTextarea.readOnly {
+        cursor: default;
+      }
+      .fileImage {
+        display: none;
+        max-width: 100%;
+        max-height: min(65vh, 720px);
+        min-height: 320px;
+        width: auto;
+        margin: 0 auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        background: var(--paper);
+        object-fit: contain;
+      }
+      .fileVideo {
+        display: none;
+        width: min(100%, 1100px);
+        max-height: min(65vh, 720px);
+        min-height: 320px;
+        margin: 0 auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-card);
+        background: var(--video-bg);
+      }
+      .filePdfPages {
+        min-height: 100%;
+        padding: var(--space-5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-6);
+        background: var(--surface-pdf);
+      }
+      .filePdfPage {
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--ink);
+        border-radius: var(--radius-card);
+        background: var(--paper);
+        color: var(--muted);
+        font-size: var(--font-sm);
+      }
+      .filePdfPage canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--radius-card);
+      }
+      .filePdfPage.failed {
+        color: var(--danger);
+      }
+      .fileBlockedNotice {
+        min-height: 100%;
+        padding: 20px 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--space-4);
+        color: var(--text);
+      }
+      .fileBlockedNotice .title {
+        font-weight: 600;
+      }
+      .fileBlockedNotice p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .fileFallbackActions {
+        display: flex;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .fileStatus {
+        flex: 0 0 auto;
+        min-height: 0;
+        line-height: 1.35;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .fileConflictActions {
+        display: inline-flex;
+        gap: var(--space-2);
+        margin-left: var(--space-3);
+        vertical-align: middle;
+        flex-wrap: wrap;
+      }
+      .fileConflictActions .icon-btn.text-btn {
+        min-width: 0;
+        height: var(--ctl-chrome);
+        padding: 0 var(--space-3);
+      }
+      .fileTouchToolbar {
+        display: none;
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 6;
+        gap: var(--space-4);
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        pointer-events: none;
+      }
+      .fileTouchActions {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+        margin-left: auto;
+        pointer-events: auto;
+      }
+      .fileTouchDpad {
+        display: none;
+        grid-template-columns: repeat(3, 44px);
+        grid-template-rows: repeat(2, 44px);
+        gap: var(--space-2);
+        align-items: center;
+        justify-items: center;
+        pointer-events: auto;
+      }
+      .fileTouchSpacer {
+        width: var(--ctl);
+        height: var(--ctl);
+      }
+      .fileTouchBtn {
+        width: var(--ctl);
+        height: var(--ctl);
+        min-height: var(--ctl);
+        border-radius: var(--radius-control);
+        border: 1px solid var(--border);
+        background: var(--paper);
+        color: var(--text);
+        padding: 0;
+        appearance: none;
+        -webkit-appearance: none;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .fileTouchBtn.active {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .filePasteDialog {
+        z-index: 90;
+      }
+      .filePasteInput {
+        min-height: 120px;
+        max-height: min(42vh, 320px);
+        overflow-y: auto;
+        resize: vertical;
+        font: var(--font-md)/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .inlineFileLink {
+        color: var(--accent);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .inlineFileAmbiguousRef {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-1);
+        text-decoration: none;
+      }
+      .inlineFileAmbiguousRef > span:first-child {
+        text-decoration: underline;
+      }
+      .inlineFileChoiceHint {
+        display: inline-block;
+        padding: 0 var(--space-1);
+        border-radius: var(--radius-control);
+        background: var(--wash);
+        color: var(--muted);
+        font-size: 0.78em;
+        line-height: 1.3;
+        text-decoration: none;
+      }
+      .queueViewer {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 80;
+        width: min(92vw, 520px);
+        max-height: calc(var(--appH, 100dvh) - 24px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        padding: var(--space-5);
+        flex-direction: column;
+        gap: var(--space-4);
+        box-sizing: border-box;
+      }
+      .helpViewer,
+      .diagViewer,
+      .formViewer {
+        display: none;
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        margin: auto;
+        z-index: 80;
+        width: min(92vw, 820px);
+        height: fit-content;
+        max-height: calc(var(--appH, 100dvh) - 24px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        padding: var(--space-5);
+        flex-direction: column;
+        gap: var(--space-4);
+        box-sizing: border-box;
+      }
+      .diagViewer {
+        --font-sm: 12px;
+        --font-md: 13px;
+        --font-lg: 14px;
+        --font-xl: 16px;
+        --font-2xl: 18px;
+        width: min(100vw, 520px);
+        height: 88dvh;
+        max-height: calc(var(--appH, 100dvh) - 24px);
+        min-height: 0;
+        padding: 0;
+        gap: 0;
+        background: var(--paper);
+        border-color: var(--hairline);
+        overflow: hidden;
+      }
+      .diagViewer > .queueHeader {
+        min-height: 60px;
+        padding: 0 var(--space-5) 0 calc(var(--space-5) + var(--space-3));
+        border-bottom: 1px solid var(--hairline);
+        box-sizing: border-box;
+      }
+      .diagViewer > .queueHeader .title {
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .diagViewer > #diagStatus:not(:empty) {
+        padding: var(--space-7);
+        font-size: var(--font-sm);
+      }
+      .diagViewer > #diagStatus:empty { display: none; }
+      .diagViewer .detailsGrid {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: calc(var(--space-5) + var(--space-3));
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: calc(var(--space-5) + var(--space-3));
+        border: 0;
+        border-radius: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      @media (max-width: 840px) {
+        .diagViewer {
+          width: 100vw;
+          height: var(--appH, 100dvh);
+          max-height: var(--appH, 100dvh);
+          border-radius: 0;
+        }
+      }
+      .formViewer {
+        width: min(92vw, 560px);
+      }
+      .formDialog {
+        background: var(--wash);
+        border: 0;
+        padding: var(--space-5);
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        overflow: visible;
+      }
+      .formDialog[open] {
+        display: flex;
+      }
+      .formDialog::backdrop {
+        background: transparent;
+      }
+      .newSessionViewer {
+        position: fixed;
+        left: 50%;
+        right: auto;
+        top: 50%;
+        bottom: auto;
+        transform: translate(-50%, -50%);
+        width: min(92vw, 480px);
+        height: fit-content;
+        min-height: 0;
+        max-height: calc(var(--appH, 100dvh) - 24px);
+        gap: var(--dialog-group-gap);
+      }
+      .newSessionViewer .formBody {
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      #newSessionModelInput,
+      #newSessionModelMenu .fileMenuPath,
+      #newSessionModelMenu .fileMenuHint {
+        font-family: inherit;
+      }
+      #newSessionStatus {
+        color: var(--muted);
+      }
+      #newSessionStatus:not(:empty)::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: var(--space-2);
+        border: 1.5px solid var(--ink);
+        animation: stateDotPulse 1.2s ease-in-out infinite;
+        vertical-align: 1px;
+      }
+      #newSessionStatus:empty,
+      #newSessionCwdHint:empty {
+        display: none;
+      }
+      .newSessionHeaderLead {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-4);
+        min-width: 0;
+      }
+      .agentBackendTabs {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      /* The selected-backend name is a caption of the tab group, not a
+         fourth header item: muted ink, regular weight. */
+      .agentBackendTabName {
+        font-size: var(--font-md);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .agentBackendTab {
+        width: var(--dialog-control-h);
+        height: var(--dialog-control-h);
+        min-width: var(--dialog-control-h);
+        min-height: var(--dialog-control-h);
+        border-radius: var(--radius-control);
+        border: 1px solid var(--border);
+        background: var(--paper);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .agentBackendTab.active {
+        border: 2px solid var(--ink);
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .agentBackendTabLogo {
+        width: 20px;
+        height: 20px;
+        display: block;
+        object-fit: contain;
+      }
+      .formBody {
+        display: flex;
+        flex-direction: column;
+        flex: 0 1 auto;
+        min-height: 0;
+        gap: var(--dialog-group-gap, var(--space-4));
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+      /* Dialog scroll bodies share one gutter. A scroll container clips ink
+         overflow at its padding box, and focus outlines (2px + 1px offset)
+         and chip hit areas paint outside their control's border box, so an
+         edge-to-edge control inside a bare scroll body loses the outer 3px of
+         its ring; 3px of padding on every side keeps the ring inside the clip.
+         The right side is a lane for overlay scrollbars (iOS, macOS), which
+         paint over content, and scrollbar-gutter keeps classic scrollbars
+         from reflowing the content when a body starts to scroll. Bordered
+         tables (.detailsGrid) and document surfaces in the file viewer carry
+         their own row/content inset and are not bare scroll bodies. */
+      .formBody,
+      .helpBody,
+      .queueList {
+        padding: 3px var(--space-3) 3px 3px;
+        scrollbar-gutter: stable;
+      }
+      .formGrid {
+        display: grid;
+        gap: var(--dialog-group-gap, var(--space-4));
+      }
+      .newSessionRunConfigRow {
+        grid-template-columns: minmax(0, 1.4fr) minmax(96px, auto);
+        align-items: start;
+      }
+      .newSessionOptionsRow {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: end;
+      }
+      .formGrid.twoCol {
+        grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .formViewer input[type="text"],
+      .formViewer input[type="date"],
+      .formViewer input[type="time"],
+      .formViewer .dialogPickerBtn,
+      .formViewer .formActions > button {
+        height: var(--ctl);
+        min-height: var(--ctl);
+      }
+      /* Dialog textareas are multi-line fields: the rows attribute sets the
+         starting height, the user may drag them taller, and content past the
+         cap scrolls inside the field. */
+      .formViewer textarea:not(.monaco-editor textarea) {
+        min-height: 96px;
+        max-height: min(40vh, 320px);
+        line-height: 1.45;
+        overflow-y: auto;
+        resize: vertical;
+      }
+      .fieldLabel {
+        font-size: var(--font-md);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .fieldHint {
+        font-size: var(--font-sm);
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .checkField {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        font-size: var(--font-md);
+      }
+      .checkField::after {
+        content: "";
+        position: absolute;
+        left: -13px;
+        top: 50%;
+        width: var(--ctl);
+        height: var(--ctl);
+        transform: translateY(-50%);
+      }
+      .checkField input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        /* 16px pairs with the --font-md label plane; the 44px target stays in
+           the ::after lane (hit area is not visual size). */
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        flex: 0 0 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-control);
+        background: var(--paper);
+        display: grid;
+        place-content: center;
+        cursor: pointer;
+      }
+      .checkField input[type="checkbox"]::after {
+        /* The check glyph is an SVG mask, never a text "✓": text glyphs are
+           font-dependent and sit differently on every platform. */
+        content: "";
+        width: 10px;
+        height: 10px;
+        background: currentColor;
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.4 5 8.9 9.6 3.4' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E") center / contain no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.4 5 8.9 9.6 3.4' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E") center / contain no-repeat;
+        transform: scale(0);
+      }
+      .checkField input[type="checkbox"]:checked {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--on-accent);
+      }
+      .checkField input[type="checkbox"]:checked::after {
+        transform: scale(1);
+      }
+      .checkField input[type="checkbox"]:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+      #newSessionViewer .checkField {
+        gap: var(--space-2);
+        min-height: 18px;
+        padding: 0;
+      }
+      #newSessionViewer .compactToggleField,
+      #newSessionViewer #newSessionTmuxField {
+        justify-content: flex-start;
+      }
+      #newSessionViewer .compactToggleField .checkField,
+      #newSessionViewer #newSessionTmuxField .checkField {
+        min-height: 18px;
+        padding: 0;
+      }
+      /* Dialog control contract: icon-only chrome (header close buttons,
+         backend logo tabs) stays square at the dialog control height in
+         every modal surface; content-sizing belongs to text-bearing
+         controls only. Icon-only buttons collapsed to glyph width before
+         this was stated once — each dialog carried its own rescue rule. */
+      .formViewer .icon-btn,
+      .queueViewer .icon-btn,
+      .diagViewer .icon-btn,
+      .helpViewer .icon-btn,
+      .formViewer .agentBackendTab {
+        position: relative;
+        width: var(--dialog-control-h);
+        min-width: var(--dialog-control-h);
+        height: var(--dialog-control-h);
+        min-height: var(--dialog-control-h);
+      }
+      .formViewer .choiceChip {
+        position: relative;
+        width: auto;
+        min-width: 0;
+        height: var(--dialog-control-h);
+        min-height: var(--dialog-control-h);
+        white-space: nowrap;
+      }
+      /* Compact 32px dialog chrome reaches a 44px touch target through the
+         hit-area, never through visible geometry (hit area is not visual size). */
+      .formViewer .icon-btn::after,
+      .formViewer .agentBackendTab::after {
+        content: "";
+        position: absolute;
+        inset: -6px;
+      }
+      /* Chips keep the 2px outset their scroller's padding absorbs. */
+      .formViewer .choiceChip::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+      }
+      #newSessionViewer input[type="text"],
+      #newSessionViewer .dialogPickerBtn,
+      #newSessionViewer .formActions > button {
+        height: var(--ctl);
+        min-height: var(--ctl);
+      }
+      /* Every modal header shares one chrome rule regardless of surface
+         class (formViewer / queueViewer / diagViewer / helpViewer all use
+         .queueHeader for their title row). */
+      .queueHeader .icon-btn {
+        border: 0;
+      }
+      .pickerField {
+        position: relative;
+      }
+      .cwdComboboxField {
+        position: relative;
+      }
+      .cwdComboboxField input[type="text"] {
+        padding-right: 40px;
+      }
+      .cwdComboboxField.error input[type="text"] {
+        border-color: var(--danger);
+        outline: 2px solid var(--danger);
+        outline-offset: 1px;
+      }
+      .comboboxField input[type="text"] {
+        padding-right: 40px;
+      }
+      .pickerButtonField .filePickerBtn {
+        padding-right: 40px;
+      }
+      .pickerButtonField .pickerButtonChevron {
+        display: none;
+      }
+      .cwdComboboxIcon {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink);
+        pointer-events: none;
+        z-index: 1;
+      }
+      #newSessionCwdInput {
+        font-family: inherit;
+      }
+      .cwdComboboxField.error .cwdComboboxIcon {
+        color: var(--focus-danger);
+      }
+      .pickerInputRow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 128px;
+        gap: var(--space-3);
+        align-items: start;
+      }
+      .dialogPickerBtn {
+        height: var(--dialog-control-h);
+        min-height: var(--dialog-control-h);
+        border-radius: var(--radius-control);
+        box-sizing: border-box;
+        font-size: var(--font-lg);
+        line-height: normal;
+      }
+      .dialogPickerBtn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-5);
+      }
+      .sidePickerBtn {
+        width: 100%;
+      }
+      @media (min-width: 881px) {
+        .formViewer.newSessionViewer {
+          width: min(92vw, 560px);
+        }
+        #editViewer.formDialog {
+          width: min(92vw, 480px);
+        }
+        #editViewer .editPriorityField {
+          width: 100%;
+        }
+        #editViewer .sliderRow {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          gap: var(--space-4);
+          align-items: center;
+        }
+        #editViewer .choiceChips {
+          flex-wrap: wrap;
+          overflow: visible;
+        }
+      }
+      .pickerButtonText {
+        min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+      }
+      .pickerButtonText.placeholder .pickerButtonPrimary {
+        color: var(--ink);
+      }
+      .pickerButtonPrimary {
+        width: 100%;
+        min-width: 0;
+        font-size: var(--font-lg);
+        line-height: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pickerButtonSecondary {
+        width: 100%;
+        min-width: 0;
+        font-size: var(--font-sm);
+        line-height: 1.25;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #newSessionModelMenu .fileMenuItem {
+        align-items: flex-start;
+      }
+      #newSessionModelMenu .fileMenuPath,
+      #newSessionModelMenu .fileMenuHint {
+        min-width: 0;
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: anywhere;
+      }
+      #newSessionModelMenu .fileMenuPath {
+        flex: 1 1 auto;
+      }
+      #newSessionModelMenu .fileMenuHint {
+        flex: 0 1 40%;
+        text-align: right;
+      }
+      .pickerButtonChevron {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink);
+      }
+      .pickerChevronIcon {
+        width: 16px;
+        height: 16px;
+      }
+      .dialogPickerMenu {
+        max-height: min(40vh, 320px);
+        z-index: 30;
+        position: absolute;
+        inset: auto auto auto 0;
+      }
+      .pickerEmpty {
+        padding: var(--space-4) var(--space-5);
+        font-size: var(--font-md);
+        color: var(--muted);
+      }
+      .choiceChips {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: var(--space-3);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        /* Chips are real scrolling content, but their form-control hit area
+           (::after inset: -2px) inflates the scrollable overflow area by 2px
+           on every side, producing phantom scrollbars when the row fits. The
+           2px geometry padding absorbs the outset into the padding box, so
+           scrollbars appear only on genuine chip overflow. */
+        padding: 2px;
+      }
+      #editViewer .choiceChips {
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        overflow: visible;
+      }
+      .choiceChip {
+        position: relative;
+        height: var(--dialog-control-h);
+        min-height: var(--dialog-control-h);
+        border-radius: var(--radius-control);
+        padding: 0 var(--space-5);
+        font-size: var(--font-md);
+        line-height: 1;
+        background: var(--paper);
+        flex: 0 0 auto;
+      }
+      .choiceChip.active {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .subtleBtn {
+        color: var(--muted);
+      }
+      /* Settings: appearance controls. Swatches are pure-CSS miniatures of
+         each family; their palettes (--sw-*) mirror themes/<family>.css and
+         are the only place a family's colors appear outside its own file. */
+      .themeSwatches {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-3);
+      }
+      .themeSwatch {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-2);
+        height: auto;
+        min-height: var(--ctl);
+        padding: var(--space-2);
+        background: var(--paper);
+        text-align: left;
+      }
+      .themeSwatch.active {
+        border-color: var(--ink);
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .themeSwatchName {
+        font-size: var(--font-md);
+        font-weight: 600;
+        padding: 0 var(--space-1);
+      }
+      .themeSwatchPreview {
+        --sw-bg: #f6f5f1;
+        --sw-panel: #ffffff;
+        --sw-ink: #2f2b26;
+        --sw-border: #2f2b26;
+        --sw-accent: #2f2b26;
+        --sw-bubble: #faf9f6;
+        --sw-radius: 0;
+        display: grid;
+        grid-template-columns: 30% 1fr;
+        height: 56px;
+        border: 1px solid var(--sw-border);
+        border-radius: var(--sw-radius);
+        background: var(--sw-bg);
+        overflow: hidden;
+      }
+      .themeSwatchPreview[data-swatch-family="clay"] {
+        --sw-bg: #f4f0e8;
+        --sw-panel: #faf7f0;
+        --sw-ink: #35302a;
+        --sw-border: #d9d0be;
+        --sw-accent: #c96442;
+        --sw-bubble: #f1e9db;
+        --sw-radius: 6px;
+      }
+      .themeSwatchPreview[data-swatch-family="slate"] {
+        --sw-bg: #ffffff;
+        --sw-panel: #f9f9f9;
+        --sw-ink: #0d0d0d;
+        --sw-border: #e0e0e0;
+        --sw-accent: #0d0d0d;
+        --sw-bubble: #f1f1f1;
+        --sw-radius: 8px;
+      }
+      [data-swatch-mode="dark"] .themeSwatchPreview[data-swatch-family="paper"] {
+        --sw-bg: #181613;
+        --sw-panel: #1c1a16;
+        --sw-ink: #e6e1d7;
+        --sw-border: #e6e1d7;
+        --sw-accent: #e6e1d7;
+        --sw-bubble: #262219;
+      }
+      [data-swatch-mode="dark"] .themeSwatchPreview[data-swatch-family="clay"] {
+        --sw-bg: #1b1815;
+        --sw-panel: #161310;
+        --sw-ink: #ece4d5;
+        --sw-border: #4a4236;
+        --sw-accent: #d97757;
+        --sw-bubble: #2d271f;
+      }
+      [data-swatch-mode="dark"] .themeSwatchPreview[data-swatch-family="slate"] {
+        --sw-bg: #212121;
+        --sw-panel: #171717;
+        --sw-ink: #ececec;
+        --sw-border: #424242;
+        --sw-accent: #ececec;
+        --sw-bubble: #2f2f2f;
+      }
+      .themeSwatchSidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 5px 4px;
+        background: var(--sw-panel);
+        border-right: 1px solid var(--sw-border);
+      }
+      .themeSwatchRow {
+        height: 6px;
+        border: 1px solid var(--sw-border);
+        border-radius: var(--sw-radius);
+        background: var(--sw-bg);
+      }
+      .themeSwatchChat {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 5px 6px;
+      }
+      .themeSwatchBubble {
+        height: 9px;
+        border: 1px solid var(--sw-border);
+        border-radius: var(--sw-radius);
+        background: var(--sw-bubble);
+      }
+      .themeSwatchBubble.user {
+        width: 55%;
+        align-self: flex-end;
+      }
+      .themeSwatchBubble.assistant {
+        width: 80%;
+        background: var(--sw-panel);
+      }
+      .themeSwatchPrimary {
+        position: absolute;
+        right: 6px;
+        bottom: 5px;
+        width: 14px;
+        height: 8px;
+        border-radius: var(--sw-radius);
+        background: var(--sw-accent);
+      }
+      /* Three fixed chips never overflow; wrapping keeps the row a plain
+         flex container instead of a scroll container. */
+      #settingsModeChips {
+        flex-wrap: wrap;
+        overflow: visible;
+      }
+      /* Code entry on top of the shared dialog textarea: mono, meta-sized,
+         unwrapped so long declarations scroll sideways instead of folding. */
+      .customCssInput {
+        font-family: var(--font-mono);
+        font-size: var(--font-sm);
+        white-space: pre;
+        overflow: auto;
+      }
+      /* Section-scoped resets are quiet secondary actions, never stretched
+         full-width boxes: a .field is flex-column and stretch is the default,
+         so every reset text-btn in a settings section snaps to content width. */
+      .settingsSection .field > .text-btn {
+        align-self: flex-start;
+        height: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        padding: 0 var(--space-4);
+        font-size: var(--font-md);
+      }
+      /* One flat Settings dialog: Appearance and Voice & notifications are
+         sibling sections separated by a rule, each a stack of fields. */
+      .settingsSection {
+        display: flex;
+        flex-direction: column;
+        gap: var(--dialog-group-gap, var(--space-4));
+      }
+      .settingsSection + .settingsSection {
+        border-top: 1px solid var(--hairline);
+        padding-top: var(--dialog-group-gap, var(--space-4));
+      }
+      .settingsSectionTitle {
+        margin: 0;
+        font-size: var(--font-lg);
+        font-weight: 600;
+        color: var(--text);
+      }
+      #voiceSettingsStatus:empty {
+        display: none;
+      }
+
+      .customSnoozeRow {
+        display: none;
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: var(--space-4);
+      }
+      .sliderRow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-5);
+      }
+      .sliderRow input[type="range"] {
+        appearance: none;
+        -webkit-appearance: none;
+        flex: 1 1 auto;
+        height: var(--dialog-control-h);
+        margin: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+      .sliderRow input[type="range"]::-webkit-slider-runnable-track {
+        height: 1px;
+        background: var(--ink);
+        border: 0;
+        border-radius: var(--radius-control);
+      }
+      .sliderRow input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -7.5px;
+        border: 0;
+        border-radius: var(--radius-control);
+        background: var(--ink);
+      }
+      .sliderRow input[type="range"]::-moz-range-track {
+        height: 1px;
+        background: var(--ink);
+        border: 0;
+        border-radius: var(--radius-control);
+      }
+      .sliderRow input[type="range"]::-moz-range-progress {
+        height: 1px;
+        background: var(--ink);
+      }
+      .sliderRow input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border: 0;
+        border-radius: var(--radius-control);
+        background: var(--ink);
+      }
+      .sliderRow input[type="range"]:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+      .rangeValue {
+        min-width: 56px;
+        text-align: right;
+        font: var(--font-sm)/1.2 var(--font-mono);
+        color: var(--muted);
+      }
+      .formActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-4);
+      }
+      .formActions button {
+        min-width: 108px;
+        height: var(--ctl);
+        min-height: var(--ctl);
+      }
+      .helpBody {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .detailsGrid {
+        min-height: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        background: var(--paper);
+      }
+      .detailsRow {
+        display: grid;
+        grid-template-columns: 110px minmax(0, 1fr);
+        gap: var(--space-5);
+        padding: var(--space-4) var(--space-4);
+        border-bottom: 1px solid var(--hairline);
+        align-items: flex-start;
+      }
+      .detailsRow:last-child {
+        border-bottom: 0;
+      }
+      .detailsLabel {
+        color: var(--muted);
+        font-size: var(--font-sm);
+        line-height: 1.2;
+        padding-top: 2px;
+      }
+      .detailsValue {
+        min-width: 0;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: var(--font-md);
+        line-height: 1.35;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .detailsValue.mono {
+        font-size: var(--font-sm);
+      }
+      .agentSettings {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-width: 0;
+      }
+      .agentSettings h3,
+      .agentDetailsSection h3 {
+        margin: 0;
+        font-size: var(--font-lg);
+        font-weight: 500;
+      }
+      .agentSettingsSection {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        width: 100%;
+        min-width: 0;
+      }
+      .agentDetailsName {
+        margin: 0;
+        font-size: var(--font-2xl);
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+      .agentDetailsSection,
+      .agentDiagnostics {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+        width: 100%;
+        min-width: 0;
+      }
+      .agentOverviewRows,
+      .agentContextRows,
+      .agentDiagnosticsRows {
+        width: 100%;
+      }
+      .agentSettingRow {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-1);
+        padding: var(--space-2) 0;
+        min-width: 0;
+      }
+      .agentSettingLabel {
+        color: var(--muted);
+        font-size: var(--font-sm);
+      }
+      .agentSettingRow .ui-dropdown {
+        max-width: 100%;
+        font: 500 var(--font-lg)/1.4 var(--font-ui);
+      }
+      .agentSettingRow .ui-dropdown-trigger {
+        min-height: var(--ctl);
+        max-width: 100%;
+      }
+      .agentSettings form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        min-width: 0;
+      }
+      .agentSettingsActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .agentSettingsActions[hidden],
+      .agentDiagnosticsRows[hidden] { display: none; }
+      .agentSettingsHint,
+      .agentSettingsError {
+        margin: 0;
+        font-size: var(--font-md);
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .agentSettingsHint { color: var(--muted); }
+      .agentSettingsError { color: var(--danger); }
+      .agentSettingsHint:empty,
+      .agentSettingsError:empty { display: none; }
+      .diagViewer .detailsRow {
+        width: 100%;
+        box-sizing: border-box;
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--space-1);
+        padding: var(--space-4) 0;
+        border-bottom: 1px solid var(--hairline);
+      }
+      .diagViewer .detailsLabel {
+        padding: 0;
+        font-size: var(--font-sm);
+      }
+      .diagViewer .detailsValue,
+      .diagViewer .detailsValue.mono {
+        font-family: var(--font-ui);
+        font-size: var(--font-lg);
+      }
+      .queueHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+      /* Crowded dialog headers (e.g. Details with two copy buttons) wrap
+         instead of scrolling or spilling; .actions rows are never scroll
+         containers. */
+      .queueHeader .actions {
+        flex-wrap: wrap;
+      }
+      .queueHeader .title {
+        font-size: var(--font-lg);
+        font-weight: 600;
+        color: var(--text);
+      }
+      .queueList {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .queueItem {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: var(--space-3);
+        padding: var(--space-2) 0;
+      }
+      .queueEditorShell {
+        min-width: 0;
+        border: 1px solid var(--border-pdf);
+        border-radius: var(--radius-card);
+        background: var(--paper);
+        padding: var(--space-3) var(--space-4);
+      }
+      .queueActionRail {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        align-self: start;
+      }
+      .queueSendingTag {
+        font-size: var(--font-xs);
+        line-height: 1;
+        padding: 0 2px 0 0;
+      }
+      .queueSendingTag.warning {
+        color: var(--text-warning);
+      }
+      .queueIconBtn {
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        border-radius: var(--radius-control);
+        background: var(--surface-subtle);
+        border-color: var(--border-queue);
+        color: var(--ink);
+      }
+      .queueIconBtn:hover:not(:disabled) {
+        background: var(--queue-hover);
+        border-color: var(--queue-border-hover);
+      }
+      .queueIconBtn:disabled {
+        opacity: 0.38;
+      }
+      .queueIconBtn.danger {
+        color: var(--text-queue-danger);
+        border-color: var(--border-queue-danger);
+        background: var(--surface-error);
+      }
+      .queueIconBtn.danger:hover:not(:disabled) {
+        background: var(--queue-danger-hover);
+        border-color: var(--border-error);
+      }
+      .queueText {
+        min-height: 42px;
+        max-height: 160px;
+        resize: none;
+        font-size: var(--font-md);
+        line-height: 1.4;
+        border: 0;
+        border-radius: var(--radius-control);
+        padding: 0;
+        background: transparent;
+        overflow-y: auto;
+      }
+      .queueText:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 1px;
+      }
+      .queueText:disabled {
+        color: var(--ink);
+      }
+      .sendChoice {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 80;
+        width: min(92vw, 420px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-pop);
+        padding: var(--space-5);
+        flex-direction: column;
+        gap: var(--space-4);
+        box-sizing: border-box;
+      }
+      .sendChoiceActions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+      }
+      .sendChoiceActions button {
+        flex: 1 1 auto;
+        min-height: var(--ctl);
+        min-width: var(--ctl);
+      }
+      .fileUnsavedDialog {
+        z-index: 90;
+      }
+      .appConfirmBackdrop {
+        z-index: 110;
+      }
+      .appConfirm {
+        z-index: 120;
+      }
+      .appConfirmMessage {
+        white-space: pre-wrap;
+      }
+		      .backdrop {
+		        display: none;
+		        position: absolute;
+		        inset: 0;
+	        background: transparent;
+	        z-index: 20;
+	      }
+      @media (max-width: 880px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          position: fixed;
+          inset: 0 auto 0 0;
+          width: var(--sidebar-w);
+          z-index: 30;
+          transform: translateX(-105%);
+          transition: transform 140ms ease-out;
+        }
+        body.sidebar-open .sidebar {
+          transform: translateX(0);
+        }
+        body.sidebar-open .backdrop {
+          display: block;
+        }
+        body.sidebar-collapsed .sidebar {
+          display: flex;
+        }
+        #threadTitle {
+          max-width: 48vw;
+        }
+        .newSessionOptionsRow {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .newSessionOptionsRow #newSessionTmuxField {
+          justify-content: flex-start;
+        }
+        .newSessionRunConfigRow #newSessionFastField .checkField,
+        .newSessionOptionsRow #newSessionTmuxField .checkField {
+          min-height: var(--dialog-control-h);
+        }
+      }
+
+      .code-copy-btn::after,
+      .msg-copy-btn::after,
+      .stagedAttachmentRemove::after {
+        content: "";
+        position: absolute;
+        inset: -7px;
+      }
+      /* iOS Safari zooms the page when a text entry under 16px gains focus
+         and keeps that zoom after the keyboard closes. Every text-entry kind
+         computes to the 16px floor on coarse pointers; an input without a
+         type attribute is a text input and is listed explicitly because
+         attribute selectors never match a missing attribute. */
+      @media (max-width: 880px), (pointer: coarse) {
+        #settingsModeChips {
+          gap: 12px;
+          padding: 6px;
+        }
+        #settingsModeChips .choiceChip::after {
+          inset: -6px;
+        }
+        #filePickerInput {
+          min-height: var(--ctl);
+          height: var(--ctl);
+        }
+        #unattendedReviewBtn,
+        .unattendedMenu input[type="number"] {
+          min-height: var(--ctl);
+        }
+        input:not([type]),
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        input[type="url"],
+        input[type="tel"],
+        input[type="date"],
+        input[type="time"],
+        input[type="datetime-local"],
+        input[type="search"],
+        input[type="number"],
+        select,
+        textarea:not(.monaco-editor textarea) {
+          font-size: var(--font-xl) !important;
+        }
+        /* The 16px entry floor above would otherwise invert a form dialog's
+           hierarchy (entry 16 > section title 14 > label 13). The dialog's
+           type planes retune as a unit so titles meet the floor (hierarchy
+           between title and entry comes from weight), labels sit one step
+           below, and hints one step below that. Desktop planes are untouched. */
+        .formViewer {
+          --font-sm: 13px;
+          --font-md: 14px;
+          --font-lg: 16px;
+        }
+      }
+
+      @media (max-width: 880px) {
+        .detailsRow {
+          grid-template-columns: minmax(0, 1fr);
+          gap: var(--space-1);
+        }
+        .detailsLabel {
+          padding-top: 0;
+        }
+      }
+
+      @media (max-width: 520px) {
+        :root {
+          --sidebar-w: 100vw;
+        }
+        .pill {
+          flex: 1 1 auto;
+        }
+        .toast {
+          left: 50%;
+          right: auto;
+          top: calc(56px + 44px + var(--space-2) + env(safe-area-inset-top));
+          transform: translateX(-50%);
+          max-width: min(88vw, 360px);
+          text-align: center;
+          white-space: normal;
+        }
+        .chatSearchBar {
+          flex-basis: 36px;
+          height: var(--ctl-chrome);
+          padding: var(--space-1) var(--space-4);
+          gap: 2px;
+        }
+        .chatSearchGlyph {
+          display: none;
+        }
+        .chatSearchInput {
+          height: var(--ctl-chrome);
+          padding: 2px var(--space-1);
+        }
+        .chatSearchStatus {
+          max-width: var(--ctl-chrome);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: var(--font-2xs);
+        }
+        .chatSearchBar .icon-btn {
+          flex-basis: 28px;
+          width: var(--ctl-chrome);
+          height: var(--ctl-chrome);
+          min-width: var(--ctl-chrome);
+          min-height: var(--ctl-chrome);
+        }
+        .chatSearchBar .icon-btn::after {
+          inset: -8px;
+        }
+        /* Compact chrome keeps distinct 44px touch zones for the adjacent
+           previous, next, and close actions. */
+        .chatSearchBar .icon-btn + .icon-btn {
+          margin-left: var(--space-7);
+        }
+        .topbar {
+          padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3) var(--space-4);
+        }
+        #threadTitle {
+          max-width: 100%;
+          font-size: var(--font-xl);
+          line-height: 1.2;
+        }
+        .chat {
+          padding: var(--space-4);
+        }
+        .composer {
+          --composer-picker-inset: 5px;
+          padding: 5px var(--space-4) calc(5px + env(safe-area-inset-bottom));
+        }
+        .composer form {
+          padding: 3px 5px;
+          gap: var(--space-1);
+        }
+        .msg {
+          max-width: 88%;
+        }
+
+        .fileViewer {
+          width: 100vw;
+          height: auto;
+          max-height: none;
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          transform: none;
+          border-radius: var(--radius-card);
+          padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom)) var(--space-4);
+        }
+        .fileTouchToolbar {
+          left: 10px;
+          right: 10px;
+          bottom: calc(10px + env(safe-area-inset-bottom));
+        }
+        .fileViewerHeader {
+          align-items: flex-start;
+        }
+        .fileViewerHeader .actions {
+          gap: var(--space-2);
+        }
+        .queueViewer {
+          width: 100vw;
+          max-height: none;
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          transform: none;
+          border-radius: var(--radius-card);
+          padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom)) var(--space-4);
+        }
+        .formViewer {
+          width: min(94vw, 520px);
+          top: calc(var(--vvTop, 0px) + 8px);
+          bottom: auto;
+          max-height: calc(var(--appH, 100dvh) - 16px);
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          border-radius: var(--radius-card);
+          padding: var(--space-5);
+        }
+        .formGrid.twoCol,
+        .customSnoozeRow {
+          grid-template-columns: 1fr;
+        }
+        .pickerInputRow {
+          grid-template-columns: 1fr;
+        }
+	        .sidebar .sessions {
+	          padding: var(--space-2);
+	        }
+	        .session {
+	          margin-bottom: var(--space-2);
+	        }
+        .row {
+          gap: var(--space-3);
+        }
+      }
+
+      .jumpBtn {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        z-index: 10;
+        display: none;
+        width: var(--ctl-chrome);
+        height: var(--ctl-chrome);
+        min-width: var(--ctl-chrome);
+        min-height: var(--ctl-chrome);
+        padding: 0;
+        border-radius: var(--radius-control);
+        align-items: center;
+        justify-content: center;
+      }
+
+      .session.desktop .swipeHint {
+        display: none;
+      }

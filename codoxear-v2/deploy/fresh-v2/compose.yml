@@ -1,0 +1,116 @@
+name: codoxear-v2-fresh
+x-role: &role
+  init: true
+  entrypoint: []
+  restart: "on-failure:2"
+  cpus: 1
+  pids_limit: 256
+  security_opt: ["no-new-privileges:true"]
+  environment:
+    NODE_OPTIONS: --max-old-space-size=128
+services:
+  gateway:
+    <<: *role
+    image: ${CODOXEAR_GATEWAY_IMAGE:-caddy:2}
+    profiles: [gateway]
+    user: "0:0"
+    command:
+      - /bin/sh
+      - -ec
+      - 'set -a; . /run/secrets/cloudflare.env; set +a; exec /usr/local/bin/caddy run --config /gateway/Caddyfile --adapter caddyfile'
+    mem_limit: 192m
+    memswap_limit: 192m
+    environment:
+      XDG_DATA_HOME: /gateway-data
+      XDG_CONFIG_HOME: /gateway-config
+    depends_on:
+      client: { condition: service_started }
+      hub-0: { condition: service_started }
+      hub-1: { condition: service_started }
+    volumes:
+      - /usr/local/bin/caddy:/usr/local/bin/caddy:ro
+      - /etc/codoxear-https/cloudflare.env:/run/secrets/cloudflare.env:ro
+      - ${FRESH_STATE:?Set FRESH_STATE}/gateway/Caddyfile:/gateway/Caddyfile:ro
+      - ${FRESH_STATE}/gateway/data:/gateway-data
+      - ${FRESH_STATE}/gateway/config:/gateway-config
+    ports: ["8444:8444", "8445:8445", "8446:8446", "8447:8447"]
+  provision:
+    <<: *role
+    image: ${CODOXEAR_TOOLS_IMAGE:-codoxear-v2-oar:local}
+    command: [node, --import, tsx, deploy/fresh-v2/provision.ts, /fresh]
+    restart: "no"
+    network_mode: none
+    mem_limit: 256m
+    memswap_limit: 256m
+    volumes:
+      - ${FRESH_STATE:?Set FRESH_STATE}:/fresh
+  hub-0:
+    <<: *role
+    image: ${CODOXEAR_HUB_IMAGE:-codoxear-hub:local}
+    command: [node, dist/server/hub/main.js]
+    mem_limit: 256m
+    memswap_limit: 256m
+    depends_on:
+      provision: { condition: service_completed_successfully }
+    environment:
+      CODOXEAR_HUB_CONFIG: /config/hub-0.json
+      CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
+      NODE_OPTIONS: --max-old-space-size=128
+    volumes:
+      - ${FRESH_STATE}/config/hub-0.json:/config/hub-0.json:ro
+      - ${FRESH_STATE}/hub-0:/state
+      - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
+    ports: ["127.0.0.1:19530:17430"]
+  hub-1:
+    <<: *role
+    image: ${CODOXEAR_HUB_IMAGE:-codoxear-hub:local}
+    command: [node, dist/server/hub/main.js]
+    mem_limit: 256m
+    memswap_limit: 256m
+    depends_on:
+      provision: { condition: service_completed_successfully }
+    environment:
+      CODOXEAR_HUB_CONFIG: /config/hub-1.json
+      CODOXEAR_FRONTEND_ASSETS_ROOT: /frontend-assets
+      NODE_OPTIONS: --max-old-space-size=128
+    volumes:
+      - ${FRESH_STATE}/config/hub-1.json:/config/hub-1.json:ro
+      - ${FRESH_STATE}/hub-1:/state
+      - ${FRONTEND_ASSETS:?Set FRONTEND_ASSETS to the immutable compiled frontend bundle}:/frontend-assets:ro
+    ports: ["127.0.0.1:19531:17430"]
+  client:
+    <<: *role
+    image: ${CODOXEAR_FRONTEND_IMAGE:-codoxear-frontend:local}
+    command: [node, serve.mjs]
+    mem_limit: 128m
+    memswap_limit: 128m
+    environment:
+      CODOXEAR_CLIENT_HOST: 0.0.0.0
+      CODOXEAR_CLIENT_PORT: "19520"
+      NODE_OPTIONS: --max-old-space-size=64
+    ports: ["127.0.0.1:19520:19520", "127.0.0.1:19500:19520"]
+  computer-a: &computer
+    <<: *role
+    image: ${CODOXEAR_COMPUTER_IMAGE:-codoxear-computer:local}
+    profiles: [computer]
+    depends_on:
+      provision: { condition: service_completed_successfully }
+      hub-0: { condition: service_started }
+    command: [node, dist/server/computer/main.js, start]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 2
+    pids_limit: 512
+    environment:
+      HOME: /home/node
+      CODOXEAR_COMPUTER_HOME: /home/node/computer
+      NODE_OPTIONS: --max-old-space-size=384
+    volumes:
+      - ${FRESH_STATE}/computer-a:/home/node
+      - ${FRESH_STATE}/private/pi-litellm-launch.json:/private/pi-litellm-launch.json:ro
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  computer-b:
+    <<: *computer
+    volumes:
+      - ${FRESH_STATE}/computer-b:/home/node
+      - ${FRESH_STATE}/private/pi-litellm-launch.json:/private/pi-litellm-launch.json:ro

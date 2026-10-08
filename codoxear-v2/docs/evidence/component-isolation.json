@@ -1,0 +1,252 @@
+{
+  "passed": true,
+  "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+  "phase": "complete",
+  "checks": [
+    "all four archives exported from the exact reviewed commit in bounded tooling; host needs no npm dependencies",
+    "frontend independently installs, builds and runs its own API/static host without peer source or dependencies",
+    "computer independently installs, builds and runs its own API/static host without peer source or dependencies",
+    "hub independently installs, builds and runs its own API/static host without peer source or dependencies",
+    "identity independently installs, builds and runs its own API/static host without peer source or dependencies",
+    "server independently installs, builds and runs its own API/static host without peer source or dependencies",
+    "independently installed frontend and Hub complete browser OAuth using their own compiled artifacts"
+  ],
+  "packages": [
+    {
+      "role": "frontend",
+      "checks": [
+        "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+        "static frontend health and built page work without any backend; account API is absent"
+      ],
+      "compiledEntries": [
+        "dist/client/index.html",
+        "serve.mjs"
+      ],
+      "http": [
+        {
+          "path": "/health",
+          "status": 200,
+          "body": {
+            "ok": true,
+            "service": "static-client",
+            "accounts": false
+          }
+        },
+        {
+          "path": "/",
+          "status": 200
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 404
+        }
+      ],
+      "passed": true,
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "archiveSha256": "6f52183022344214ce33c671ca296bf6cb12948f069329ead28214928dab966f",
+      "commands": [
+        "npm ci",
+        "npm run build",
+        "npm test",
+        "compiled package smoke"
+      ]
+    },
+    {
+      "role": "computer",
+      "checks": [
+        "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+        "compiled typed API status/doctor and CLI run without attachment or peer services",
+        "own pinned OAR runtime installs and loads without starting a model session"
+      ],
+      "compiledEntries": [
+        "dist/server/computer/main.js",
+        "dist/server/computer/api.js",
+        "dist/server/computer/managed/worker.js",
+        "dist/server/computer/native/broker.js",
+        "dist/server/computer/native/pi-private-provider.js",
+        "dist/server/computer/native/pi-active-session-bridge.js",
+        "dist/server/computer/delegation/pi-extension.js"
+      ],
+      "http": [],
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "dependencies": {
+        "@lydell/node-pty": "1.2.0-beta.15",
+        "ws": "8.22.0",
+        "zod": "4.6.5"
+      },
+      "sourceCount": 60,
+      "passed": true,
+      "archiveSha256": "d619b47f8ed0858541a5ec39a8a7e2b4b947fab9d67de8862425a1c6e82fe31c",
+      "commands": [
+        "npm ci",
+        "npm run build",
+        "compiled package smoke"
+      ]
+    },
+    {
+      "role": "hub",
+      "checks": [
+        "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+        "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+      ],
+      "compiledEntries": [
+        "dist/server/hub/main.js"
+      ],
+      "http": [
+        {
+          "path": "/health",
+          "status": 200,
+          "body": {
+            "ok": true,
+            "service": "hub",
+            "hubId": "isolation-hub"
+          }
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401
+        }
+      ],
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "dependencies": {
+        "@fastify/cookie": "11.1.2",
+        "@fastify/static": "10.1.5",
+        "@fastify/websocket": "11.3.3",
+        "fastify": "5.12.5",
+        "jose": "6.2.12",
+        "oauth4webapi": "3.8.8",
+        "web-push": "3.6.7",
+        "ws": "8.22.0",
+        "zod": "4.6.5"
+      },
+      "sourceCount": 42,
+      "passed": true,
+      "archiveSha256": "32841ac4467102243634055e80d5f850596095d8555bdf17a300dce1eb54377d",
+      "commands": [
+        "npm ci",
+        "npm run build",
+        "compiled package smoke"
+      ]
+    },
+    {
+      "role": "identity",
+      "checks": [
+        "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+        "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+      ],
+      "compiledEntries": [
+        "dist/server/identity/main.js"
+      ],
+      "http": [
+        {
+          "path": "/health",
+          "status": 200,
+          "body": {
+            "ok": true,
+            "service": "identity",
+            "protocol": 1
+          }
+        },
+        {
+          "path": "/api/v1/me",
+          "status": 401
+        }
+      ],
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "dependencies": {
+        "@fastify/cookie": "11.1.2",
+        "fastify": "5.12.5",
+        "jose": "6.2.12",
+        "oauth4webapi": "3.8.8",
+        "zod": "4.6.5"
+      },
+      "sourceCount": 24,
+      "passed": true,
+      "archiveSha256": "b958280f4e746c5e6e98e8df304fe7468252f2c9a4c4bb2fc5449232c05c3efb",
+      "commands": [
+        "npm ci",
+        "npm run build",
+        "compiled package smoke"
+      ]
+    },
+    {
+      "role": "server",
+      "checks": [
+        "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+        "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+      ],
+      "compiledEntries": [
+        "dist/server/server/main.js"
+      ],
+      "http": [
+        {
+          "path": "/health",
+          "status": 200,
+          "body": {
+            "ok": true,
+            "version": 1
+          }
+        },
+        {
+          "path": "/api/me",
+          "status": 401
+        }
+      ],
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "dependencies": {
+        "@fastify/cookie": "11.1.2",
+        "@fastify/static": "10.1.5",
+        "@fastify/websocket": "11.3.3",
+        "fastify": "5.12.5",
+        "ws": "8.22.0",
+        "zod": "4.6.5"
+      },
+      "sourceCount": 16,
+      "passed": true,
+      "archiveSha256": "a7b520e3e6dc4c21c45c49bea8001c4637a1602fe5fcef5a2595ba9c928b31c0",
+      "commands": [
+        "npm ci",
+        "npm run build",
+        "compiled package smoke"
+      ]
+    }
+  ],
+  "browser": {
+    "passed": true,
+    "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+    "packageRoots": {
+      "frontend": "/installed/frontend",
+      "hub": "/installed/hub"
+    },
+    "checks": [
+      "Compiled exported Hub and independently built frontend start from their installed packages",
+      "Hub browser login assets resolve only from the explicitly attached frontend artifact",
+      "Standalone frontend completes actual popup password login and PKCE exchange against the exported Hub",
+      "OAuth credential authorizes a real Hub management mutation through the frontend",
+      "Reload restores the frontend login and reads the persisted computer from the independently owned Hub database",
+      "Package browser integration completes without uncaught page errors"
+    ],
+    "oauthResponses": [
+      {
+        "path": "/oauth/authorize",
+        "method": "GET",
+        "status": 302
+      },
+      {
+        "path": "/oauth/authorize",
+        "method": "GET",
+        "status": 302
+      },
+      {
+        "path": "/oauth/token",
+        "method": "POST",
+        "status": 200
+      }
+    ],
+    "pageErrors": []
+  },
+  "memoryLimitMiB": 2048,
+  "swap": false,
+  "concurrency": 1,
+  "source": "reviewed Git commit only"
+}

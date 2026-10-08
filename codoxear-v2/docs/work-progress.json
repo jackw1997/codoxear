@@ -1,0 +1,652 @@
+{
+  "request": "Finish the TypeScript/OAR refactor with subagents and deploy a fresh v2 instance, retaining public addresses and real LiteLLM/Kimi settings; current instructions supersede old preview restoration.",
+  "baselineCommit": "3c2e2fc455d59f3c90ab171d3e8967c097d1064d",
+  "requirements": "requirements-reconciliation.md",
+  "steps": [
+    {
+      "id": "requirements",
+      "status": "completed",
+      "model": "GPT-6.1-Sol",
+      "outcome": "37 documented precedence decisions; current conversation governs v2 implementation, including contrast/touch fixes that preserve appearance families and locked card branches."
+    },
+    {
+      "id": "registers",
+      "status": "completed",
+      "model": "GPT-6-luna",
+      "outcome": "Corrected stale identity/deployment/scheduling wording; separated two completed items from the active No-Go array"
+    },
+    {
+      "id": "native-lifecycle",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Real installed Pi/Claude resume, Codex/Claude terminal import and interruption, Computer reconnect and untrusted Codex readiness",
+      "evidence": "artifacts/native-lifecycle-results.json",
+      "checks": 9,
+      "nativeRuntimeTests": 24,
+      "outcome": "Actual Pi/Claude saved resume, Codex/Claude terminal import and HTTP request cancellation with subsequent exact next turn; Computer restart/tunnel reconnect retain native PIDs and identities; untrusted Codex first browser prompt blocked without trust changes",
+      "limitations": [
+        "Installed Codex 0.160 and Claude 2.1.287; controlled provider gateways, not live inference quality",
+        "Trusted resumed Codex live model/effort controls remain unavailable",
+        "Hard broker/queue/Hub termination and broader unattended matrix remain open"
+      ]
+    },
+    {
+      "id": "voice-settings",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Flat Settings Save/Cancel, secret masking, actual TTS/HLS playback, cancellation and access-loss behavior",
+      "evidence": "artifacts/native-voice-results.json",
+      "checks": 8,
+      "nativeMediaTests": 6,
+      "browser": "Chrome 154.0.8037.97",
+      "outcome": "Actual independent-client Settings Save/Cancel/Escape/key masking and clear; real Pi completion, TTS/ffmpeg HLS playback, opt-out cancels provider work, account access loss removes browser opt-in and pauses playback; EventSource 200",
+      "limitations": [
+        "Controlled inference and tone WAV; no live speech-quality claim",
+        "Browser access-loss cleanup proven; per-actor server listener expiration remains 45 seconds",
+        "Notifications implementation is separately tracked as Web Push"
+      ]
+    },
+    {
+      "id": "queue-dispatch-race",
+      "status": "verified-local",
+      "scope": "Recheck idle after authorization and require broker-proven idle-only acceptance; ambiguous sends remain blocked across restart",
+      "nativeRuntimeTests": 24,
+      "outcome": "Fresh post-authorization idle check; atomic broker rejection before paste; terminal draft and new-turn producer fences; ACK after Enter; serialized sends and in-flight receipt deduplication; input, interruption or process exit during paste yields uncertainty",
+      "limitations": [
+        "Definite queue_not_dispatched alone returns work to pending; ambiguous results remain blocked across restart",
+        "Historical pre-unification slice; the unified-queue record supersedes its separate terminal/remote ordering limitation.",
+        "Accepted submission is Enter written to PTY, not a claim that the model executed it; full broker hard-kill matrix remains open"
+      ]
+    },
+    {
+      "id": "large-download-transport",
+      "status": "verified-local",
+      "evidence": "/tmp/codoxear-queue-download-review.log",
+      "scope": "257 MiB native file streams through real WebSocket HttpMux with byte hash, bounded queues, concurrent request, range, cancellation and HEAD",
+      "remaining": "Authenticated browser streaming handoff now passed257MiB+37 bytes with a matching hash and mounted application. Safari/physical-device acceptance remains external."
+    },
+    {
+      "id": "native-load-faults",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Measured bounded native relay load and reconnect/fault scenarios; does not alone establish complete production acceptance",
+      "evidence": "artifacts/native-load-fault-results.json",
+      "outcome": "Two actual Pi PTYs; mixed authenticated reads and three stalled downloads; Hub outage queue edit/reauthorization; lost post-broker-ack response and Computer restart without replay",
+      "measurements": {
+        "mixedP95Ms": 251,
+        "eventLoopMaximumMs": 133,
+        "harnessPeakRssBytes": 276594688,
+        "recoveryMs": 3046
+      },
+      "limitations": [
+        "Two synthetic valid histories of 2253038 bytes each appended after a real completed tool turn; this measures parser behavior, not large model context",
+        "Shared Hub/Computer fixture process; no production SLO or full commit-boundary matrix",
+        "Broker crash during submission remains a separate correctness boundary"
+      ]
+    },
+    {
+      "id": "unified-queue",
+      "scope": "One durable terminal and browser queue",
+      "checks": 5,
+      "nativeTests": 39,
+      "outcome": "Broker owns one persistent order and versioned local/remote edits. Actual PTY controls and independent browser manage mixed items; service restart preserves identity. Hard death after paste leaves a durable uncertainty barrier.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Existing running brokers retain their older safe queue until explicit resume with the updated runtime."
+      ]
+    },
+    {
+      "id": "web-push",
+      "scope": "Encrypted browser push and scoped Settings controls",
+      "checks": 9,
+      "nativeTests": 9,
+      "outcome": "Independent aes128gcm decryptor and VAPID JWT verification pass. Real Chrome worker push shows notifications; session, binding, endpoint rotation, permission and disconnect checks fence delivery/click.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Controlled push endpoint and genuine worker event/click. Vendor reception, OS click and physical devices remain unverified. Actual PushManager subscription failed in network-isolated Chrome."
+      ]
+    },
+    {
+      "id": "independent-transfer",
+      "scope": "Move a Computer between independent Hubs",
+      "checks": 5,
+      "nativeTests": 17,
+      "outcome": "Source credential revocation precedes destination owner admission. Fsynced checkpoints recover lost replies. Native Pi broker, CLI, thread and log identities survive; stale source permits and old destination grants are fenced.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Destination import is explicit; actual live Kimi transfer and one destination shell tool passed in the separate live-provider suite."
+      ]
+    },
+    {
+      "id": "protocol-inventory",
+      "scope": "Public protocol inventory and conformance",
+      "checks": 13,
+      "nativeTests": 0,
+      "outcome": "Actual registration matches143 Hub and66 authority methods. All published operations carry explicit success/document/stream/upgrade metadata:99 Hub,48 authority,8 internal and110 relay entries (intentional overlap). Native Pi validated97 responses/74 operations/3 SSE. Administrative conformance checked73 observations/37 HTTP leaves/all24 dispatcher operations with161 standalone published-schema validations. All8 generated artifacts match the Docker output.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Optional vendor usage/subagent telemetry extensions are explicitly open. Representative installed Pi producer acceptance does not certify every CLI version or private provider. Physical-platform acceptance remains separate."
+      ],
+      "evidence": "artifacts/protocol-native-conformance-results.json; artifacts/protocol-admin-conformance-results.json"
+    },
+    {
+      "id": "browser-downloads",
+      "scope": "Large browser downloads preserve the conversation",
+      "checks": 2,
+      "nativeTests": 4,
+      "outcome": "The normal Download streams 257 MiB intact through a one-use POST-body handoff. Hash and size match; the app stays mounted and another conversation turn succeeds. Origin, replay, expiry, identity and active-stream revocation checks pass.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Desktop Chromium accepted; physical Safari/mobile remains separate. No-referrer cross-origin form Origin may be opaque; authentication uses only the one-use ticket."
+      ]
+    },
+    {
+      "id": "unattended-hard-fault",
+      "scope": "Unattended uncertainty requires transcript review",
+      "checks": 1,
+      "nativeTests": 25,
+      "outcome": "Budget and cooldown are persisted before automatic paste. Killed brokers cannot replay ambiguous attempts; recovery disables automatic work until a matching transcript review. Stale review and budget recovery tests pass.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "Actual independent-client recovery UI also passed: explicit matching review keeps automation disabled and spent budget unchanged. Physical-device acceptance remains separate."
+      ]
+    },
+    {
+      "id": "launch-hard-fault",
+      "scope": "Computer process death at launch commit boundaries",
+      "checks": 0,
+      "nativeTests": 9,
+      "outcome": "Actual installed Pi, Codex and Claude each survive exact Computer SIGKILL before dispatch, before saving receipt and after saving receipt. Reopened durable journals reject replay; native PID, start ticks, executable and argv prove the same CLI incarnation remains. Committed receipts retain identity.",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root integration",
+      "limitations": [
+        "All three actual installed CLIs use isolated local onboarding/trust and fixture-only provider configuration. Launch proof does not claim inference or every network/broker mutation boundary."
+      ]
+    },
+    {
+      "id": "delegated-workspaces",
+      "status": "verified-local",
+      "scope": "Independent root, path, Git, upload and video grants",
+      "model": "GPT-6.1-Sol",
+      "checks": 5,
+      "evidence": "artifacts/delegated-workspaces-browser-results.json",
+      "outcome": "Owner-managed independent workspace IDs and per-path grants are enforced using directory identity and request-scoped capabilities. Five actual independent-client member checks cover delayed typing, file read/edit, separate Git history/revoke, private picker upload/Pi send with revoke/regrant, ffmpeg preview/range/revoke and second-root approval/removal.",
+      "limitations": [
+        "Linux secure filesystem and Chrome154 fixture acceptance; physical mobile and macOS remain separate.",
+        "A grant revision fences revoked/regranted uploads. Existing old brokers reject unsupported member attachment operations without being restarted."
+      ]
+    },
+    {
+      "id": "live-kimi-native",
+      "status": "verified-live",
+      "model": "GPT-6.1-Sol",
+      "scope": "Real Kimi/LiteLLM tools, interrupt, outage, reconnect and transfer",
+      "checks": 5,
+      "evidence": "artifacts/live-native-provider-results.json",
+      "outcome": "Native Pi completed real bash, interrupt/next turn, Hub outage with old queued identity revoked and fresh queue reauthorized, Computer restart with unchanged native identities, and independent-Hub transfer followed by exactly one live destination tool.",
+      "limitations": [
+        "Final live Pi run used installed rg/fd and no PI_OFFLINE; readiness requires a fresh producer bridge signal matching the actual CLI PID.",
+        "Configured provider only. Actual Claude Messages tool compatibility also passed; Codex Responses tool execution remains unproven after its deadline.",
+        "Basic authenticated Responses streaming also completes in3s; this is distinct from actual Codex native shell-tool proof."
+      ]
+    },
+    {
+      "id": "harmony-account-lifecycle",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Self-contained Harmony client accounts, vault and multi-Hub subscriptions",
+      "nativeTests": 13,
+      "outcome": "V2-owned ArkTS SDK scaffold and OS adapter contracts exercise callbacks/cancellation, locked secure vault, serialized refresh and loss fences, account switching, native tap authorization and multiple subscriptions against two independent Hubs. Expanded workspace/native/identity/Harmony suite passed52 tests; nine three-backend hard-death launch checks also passed.",
+      "limitations": [
+        "OS APIs are mocked for Docker behavior; no SDK compile, signing, physical build or Push Kit delivery claim."
+      ]
+    },
+    {
+      "id": "application-accessibility",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol",
+      "scope": "Full application keyboard, labels, themes and touch targets",
+      "checks": 8,
+      "evidence": "artifacts/browser-accessibility-results.json",
+      "outcome": "Actual native import, Hubs/Computer/access, File viewer/Monaco, Help/Details/edit, real busy queue, creation/model dialogs and recovered unattended review pass. Nine appearance combinations preserve13 font samples. All18 touch-target groups pass44px; minimum light contrast4.514:1 and dark5.196:1.",
+      "limitations": [
+        "Chrome154 and actual independent Hub/native Pi; physical assistive technology, Safari and native devices remain external acceptance. Console diagnostics remain recorded; no zero-console-error claim."
+      ]
+    },
+    {
+      "id": "browser-startup-https",
+      "status": "verified-public-trusted-preview",
+      "model": "GPT-6.1-Sol and root",
+      "scope": "User-reported Huawei failed-to-load screen",
+      "checks": 6,
+      "evidence": "artifacts/native-preview-results.json; artifacts/native-preview-mobile.png; artifacts/trusted-endpoint-tls-results.json; artifacts/trusted-endpoint-process-results.json",
+      "outcome": "The native preview now uses the existing root-managed trusted gateway; ordinary Chrome130 mobile browser acceptance passes6/6 at390×844 with no SPKI exception and ignoreHTTPSErrors:false. Checks cover OAuth against two independent Hubs, actual native Pi terminal import and shell-tool proof.txt write, reload with transcript retained and no overflow/page errors, HTTPS source download with matching SHA-256, and the then-current readable progress report with37 decision details fitting the phone viewport. The client and both Hubs also validate the public certificate with rejectUnauthorized:true (issuer YE2, expiry 2027-01-02 08:27:03 GMT). Router checks pass5/5; Docker production build, full TypeScript check and boundaries pass across438 modules. All96/96 tracked processes in six existing containers retained PIDs and start ticks through cutover with no CLI/container restart.",
+      "limitations": [
+        "The final report was regenerated with38 documented precedence decisions after the6/6 mobile run, which verified the prior37-decision version; mobile fit of that latest generated report has not been rechecked.",
+        "The run used Chrome130 at a390×844 mobile viewport; the user-reported Huawei device itself has not yet been retested.",
+        "The previous six-check run used fixture-certificate SPKI trust against the superseded self-signed8471 endpoint; only the new evidence listed above establishes ordinary-browser trust for the current route.",
+        "Existing configured legacy Computer streams and old bearer-kid requests remain routed. Native v2 has fresh account/session catalog state and may require sign-in; no automatic legacy Python session restoration or migration is claimed.",
+        "Opaque legacy OAuth refresh-token POST bodies use the new default route; existing browser accounts may require sign-in again. Configured legacy Computer credentials stay routed by Computer ID."
+      ]
+    },
+    {
+      "id": "session-catalog-recovery",
+      "status": "superseded; old-catalog restoration abandoned for fresh deployment",
+      "model": "GPT-6.1-Sol and root",
+      "scope": "Restore visibility of original sessions after trusted-endpoint cutover",
+      "outcome": "Original Hub catalogs retain19 agents across6 Computers. Prepared routing preserves original and new authorities, and browser refresh/revoke carries an existing signing-key routing hint. Router subagent reported6 passing Docker checks; browser baseline captures2 newer agents. Static typecheck passes.",
+      "limitations": [
+        "Historical limitation at this milestone: Not deployed. Current execution environment denies Docker socket access; final browser recovery and production build remain outstanding. The public router still defaults to the fresh native catalog."
+      ],
+      "historicalStatus": "prepared; deployment blocked",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
+    },
+    {
+      "id": "structured-runtime-review",
+      "status": "historical milestone; superseded by verified fresh OAR release",
+      "model": "GPT-6.1-Sol and root",
+      "scope": "Replace terminal automation for new managed sessions",
+      "outcome": "Reviewed Raft/OAR source and finalized OAR integration behind a Computer-local interface. Same-Hub cross-Computer delegation uses Codoxear routing, durable identities and Computer-owned tools. Cross-Hub delegation is deferred. R45 supersedes earlier direct-driver-first and optional-future-OAR prescriptions.",
+      "limitations": [
+        "Historical limitation at this milestone: No OAR-managed replacement or distributed delegation is implemented/deployed. Permission, provider, native-session and two-Computer fault acceptance remain required. See docs/runtime-lifecycle.html."
+      ],
+      "historicalStatus": "architecture agreed; implementation pending",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
+    },
+    {
+      "id": "memory-and-container-cleanup",
+      "status": "historical milestone; superseded by verified fresh OAR release",
+      "model": "root; GPT-6.1-Sol source audit",
+      "scope": "8 GiB resource budget and authorized cleanup of owned demo/test containers",
+      "outcome": "Prepared shared verification lock, serial test files, 2 GiB container memory limit, two CPUs and 512 processes. Full static TypeScript and shell syntax checks pass. No collaborator remains active in the current tree. See runtime-lifecycle.html for app-server and OAR design findings.",
+      "limitations": [
+        "Historical limitation at this milestone: Docker socket denied by current execution restrictions; no container stopped and no replacement launched. Keep container filesystems and host data.",
+        "Historical limitation at this milestone: The memory cap applies to verification containers, not Docker image builds or the whole host. Actual resource and behavior verification remain outstanding.",
+        "Historical limitation at this milestone: Lazy runtime open/resume, safe idle disposal and bounded active managed drivers are proposed, not implemented."
+      ],
+      "historicalStatus": "prepared; cleanup blocked",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
+    },
+    {
+      "id": "oar-first-implementation",
+      "status": "historical milestone; superseded by verified fresh OAR release",
+      "model": "Two GPT-6.1-Sol agents plus coordinator",
+      "outcome": "Computer managed-runtime controller, isolated worker/provider profiles and same-Hub durable delegation API wired into services; explicit Pi tool registration/client building blocks. Public origins and private LiteLLM launch settings staged; ten consistent database backups saved outside Git.",
+      "limitations": [
+        "Historical limitation at this milestone: No OAR/native/browser tests executed: Docker socket denied, npm DNS unavailable, installed Node22 rather than required24.",
+        "Historical limitation at this milestone: OAR dependency lockfile missing; no deployment or cleanup performed.",
+        "Historical limitation at this milestone: Agent grant delivery/installation and inherited chained spawning, full browser feature parity, reviewed uncertainty recovery and native subprocess OOM cleanup remain incomplete."
+      ],
+      "report": "oar-cutover.html",
+      "historicalStatus": "implemented-unverified",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
+    },
+    {
+      "id": "oar-private-tool-wiring",
+      "status": "historical milestone; superseded by verified fresh OAR release",
+      "model": "Two GPT-6.1-Sol agents plus coordinator",
+      "outcome": "Private Computer grant delivery, confirmed managed Pi tool registration, same-Hub inherited grants, atomic scope replacement and subtree revocation, allowed-target discovery, runtime/model/effort selection, bounded child-answer reads, and browser grant/expiry controls implemented. Added read-only OAR installation diagnostics.",
+      "limitations": [
+        "Historical limitation at this milestone: Docker socket access and npm DNS remain blocked after user RAM cleanup; no native/browser/runtime tests executed.",
+        "Historical limitation at this milestone: Managed Pi can delegate; running legacy Pi hot-install and Codex/Claude parent tool registration remain unsupported. Codex and Claude child leaves are supported in source only.",
+        "Historical limitation at this milestone: OAR dependency lockfile, Node24/runtime installation, full managed feature parity and OOM/process-tree acceptance remain pending."
+      ],
+      "report": "oar-cutover.html",
+      "historicalStatus": "implemented-unverified",
+      "currentEvidence": "See fresh-oar-deployment, oar-native-acceptance-20261007 and managed-cold-browser-binding for current deployed evidence; genuine remaining scope is listed in oarImplementation.remaining."
+    },
+    {
+      "id": "fresh-oar-deployment",
+      "status": "deployed-verified",
+      "model": "GPT-6.1-Sol",
+      "scope": "Fresh independent Hub/Client/Computer deployment; retain public addresses and Computer-local LiteLLM configuration; old state archived separately",
+      "outcome": "Fresh independent stack runs on retained trusted HTTPS endpoints. Real LiteLLM/Kimi Pi conversation, reload, same-Hub Pi parent/child across two Computers, service restart/cold context and direct child access after disabling delegation passed through the public browser.",
+      "limitations": [
+        "Full managed feature parity and Codex/Claude parent-tool installation remain outside this accepted slice.",
+        "Physical mobile/Safari/macOS acceptance is separate."
+      ],
+      "evidence": [
+        "artifacts/fresh-managed/results.json",
+        "artifacts/fresh-recovery/results.json"
+      ]
+    },
+    {
+      "id": "oar-native-acceptance-20261007",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root",
+      "outcome": "Docker access restored; genuine OAR lock installed and full Node24 image built. Focused suite passed40 tests. Actual OAR Pi SDK completed HTTP inference, native write tool, idle worker disposal, controller restart/native history resume and stream cancellation. Fixed opaque receipt UUID conversion and Pi private API-key environment reference.",
+      "evidence": "artifacts/managed-native-results.json",
+      "limitations": [
+        "Local deterministic model gateway; real LiteLLM and public browser acceptance follow separately.",
+        "Observed fixture cgroup samples are not production capacity or P99 estimates."
+      ]
+    },
+    {
+      "id": "oar-managed-leaf-acceptance-20261007",
+      "status": "verified-local",
+      "model": "GPT-6.1-Sol and root",
+      "outcome": "Actual OAR-managed Codex and Claude CLIs returned text through controlled local provider APIs, cancelled held inference streams, and reclaimed all owned worker/CLI descendants on close.",
+      "evidence": "artifacts/managed-leaf-results.json",
+      "limitations": [
+        "Local deterministic Responses/Anthropic endpoints, not live provider model quality.",
+        "This slice verifies text and interruption; native tool execution and cold resume for these leaves remain separate."
+      ]
+    },
+    {
+      "id": "managed-cold-browser-binding",
+      "status": "verified-live",
+      "outcome": "Fixed stable saved transcript binding in managed catalogue/state/tail/live projections; archived histories load without starting a worker. Twelve managed runtime regression tests pass. Public recovery verifies parent/child history after service restart, context recall, disabling delegation and continued direct child conversation.",
+      "evidence": "artifacts/fresh-recovery/results.json"
+    },
+    {
+      "id": "managed-transcript-search-navigation",
+      "status": "verified-live",
+      "model": "GPT-6.1-Sol and root integration",
+      "scope": "Bounded saved-message search, wildcard user counts and previous/next navigation without waking workers",
+      "evidence": [
+        "/tmp/codoxear-v2-final-search-tests.log",
+        "artifacts/fresh-search/results.json"
+      ],
+      "checks": 21,
+      "outcome": "Twenty-one managed runtime/protocol checks passed. Public authenticated browser verifies saved history, literal search/match navigation, wildcard user count, next-message relay and valid-HTTPS release report; zero uncaught page errors."
+    },
+    {
+      "id": "frontend-package-isolation",
+      "status": "isolated-build-and-host-verified",
+      "scope": "frontend/web, frontend/harmonyos and frontend/shared; frontend owns dependencies/build/static host; backend compiles without frontend",
+      "evidence": "artifacts/package-isolation.json",
+      "remaining": "Full browser regression after split is running; Hub/Computer/Identity backend package isolation remains open."
+    },
+    {
+      "id": "component-isolation",
+      "status": "verified-local",
+      "scope": "Independent frontend, Computer, Hub, optional Identity and Server packages",
+      "outcome": "Separate locks, minimal source closures, builds, pruned images and explicit frontend asset attachment. All login HTML belongs to frontend. Five clean packages and six actual mobile OAuth checks pass. Generated protocol duplication reduced by 115,141 lines (60.3%). Runtime regression: 307 tests and complete browser runner pass."
+    }
+  ],
+  "externalSetup": "Live identity/delivery configuration and physical SDK/device acceptance remain individually tracked; unrelated implementation is not blocked",
+  "platformScope": "Linux native acceptance; macOS/device/live-provider gates remain individually tracked",
+  "integration": {
+    "tests": 307,
+    "failed": 0,
+    "skipped": 0,
+    "verifierExitCode": 0,
+    "log": "/tmp/codoxear-v2-final-regression.log",
+    "scope": "Full regression and complete browser runner; five separate clean package checks and six installed-package OAuth checks recorded independently.",
+    "sourceCommit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32"
+  },
+  "registerCounts": {
+    "active": 20,
+    "completed": 6,
+    "resolvedConstraints": 1,
+    "note": "Rows overlap. Intentional safe compatibility exclusions are resolved constraints rather than unfinished features.",
+    "scope": "Historical requirement-register counts; these are not live collaborator counts or final release acceptance totals."
+  },
+  "preview": "https://codoxear.gzeek.com:8445/",
+  "previewVerification": {
+    "checks": 6,
+    "evidence": "artifacts/native-preview-results.json; artifacts/native-preview-mobile.png; artifacts/trusted-endpoint-tls-results.json; artifacts/trusted-endpoint-process-results.json",
+    "outcome": "Chrome130 mobile browser at390×844, with no SPKI exception and ignoreHTTPSErrors:false: OAuth against two independent Hubs; native Pi terminal import; shell tool writes proof.txt; reload retains transcript with no overflow/page errors; HTTPS source download matches published SHA-256; report with37 details fits phone viewport. Exit0.",
+    "provider": "Actual installed native Pi and shell tools; built-in model responses are explicitly scripted. Custom provider URL/key/model remains available.",
+    "browserHarness": "Real Chrome130 mobile browser at390×844; ignoreHTTPSErrors:false and no SPKI exception.",
+    "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+    "publicTLS": "Client and both Hubs pass certificate validation with rejectUnauthorized:true and authorize successfully. Certificate issuer YE2; expiry 2027-01-02 08:27:03 GMT. Existing root-managed Caddy/certificate configuration was reused unchanged.",
+    "publicTrustedTLS": true,
+    "historicalEvidence": true,
+    "scope": "Earlier native/scripted preview snapshot; current fresh real-provider evidence is in fresh-oar-deployment and managed-cold-browser-binding."
+  },
+  "updatedAt": "2026-10-07T07:12:40.701Z",
+  "integrationStatus": "Component isolation verified at 379ddba0: 307 regression tests and the complete browser runner passed. Frontend, Computer, Hub, optional Identity and optional Server each independently install, build and run; six installed-package mobile OAuth checks passed. The public Pi/Kimi and saved-history proofs remain recorded by their own snapshots. Earlier restoration requirements are superseded by the requested fresh deployment; archived histories and current private configuration are preserved.",
+  "github": {
+    "status": "previous publication attempt blocked; not retested on 7 October",
+    "reason": "Historical attempt: authenticated connector reads succeeded but create_blob returned403 Resource not accessible by integration; shell Git credentials were absent then. Current publishing access has not been retested.",
+    "localBranch": "v2/typescript-architecture-pr",
+    "published": false
+  },
+  "startupHotfix": {
+    "runtimeCommit": "f55cb3fc7a1dd3aa90766f2ef5c7cf703625e416",
+    "browserChecks": 6,
+    "browserEvidence": "artifacts/native-preview-results.json",
+    "mobileScreenshot": "artifacts/native-preview-mobile.png",
+    "tlsEvidence": "artifacts/trusted-endpoint-tls-results.json",
+    "ordinaryBrowserTLS": true,
+    "firstIndependentHubOAuth": true,
+    "publicTrustedTLS": true,
+    "certificateIssuer": "YE2",
+    "certificateExpires": "2027-01-02T08:27:03Z",
+    "routerChecks": "5/5",
+    "preservedContainerProcesses": "96/96 tracked processes in six existing containers: same PIDs and start ticks",
+    "rootInstallerRequired": false,
+    "historicalEvidence": true
+  },
+  "sessionCatalogRecovery": {
+    "status": "historical; old-catalog restoration superseded by requested fresh deployment",
+    "originalAgents": 19,
+    "originalComputers": 6,
+    "nativeBaselineAgents": 2,
+    "routerDockerChecks": 6,
+    "routerEvidence": "GPT-6.1-Sol subagent completed six behavioral checks before environment permission change; current baseline browser capture succeeded",
+    "staticTypecheck": "passed",
+    "recoveryBrowser": "Old-catalog restoration browser acceptance not run; distinct fresh OAR cold recovery has passed",
+    "deployed": false,
+    "historicalEvidence": true
+  },
+  "runtimeLifecycleReview": {
+    "status": "OAR-managed Pi and same-Hub cross-Computer delegation deployed and native/public-browser verified; broader parity remains pending",
+    "raftCommit": "05f7d8fd77d2535f993d5d90b85118438bc18216",
+    "oarCommit": "07a9c946aabf17e65bf6126f48dd42a4f21cb964",
+    "recommendation": "OAR behind a thin Computer-local Codoxear runtime interface for new managed sessions; Computer-owned delegation tools route through a shared Hub; preserve existing terminal sessions and add explicit native extensions for required gaps",
+    "report": "docs/runtime-lifecycle.html",
+    "interruptedToolRecovery": {
+      "status": "accepted design; not implemented",
+      "policy": "Restore conversation context; retry an interrupted tool through the native runtime as a fresh attempt, without restoring its process execution state.",
+      "boundaries": [
+        "Keep original attempt history and distinct retry identity.",
+        "Preserve native permission policy.",
+        "Explicit user stop remains stopped until continuation is requested.",
+        "Unknown crash outcomes and uncertain prompt delivery remain separately reconciled."
+      ]
+    },
+    "distributedDelegation": {
+      "status": "Private grant delivery, managed Pi tools and real same-Hub parent-child execution passed native and public-browser acceptance, including cold history recovery and revocation. Existing terminal Pi hot-install and Codex/Claude parent tool installation remain unsupported.",
+      "sameHub": "Computer A -> Hub -> Computer B; destination create permission and delegated principal required",
+      "crossHub": "Explicitly deferred by user to later versions; reject cross-Hub subagent targets in this version; no federation/grant implementation now",
+      "runtimeBoundary": "OAR/native adapter runs locally at destination; Codoxear owns routing, durable parentage, launch deduplication and result delivery",
+      "report": "docs/runtime-lifecycle.html",
+      "toolPlacement": "Target Computer is resolved inside authenticated initiating Hub; no cross-Hub placement selector in this version"
+    },
+    "versionPolicy": "Pin a tested initial Computer/OAR/runtime combination and dependency lockfile. Computers communicate via versioned Codoxear protocol/capabilities, not shared OAR memory. Record actual versions per execution.",
+    "engineeringRequirements": [
+      "Preserve configured permissions; extend adapters for required approval replies before enabling those managed paths.",
+      "Preserve Pi+Kimi/LiteLLM settings and isolate SDK configurations with process-global state.",
+      "Keep existing terminal brokers and native session/catalog identities; no arbitrary live PID adoption.",
+      "Persist receipts, attempt/stream identities, native session IDs and results; reconcile ambiguous outcomes.",
+      "Apply measured per-Computer memory admission, bounded buffers and chain limits; 2 GiB verification cap is separate from the prepared production aggregate Computer slice."
+    ]
+  },
+  "memoryControl": {
+    "targetGiB": 8,
+    "status": "Fresh memory-bounded stack running; real two-Computer delegation and idle cleanup verified",
+    "testConcurrency": 1,
+    "verificationMemoryGiB": 2,
+    "verificationCpuLimit": 2,
+    "verificationPidLimit": 512,
+    "staticTypecheck": "passed",
+    "shellSyntax": "passed for all 21 verification wrappers",
+    "behavioralVerification": "283-test full suite and full browser runner passed before final saved-binding fix;12 managed regression tests and public cold recovery pass after that fix",
+    "buildMemoryCapped": true,
+    "collaboratorNote": "GPT-6.1-Sol implementation agents assisted the coordinator; Docker execution, builds and verification were serialized by the coordinator. This field records the workflow, not a live collaborator count.",
+    "managedDefaults": {
+      "residentWorkers": 2,
+      "idleMs": 60000,
+      "workerHeapMiB": 384
+    },
+    "productionEnvelope": {
+      "applied": true,
+      "source": "deploy/fresh-v2/compose.yml",
+      "totalResidentLimitMiB": 2880,
+      "perComputerMiB": 1024,
+      "residentWorkersPerComputer": 1,
+      "hubMiB": 256,
+      "clientMiB": 128,
+      "gatewayMiB": 192,
+      "swapMiB": 0
+    },
+    "cleanupReport": "docs/oar-cutover.html",
+    "configurationPreserved": {
+      "publicOrigins": true,
+      "litellmSavedConfig": true,
+      "consistentDatabaseBackups": 10,
+      "privateBackupOutsideGit": true,
+      "stagedForNextDeployment": true,
+      "liveProviderReverified": true
+    },
+    "cleanupStatus": "No running Docker containers at start of7October continuation; temporary verification containers cleaned after execution",
+    "nativeFixture": {
+      "maximumObservedCgroupMiB": 352.38671875,
+      "quiescedCgroupMiB": 168.0859375,
+      "ownedDescendantsAfterQuiescence": 0,
+      "scope": "Actual Pi SDK with local deterministic HTTP provider; sampled cgroup memory, not measured peak"
+    },
+    "publicStackSamplesMiB": {
+      "initialIdle": 187.66,
+      "afterRealParentChildDelegation": 488.24,
+      "afterServiceRestart": 185.59
+    },
+    "sampleLimitation": "Docker-reported samples, not peaks/P99 or capacity guarantees",
+    "historicalOwnedContainerNames": [
+      "codoxear-v2-cache-demo",
+      "codoxear-v2-auth-runtime",
+      "codoxear-v2-resume-demo",
+      "codoxear-v2-native-preview",
+      "codoxear-v2-progress-preview",
+      "codoxear-v2-completion-preview",
+      "codoxear-v2-trusted-preview"
+    ],
+    "historicalCleanupExecuted": false,
+    "deployedResidentRoles": [
+      "hub-0",
+      "hub-1",
+      "client",
+      "computer-a",
+      "computer-b",
+      "gateway"
+    ],
+    "containerHistoryNote": "Earlier demo/preview names and cleanup result describe the pre-cleanup review; they are not the current running container inventory. The fresh deployment has six independently limited resident roles."
+  },
+  "oarImplementation": {
+    "status": "Deployed real Pi/Kimi and same-Hub cross-Computer delegation slice",
+    "staticTypecheck": "passed",
+    "componentBoundaries": "passed",
+    "authoredBehaviorTests": 36,
+    "behaviorTestsRun": 283,
+    "commitAttempt": "Reviewed v2 snapshots saved with isolated Git index; unrelated workingtree and regular index preserved",
+    "remaining": [
+      "Codex/Claude parent tool registration and existing terminal Pi hot-install",
+      "Full managed feature parity including attachments/tool/reasoning controls and reviewed uncertainty recovery",
+      "Broader fault/OOM workload and physical-platform acceptance"
+    ],
+    "behaviorTestResults": {
+      "fullSuitePassed": 283,
+      "fullSuiteFailed": 0,
+      "fullBrowserRunnerExitCode": 0,
+      "finalBindingRegressionPassed": 12,
+      "finalSearchProtocolPassed": 21,
+      "scope": "Full suite passed before final saved-binding changes; focused binding and search/protocol checks passed afterward. No claim of a complete full-suite rerun or public search/navigation acceptance for the final snapshot."
+    }
+  },
+  "componentPackaging": {
+    "status": "verified",
+    "runtimeCommit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+    "frontend": "Own frontend source, templates, lock, build and static host",
+    "backend": "Computer, Hub, optional Identity and optional Server export only own declared source closure, minimal lock and compiled entries",
+    "packages": [
+      {
+        "role": "frontend",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "static frontend health and built page work without any backend; account API is absent"
+        ]
+      },
+      {
+        "role": "computer",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "compiled typed API status/doctor and CLI run without attachment or peer services",
+          "own pinned OAR runtime installs and loads without starting a model session"
+        ]
+      },
+      {
+        "role": "hub",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      },
+      {
+        "role": "identity",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      },
+      {
+        "role": "server",
+        "passed": true,
+        "checks": [
+          "own exported source and declared libraries only; no peer source or browser artifacts in APIs",
+          "own compiled API entry boots, serves health and enforces account authentication without UI assets or peer services"
+        ]
+      }
+    ],
+    "browserChecks": [
+      "Compiled exported Hub and independently built frontend start from their installed packages",
+      "Hub browser login assets resolve only from the explicitly attached frontend artifact",
+      "Standalone frontend completes actual popup password login and PKCE exchange against the exported Hub",
+      "OAuth credential authorizes a real Hub management mutation through the frontend",
+      "Reload restores the frontend login and reads the persisted computer from the independently owned Hub database",
+      "Package browser integration completes without uncaught page errors"
+    ],
+    "fullRegression": {
+      "passed": 307,
+      "failed": 0,
+      "skipped": 0,
+      "fullBrowserRunnerExitCode": 0
+    },
+    "gaps": [],
+    "evidence": "evidence/component-isolation.json",
+    "constraints": {
+      "serialized": true,
+      "memoryMiB": 2048,
+      "swap": false
+    },
+    "schemaReduction": {
+      "beforeLines": 190879,
+      "afterLines": 75738,
+      "removedLines": 115141
+    },
+    "scope": "Component/package/source/build isolation; wider provider/platform/runtime-parity roadmap is separate",
+    "runtimeImages": {
+      "passed": 5,
+      "failed": 0,
+      "uid": 1000,
+      "evidence": "evidence/runtime-images.json"
+    },
+    "liveDeployment": {
+      "passed": true,
+      "managedChecks": 8,
+      "savedHistoryChecks": 4,
+      "evidence": "evidence/isolated-live-deployment.json"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "version": {
+    "major": 1,
+    "minor": 0
+  },
+  "hubCapabilities": [
+    "agents",
+    "invites",
+    "retention",
+    "rpc",
+    "http-streams"
+  ],
+  "chunkBytes": 65536,
+  "streamQueuedBytes": 1048576,
+  "computerQueuedBytes": 16777216,
+  "maxConcurrentStreams": 16,
+  "maxFrameBytes": 1048576,
+  "maxUploadBytes": 268435456,
+  "native": {
+    "maxUploadFileBytes": 67108864,
+    "maxJsonBodyBytes": 8388608,
+    "maxFileViewerBytes": 2097152,
+    "maxFileWriteUtf8Bytes": 2097152,
+    "maxFileInspectBatchPaths": 50,
+    "maxQueueOrDraftBodyBytes": 1048576,
+    "maxQueueDraftAndAgentPromptCharacters": 200000,
+    "audioListenerLeaseSeconds": 45,
+    "usageFields": "normalized optional counters with backend-owned extensions",
+    "compatibility": "Producer schemas describe updated native Computers. Historical brokers remain preserved and may require a capability update for some operations."
+  },
+  "mutationRetry": false,
+  "pairingLifetimeSeconds": 900,
+  "downloadTicketLifetimeSeconds": 120,
+  "notifications": {
+    "ttlSeconds": 86400,
+    "acknowledgement": "after durable Hub acceptance",
+    "maxOutboxEvents": 10000,
+    "maxHubEvents": 10000,
+    "maxDeliveries": 100000,
+    "providerSemantics": "at-least-once generic hint; provider/browser delivery is not guaranteed",
+    "webPush": {
+      "contentEncoding": "aes128gcm",
+      "authentication": "VAPID",
+      "showAndClick": "fresh account/session/binding/subscription-generation authorization"
+    }
+  },
+  "maxPolicyLeaseSeconds": 30,
+  "registeredMethods": "HEAD is implicit for GET where Fastify installs it; OPTIONS is the independent Hub's origin-checking preflight hook, not a permission bypass"
+}

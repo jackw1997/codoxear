@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#faf7f0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; font-src 'self' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" />
+    <title>Codoxear</title>
+    <script>
+      (function () {
+        const p = window.location.pathname || "/";
+        const last = p.split("/").filter(Boolean).pop() || "";
+        if (!p.endsWith("/") && !last.includes(".")) {
+          const u = new URL(window.location.href);
+          u.pathname = p + "/";
+          window.location.replace(u.toString());
+        }
+      })();
+    </script>
+    <script>
+      window.CODOXEAR_ASSET_VERSION = "__CODOXEAR_ASSET_VERSION__";
+      window.CODOXEAR_ATTACH_MAX_BYTES = __CODOXEAR_ATTACH_MAX_BYTES__;
+    </script>
+    <script>
+      (function () {
+        delete window.__codoxearLoadError;
+        // Bootstrap-success marker. Set by app.js once renderLogin()/renderApp()
+        // has constructed a valid synchronous UI shell. The load-error fallback
+        // uses this to decide whether a partially-populated #root is a usable
+        // app (leave it alone) or a broken skeleton from a mid-bootstrap throw
+        // (replace it with the visible error panel).
+        window.__codoxearAppBootstrapped = false;
+        window.__codoxearMarkBootstrapped = function () {
+          window.__codoxearAppBootstrapped = true;
+        };
+        function record(message, source, lineno, colno, error) {
+          window.__codoxearLoadError = {
+            message: message || (error && error.message) || "unknown load error",
+            source: source || "",
+            lineno: lineno || 0,
+            colno: colno || 0,
+            stack: (error && error.stack) || "",
+            time: Date.now(),
+          };
+        }
+        window.addEventListener("error", function (event) {
+          record(
+            event.message || (event.error && event.error.message) || "uncaught error",
+            event.filename || "",
+            event.lineno || 0,
+            event.colno || 0,
+            event.error
+          );
+        });
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event && event.reason;
+          record(
+            (reason && (reason.message || String(reason))) || "unhandled promise rejection",
+            "",
+            0,
+            0,
+            reason instanceof Error ? reason : null
+          );
+        });
+        function renderLoadErrorFallback(detail) {
+          var root = document.getElementById("root");
+          var rootEmpty =
+            !root ||
+            (root.childNodes.length === 0 && !(root.textContent && root.textContent.trim()));
+          // Render the visible fallback when #root never received any UI, OR
+          // when a load error was recorded but the app never reached a valid
+          // bootstrap state (e.g. a fail-loud dependency threw after a partial
+          // shell was appended). When bootstrapping succeeded we keep the
+          // usable UI even if a later error was recorded.
+          var shouldRender =
+            rootEmpty ||
+            (window.__codoxearLoadError && !window.__codoxearAppBootstrapped);
+          if (!shouldRender) return;
+          // If #root holds a broken partial skeleton, clear it so the fallback
+          // panel is the only visible surface and stays self-contained.
+          if (root && !rootEmpty) root.innerHTML = "";
+          var panel = document.createElement("div");
+          panel.setAttribute("data-codoxear-load-error", "true");
+          panel.style.cssText = [
+            "position:fixed",
+            "inset:0",
+            "display:flex",
+            "flex-direction:column",
+            "align-items:center",
+            "justify-content:center",
+            "padding:24px",
+            "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif",
+            "background:#0b1220",
+            "color:#e5e7eb",
+            "text-align:center",
+          ].join(";");
+          var title = document.createElement("strong");
+          title.textContent = "Codoxear failed to load";
+          title.style.cssText = "font-size:18px;margin-bottom:8px;";
+          var msg = document.createElement("pre");
+          msg.textContent = detail
+            ? detail.message +
+              (detail.source ? "\n" + detail.source + ":" + detail.lineno + ":" + detail.colno : "") +
+              (detail.stack ? "\n" + detail.stack : "")
+            : "The application UI did not initialize. Reload to retry; if the problem persists, check the browser console.";
+          msg.style.cssText = [
+            "max-width:560px",
+            "white-space:pre-wrap",
+            "word-break:break-word",
+            "margin:0 0 12px",
+            "font-size:13px",
+            "color:#cbd5e1",
+          ].join(";");
+          var reload = document.createElement("button");
+          reload.type = "button";
+          reload.textContent = "Reload";
+          reload.style.cssText = [
+            "padding:6px 14px",
+            "font-size:14px",
+            "border:1px solid #475569",
+            "background:#1d4ed8",
+            "color:#fff",
+            "border-radius:6px",
+            "cursor:pointer",
+          ].join(";");
+          reload.onclick = function () {
+            window.location.reload();
+          };
+          panel.appendChild(title);
+          panel.appendChild(msg);
+          panel.appendChild(reload);
+          (root || document.body).appendChild(panel);
+        }
+        window.__codoxearRenderLoadErrorFallback = renderLoadErrorFallback;
+        window.addEventListener("load", function () {
+          // ES module scripts (type="module") execute after the load event.
+          // Wait one macrotask cycle to give the module a chance to bootstrap
+          // before deciding the app failed to load.
+          window.setTimeout(function () {
+            if (window.__codoxearAppBootstrapped) return;
+            // ES module scripts execute after the load event. Give the
+            // module ample time to load and bootstrap before showing error.
+            window.setTimeout(function () {
+              renderLoadErrorFallback(window.__codoxearLoadError);
+            }, 5000);
+          }, 100);
+        });
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=__CODOXEAR_ASSET_VERSION__" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=__CODOXEAR_ASSET_VERSION__" />
+    <link rel="manifest" href="manifest.webmanifest?v=__CODOXEAR_ASSET_VERSION__" />
+			    <link rel="stylesheet" href="app.css?v=__CODOXEAR_ASSET_VERSION__" />
+    <script>
+      // Theme boot: project the persisted appearance before first paint. The
+      // theme link must follow app.css in the cascade and precede the custom
+      // style, so both are parser-inserted here (render-blocking, no flash).
+      // From module load on, app_theme.js is the sole writer of these nodes.
+      (function () {
+        // Browser-chrome color per family x resolved mode. This is the
+        // THEME_COLORS table from app_theme.js: the boot script is inline and
+        // cannot import, so the six values are repeated here and a test pins
+        // the two tables equal. iOS Safari applies theme-color on navigation,
+        // so the stored theme must be projected here, not only by the module.
+        var themeColors = {
+          paper: { light: "#ffffff", dark: "#1c1a16" },
+          clay: { light: "#faf7f0", dark: "#161310" },
+          slate: { light: "#f9f9f9", dark: "#171717" },
+        };
+        var read = function (key) {
+          try {
+            return window.localStorage.getItem(key);
+          } catch (e) {
+            return null;
+          }
+        };
+        var family = String(read("codoxear.ui.theme.family") || "").toLowerCase();
+        if (family !== "paper" && family !== "slate") family = "clay";
+        var mode = String(read("codoxear.ui.theme.mode") || "").toLowerCase();
+        if (mode !== "light" && mode !== "dark") {
+          var dark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+          mode = dark && dark.matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", family);
+        document.documentElement.setAttribute("data-mode", mode);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", themeColors[family][mode]);
+        var customCss = String(read("codoxear.ui.customCss") || "").replace(/<\//g, "<\\/");
+        document.write(
+          '<link rel="stylesheet" id="codoxearThemeLink" href="themes/' + family + '.css?v=__CODOXEAR_ASSET_VERSION__" />' +
+          '<style id="codoxearCustomCss">' + customCss + "</style>"
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+		    <script src="vendor/marked.min.js?v=__CODOXEAR_ASSET_VERSION__" defer></script>
+		    <link rel="stylesheet" href="vendor/katex.min.css?v=__CODOXEAR_ASSET_VERSION__" />
+		    <script src="vendor/katex.min.js?v=__CODOXEAR_ASSET_VERSION__"></script>
+		    <script src="monaco/vs/loader.js?v=__CODOXEAR_ASSET_VERSION__" defer></script>
+    <script type="module" src="dist/app.bundle.js?v=__CODOXEAR_ASSET_VERSION__"></script>
+		  </body>
+		</html>

@@ -1,0 +1,52 @@
+{
+  "at": "2026-10-07T15:51:56.088Z",
+  "runtimeCommit": "d98608a8ef08ca6a718c0833a8c172188ceef3db",
+  "problem": "The Feishu OAuth v3 adapter required code:0 even though a successful response may omit the legacy code field. The previous controlled fixture repeated this incorrect assumption.",
+  "changes": [
+    "Accept nonempty access_token with absent or zero code; reject explicit error and nonzero codes",
+    "Send documented JSON token request; preserve PKCE and strict user-info tenant/subject checks",
+    "Log only safe stage/category/status/numeric provider code on failed exchange"
+  ],
+  "source": "https://github.com/larksuite/cli/blob/main/internal/auth/uat_client_refresh_test.go",
+  "verification": {
+    "typecheck": true,
+    "targetedDocker": {
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        "provider-adapters.test.ts",
+        "feishu-callback.test.ts",
+        "hub-organization.test.ts"
+      ],
+      "sourceOverlay": "Reviewed files mounted read-only over codoxear-v2-oar:concurrent-reviewed",
+      "memoryBytes": 2147483648,
+      "swapBytes": 0,
+      "cpus": 2,
+      "pids": 512
+    },
+    "callback": "Real provider adapter with controlled HTTPS responses through Hub OAuth routes, initial owner setup and client continuation; replay makes no second provider exchange",
+    "liveAppCredentials": "Trusted Feishu app credential endpoint returned HTTP200 code0; no token logged",
+    "realUserSignIn": "Requires a new user attempt; previous failed exchange details were discarded and its exact failing stage cannot be recovered",
+    "packages": {
+      "roles": [
+        "hub",
+        "identity"
+      ],
+      "independentBuild": true,
+      "prunedRuntimeSmoke": true,
+      "uid": 1000
+    }
+  },
+  "deployment": {
+    "updatedRole": "Work Hub",
+    "image": "codoxear-hub:d98608a8",
+    "origin": "https://codoxear.gzeek.com:8447",
+    "client": "https://codoxear.gzeek.com:8444/",
+    "preserved": [
+      "Home Hub",
+      "both Computers and their sessions",
+      "both frontend containers"
+    ]
+  }
+}

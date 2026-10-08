@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-07",
+  "commit": "3f88e386b1658e77df0dba345a1cc8acbc6b6252",
+  "problem": "Explicit Pi model with configured provider omitted model_provider, and OAR rejected the unqualified model ID.",
+  "fix": "Computer qualifies explicit models using effective Pi settings, including project overrides; private endpoint and qualified model behavior retained.",
+  "targetedTests": {
+    "passed": 32,
+    "failed": 0,
+    "files": [
+      "managed-profiles.test.ts",
+      "managed-worker.test.ts",
+      "managed-runtime.test.ts",
+      "agent-options.test.ts"
+    ]
+  },
+  "realOar": {
+    "passed": true,
+    "network": "none",
+    "script": "scripts/verify-pi-configured-model.ts",
+    "checks": [
+      "Real Pi initialization with model kimi-k3 and no explicit provider or effort",
+      "Reopen saved managed profile with the same bare model"
+    ]
+  },
+  "limits": {
+    "memoryGiB": 2,
+    "swapGiB": 0,
+    "cpus": 2,
+    "serial": true
+  },
+  "live": {
+    "url": "https://codoxear.gzeek.com:8445/",
+    "passed": true,
+    "checks": [
+      "Fresh owner connects to the public independent Hub and both Computers appear",
+      "pi: custom provider fields are available without creating an agent",
+      "codex: custom provider fields are available without creating an agent",
+      "cc: custom provider fields are available without creating an agent",
+      "Pi creation selects an explicit model while inheriting the Computer provider",
+      "Fresh Pi creation remains usable at phone width",
+      "A newly created managed Pi returns the requested real LiteLLM response",
+      "Real assistant history survives reload and is visible at phone width"
+    ]
+  },
+  "deployment": {
+    "computerImage": "codoxear-computer:3f88e386",
+    "computers": [
+      "Computer A",
+      "Computer B"
+    ],
+    "prunedImageSmokePassed": true,
+    "oomKilled": false,
+    "unexpectedRestarts": 0,
+    "state": "Existing accounts, conversations and private provider settings retained; only Computer services replaced while no model workers were running."
+  }
+}

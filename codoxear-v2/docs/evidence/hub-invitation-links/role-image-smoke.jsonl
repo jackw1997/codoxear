@@ -1,0 +1,3 @@
+{"role":"hub","passed":true,"checks":["pruned runtime artifacts","UID 1000","compiled API health","account authentication","unattached UI 404"]}
+{"role":"server","passed":true,"checks":["pruned runtime artifacts","UID 1000","compiled API health","account authentication","unattached UI 404","image default DB writable as node"]}
+{"role":"frontend","passed":true,"checks":["pruned runtime artifacts","UID 1000","frontend health/page without backend"]}

@@ -1,0 +1,560 @@
+.clientUpdateNotice {
+  position: fixed;
+  z-index: 160;
+  top: calc(var(--space-3) + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 2 * var(--space-5));
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  box-sizing: border-box;
+}
+.clientUpdateNotice button {
+  min-height: var(--ctl);
+  flex: none;
+}
+/* Same tokens and control geometry as HarmonyOS Theme.ets / Index.ets.
+   These rules only lay out the independent connection and authentication views. */
+.connectionPage,
+.connectionLogin {
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--font-lg);
+  --connection-padding: calc(var(--space-7) + var(--space-1));
+}
+.connectionPage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  padding: var(--space-7);
+  box-sizing: border-box;
+}
+.connectionPage::backdrop {
+  background: transparent;
+}
+.connectionPanel {
+  width: 520px;
+  max-width: 100%;
+  max-height: min(88dvh, calc(var(--appH, 100dvh) - 32px));
+  min-height: min(320px, 80dvh);
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+.connectionHeader {
+  border-bottom: 1px solid var(--hairline);
+  flex: none;
+}
+.connectionHeaderInner {
+  min-height: 60px;
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+}
+.connectionHeader h1 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+}
+.connectionBody {
+  width: 100%;
+  padding: var(--connection-padding);
+  padding-bottom: calc(var(--connection-padding) + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.connectionPage p,
+.connectionLogin p {
+  margin: 0;
+  line-height: 1.5;
+}
+.connectionPage h2,
+.connectionLogin h2 {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+}
+.connectionHint {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+}
+.connectionStack,
+.connectionForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+.connectionForm {
+  width: 100%;
+}
+.connectionField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+.connectionPage input,
+.connectionPage select,
+.connectionLogin input {
+  width: 100%;
+  min-width: 0;
+  height: var(--ctl);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--font-lg);
+  padding: var(--space-4) var(--space-5);
+  box-sizing: border-box;
+}
+.connectionPage button,
+.connectionLogin button,
+.connectionProvider {
+  min-height: var(--ctl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+.connectionPage button:not(.primary),
+.connectionLogin button:not(.primary) {
+  border-color: var(--hairline);
+}
+.connectionPage button:disabled,
+.connectionLogin button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.connectionPage .connectionIconButton,
+.connectionLogin .connectionIconButton {
+  width: var(--ctl);
+  padding: var(--space-3);
+}
+.connectionIcon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.connectionActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.connectionDelegationTargets {
+  border: 1px solid var(--hairline);
+  padding: var(--space-4);
+  min-width: 0;
+}
+.connectionDelegationTarget {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+}
+.connectionPage .connectionDelegationTarget input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  padding: 0;
+}
+.connectionError {
+  color: var(--text-error);
+  background: var(--surface-error);
+  border: 1px solid var(--border-error);
+  border-radius: var(--radius-control);
+  padding: var(--space-5);
+  font-size: var(--font-md);
+  overflow-wrap: anywhere;
+}
+.connectionError:empty,
+.connectionStatus:empty {
+  display: none;
+}
+.connectionStatus {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+.connectionPage [hidden],
+.connectionLogin [hidden] {
+  display: none !important;
+}
+.connectionList {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+.connectionHub + .connectionHub {
+  border-top: 1px solid var(--hairline);
+}
+.connectionHub > summary {
+  min-height: 76px;
+  padding: var(--space-5) var(--space-7);
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  box-sizing: border-box;
+}
+.connectionHub > summary::-webkit-details-marker {
+  display: none;
+}
+.connectionHub > summary .connectionChevron {
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+.connectionHub[open] > summary .connectionChevron {
+  transform: rotate(90deg);
+}
+.connectionRowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.connectionRowText strong {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.connectionHubContent {
+  padding: 0 var(--space-7) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.connectionHubTools {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+.connectionComputers {
+  padding-left: var(--space-7);
+  border-left: 1px solid var(--hairline);
+  margin-left: var(--space-4);
+}
+.connectionPage .connectionComputer {
+  width: 100%;
+  text-align: left;
+  justify-content: start;
+  padding: var(--space-5) 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-control);
+  gap: var(--space-5);
+}
+.connectionComputer + .connectionComputer {
+  border-top: 1px solid var(--hairline);
+}
+.connectionComputer:hover {
+  color: var(--accent);
+}
+.connectionEmpty {
+  padding: calc(var(--space-7) * 2) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+}
+.connectionSection {
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.connectionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  min-width: 0;
+}
+.connectionFact {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+  gap: var(--space-5);
+  margin: 0;
+}
+.connectionFact dt {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+.connectionFact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.connectionCode {
+  padding: var(--space-5);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  font-family: var(--font-mono);
+  font-size: var(--font-lg);
+  background: var(--paper);
+  overflow-wrap: anywhere;
+}
+.connectionLoginWrap {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: var(--bg);
+}
+.connectionLogin {
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: calc(var(--space-7) + var(--space-3));
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+}
+.connectionLogin h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.connectionLoginHeading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.connectionPassword {
+  display: flex;
+  gap: var(--space-4);
+  align-items: end;
+}
+.connectionPassword .connectionField {
+  flex: 1;
+  min-width: 0;
+}
+.connectionPasswordInput {
+  position: relative;
+}
+.connectionLogin .connectionPasswordInput input {
+  padding-right: var(--ctl);
+}
+.connectionPasswordInput .connectionIconButton {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  border: 0;
+}
+.connectionLogin .connectionPassword > .primary {
+  min-width: 76px;
+}
+.connectionProvider {
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  padding: 0 var(--space-5);
+  background: var(--paper);
+}
+.connectionMethods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.connectionPage :is(button, summary, input, select, a):focus-visible,
+.connectionLogin :is(button, input, a):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+@media (max-width: 880px), (pointer: coarse) {
+  .connectionPage,
+  .connectionLogin {
+    --font-sm: 13px;
+    --font-md: 14px;
+    --font-lg: 16px;
+  }
+}
+@media (max-width: 520px) {
+  .connectionPage {
+    padding: 0;
+  }
+  .connectionPanel {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .connectionHeader {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .connectionHub > summary .connectionChevron {
+    transition: none;
+  }
+}
+
+.connectionSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.connectionNavigation,
+.connectionIdentity,
+.connectionMembers {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.connectionPage .connectionNavigation > button {
+  width: 100%;
+  padding: var(--space-5);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  gap: var(--space-5);
+}
+.connectionPage .connectionNavigation > button + button,
+.connectionMembers > .connectionRow + .connectionRow {
+  border-top: 1px solid var(--hairline);
+}
+.connectionIdentity {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.connectionIdentityActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--space-3);
+}
+.connectionIdentityActions .connectionDestructive {
+  margin-left: auto;
+}
+.connectionPage .connectionDestructive {
+  color: var(--text-error);
+}
+.connectionMembers > .connectionRow {
+  padding: var(--space-5);
+  flex-wrap: wrap;
+}
+.connectionMembers > .connectionRow > .connectionRowText {
+  flex-basis: 140px;
+}
+.connectionMembers > p {
+  padding: var(--space-5);
+}
+.connectionFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-5);
+}
+.connectionPage .connectionNavigation > button:focus-visible {
+  outline-offset: -3px;
+}
+
+.connectionBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-size: var(--font-md);
+  margin-bottom: var(--space-3);
+}
+.connectionBrand .brandLogo {
+  width: 24px;
+  height: 28px;
+}
+.connectionActions:has(.primary) {
+  justify-content: flex-end;
+}
+.connectionFact {
+  padding: var(--space-7);
+  background: var(--panel);
+  border-radius: var(--radius-control);
+}
+.connectionLogin .connectionRow {
+  flex-wrap: wrap;
+}
+.connectionLogin .connectionRowText {
+  min-width: 180px;
+}
+.connectionHub > summary > .connectionIcon:first-child,
+.connectionComputer > .connectionIcon:first-child {
+  color: var(--muted);
+}
+
+.connectionCode {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+.connectionPairCode {
+  font-size: 24px;
+  letter-spacing: 0.16em;
+  text-align: center;
+}
+
+.sessionDiscoveryStatus {
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.sessionDiscoveryStatus p {
+  margin: 0 0 10px;
+}
+.sessionDiscoveryStatus button {
+  margin: 0 8px 8px 0;
+}

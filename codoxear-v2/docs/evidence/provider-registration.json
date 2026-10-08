@@ -1,0 +1,80 @@
+{
+  "at": "2026-10-07T13:13:29.572Z",
+  "runtimeCommit": "bd57072a2eb313eaff2729fca3135bea5e501876",
+  "backendTests": {
+    "sourceCommit": "b7f3489f81eaec70fbece4bc82cf057add1a8798",
+    "passed": 336,
+    "failed": 0,
+    "skipped": 0,
+    "includes": [
+      "Google signature/issuer/audience/nonce/expiry validation",
+      "Feishu v3 exchange and tenant identity",
+      "signed key enrollment, replay rejection and revocation",
+      "1000 signed reconnects keep one active key session and refresh family",
+      "one-time Hub owner setup",
+      "native client verified-provider callback fixtures"
+    ]
+  },
+  "registration": {
+    "passed": true,
+    "checks": [
+      "Mobile provider registration preserves OAuth continuation and stores a nonextractable private key only on the client; registration grants no access",
+      "Reload retains the signing key and expired transport credentials recover by signing a real Hub challenge",
+      "A temporary 503 key challenge outage retains saved credentials and signing keys; retry recovers without signing in again",
+      "Owner invitations grant the registered account access to its specific Computer through the real interface",
+      "Google registers another isolated account; recognized local accounts reconnect with their own key and Computer grants",
+      "Revoking a client key prevents that saved account from reconnecting",
+      "Fresh Google registration preserves pending setup continuation; one-time owner proof claims the Hub and pre-provisioned Computer before device key enrollment"
+    ],
+    "errors": [],
+    "provider": "Controlled Google/Feishu identity fixture; live provider credentials are not used"
+  },
+  "invitations": {
+    "passed": true,
+    "checks": [
+      "Owner creates Google and tenant-specific Feishu invitations using the actual mobile Manage access form",
+      "No provider account gains access before accepting an invitation; malformed codes display an error",
+      "An unrelated Google identity cannot redeem a Feishu invitation",
+      "Google and Feishu users accept through the actual invitation screen with verified provider identities",
+      "Reusing a redeemed code displays an error without another membership change",
+      "Two browser accounts verify single-agent viewer/operator sharing and revocation without computer membership, private-agent visibility or creation rights",
+      "Actual hub Sign-in methods copies the exact connection, identity and tenant for an invitation"
+    ],
+    "errors": []
+  },
+  "packages": {
+    "roles": [
+      "hub",
+      "identity",
+      "frontend"
+    ],
+    "independentBuild": true,
+    "prunedRuntimeSmoke": true,
+    "runAsUid": 1000,
+    "backendStartsWithoutFrontend": true,
+    "frontendStartsWithoutBackend": true,
+    "releaseInventory": "releases/bd57072a/images.json"
+  },
+  "limits": {
+    "memoryBytes": 2147483648,
+    "swapBytes": 0,
+    "cpus": 2,
+    "pids": 512,
+    "serialized": true
+  },
+  "verificationNotes": [
+    "Full backend suite passed in the full runner. Its last invitation browser check expected the wrong text for an intentionally malformed short token; corrected to the actual schema error and reran both registration and invitations successfully.",
+    "Final registration browser rerun explicitly sized popups to390x844.",
+    "Runtime source differs from backend-tested source only in Computer setup command documentation, verification entrypoint/report rendering and the rerun browser fixtures. Separate final packages independently built and passed runtime smoke checks."
+  ],
+  "live": {
+    "deployed": false,
+    "reason": "Real Google/Feishu application credentials and registered callbacks have not been provided.",
+    "existingDemo": "https://codoxear.gzeek.com:8445/",
+    "existingHubs": [
+      "https://codoxear.gzeek.com:8446",
+      "https://codoxear.gzeek.com:8447"
+    ],
+    "migration": false
+  }
+}

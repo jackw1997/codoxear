@@ -1,0 +1,565 @@
+/* Structure only: the original app.css and theme files own all appearance tokens. */
+.account-ui {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font: var(--font-md)/1.5 var(--font-ui);
+}
+.account-ui *,
+.account-dialog * {
+  box-sizing: border-box;
+}
+.account-ui h1 {
+  font-size: var(--font-3xl);
+  font-weight: 600;
+}
+.account-ui h2,
+.account-dialog h2 {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.account-ui h3 {
+  font-size: var(--font-md);
+}
+.account-ui p {
+  line-height: 1.6;
+}
+.account-ui a {
+  color: var(--text);
+}
+.account-ui button,
+.account-dialog button,
+.directory-footer button {
+  position: relative;
+}
+.account-ui button::after,
+.directory-footer button::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, calc((100% - 44px) / 2)) 0;
+}
+.account-ui input,
+.account-ui select,
+.account-dialog input,
+.account-dialog select {
+  width: 100%;
+  min-width: 0;
+  background: var(--paper);
+  color: var(--text);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  padding: var(--space-4) var(--space-5);
+  font: inherit;
+}
+.account-ui label,
+.account-dialog label {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-7) 0;
+  color: var(--text-soft);
+}
+.account-ui input:focus-visible,
+.account-ui a:focus-visible,
+.account-ui button:focus-visible,
+.account-dialog :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.account-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+.account-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--hairline);
+}
+.account-brand {
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+.account-brand svg,
+.account-mark svg {
+  width: 24px;
+  height: 28px;
+}
+.directory-tools {
+  padding: var(--space-5);
+}
+.directory-new {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 44px;
+}
+.directory-search {
+  margin: var(--space-3) 0 0 !important;
+}
+.directory-search input {
+  font-size: var(--font-sm);
+  padding: var(--space-3) var(--space-4);
+}
+.directory-list {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  padding: 0 var(--space-3) var(--space-3);
+}
+.directory-agent {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-card);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-1);
+  min-height: 58px;
+}
+.directory-agent:hover {
+  background: var(--wash);
+}
+.directory-agent.selected {
+  background: var(--session-active);
+  border-color: var(--hairline);
+  border-left: 3px solid var(--accent);
+  padding-left: calc(var(--space-5) - 2px);
+}
+.directory-agent-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.directory-agent-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+.directory-dot {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-dot);
+  flex-shrink: 0;
+}
+.directory-backend {
+  margin-left: auto;
+  color: var(--text-soft);
+  font: var(--font-xs) var(--font-mono);
+}
+.directory-agent-meta {
+  display: block;
+  padding-left: 15px;
+  margin-top: var(--space-1);
+  font-size: var(--font-xs);
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.directory-footer {
+  padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.directory-footer a,
+.directory-footer button {
+  font-size: var(--font-sm);
+  color: var(--text-soft);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  padding: var(--space-2) 0;
+}
+.directory-user {
+  margin-left: auto;
+  font-size: var(--font-sm);
+  color: var(--text-soft);
+}
+.account-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: var(--paper);
+}
+.account-topbar {
+  flex-shrink: 0;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-7);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  background: var(--panel);
+}
+.account-topbar > a:last-child {
+  margin-left: auto;
+  font-size: var(--font-sm);
+  text-decoration: none;
+  color: var(--text-soft);
+}
+.account-empty {
+  margin: auto;
+  padding: var(--space-7);
+  text-align: center;
+  max-width: 540px;
+}
+.account-empty p,
+.directory-hint {
+  color: var(--text-soft);
+  font-size: var(--font-sm);
+}
+.account-mark {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+.account-dialog {
+  width: min(440px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: var(--space-7);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  color: var(--text);
+  box-shadow: var(--shadow-pop);
+  font: var(--font-md)/1.5 var(--font-ui);
+}
+.account-dialog::backdrop {
+  background: transparent;
+}
+.account-dialog header,
+.account-dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+.account-dialog h2 {
+  margin: 0;
+}
+.account-dialog header button {
+  border: 0;
+  background: transparent;
+  font-size: var(--font-2xl);
+}
+.account-dialog footer {
+  justify-content: flex-end;
+  margin-top: var(--space-7);
+}
+.account-dialog summary {
+  cursor: pointer;
+  padding: var(--space-3) 0;
+  color: var(--text-soft);
+}
+.agent-creation {
+  display: none;
+  padding: 0;
+  overflow: hidden;
+}
+.agent-creation[open] {
+  display: flex;
+}
+.agent-creation form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.agent-creation header,
+.agent-creation footer {
+  flex-shrink: 0;
+  padding: var(--space-7);
+  margin: 0;
+}
+.agent-creation-body {
+  overflow: auto;
+  min-height: 0;
+  padding: 3px var(--space-7);
+  scrollbar-gutter: stable;
+}
+.agent-creation [hidden] {
+  display: none !important;
+}
+.agent-creation .checkField {
+  display: flex;
+}
+.agent-creation input[type="checkbox"] {
+  padding: 0;
+}
+.agent-creation select[name="model"],
+.agent-creation input[name="customModel"],
+.agent-creation input[name="cwd"] {
+  font-family: var(--font-mono);
+}
+.agent-creation button,
+.agent-creation summary {
+  min-height: 44px;
+}
+.directory-error {
+  color: var(--danger);
+  font-size: var(--font-sm);
+}
+.account-login {
+  width: min(360px, calc(100% - 32px));
+  margin: max(40px, 12vh) auto;
+}
+.account-login .account-brand {
+  border: 0;
+  padding: 0;
+  margin-bottom: 24px;
+}
+.account-login h1 {
+  font-size: var(--font-2xl);
+  margin-bottom: var(--space-2);
+}
+.account-login form button {
+  width: 100%;
+  margin-top: var(--space-3);
+}
+.account-settings {
+  max-width: 860px;
+  padding: 24px var(--space-7);
+  margin: auto;
+}
+.account-settings > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-7);
+  margin-bottom: 24px;
+}
+.account-settings article,
+.account-settings .computer-setting {
+  padding: var(--space-7);
+  margin: var(--space-7) 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+}
+.account-settings article > strong {
+  font-size: var(--font-lg);
+}
+.account-settings details {
+  border-top: 1px solid var(--hairline);
+  padding: var(--space-5) 0;
+  margin-top: var(--space-5);
+}
+.account-settings summary {
+  cursor: pointer;
+  font-size: var(--font-md);
+  min-height: 32px;
+}
+.account-settings code {
+  font: var(--font-sm) var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.account-settings input[type="checkbox"] {
+  width: auto;
+}
+.account-settings .settings-tabs {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: var(--space-5);
+}
+.account-settings #status:empty {
+  display: none;
+}
+.account-menu,
+.account-close {
+  display: none;
+}
+.directory-workspace-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.directory-workspace-nav a {
+  color: var(--text);
+}
+body.directory-workspace .sidebar > .sessions {
+  display: none;
+}
+body.directory-workspace .sidebar > footer {
+  display: none;
+}
+body.directory-workspace #newBtn {
+  display: none;
+}
+@media (max-width: 880px) {
+  .account-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 90vw);
+    z-index: 50;
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+  .agents-open .account-sidebar {
+    transform: none;
+    visibility: visible;
+  }
+  .account-menu,
+  .account-close {
+    display: block;
+  }
+  .account-close {
+    margin-left: auto;
+  }
+  .account-dialog,
+  .account-settings,
+  .account-login {
+    --font-sm: 13px;
+    --font-md: 14px;
+    --font-lg: 16px;
+  }
+  .account-ui input,
+  .account-ui select,
+  .account-dialog input,
+  .account-dialog select {
+    font-size: var(--font-xl);
+  }
+}
+body.account-ui {
+  overflow: auto;
+  height: auto;
+}
+body.account-ui #status:empty {
+  display: none;
+}
+body.account-ui #status:not(:empty) {
+  padding: var(--space-5);
+  margin: 0;
+  background: var(--surface-warning);
+}
+.directory-workspace-nav .directory-search input {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  font: var(--font-sm) var(--font-ui);
+  padding: var(--space-3);
+}
+.directory-workspace-nav .directory-new {
+  text-decoration: none;
+  color: var(--text);
+  font-size: var(--font-md);
+  padding: var(--space-3);
+}
+.directory-workspace-nav .directory-hint {
+  padding: 0 var(--space-5);
+}
+.directory-workspace-nav .directory-hint:empty {
+  display: none;
+}
+.directory-agent[hidden] {
+  display: none;
+}
+
+.storage-notice {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  padding: 1rem;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+.storage-notice button {
+  margin-left: 1rem;
+}
+
+.agent-env-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+.agent-creation fieldset {
+  min-width: 0;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+.agent-creation [data-provider-config] {
+  display: grid;
+  gap: 0.75rem;
+}
+.agent-creation [data-provider-config][hidden] {
+  display: none;
+}
+.workspace-form,
+.workspace-root-form {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.workspace-form label:not(.checkField),
+.workspace-root-form label,
+.sidebar [data-workspace-selection] {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.workspace-form .checkField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--ctl);
+}
+.workspace-form .checkField input[type="checkbox"] {
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.workspace-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: var(--font-ui);
+  font-size: var(--font-md);
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+.sidebar [data-workspace-selection] select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--ctl);
+}

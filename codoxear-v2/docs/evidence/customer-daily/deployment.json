@@ -1,0 +1,48 @@
+{
+  "productSource": "9740d7efffcb7c93132483562b0b56d89267e961",
+  "clientAssetVersion": "8cb9a63a0b4e7090",
+  "client": "https://codoxear.gzeek.com:8444/",
+  "workHub": "https://codoxear.gzeek.com:8447",
+  "readOnlyPostDeploymentChecks": {
+    "releaseManifestMatches": true,
+    "hubHealthy": true,
+    "computer": {
+      "attached": true,
+      "running": true,
+      "state": "online",
+      "retainedSessions": [
+        {
+          "state": "archived",
+          "count": 1
+        }
+      ]
+    }
+  },
+  "services": [
+    {
+      "name": "auth-demo frontend",
+      "image": "codoxear-frontend:9740d7ef",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "name": "Work Hub",
+      "image": "codoxear-hub:9740d7ef",
+      "oomKilled": false,
+      "restartCount": 0
+    },
+    {
+      "name": "Work Computer",
+      "image": "codoxear-computer:9740d7ef",
+      "oomKilled": false,
+      "restartCount": 0
+    }
+  ],
+  "preserved": [
+    "Initialized Feishu Owner and explicit Computer grant",
+    "Existing private Pi/LiteLLM configuration",
+    "Archived managed session",
+    "Home frontend/Hub/Computers and unrelated services"
+  ],
+  "privateConfigurationPublished": false
+}

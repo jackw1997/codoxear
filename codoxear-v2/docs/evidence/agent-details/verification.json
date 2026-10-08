@@ -1,0 +1,107 @@
+{
+  "productSource": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "backend": {
+    "source": "7abdde0169dfdf3627912aaf0bee68eb7ed8953b",
+    "tests": 384,
+    "pass": 384,
+    "fail": 0,
+    "originalOverallPipelineExitCode": 1,
+    "scope": "Backend passed; combined browser stage rejected an off-canvas mobile harness click. Later source changes affect only frontend feedback and browser harness; backend, tests and protocol closure unchanged.",
+    "changedPathsAfterBackend": [
+      "codoxear-v2/frontend/web/legacy/app_diagnostics.js",
+      "codoxear-v2/frontend/web/shared/agent-settings.ts",
+      "codoxear-v2/scripts/browser-customer-journey.ts"
+    ]
+  },
+  "local": {
+    "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+    "checks": 25,
+    "screenshots": 83
+  },
+  "creation": {
+    "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+    "checks": 20
+  },
+  "updates": {
+    "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+    "checks": 2
+  },
+  "public": {
+    "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+    "checks": 25,
+    "screenshots": 83,
+    "clientBuild": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "a291462eda5d5dbd",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "a291462eda5d5dbd"
+    }
+  },
+  "packages": {
+    "source": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+    "roles": 5,
+    "checks": 7,
+    "browserChecks": 7
+  },
+  "boundaries": {
+    "applicationActions": "Browser UI only; no API authentication, membership, grants, Computer creation or agent seeding",
+    "oauth": "Controlled Google/Feishu provider pages with explicit browser identity buttons; no live-provider acceptance",
+    "runtime": "Real ManagedRuntime, ComputerService and NativeHttpTarget; browser model discovery traverses the actual Hub tunnel and Computer HTTP fetch to controlled caller-key model/metadata endpoints; thin deterministic ManagedFactory advertises images/steer and records driver input, no live LLM or native OAR profile/image acceptance",
+    "externalBootstrap": [
+      {
+        "computer": "Computer A",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      },
+      {
+        "computer": "Computer B",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      }
+    ],
+    "unavailable": [
+      "Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests",
+      "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+      "Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained",
+      "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+      "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+    ],
+    "note": "Controlled OAuth, caller-key model catalog and replies. Production prepareProfile creates isolated credentials/definitions for the controlled managed driver. Actual Hub-to-Computer authorization and settings transport; no live provider inference, real OAuth or physical mobile acceptance."
+  },
+  "inputs": {
+    "backend": {
+      "sha256": "23754e2261a6bcc4dc2a2de6f406a42f77cef53e9a8679a40a509ec2ef46fa15"
+    },
+    "local": {
+      "sha256": "c1d341e5eb011866937de05e2a4e5bc719bb4b42a2ab639f272420a90b13c991"
+    },
+    "localContainer": {
+      "sha256": "e7a6a6f641b1924093b07933f967a2b0811451f01705be89a8a0af84f35f9b32"
+    },
+    "creation": {
+      "sha256": "282294aef1b4e6e18cc8b90fecdfb637f3ebeacdb3685531ea4592d8c878cd15"
+    },
+    "updates": {
+      "sha256": "582ab3fadd282442d1be742b457c6a06403b99477db7334991e628d61d76e966"
+    },
+    "packages": {
+      "sha256": "144568d0ac1292161d749d88eb4bbd7345fd1963e402fda9ad5c323db1a81a35"
+    },
+    "public": {
+      "sha256": "9578ef540f6337ae42e4c1f23b7e461997091297f82eec1d8a0a6927b06bf611"
+    },
+    "publicContainer": {
+      "sha256": "44619b1984bead78d4addad6b2f002247d30c40cae28dd7c3efbf77b42cfc411"
+    },
+    "roles": {
+      "sha256": "1b64e3993a70d2ff1b15743f1c13e0d0546e22ed025749c367fe53b4db20f90e"
+    },
+    "deployment": {
+      "sha256": "5bee5c44ed58705b04cef54b870ed92f3e333a6fbba49c947e6edb7ea2d8e87b"
+    }
+  }
+}

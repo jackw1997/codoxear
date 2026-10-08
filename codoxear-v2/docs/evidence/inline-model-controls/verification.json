@@ -1,0 +1,148 @@
+{
+  "frontendSource": "3fce032526fab3d26ae816afb45960d755beddeb",
+  "backendProductSource": "b8534473d2faa16550e1482f7113d8f2f43ddcbf",
+  "backendClosureUnchanged": true,
+  "changedPathsSinceBackendProduct": [
+    "codoxear-v2/docs/evidence/agent-details/agent-creation-results.json",
+    "codoxear-v2/docs/evidence/agent-details/backend.log",
+    "codoxear-v2/docs/evidence/agent-details/client-update-results.json",
+    "codoxear-v2/docs/evidence/agent-details/deployment.json",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-busy.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-desktop.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-persisted.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-portrait.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-read-only.png",
+    "codoxear-v2/docs/evidence/agent-details/details-model-effort-saved.png",
+    "codoxear-v2/docs/evidence/agent-details/index.html",
+    "codoxear-v2/docs/evidence/agent-details/local-container.json",
+    "codoxear-v2/docs/evidence/agent-details/local-results.json",
+    "codoxear-v2/docs/evidence/agent-details/package-isolation.json",
+    "codoxear-v2/docs/evidence/agent-details/public-container.json",
+    "codoxear-v2/docs/evidence/agent-details/results.json",
+    "codoxear-v2/docs/evidence/agent-details/role-image-smoke.json",
+    "codoxear-v2/docs/evidence/agent-details/verification.json",
+    "codoxear-v2/docs/evidence/harmony-details/deployment.json",
+    "codoxear-v2/docs/evidence/harmony-details/details-harmony-actions-portrait.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-harmony-model-portrait.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-busy.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-desktop.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-persisted.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-portrait.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-read-only.png",
+    "codoxear-v2/docs/evidence/harmony-details/details-model-effort-saved.png",
+    "codoxear-v2/docs/evidence/harmony-details/frontend-build.json",
+    "codoxear-v2/docs/evidence/harmony-details/frontend-smoke.json",
+    "codoxear-v2/docs/evidence/harmony-details/index.html",
+    "codoxear-v2/docs/evidence/harmony-details/local-container.json",
+    "codoxear-v2/docs/evidence/harmony-details/local-results.json",
+    "codoxear-v2/docs/evidence/harmony-details/public-container.json",
+    "codoxear-v2/docs/evidence/harmony-details/results.json",
+    "codoxear-v2/docs/evidence/harmony-details/verification.json",
+    "codoxear-v2/docs/requirements-reconciliation.md",
+    "codoxear-v2/frontend/build.mjs",
+    "codoxear-v2/frontend/web/client/callback.ts",
+    "codoxear-v2/frontend/web/client/hub-login.ts",
+    "codoxear-v2/frontend/web/client/main.ts",
+    "codoxear-v2/frontend/web/identity/main.ts",
+    "codoxear-v2/frontend/web/legacy/app.css",
+    "codoxear-v2/frontend/web/legacy/app_diagnostics.js",
+    "codoxear-v2/frontend/web/shared/agent-settings.ts",
+    "codoxear-v2/frontend/web/ui/README.md",
+    "codoxear-v2/frontend/web/ui/dropdown.ts",
+    "codoxear-v2/frontend/web/ui/enhance.ts",
+    "codoxear-v2/frontend/web/ui/index.ts",
+    "codoxear-v2/frontend/web/ui/primitives.ts",
+    "codoxear-v2/frontend/web/ui/theme.ts",
+    "codoxear-v2/frontend/web/workspace/main.ts",
+    "codoxear-v2/scripts/browser-agent-creation.ts",
+    "codoxear-v2/scripts/browser-customer-journey.ts",
+    "codoxear-v2/scripts/browser-ui-components.ts",
+    "codoxear-v2/scripts/browser-ui.ts"
+  ],
+  "components": {
+    "checks": 17
+  },
+  "creation": {
+    "checks": 20
+  },
+  "updates": {
+    "checks": 2
+  },
+  "local": {
+    "checks": 25,
+    "screenshots": 86
+  },
+  "public": {
+    "checks": 25,
+    "screenshots": 86,
+    "clientBuild": {
+      "origin": "https://codoxear.gzeek.com:8444",
+      "loadedAssetVersion": "e491e176163d15b5",
+      "releaseStatus": 200,
+      "publicReleaseVersion": "e491e176163d15b5"
+    }
+  },
+  "design": [
+    "Displayed model and effort are the comboboxes themselves",
+    "No separate Change buttons or hidden single-setting editor",
+    "Owned dropdown/listbox with keyboard, focus, disabled options, scrolling and viewport positioning",
+    "Explicit paired Apply/readback, Cancel and close-unsaved restore confirmed values",
+    "One library and token-based presentation shared by client/workspace/account/Hub sign-in/callback"
+  ],
+  "boundaries": {
+    "applicationActions": "Browser UI only; no authentication/membership/grant/agent seeding",
+    "oauth": "Controlled provider pages; no live Google/Feishu acceptance",
+    "runtime": "Production private-profile preparation and real Hub/Computer transport with controlled caller-key catalogs and managed replies; no live inference",
+    "externalBootstrap": [
+      {
+        "computer": "Computer A",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      },
+      {
+        "computer": "Computer B",
+        "operation": "External Computer enroll and service start using the pairing code generated in browser",
+        "runtime": "Real ManagedRuntime with controlled ManagedFactory",
+        "preparedProviderConfig": "External Computer installation prepares private controlled-anthropic Pi provider URL/key, anthropic-messages API and local journey-model reasoning:false/default Off; browser discovery overrides requests using returned metadata, no human or agent seeding",
+        "preparedWorkspaceFixtures": "Pre-existing text, Markdown, PNG, valid PDF and Git repository on the physical Computer; file create/edit tests remain browser UI"
+      }
+    ],
+    "unavailable": [
+      "Elapsed invitation expiry: UI configures and displays 1-hour expiry; actual expiry denial requires waiting at least one hour and is covered separately by backend clock tests",
+      "Sidebar star/archive/manual drag order: no visible controls found in the exercised card",
+      "Provider-policy disable/re-enable UI and saved-identity disconnect/session revocation UI: not exercised; separate backend coverage retained",
+      "Native resume/import (no existing external native CLI session in this fresh managed-only Hub)",
+      "Live provider answers and device/mobile Safari acceptance (controlled boundary)"
+    ],
+    "componentFixtures": "Actual source-owned frontend UI library; controlled local fixture; Chromium phone viewport; no provider/customer acceptance claimed.",
+    "limits": "Serial Docker 2GiB, no extra swap, two CPUs, 512 PIDs; browser shm256MiB",
+    "deployment": "Frontend only; no backend restart or database mutations",
+    "note": "Frontend-only deployment; backend384 evidence retained separately, not rerun/aggregated"
+  },
+  "rejectedRuns": [
+    {
+      "source": "b02a69f36d5b9f9a943aabc63ac40bb64b207699",
+      "reason": "Wrapping label forwarded popup activation",
+      "deployed": false
+    },
+    {
+      "source": "3f65240667a3bf07061e89263a98b2dcda1c8f0a",
+      "reason": "Reset rendering was stale",
+      "deployed": false
+    },
+    {
+      "source": "85de8ab16c95f421b37d3f9b66bec29e27b7932e",
+      "reason": "Assertion read before deferred reset rendering; final test waits and separately asserts native reset",
+      "deployed": false
+    },
+    {
+      "source": "e520e2ab922b858e867b0b6060b13cdc4f4a33e5",
+      "reason": "Visible-menu test helper did not wait for async saved-session options; final helper polls read-only before clicking",
+      "deployed": false
+    }
+  ],
+  "priorBackendEvidence": "../agent-details/verification.json",
+  "priorBackendTests": 384
+}

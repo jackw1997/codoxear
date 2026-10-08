@@ -1,0 +1,33 @@
+{
+  "source": "462df6dbbdfab808b1b0ad0df84418a34416a22e",
+  "image": "codoxear-v2-oar:invitation-final",
+  "imageId": "sha256:4f4c8542bc5fb62ab71e4f951478a28fccdad7c4a30071f41e02647cd6116751",
+  "sourceOverlays": false,
+  "testOverlays": false,
+  "tests": 367,
+  "passed": 367,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "exitCode": 0,
+  "frontendAssetsRoot": "/opt/codoxear/frontend/dist",
+  "writableArtifactsMount": true,
+  "network": "none",
+  "limits": {
+    "memory": "2GiB",
+    "swap": "disabled",
+    "cpus": 2,
+    "pids": 512,
+    "serialized": true
+  },
+  "command": "node --import tsx --test --test-concurrency=1 --test-reporter=tap tests/*.test.ts",
+  "originalTapSha256": "08e5e61f1c6f97932e11c9054b57b732248e05953d9b0a69b1d8a46f68f4ca7b",
+  "formatting": "Trailing whitespace and terminal blank lines normalized; assertions/counts unchanged",
+  "deployedProductSource": "77714b3374d5e7a31fb588ff7a69a954c82b7776",
+  "sourceComparison": {
+    "backendTestsManifestsDependenciesUnchanged": true,
+    "comparison": "git diff --exit-code 462df6dbbdfab808b1b0ad0df84418a34416a22e 77714b3374d5e7a31fb588ff7a69a954c82b7776 -- codoxear-v2/src codoxear-v2/tests codoxear-v2/components codoxear-v2/package.json codoxear-v2/package-lock.json codoxear-v2/runtime/oar",
+    "exitCode": 0,
+    "scope": "Backend tests run at462df6db; later changes are frontend presentation and customer-harness assertions. Final frontend behavior is accepted separately against the actual deployed public assets."
+  }
+}

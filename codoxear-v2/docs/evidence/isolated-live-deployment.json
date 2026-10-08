@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-07",
+  "url": "https://codoxear.gzeek.com:8445/",
+  "frontendImage": "codoxear-frontend:e490d5c4",
+  "hubImage": "codoxear-hub:379ddba0",
+  "computerImage": "codoxear-computer:379ddba0",
+  "managed": {
+    "passed": true,
+    "checks": [
+      "Fresh owner connects to the public independent Hub and both Computers appear",
+      "pi: custom provider fields are available without creating an agent",
+      "codex: custom provider fields are available without creating an agent",
+      "cc: custom provider fields are available without creating an agent",
+      "Fresh Pi creation remains usable at phone width",
+      "A newly created managed Pi returns the requested real LiteLLM response",
+      "Real assistant history survives reload and is visible at phone width",
+      "Parent Pi uses delegated tools to create and message a real child on Computer B"
+    ]
+  },
+  "savedHistory": {
+    "passed": true,
+    "checks": [
+      "Both existing saved transcripts remain available after the owned service restart",
+      "Real managed conversation search returns saved matches and browser match navigation works",
+      "Authenticated public relay counts user turns and returns the next saved user message",
+      "Readable public release report is available over valid HTTPS"
+    ]
+  },
+  "state": "Existing fresh-deployment accounts, histories and private provider settings retained; bootstrap not rerun",
+  "observations": {
+    "oomKilled": false,
+    "restarts": 0,
+    "sampledStackMemoryMiB": 415,
+    "scope": "One Docker memory sample after real parent/child delegation; not peak or P99"
+  }
+}

@@ -1,0 +1,594 @@
+{
+  "passed": true,
+  "engine": "installed Pi 1.0.0 native PTY",
+  "schemaSource": "standalone protocol/*.openapi.json",
+  "observations": [
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/agent-directory",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/agents",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/agents/{id}/access",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/agents/{id}/reconcile",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/agents/{id}/messages",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/workspace/api/me",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/workspace/api/sessions",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/notifications/harmony",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/discovered",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/launch-defaults",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/workspace",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/workspace",
+      "method": "PUT",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/computers/{id}/resume-candidates",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/tail",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/diagnostics",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/unread",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/draft",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/attachments",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/unattended",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/draft",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/draft",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/draft",
+      "method": "POST",
+      "status": 400,
+      "transport": "Schema + Computer/Hub rejection"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/settings/voice",
+      "method": "POST",
+      "status": 400,
+      "transport": "Schema + Computer/Hub rejection"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/update",
+      "method": "POST",
+      "status": 400,
+      "transport": "Schema + Computer/Hub rejection"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/edit",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/rename",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/unattended",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/enqueue",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/update",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/move",
+      "method": "POST",
+      "status": 409,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/delete",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/send",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/enqueue",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/move",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/queue/delete",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/interrupt",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/list",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/search",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/read",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/inspect",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/inspect-batch",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/write",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/read",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/read",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/image-dimensions",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "GET",
+      "status": 206,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "HEAD",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "GET",
+      "status": 304,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "GET",
+      "status": 416,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/blob",
+      "method": "GET",
+      "status": 416,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/download",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/read",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/video_preview",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/audio/segments/{filename}",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/audio/segments/{filename}",
+      "method": "HEAD",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/read",
+      "method": "GET",
+      "status": 404,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/file/write",
+      "method": "POST",
+      "status": 409,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/git/changed_files",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/git/diff",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/git/file_versions",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/inject_file",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/inject_image",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/attachments/delete",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/pending_attachment/clear",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/attachments/clear",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/send",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/tail",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/history",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/window",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/export",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/search",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/unread",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/tail",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/read",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/live",
+      "method": "GET",
+      "status": 200,
+      "transport": "SSE message"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/messages/live",
+      "method": "GET",
+      "status": 200,
+      "transport": "SSE message"
+    },
+    {
+      "operation": "/api/agents/{id}/live",
+      "method": "GET",
+      "status": 200,
+      "transport": "SSE snapshot"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/notifications/feed",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/notifications/text",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/notifications/state",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/settings/voice",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/settings/unattended-prompt",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/settings/voice",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/settings/unattended-prompt",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/audio/listener",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/audio/live.m3u8",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/audio/listener",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/cwd-suggest",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/session_resume_candidates",
+      "method": "GET",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/send",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/interrupt",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    },
+    {
+      "operation": "/api/v1/computers/{computerId}/api/sessions/{localId}/commit_unknown_send/clear",
+      "method": "POST",
+      "status": 200,
+      "transport": "Computer → independent Hub → HTTP client"
+    }
+  ],
+  "limits": [
+    "Backend usage and child telemetry allow documented producer extensions.",
+    "One representative native backend; no claim of exhaustive external CLI/provider variants.",
+    "Media acceptance validates an actual FFmpeg video preview, MPEG-TS segment streaming and the HLS document; live TTS synthesis has separate native-media acceptance."
+  ]
+}

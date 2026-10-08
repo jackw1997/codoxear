@@ -1,0 +1,16 @@
+# Run from codoxear-v2 with explicit private paths; no Docker socket or host HOME mount.
+services:
+  computer:
+    image: ${CODOXEAR_OAR_IMAGE:-codoxear-computer-oar:reviewed}
+    init: true
+    command: [start]
+    restart: "no"
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 2
+    pids_limit: 256
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ${CODOXEAR_PRIVATE_HOME:?Set an existing private directory owned by container uid 1000}:/home/node
+      - ${CODOXEAR_WORKSPACE:?Set an authorized workspace directory}:/workspace

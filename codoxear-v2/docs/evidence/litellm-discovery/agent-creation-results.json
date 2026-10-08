@@ -1,0 +1,200 @@
+{
+  "passed": true,
+  "checks": [
+    "An already-controlled tab upgrades the old worker before rendering; Hubs & computers loads working controls instead of the static-client error",
+    "Configured non-reasoning model exposes only Off and explains its Computer metadata constraint",
+    "Configured provider, model and reasoning are selected as real values, with disabled placeholders and no generic default option",
+    "Configured reasoning model receives the producer-derived standard levels without an explicit thinking-level map",
+    "Independent client opens Pi/Codex/Claude creation; provider-specific Pi models and reasoning reach the service worker launch request",
+    "Codex maps ChatGPT authentication and Fast correctly; changing models removes unsupported reasoning",
+    "Claude Code supports custom model and reasoning without inheriting another runtime's provider or Fast setting",
+    "Configured Anthropic discovery preserves advertised disabled levels and selected model, then producer compatibility enables exact explicit Max without copying private credentials",
+    "Configured-provider discovery sends only the selected provider, replaces global models, intersects exact advertised effort requests, and leaves null/missing metadata explicitly unknown",
+    "Discovered model uses its proven runtime vocabulary, excludes unsupported values, and submits exact Max with provider_catalog confirmation without client aliases",
+    "Custom discovery uses the caller-entered key and URL, shows a precise denied-listing error, allows retry, and never stores or reflects the secret",
+    "Provider and Computer changes cancel in-flight discovery and reject late models while clearing caller credentials",
+    "pi: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+    "codex: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+    "cc: private endpoint, masked key, custom model and advanced controls reach the launch; switching providers clears credentials",
+    "Unknown configured provider or model stays unselected and cannot create an agent with empty launch values",
+    "Switching computers clears previous selections and paths; late catalog responses cannot replace current choices",
+    "Keyboard focus wraps within creation; Escape preserves dialog; invalid names focus their associated alert; pending launch announces status and locks choices",
+    "Account/workspace form submits the actual configured provider, model and reasoning; all three runtime forms fit 390px and cancel restores focus",
+    "Resume selects a scoped saved session or explicit ID, clears IDs on runtime changes, and sends no saved credentials"
+  ],
+  "errors": [],
+  "launches": [
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "pi",
+        "model": "pi-reasoner",
+        "model_provider": "anthropic",
+        "reasoning_effort": "high",
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "codex",
+        "model": "codex-small",
+        "model_provider": "openai",
+        "preferred_auth_method": "chatgpt",
+        "reasoning_effort": "low",
+        "service_tier": "fast",
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "cc",
+        "model": "claude-custom",
+        "model_provider": "anthropic",
+        "reasoning_effort": "medium",
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "pi",
+        "model": "caller-anthropic",
+        "model_provider": "anthropic",
+        "reasoning_effort": "max",
+        "provider_catalog": true,
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "pi",
+        "model": "caller-reasoner",
+        "provider_config": {
+          "base_url": "https://caller.test/v1",
+          "api_key": "[redacted]",
+          "api": "openai-completions",
+          "image_support": false
+        },
+        "reasoning_effort": "max",
+        "provider_catalog": true,
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "pi",
+        "model": "PrivateModel",
+        "provider_config": {
+          "base_url": "https://private.test/v1",
+          "api_key": "[redacted]",
+          "api": "anthropic-messages",
+          "image_support": true
+        },
+        "reasoning_effort": "low",
+        "env_vars": {
+          "EXTRA_SETTING": "[redacted]"
+        },
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "codex",
+        "model": "PrivateModel",
+        "provider_config": {
+          "base_url": "https://private.test/v1",
+          "api_key": "[redacted]"
+        },
+        "reasoning_effort": "low",
+        "env_vars": {
+          "EXTRA_SETTING": "[redacted]"
+        },
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Phone agent",
+        "agent_backend": "cc",
+        "model": "PrivateModel",
+        "provider_config": {
+          "base_url": "https://private.test/v1",
+          "api_key": "[redacted]"
+        },
+        "reasoning_effort": "low",
+        "service_tier": "fast",
+        "env_vars": {
+          "EXTRA_SETTING": "[redacted]"
+        },
+        "command": "private-claude",
+        "create_in_tmux": false
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Default config",
+        "backend": "pi",
+        "launch": {
+          "model": "pi-default",
+          "model_provider": "local",
+          "reasoning_effort": "off"
+        }
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Default config",
+        "backend": "pi",
+        "launch": {
+          "model": "pi-default",
+          "model_provider": "local",
+          "reasoning_effort": "off"
+        }
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Continue saved work",
+        "backend": "codex",
+        "launch": {
+          "model": "codex-model",
+          "model_provider": "openai",
+          "preferred_auth_method": "chatgpt",
+          "reasoning_effort": "high",
+          "cwd": "/saved/workspace",
+          "resume_session_id": "saved-laptop-codex"
+        }
+      }
+    },
+    {
+      "computer": "laptop",
+      "body": {
+        "name": "Continue saved work",
+        "backend": "pi",
+        "launch": {
+          "model": "pi-default",
+          "model_provider": "local",
+          "reasoning_effort": "off",
+          "cwd": "/saved/workspace",
+          "resume_session_id": "explicit-pi-id"
+        }
+      }
+    }
+  ]
+}

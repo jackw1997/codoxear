@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "An open client detects a deployment and offers Reload without replacing the page or discarding its current form",
+    "Reload loads the current deployment and removes the update notice with a usable phone-sized control"
+  ],
+  "errors": [],
+  "boundary": "Empty independent client; deployment version publication is infrastructure, no users or application grants seeded"
+}

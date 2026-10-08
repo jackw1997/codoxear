@@ -1,0 +1,520 @@
+{
+  "publishedSchemaValidations": 185,
+  "observations": [
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/health",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/health",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/me",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/hubs",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/v1/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/hubs/:id/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/v1/computers/:computerId/api/me",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/agents/:id/shares",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "PUT",
+      "path": "/api/agents/:id/shares/:userId",
+      "status": 200
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "workspace-access"
+    },
+    {
+      "component": "independent-hub",
+      "method": "GET",
+      "path": "/api/resources/:kind/:id/members",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "PUT",
+      "path": "/api/resources/:kind/:id/policy",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "POST",
+      "path": "/api/resources/:kind/:id/owner",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "POST",
+      "path": "/api/hubs/:id/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "POST",
+      "path": "/api/hubs/:id/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/auth/options",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/me/hubs",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/me/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "POST",
+      "path": "/api/v1/me/agents",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "POST",
+      "path": "/api/v1/hub-token",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "PUT",
+      "path": "/api/v1/hubs/:id/auth-requirement",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "POST",
+      "path": "/api/v1/hubs/:id/computers",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "POST",
+      "path": "/api/v1/pairing/redeem",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "DELETE",
+      "path": "/api/v1/me/identities/:id",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/hubs/:id/members",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "PUT",
+      "path": "/api/v1/hubs/:id/members/:userId",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "PUT",
+      "path": "/api/v1/hubs/:id/members/:userId",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/api/v1/computers/:id/allowlist",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "PUT",
+      "path": "/api/v1/computers/:id/allowlist/:userId",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "DELETE",
+      "path": "/api/v1/computers/:id/allowlist/:userId",
+      "status": 200
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-create"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-list"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-revoke"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invite"
+    },
+    {
+      "component": "independent-hub",
+      "method": "POST",
+      "path": "/api/invitations/accept",
+      "status": 200
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invite"
+    },
+    {
+      "component": "independent-identity",
+      "method": "POST",
+      "path": "/api/v1/invitations/accept",
+      "status": 200
+    },
+    {
+      "component": "independent-hub",
+      "method": "DELETE",
+      "path": "/api/resources/:kind/:id/members/:memberId",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/.well-known/jwks.json",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/appearance/app.css",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/appearance/favicon.svg",
+      "status": 200
+    },
+    {
+      "component": "independent-identity",
+      "method": "GET",
+      "path": "/oauth/authorize",
+      "status": 302
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "notification-session"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "me"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "hub"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "computers"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "notification-subject"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "computer-owner"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "agents"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "pair"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "authorize"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "relay"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "relay"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "queue-permit"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "members"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "agent-shares"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "agent-share"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "workspace-access"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "import-agent"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "create-agent"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "create-computer"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-create"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-list"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invitation-link-revoke"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "invite"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "accept"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "remove"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "policy"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "owner"
+    },
+    {
+      "component": "independent-internal",
+      "method": "POST",
+      "path": "/internal/call",
+      "status": 200,
+      "operation": "forget-deleted-agent"
+    },
+    {
+      "component": "shared-identity",
+      "method": "POST",
+      "path": "/api/v1/hubs",
+      "status": 200
+    },
+    {
+      "component": "shared-identity",
+      "method": "POST",
+      "path": "/api/v1/hubs/:id/register",
+      "status": 200
+    },
+    {
+      "component": "shared-identity",
+      "method": "GET",
+      "path": "/api/v1/me/hubs",
+      "status": 200
+    },
+    {
+      "component": "shared-identity",
+      "method": "POST",
+      "path": "/api/v1/hubs/:id/admissions",
+      "status": 200
+    },
+    {
+      "component": "shared-hub",
+      "method": "GET",
+      "path": "/api/me",
+      "status": 200
+    },
+    {
+      "component": "shared-hub",
+      "method": "GET",
+      "path": "/api/hubs",
+      "status": 200
+    },
+    {
+      "component": "shared-hub",
+      "method": "GET",
+      "path": "/api/v1/computers",
+      "status": 200
+    },
+    {
+      "component": "shared-identity",
+      "method": "POST",
+      "path": "/api/v1/computers/:id/transfer",
+      "status": 200
+    }
+  ],
+  "runtime": "actual independent Hub and optional shared authority handlers; no native execution required for administrative responses"
+}

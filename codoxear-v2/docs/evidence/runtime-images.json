@@ -1,0 +1,132 @@
+{
+  "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+  "limits": {
+    "memoryBytes": 2147483648,
+    "swapBytes": 0,
+    "cpus": 2,
+    "pids": 512,
+    "serial": true
+  },
+  "images": {
+    "computer": {
+      "tag": "codoxear-computer:379ddba0",
+      "id": "sha256:372303048c88e718658dbdecde4f4e8b3ceb75b948364494d59a31f8df9bc4a9",
+      "baseImageId": "sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397",
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "limits": {
+        "memoryBytes": 2147483648,
+        "swapBytes": 0,
+        "cpus": 2,
+        "pids": 512,
+        "serial": true
+      }
+    },
+    "hub": {
+      "tag": "codoxear-hub:379ddba0",
+      "id": "sha256:b6115f8dafa602d90ac710f330681aba3cdb180fbdba4f996367fefadcf78e9b",
+      "baseImageId": "sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397",
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "limits": {
+        "memoryBytes": 2147483648,
+        "swapBytes": 0,
+        "cpus": 2,
+        "pids": 512,
+        "serial": true
+      }
+    },
+    "identity": {
+      "tag": "codoxear-identity:379ddba0",
+      "id": "sha256:c950bec6ef178407ae20ff9f682b533ef795271b745d6f160ee1eabe0c66f064",
+      "baseImageId": "sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397",
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "limits": {
+        "memoryBytes": 2147483648,
+        "swapBytes": 0,
+        "cpus": 2,
+        "pids": 512,
+        "serial": true
+      }
+    },
+    "server": {
+      "tag": "codoxear-server:379ddba0",
+      "id": "sha256:7e225050662d43ade6157efe9e5f678db3be84b111d4ae8720135165b9dea27b",
+      "baseImageId": "sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397",
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "limits": {
+        "memoryBytes": 2147483648,
+        "swapBytes": 0,
+        "cpus": 2,
+        "pids": 512,
+        "serial": true
+      }
+    },
+    "frontend": {
+      "tag": "codoxear-frontend:379ddba0",
+      "id": "sha256:c34fec5d34c766ba9a78e4bf0b3f0627022abc661692f9a9ef839ee9326d797e",
+      "baseImageId": "sha256:470015c1ab1577c19efce2e80cdad4afd9c682cf8f4dcf3dccae5abfd9113397",
+      "commit": "379ddba0c7a34a0ca45a4b50dff1f9b8472b1d32",
+      "limits": {
+        "memoryBytes": 2147483648,
+        "swapBytes": 0,
+        "cpus": 2,
+        "pids": 512,
+        "serial": true
+      }
+    }
+  },
+  "checks": [
+    {
+      "role": "computer",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled Computer status/doctor",
+        "pinned OAR loads without sessions"
+      ]
+    },
+    {
+      "role": "hub",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled API health",
+        "account authentication",
+        "unattached UI 404"
+      ]
+    },
+    {
+      "role": "identity",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled API health",
+        "account authentication",
+        "unattached UI 404"
+      ]
+    },
+    {
+      "role": "server",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "compiled API health",
+        "account authentication",
+        "unattached UI 404",
+        "image default DB writable as node"
+      ]
+    },
+    {
+      "role": "frontend",
+      "passed": true,
+      "checks": [
+        "pruned runtime artifacts",
+        "UID 1000",
+        "frontend health/page without backend"
+      ]
+    }
+  ]
+}

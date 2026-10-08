@@ -1,0 +1,57 @@
+# TypeScript Computer–Hub–Client PR
+
+Current draft: [Rewrite v2 in TypeScript with isolated Computer–Hub–Client services and Hub-owned sign-in](https://github.com/jackw1997/codoxear/pull/1).
+
+Current authentication follows R54 and R57: the client starts with an Add Hub URL field, each Hub advertises its own separate provider buttons, and a private initialization URL assigns the first verified allowed-provider identity as Owner. Routine access uses revocable Hub sessions, without client device signing keys or password/email login. All saved identities remain active. Owner/Admin/Member roles govern administration, while every human needs an explicit Computer allowlist grant and file access needs its separate workspace grant.
+
+The implementation and validation paragraphs below record named snapshots. Historical counts and superseded login mechanisms are not acceptance of the current tree. R57 corrects the Hub invitation flow; its final public browser evidence is recorded separately.
+
+## Current direct-dropdown acceptance (R61)
+
+The displayed model name and reasoning effort are the dropdown controls themselves. Separate Change buttons and the hidden single-setting editor are removed. A frontend-owned library supplies consistent menus, buttons, fields and dialogs across web entries; pages retain business logic. R61 explicitly supersedes the earlier R59/R60 layout interpretation.
+
+Frontend `3fce0325`, public asset `e491e176163d15b5`: 17 component checks, 20 creation checks, two update checks, 25 local and 25 public-client customer checks pass, with 86 masked frames per customer run. The independent frontend installs/builds and passes pruned UID-1000 runtime startup. Verification is serialized under 2GiB, without OOM. Computer/Hub/backend closure remains unchanged from `b8534473`; its previous 384-test backend evidence is retained, not rerun or aggregated. Frontend-only deployment preserves backend containers and private settings.
+
+[Current screenshots](evidence/inline-model-controls/index.html) · [Sources and boundaries](evidence/inline-model-controls/verification.json) · [Demo](https://codoxear.gzeek.com:8444/?release=e491e176163d15b5). OAuth, model catalogs and managed replies are controlled browser fixtures; live identity/model inference and physical-device acceptance are separate.
+
+## Historical invitation and daily-use acceptance (R57)
+
+The corrected Hub invitation is a shareable, expiring, single-use Member link created before the recipient exists. Sign-in only authenticates; the recipient explicitly chooses Join Hub. Membership grants no Computer/workspace access or Admin role. Managers revoke pending links, and obsolete targeted Hub creation/acceptance APIs reject in both independent Hub and compatibility Server. The Owner cannot accept its own invitation. Joined Members see the verified Hub name and separate-access guidance.
+
+Deployed Hub/frontend product `77714b33`, asset `b973cd6ddae05395`: **24/24 public browser checks, 69 masked screenshots**. Full backend **367/367** at `462df6db`; backend/tests/dependencies are unchanged in the deployed product. Three pruned Hub/Server/frontend images pass UID 1000 startup; independent TypeScript and closure checks pass. Final committed customer harness `de4bd5f0` runs without overlays. These distinct checks are not summed with prior snapshots.
+
+[Browser-readable invitation/gallery](evidence/hub-invitation-links/) · [Exact counts/provenance/boundaries](evidence/hub-invitation-links/verification.json) · [Deployed demo](https://codoxear.gzeek.com:8444/?release=b973cd6ddae05395). Controlled OAuth/model responses and external Computer bootstrap are disclosed. Failed expectations/selectors are retained separately and corrected without removing access-denial assertions. Work Computer stays online on `9740d7ef` with archived session/private Pi-LiteLLM/Owner/grant preserved; Home and unrelated services are untouched. This is scoped invitation/customer acceptance, not every platform or roadmap item.
+
+## Previous daily-use acceptance (R56)
+
+Historical product snapshot `9740d7ef` was deployed at the [auth demo](https://codoxear.gzeek.com:8444/?release=8cb9a63a0b4e7090) and Work Hub. The full final backend run passed **361/361**, the real-public-client customer journey passed **24/24** with **59 screenshots**, the update-notice browser run passed **2/2**, and all **three** pruned role images passed startup checks as UID 1000. TypeScript and component-boundary checks passed. These are distinct runs, not summed historical totals.
+
+[Browser-readable screenshots](evidence/customer-daily/) start with both reported phone layouts and document the Owner/Member two-Computer flow and daily agent/file actions. [Exact records and boundaries](evidence/customer-daily/verification.json) disclose controlled OAuth/model transports, external Computer enrollment/start and the assertion-only harness overlay. The Work Computer remains online with its archived session, private provider configuration and explicit access grant preserved; all three updated services report no OOM kill or restart. Home services remain untouched.
+
+Current cleanup removes the unused password/email/SMS client, old demo verification entrypoints and the separate Vite management page/routes. Duplicate uses the reviewed New agent form; actor-specific staging, file downloads/editor/PDF and Git comparison now work through the current UI. Raw browser diagnostics and unexercised features remain in the evidence; this is scoped daily-use acceptance, not every roadmap/device/runtime combination.
+
+## Reviewable PR description
+
+Each Computer, Hub, optional Identity and retained Server now has its own release manifest, pinned dependency lock, build script and Dockerfile. The reviewed-tree exporter includes exactly that component's source dependency closure and declared libraries. Computer downloads use the same exporter and no longer include the complete v2 repository. The build guard checks the whole closure, including indirect imports through shared libraries. The frontend owns its web/HarmonyOS/shared sources, dependency lock, independent build and static server.
+
+Backends start their APIs without frontend files. Optional browser routes attach a separately compiled frontend artifact through an absolute `frontendAssetsRoot` option/configuration or `CODOXEAR_FRONTEND_ASSETS_ROOT`; there is no implicit working-directory `dist/` lookup or repository-doc read. The independent frontend build supplies the Identity help page. Existing cookies, OAuth/PKCE, authenticated gateways and browser flows keep their established protocol. An independent Hub continues to own its accounts, database, signing key and permissions; shared authentication implementation does not require a shared Identity service.
+
+Generated OpenAPI definitions now reference shared schemas instead of repeating complete definitions at every route. Protocol JSON falls from **190,879 to 75,738 physical lines**, a reduction of **115,141 lines (60.3%)**, and from **6,265,749 to 2,162,700 bytes**. Route definitions, limits and original schema components are retained. The original PR baseline was **375,975 added physical lines**, including 71,882 retained vendored browser lines, 40,153 authored frontend lines, 2,002 OAR-managed adapter lines and 6,609 native PTY lines. The complete baseline breakdown and precise generated-document comparison are in [requirements-reconciliation.md](requirements-reconciliation.md#source-volume-and-the-oar-boundary). This is not an exact final-tree total: component locks and verification tools add legitimate files that require a fresh final inventory.
+
+OAR `0.13.3` remains a pinned Computer-owned managed driver. It does not replace remote authorization/tunnels, launch receipts, local file/Git/media operations, history search, presentation or support for existing terminal brokers. The native path preserves accepted terminal behavior; removing it solely to reduce line counts would remove required functions.
+
+## Validation and remaining acceptance
+
+At `379ddba0`, the full serialized Docker regression passed **307 tests**, with zero failures or skips, and the complete browser runner passed. All five clean source packages independently installed, built and passed compiled-entry startup/API checks. The separately installed frontend and Hub passed six mobile browser integration checks covering real OAuth/PKCE, an authenticated mutation and persisted login/catalog after reload. See the committed [package evidence](evidence/component-isolation.json) and [boundary description](component-boundaries.md). All five pruned runtime images also passed isolated startup checks as UID 1000; see [image evidence](evidence/runtime-images.json). Root/frontend TypeScript and complete dependency-closure checks passed. Both login HTML templates now belong to the frontend package.
+
+The isolated deployment also passed eight real public Pi/LiteLLM checks, including parent/child delegation across Computers, plus four checks of pre-existing saved history/search/navigation. Accounts and private provider settings were preserved. Each Hub mounts only its own private configuration file. See [live deployment evidence](evidence/isolated-live-deployment.json).
+
+Earlier release evidence remains scoped to its recorded snapshot: the R47 public Pi/Kimi proof covers same-Hub cross-Computer delegation, native conversation recovery after an owned service restart and revoked delegated authority. The preceding full 283-test Docker run, later 12 managed checks and subsequent 21 managed/protocol checks are distinct runs; they are not a new aggregate count or acceptance of this final package layout. [work-progress.json](work-progress.json) and [oar-cutover.html](oar-cutover.html) retain that history.
+
+This PR does not claim completion of the broader roadmap, every managed/native feature combination, production SLOs, live identity/delivery configuration, macOS secure workspaces, HarmonyOS SDK/signing/Push Kit or physical mobile/Safari acceptance. Linux, Node.js 24 backend packages, Node.js 22.13-or-newer frontend support and the explicitly tested browser slices are the current scope. Public addresses, private provider settings and archived histories follow R47; new package verification does not authorize unrelated service/session changes or deployment by itself.
+
+## Historical provider-only registration snapshot
+
+The earlier R51–R53 snapshot used client-held P-256 device signing keys and a separate setup-code form. R54 supersedes both mechanisms with Hub OAuth sessions and a private one-time initialization URL. Its registration/key checks below remain evidence only for that earlier revision.
+
+At runtime snapshot `bd57072a`, all 336 backend tests passed, followed by seven registration/setup/key browser checks and seven invitation/sharing checks. Hub, optional Identity and frontend independently built and passed pruned-runtime startup checks. Verification was serialized under a 2GiB/no-swap limit. Provider transports/identities were controlled fixtures; real Google/Feishu app credentials are still needed before activating this release at the public endpoint. [Exact evidence](evidence/provider-registration.json).

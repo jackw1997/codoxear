@@ -1,0 +1,812 @@
+import * as CodoxearNotifications from "./app_notifications.js";
+import * as CodoxearVoiceHelpers from "./app_voice_helpers.js";
+
+
+// Voice settings, announcements, and live-audio authority.
+// Browser notification state, transport, widget rendering, and handlers live in
+// app_notifications.js. This controller coordinates the shared
+// /api/settings/voice response by passing only its notification slice through
+// the notification runtime's narrow interface.
+//
+// The voice settings form is an inline section of the Settings dialog
+// (app_settings.js). This module owns the section's nodes, rendering, and
+// save flow; the dialog owns modal visibility and calls
+// activateSettingsSection()/deactivateSettingsSection() on show/hide, while
+// this controller asks the dialog to open/close through injected functions.
+
+
+
+  const browserSupportsNativeLiveAudioPlayback = CodoxearVoiceHelpers.browserSupportsNativeLiveAudioPlayback;
+  const browserSupportsMseLiveAudioPlayback = CodoxearVoiceHelpers.browserSupportsMseLiveAudioPlayback;
+  const shouldPreferNativeLiveAudioPlayback = CodoxearVoiceHelpers.shouldPreferNativeLiveAudioPlayback;
+  const browserSupportsLiveAudioPlayback = CodoxearVoiceHelpers.browserSupportsLiveAudioPlayback;
+
+  const LIVE_AUDIO_WATCHDOG_MS = 2500;
+  const LIVE_AUDIO_STALL_GRACE_MS = 12000;
+  const LIVE_AUDIO_RESTART_THROTTLE_MS = 4000;
+  const ANNOUNCEMENT_HEARTBEAT_INTERVAL_MS = 15000;
+
+  function requireFunction(value, name) {
+    if (typeof value !== "function") throw new TypeError(`voice controller dependency missing: ${name}`);
+    return value;
+  }
+
+  function requireNode(value, name) {
+    if (!value || typeof value !== "object" || !value.style) throw new TypeError(`voice controller dependency missing: ${name}`);
+    return value;
+  }
+
+  function createVoiceDom(options = {}) {
+    if (!options || typeof options !== "object") throw new TypeError("voice DOM dependency missing: options");
+    const root = options.root;
+    const el = requireFunction(options.el, "el");
+    const iconSvg = requireFunction(options.iconSvg, "iconSvg");
+    const voiceHost = requireNode(options.voiceHost, "voiceHost");
+    if (!root || typeof root.appendChild !== "function") throw new TypeError("voice DOM dependency missing: root");
+
+    const announceBtn = el("button", { id: "announceBtn", class: "icon-btn", title: "Voice announcements", "aria-label": "Voice announcements", type: "button", html: iconSvg("volume") });
+    voiceHost.appendChild(announceBtn);
+
+    const liveAudio = el("audio", { id: "liveAudio", preload: "none", playsinline: "true" });
+    liveAudio.style.display = "none";
+    const voiceSettingsStatus = el("div", { class: "muted", id: "voiceSettingsStatus", text: "" });
+    const voiceBaseUrlInput = el("input", { id: "voiceBaseUrlInput", type: "text", autocomplete: "off", spellcheck: "false" });
+    const voiceApiKeyInput = el("input", { id: "voiceApiKeyInput", type: "password", autocomplete: "off", spellcheck: "false" });
+    const voiceClearApiKeyToggle = el("input", { id: "voiceClearApiKeyToggle", type: "checkbox" });
+    const narrationSettingToggle = el("input", { id: "narrationSettingToggle", type: "checkbox" });
+    const unattendedPromptInput = el("textarea", {
+      id: "unattendedPromptInput",
+      rows: "6",
+      spellcheck: "true",
+      "aria-label": "Unattended mode prompt",
+      "aria-describedby": "unattendedPromptHint",
+    });
+    const unattendedPromptResetBtn = el("button", { id: "unattendedPromptResetBtn", class: "text-btn", type: "button", text: "Reset to built-in prompt" });
+    const voiceSettingsCancelBtn = el("button", { id: "voiceSettingsCancelBtn", type: "button", text: "Cancel" });
+    const voiceSettingsSaveBtn = el("button", { id: "voiceSettingsSaveBtn", class: "primary", type: "button", text: "Save" });
+    // The section is mounted inside the Settings dialog body by
+    // app_settings.js; it is not appended to the root here.
+    const voiceSettingsSection = el("section", { class: "settingsSection", id: "voiceSettingsSection", "aria-labelledby": "voiceSettingsHeading" }, [
+      el("h3", { class: "settingsSectionTitle", id: "voiceSettingsHeading", text: "Voice & notifications" }),
+      voiceSettingsStatus,
+      el("label", { class: "field" }, [
+        el("span", { class: "fieldLabel", text: "OpenAI-compatible API base URL" }),
+        voiceBaseUrlInput,
+        el("span", { class: "fieldHint", text: "Used for both summarization and speech." }),
+      ]),
+      el("label", { class: "field" }, [
+        el("span", { class: "fieldLabel", text: "OpenAI-compatible API key" }),
+        voiceApiKeyInput,
+        el("span", { class: "fieldHint", text: "Leave blank to keep the saved key." }),
+      ]),
+      el("div", { class: "field" }, [
+        el("label", { class: "checkField" }, [voiceClearApiKeyToggle, el("span", { text: "Clear saved API key" })]),
+      ]),
+      el("div", { class: "field" }, [
+        el("label", { class: "checkField" }, [narrationSettingToggle, el("span", { text: "Announce narration messages" })]),
+      ]),
+      el("div", { class: "field" }, [
+        el("span", { class: "fieldLabel", text: "Unattended mode prompt" }),
+        unattendedPromptInput,
+        el("span", { class: "fieldHint", id: "unattendedPromptHint", text: "Sent when unattended mode resumes an idle session." }),
+        unattendedPromptResetBtn,
+      ]),
+      el("div", { class: "formActions" }, [voiceSettingsCancelBtn, voiceSettingsSaveBtn]),
+    ]);
+    root.appendChild(liveAudio);
+    return Object.freeze({
+      announceBtn,
+      liveAudio,
+      voiceSettingsSection,
+      voiceSettingsStatus,
+      voiceBaseUrlInput,
+      voiceApiKeyInput,
+      voiceClearApiKeyToggle,
+      narrationSettingToggle,
+      unattendedPromptInput,
+      unattendedPromptResetBtn,
+      voiceSettingsCancelBtn,
+      voiceSettingsSaveBtn,
+    });
+  }
+
+  function createVoiceController(options = {}) {
+    if (!options || typeof options !== "object") throw new TypeError("voice controller dependency missing: options");
+
+    // DOM nodes (created by createVoiceDom; the section lives in the Settings dialog).
+    const announceBtn = requireNode(options.announceBtn, "announceBtn");
+    const liveAudio = requireNode(options.liveAudio, "liveAudio");
+    const voiceSettingsStatus = requireNode(options.voiceSettingsStatus, "voiceSettingsStatus");
+    const voiceBaseUrlInput = requireNode(options.voiceBaseUrlInput, "voiceBaseUrlInput");
+    const voiceApiKeyInput = requireNode(options.voiceApiKeyInput, "voiceApiKeyInput");
+    const voiceClearApiKeyToggle = requireNode(options.voiceClearApiKeyToggle, "voiceClearApiKeyToggle");
+    const narrationSettingToggle = requireNode(options.narrationSettingToggle, "narrationSettingToggle");
+    const unattendedPromptInput = options.unattendedPromptInput ? requireNode(options.unattendedPromptInput, "unattendedPromptInput") : null;
+    const unattendedPromptResetBtn = options.unattendedPromptResetBtn ? requireNode(options.unattendedPromptResetBtn, "unattendedPromptResetBtn") : null;
+    const voiceSettingsCancelBtn = requireNode(options.voiceSettingsCancelBtn, "voiceSettingsCancelBtn");
+    const voiceSettingsSaveBtn = requireNode(options.voiceSettingsSaveBtn, "voiceSettingsSaveBtn");
+
+    // App-level runtime state accessors and effects.
+    const isAppDisposed = requireFunction(options.isAppDisposed, "isAppDisposed");
+    const api = requireFunction(options.api, "api");
+    const setToast = requireFunction(options.setToast, "setToast");
+    const handleAppAuthLoss = requireFunction(options.handleAppAuthLoss, "handleAppAuthLoss");
+    // Settings dialog visibility is owned by app_settings.js.
+    const openSettings = requireFunction(options.openSettings, "openSettings");
+    const closeSettings = requireFunction(options.closeSettings, "closeSettings");
+    const resolveAppUrl = requireFunction(options.resolveAppUrl, "resolveAppUrl");
+    const storageGetItem = requireFunction(options.storageGetItem, "storageGetItem");
+    const storageSetItem = requireFunction(options.storageSetItem, "storageSetItem");
+    const storageRemoveItem = requireFunction(options.storageRemoveItem, "storageRemoveItem");
+    const notificationOptions = options.notificationOptions;
+    if (!notificationOptions || typeof notificationOptions !== "object") {
+      throw new TypeError("voice controller dependency missing: notificationOptions");
+    }
+    const notificationRuntime = CodoxearNotifications.createNotificationRuntime(notificationOptions);
+
+    // Injectable browser targets (default to the real globals).
+    const windowTarget = options.windowTarget || window;
+    const navigatorTarget = options.navigatorTarget || (typeof navigator !== "undefined" ? navigator : null);
+    const documentTarget = options.documentTarget || document;
+    const cryptoRef = typeof options.crypto !== "undefined" ? options.crypto : (typeof windowTarget.crypto !== "undefined" ? windowTarget.crypto : undefined);
+    const setTimeoutFn = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
+    const clearTimeoutFn = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
+    const setIntervalFn = typeof options.setInterval === "function" ? options.setInterval : setInterval;
+    const clearIntervalFn = typeof options.clearInterval === "function" ? options.clearInterval : clearInterval;
+
+
+    // --- Voice / settings / announcement state owned by this controller ---
+
+    let voiceSettings = {
+      tts_enabled_for_narration: false,
+      tts_enabled_for_final_response: true,
+      tts_base_url: "https://api.openai.com/v1",
+      tts_api_key: "",
+      audio: { queue_depth: 0, segment_count: 0, last_error: "", stream_url: "/api/audio/live.m3u8" },
+      notifications: { enabled_devices: 0, total_devices: 0, vapid_public_key: "" },
+      has_tts_api_key: false,
+    };
+    let localAnnouncementEnabled = storageGetItem("codoxear.announcementEnabled") === "1";
+    const announcementClientId = (() => {
+      const key = "codoxear.announcementClientId";
+      const current = storageGetItem(key);
+      if (current) return current;
+      const next =
+        cryptoRef && typeof cryptoRef.randomUUID === "function"
+          ? cryptoRef.randomUUID()
+          : `ann-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      storageSetItem(key, next);
+      return next;
+    })();
+    let announcementHeartbeatTimer = null;
+    let liveAudioRetryTimer = null;
+    let liveAudioWatchdogTimer = null;
+    let unattendedPrompt = { prompt: "", default_prompt: "" };
+    let liveAudioStarted = false;
+    let liveAudioErrorState = false;
+    let liveAudioSourceUrl = "";
+    let liveAudioHls = null;
+    let liveAudioEpoch = 0;
+    let liveAudioLastProgressTs = 0;
+    let liveAudioLastCurrentTime = 0;
+    let liveAudioSuspectSinceTs = 0;
+    let liveAudioLastRestartTs = 0;
+    // Canonical "voice section is being edited" flag: true between the Settings
+    // dialog's activate and deactivate calls. While set, background snapshots
+    // must not overwrite the user's draft in the form.
+    let settingsOpen = false;
+    let settingsEpoch = 0;
+
+    const eventBindings = options.eventBindings;
+    if (!eventBindings || typeof eventBindings.on !== "function") {
+      throw new TypeError("voice controller dependency missing: eventBindings");
+    }
+
+    function voiceAnnouncementsEnabled() {
+      return !!localAnnouncementEnabled;
+    }
+
+
+    function isSettingsOpen() {
+      return settingsOpen;
+    }
+
+    function currentVoiceStreamUrl() {
+      const streamUrl =
+        voiceSettings && voiceSettings.audio && typeof voiceSettings.audio.stream_url === "string" && voiceSettings.audio.stream_url
+          ? voiceSettings.audio.stream_url
+          : "/api/audio/live.m3u8";
+      return resolveAppUrl(streamUrl);
+    }
+
+    function hasAnnouncementCredentials() {
+      return Boolean(
+        String(voiceSettings.tts_base_url || "").trim() &&
+          (String(voiceSettings.tts_api_key || "").trim() || voiceSettings.has_tts_api_key)
+      );
+    }
+
+    function liveAudioHasReadySegments() {
+      const audio = voiceSettings && voiceSettings.audio ? voiceSettings.audio : {};
+      return Number(audio.segment_count || 0) > 0;
+    }
+
+    function liveAudioHasErrorState() {
+      const audioLastError = voiceSettings && voiceSettings.audio ? String(voiceSettings.audio.last_error || "").trim() : "";
+      return Boolean(audioLastError || liveAudioErrorState);
+    }
+
+    function destroyLiveAudioHls() {
+      const current = liveAudioHls;
+      liveAudioHls = null;
+      if (!current || typeof current.destroy !== "function") return;
+      try {
+        current.destroy();
+      } catch (e) {
+        console.error("destroy live hls failed", e);
+      }
+    }
+
+    async function ensureLiveAudioPlaybackSource(nextSrc, { resetSource = false } = {}) {
+      if (resetSource) {
+        resetLiveAudioState();
+      }
+      if (shouldPreferNativeLiveAudioPlayback(liveAudio, navigatorTarget)) {
+        destroyLiveAudioHls();
+        if (resetSource || liveAudioSourceUrl !== nextSrc || liveAudio.currentSrc !== nextSrc) {
+          liveAudio.src = nextSrc;
+          liveAudioSourceUrl = nextSrc;
+        }
+        return;
+      }
+      if (!browserSupportsMseLiveAudioPlayback(windowTarget)) {
+        throw new Error("this browser does not support HLS audio playback in this app");
+      }
+      const HlsCtor = CodoxearVoiceHelpers.liveAudioHlsConstructor(windowTarget);
+      const needsReload = resetSource || !liveAudioHls || liveAudioSourceUrl !== nextSrc;
+      if (!needsReload) return;
+      destroyLiveAudioHls();
+      liveAudio.removeAttribute("src");
+      liveAudio.load();
+      liveAudioSourceUrl = nextSrc;
+      const hls = new HlsCtor();
+      liveAudioHls = hls;
+      hls.on(HlsCtor.Events.ERROR, (_event, data) => {
+        if (!data) return;
+        console.error("live hls error", data.type, data.details, data);
+        const status = Number(data.response && data.response.code);
+        if ([401, 403, 404, 409].includes(status) && liveAudioHls === hls) {
+          setAnnouncementEnabled(false);
+          if (status === 401) handleAppAuthLoss();
+          return;
+        }
+        if (!data.fatal || liveAudioHls !== hls) return;
+        switch (data.type) {
+          case HlsCtor.ErrorTypes.NETWORK_ERROR:
+            hls.startLoad();
+            return;
+          case HlsCtor.ErrorTypes.MEDIA_ERROR:
+            hls.recoverMediaError();
+            return;
+          default:
+            destroyLiveAudioHls();
+            liveAudioStarted = false;
+            liveAudioErrorState = true;
+            liveAudioSuspectSinceTs = 0;
+            updateVoiceUi();
+            scheduleLiveAudioRetry(1200, { resetSource: true });
+        }
+      });
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const cleanup = () => {
+          hls.off(HlsCtor.Events.MEDIA_ATTACHED, onAttached);
+          hls.off(HlsCtor.Events.MANIFEST_PARSED, onManifestParsed);
+          hls.off(HlsCtor.Events.ERROR, onInitError);
+        };
+        const settle = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          fn(value);
+        };
+        const onAttached = () => {
+          hls.loadSource(nextSrc);
+        };
+        const onManifestParsed = () => {
+          settle(resolve);
+        };
+        const onInitError = (_event, data) => {
+          if (!data || !data.fatal) return;
+          settle(reject, new Error(data.details || data.type || "failed to load HLS stream"));
+        };
+        hls.on(HlsCtor.Events.MEDIA_ATTACHED, onAttached);
+        hls.on(HlsCtor.Events.MANIFEST_PARSED, onManifestParsed);
+        hls.on(HlsCtor.Events.ERROR, onInitError);
+        hls.attachMedia(liveAudio);
+      });
+    }
+
+    async function sendAnnouncementHeartbeat(enabled) {
+      try {
+        await api("/api/audio/listener", {
+          method: "POST",
+          body: {
+            client_id: announcementClientId,
+            enabled: !!enabled,
+          },
+        });
+      } catch (e) {
+        console.error("announcement heartbeat failed", e);
+        if (enabled && localAnnouncementEnabled && e && [401, 403, 404, 409].includes(e.status)) {
+          setAnnouncementEnabled(false);
+          if (e.status === 401) handleAppAuthLoss();
+        }
+      }
+    }
+
+    function stopAnnouncementHeartbeat() {
+      if (announcementHeartbeatTimer) clearIntervalFn(announcementHeartbeatTimer);
+      announcementHeartbeatTimer = null;
+      void sendAnnouncementHeartbeat(false);
+    }
+
+    function markLiveAudioProgress() {
+      liveAudioLastProgressTs = Date.now();
+      liveAudioSuspectSinceTs = 0;
+      liveAudioLastCurrentTime = Number(liveAudio.currentTime || 0);
+    }
+
+    function resetLiveAudioState() {
+      liveAudioEpoch++;
+      destroyLiveAudioHls();
+      try {
+        liveAudio.pause();
+      } catch (_error) {}
+      liveAudio.removeAttribute("src");
+      liveAudio.load();
+      liveAudioStarted = false;
+      liveAudioSourceUrl = "";
+      liveAudioLastProgressTs = 0;
+      liveAudioLastCurrentTime = 0;
+      liveAudioSuspectSinceTs = 0;
+    }
+
+    function noteLiveAudioPotentialStall(_reason = "") {
+      if (!localAnnouncementEnabled) return;
+      if (!liveAudioStarted || liveAudio.paused || liveAudio.ended) return;
+      if (!liveAudioHasReadySegments()) return;
+      if (!liveAudioSuspectSinceTs) liveAudioSuspectSinceTs = Date.now();
+    }
+
+    function queueLiveAudioHardRestart(_reason = "") {
+      if (!localAnnouncementEnabled) return;
+      if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) return;
+      if (!liveAudioHasReadySegments()) return;
+      const now = Date.now();
+      if (now - liveAudioLastRestartTs < LIVE_AUDIO_RESTART_THROTTLE_MS) return;
+      liveAudioLastRestartTs = now;
+      liveAudioStarted = false;
+      liveAudioSuspectSinceTs = 0;
+      updateVoiceUi();
+      scheduleLiveAudioRetry(150, { resetSource: true });
+    }
+
+    function runLiveAudioWatchdog() {
+      if (!localAnnouncementEnabled) return;
+      if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) return;
+      if (!liveAudioHasReadySegments()) return;
+      const now = Date.now();
+      const currentTime = Number(liveAudio.currentTime || 0);
+      if (currentTime > liveAudioLastCurrentTime + 0.05) {
+        markLiveAudioProgress();
+        return;
+      }
+      liveAudioLastCurrentTime = currentTime;
+      if (!liveAudioStarted || liveAudio.paused || liveAudio.ended) {
+        liveAudioSuspectSinceTs = 0;
+        return;
+      }
+      if (!liveAudioSuspectSinceTs) liveAudioSuspectSinceTs = now;
+      const baselineTs = Math.max(liveAudioLastProgressTs || 0, liveAudioSuspectSinceTs || 0);
+      if (!baselineTs) return;
+      if (now - baselineTs < LIVE_AUDIO_STALL_GRACE_MS) return;
+      queueLiveAudioHardRestart("watchdog");
+    }
+
+    function stopLiveAudioWatchdog() {
+      if (liveAudioWatchdogTimer) clearIntervalFn(liveAudioWatchdogTimer);
+      liveAudioWatchdogTimer = null;
+    }
+
+    function startLiveAudioWatchdog() {
+      runLiveAudioWatchdog();
+      if (liveAudioWatchdogTimer) clearIntervalFn(liveAudioWatchdogTimer);
+      liveAudioWatchdogTimer = setIntervalFn(() => {
+        runLiveAudioWatchdog();
+      }, LIVE_AUDIO_WATCHDOG_MS);
+    }
+
+    function startAnnouncementHeartbeat() {
+      void sendAnnouncementHeartbeat(true);
+      if (announcementHeartbeatTimer) clearIntervalFn(announcementHeartbeatTimer);
+      announcementHeartbeatTimer = setIntervalFn(() => {
+        void sendAnnouncementHeartbeat(true);
+      }, ANNOUNCEMENT_HEARTBEAT_INTERVAL_MS);
+    }
+
+    function setAnnouncementEnabled(enabled) {
+      localAnnouncementEnabled = !!enabled;
+      if (localAnnouncementEnabled) storageSetItem("codoxear.announcementEnabled", "1");
+      else storageRemoveItem("codoxear.announcementEnabled");
+      if (!localAnnouncementEnabled) {
+        // A new listener starts a fresh server stream. Retired segments must
+        // not start a source while that new stream is still empty.
+        voiceSettings.audio = { ...voiceSettings.audio, segment_count: 0 };
+        stopAnnouncementHeartbeat();
+        stopLiveAudioWatchdog();
+        if (liveAudioRetryTimer) clearTimeoutFn(liveAudioRetryTimer);
+        liveAudioRetryTimer = null;
+        resetLiveAudioState();
+      } else {
+        voiceSettings.audio = { ...voiceSettings.audio, segment_count: 0 };
+        startAnnouncementHeartbeat();
+        startLiveAudioWatchdog();
+        void sendAnnouncementHeartbeat(true).then(() => {
+          if (localAnnouncementEnabled && !isAppDisposed()) return loadVoiceSettings();
+        }).catch((error) => console.error("refresh voice listener failed", error));
+      }
+      updateVoiceUi();
+    }
+
+    function resumeAnnouncementRuntime({ resetSource = false } = {}) {
+      if (!localAnnouncementEnabled) return;
+      startAnnouncementHeartbeat();
+      startLiveAudioWatchdog();
+      if (!liveAudioStarted && browserSupportsLiveAudioPlayback(liveAudio, windowTarget) && liveAudioHasReadySegments()) {
+        scheduleLiveAudioRetry(150, { resetSource });
+      }
+    }
+
+    function scheduleLiveAudioRetry(delayMs = 1200, { resetSource = true } = {}) {
+      if (!localAnnouncementEnabled) return;
+      if (liveAudioRetryTimer) clearTimeoutFn(liveAudioRetryTimer);
+      liveAudioRetryTimer = setTimeoutFn(async () => {
+        liveAudioRetryTimer = null;
+        if (!localAnnouncementEnabled) return;
+        try {
+          await startLiveAudioPlayback({ resetSource });
+        } catch (e) {
+          console.error("live audio retry failed", e);
+        }
+      }, delayMs);
+    }
+
+    async function maybeAutoStartLiveAudioFromGesture({ resetSource = false } = {}) {
+      if (!localAnnouncementEnabled) return;
+      if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) return;
+      if (!liveAudioHasReadySegments()) return;
+      try {
+        await startLiveAudioPlayback({ resetSource: resetSource || liveAudio.ended });
+      } catch (e) {
+        console.error("auto-start live audio failed", e);
+      }
+    }
+
+    function syncVoiceSettingsFormFromState() {
+      if (voiceBaseUrlInput) voiceBaseUrlInput.value = String(voiceSettings.tts_base_url || "");
+      if (voiceApiKeyInput && !voiceApiKeyInput.matches(":focus")) {
+        voiceApiKeyInput.value = "";
+        voiceApiKeyInput.placeholder = voiceSettings.has_tts_api_key ? "Saved API key (leave blank to keep)" : "Enter API key";
+      }
+      if (voiceClearApiKeyToggle) voiceClearApiKeyToggle.checked = false;
+      if (narrationSettingToggle) narrationSettingToggle.checked = !!voiceSettings.tts_enabled_for_narration;
+      if (unattendedPromptInput && !unattendedPromptInput.matches(":focus")) {
+        unattendedPromptInput.value = String(unattendedPrompt.prompt || unattendedPrompt.default_prompt || "");
+      }
+    }
+
+    async function loadUnattendedPrompt() {
+      const data = await api("/api/settings/unattended-prompt");
+      if (isAppDisposed()) return data;
+      if (!data || typeof data !== "object" || typeof data.prompt !== "string" || typeof data.default_prompt !== "string") {
+        throw new Error("invalid unattended prompt response");
+      }
+      unattendedPrompt = { prompt: data.prompt, default_prompt: data.default_prompt };
+      if (!isSettingsOpen()) syncVoiceSettingsFormFromState();
+      return data;
+    }
+
+    async function saveUnattendedPrompt(prompt = unattendedPromptInput && unattendedPromptInput.value) {
+      if (!unattendedPromptInput) return null;
+      const data = await api("/api/settings/unattended-prompt", { method: "POST", body: { prompt } });
+      if (!data || typeof data !== "object" || typeof data.prompt !== "string" || typeof data.default_prompt !== "string") {
+        throw new Error("invalid unattended prompt response");
+      }
+      unattendedPrompt = { prompt: data.prompt, default_prompt: data.default_prompt };
+      return data;
+    }
+
+    function updateVoiceUi() {
+      const announcementsOn = voiceAnnouncementsEnabled();
+      // Only surface the audio error state when the user has actually enabled
+      // voice. Server-side pipeline errors (e.g. "tts_api_key is required",
+      // keepalive sweep failures) are irrelevant to users who never opted in —
+      // showing them as a red button is a category error.
+      const audioError = announcementsOn && liveAudioHasErrorState();
+      announceBtn.classList.toggle("active", announcementsOn);
+      const announceBase = announcementsOn ? "Announcements on" : "Announcements off";
+      announceBtn.title = audioError ? `${announceBase} (audio error)` : announceBase;
+      announceBtn.setAttribute("aria-label", announceBtn.title);
+      announceBtn.classList.toggle("error", audioError);
+      if (!isSettingsOpen()) syncVoiceSettingsFormFromState();
+    }
+
+    function notificationSnapshot(snapshot) {
+      const data = snapshot && typeof snapshot === "object" ? snapshot : {};
+      const settings = data.notifications && typeof data.notifications === "object" ? data.notifications : {};
+      return {
+        vapid_public_key: String(settings.vapid_public_key || data.vapid_public_key || ""),
+        subscriptions: Array.isArray(data.subscriptions) ? data.subscriptions : [],
+      };
+    }
+
+    async function refreshBackgroundState({ force = false, primeNotifications = false } = {}) {
+      const announcementsEnabled = voiceAnnouncementsEnabled();
+      const notificationsEnabled = notificationRuntime.enabledLocally();
+      if (!force && !announcementsEnabled && !notificationsEnabled) return false;
+
+      // `/api/settings/voice` includes the subscription snapshot. A single
+      // request refreshes both state authorities when a tab becomes visible.
+      const snapshot = await loadVoiceSettings();
+      await notificationRuntime.syncState(notificationSnapshot(snapshot));
+      if (notificationsEnabled) await notificationRuntime.pollFeed({ prime: primeNotifications });
+      return true;
+    }
+
+    async function loadVoiceSettings() {
+      let data;
+      try {
+        data = await api("/api/settings/voice");
+      } catch (error) {
+        if (localAnnouncementEnabled && error && [401, 403, 404, 409].includes(error.status)) setAnnouncementEnabled(false);
+        throw error;
+      }
+      if (isAppDisposed()) return data;
+      if (!data || typeof data !== "object") throw new Error("invalid voice settings response");
+      voiceSettings = {
+        ...voiceSettings,
+        ...data,
+        audio: data && typeof data.audio === "object" && data.audio ? data.audio : voiceSettings.audio,
+        notifications: data && typeof data.notifications === "object" && data.notifications ? data.notifications : voiceSettings.notifications,
+      };
+      if (liveAudioStarted && liveAudioSourceUrl !== currentVoiceStreamUrl()) {
+        void ensureLiveAudioPlaybackSource(currentVoiceStreamUrl(), { resetSource: true }).catch((e) => {
+          console.error("reload live audio source failed", e);
+        });
+      }
+      updateVoiceUi();
+      // The server keeps active listeners only in memory. Reassert the
+      // persisted browser opt-in whenever a fresh settings snapshot arrives:
+      // this reconnects a tab after a server restart even when the page itself
+      // never received a visibility/focus event.
+      if (localAnnouncementEnabled) resumeAnnouncementRuntime({ resetSource: false });
+      return data;
+    }
+
+    async function saveVoiceSettings() {
+      const clearApiKey = !!(voiceClearApiKeyToggle && voiceClearApiKeyToggle.checked);
+      const payload = {
+        tts_enabled_for_narration: !!narrationSettingToggle.checked,
+        tts_enabled_for_final_response: true,
+        tts_base_url: String(voiceBaseUrlInput.value || voiceSettings.tts_base_url || "").trim(),
+        tts_api_key: clearApiKey ? "" : String(voiceApiKeyInput.value || "").trim(),
+        tts_api_key_clear: clearApiKey,
+      };
+      const data = await api("/api/settings/voice", { method: "POST", body: payload });
+      if (!data || typeof data !== "object") throw new Error("invalid voice settings response");
+      voiceSettings = {
+        ...voiceSettings,
+        ...data,
+        audio: data && typeof data.audio === "object" && data.audio ? data.audio : voiceSettings.audio,
+        notifications: data && typeof data.notifications === "object" && data.notifications ? data.notifications : voiceSettings.notifications,
+      };
+      updateVoiceUi();
+      return data;
+    }
+
+    async function startLiveAudioPlayback({ resetSource = false } = {}) {
+      if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) {
+        throw new Error("this browser does not support HLS audio playback in this app");
+      }
+      if (!liveAudioHasReadySegments()) {
+        throw new Error("no live audio segments are available yet; wait for the first announcement and try again");
+      }
+      const nextSrc = currentVoiceStreamUrl();
+      const epoch = liveAudioEpoch + (resetSource ? 1 : 0);
+      await ensureLiveAudioPlaybackSource(nextSrc, { resetSource });
+      if (!localAnnouncementEnabled || isAppDisposed() || liveAudioEpoch !== epoch) return;
+      await liveAudio.play();
+      if (!localAnnouncementEnabled || isAppDisposed() || liveAudioEpoch !== epoch) {
+        liveAudio.pause();
+        return;
+      }
+      liveAudioStarted = true;
+      liveAudioErrorState = false;
+      markLiveAudioProgress();
+      updateVoiceUi();
+    }
+
+    function describeLiveAudioStartError(error) {
+      const message = error && error.message ? String(error.message) : "";
+      if (/unsupported/i.test(message)) {
+        if (!browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) {
+          return "this browser does not support HLS audio playback in this app";
+        }
+        if (!liveAudioHasReadySegments()) {
+          return "no live audio segments are available yet; wait for the first announcement and try again";
+        }
+      }
+      return message || "unknown error";
+    }
+
+    // Called by the Settings dialog when it becomes visible: seed the form
+    // from the last snapshot and fetch the unattended prompt.
+    function activateSettingsSection() {
+      settingsOpen = true;
+      const epoch = ++settingsEpoch;
+      updateVoiceUi();
+      syncVoiceSettingsFormFromState();
+      const promptBeforeLoad = unattendedPromptInput ? unattendedPromptInput.value : "";
+      void loadUnattendedPrompt().then(() => {
+        if (isSettingsOpen() && settingsEpoch === epoch && unattendedPromptInput && unattendedPromptInput.value === promptBeforeLoad)
+          unattendedPromptInput.value = String(unattendedPrompt.prompt || unattendedPrompt.default_prompt || "");
+      }).catch((e) => {
+        if (!isSettingsOpen() || settingsEpoch !== epoch) return;
+        console.error("load unattended prompt failed", e);
+        voiceSettingsStatus.textContent = `unattended prompt error: ${e && e.message ? e.message : "unknown error"}`;
+      });
+    }
+
+    // Called by the Settings dialog when it hides: unsaved edits are dropped
+    // and the next activation re-seeds the form from state.
+    function deactivateSettingsSection() {
+      settingsEpoch++;
+      voiceApiKeyInput.value = "";
+      voiceClearApiKeyToggle.checked = false;
+      voiceSettingsStatus.textContent = "";
+      settingsOpen = false;
+    }
+
+    // --- Event handler wiring (owned by this controller) ---
+
+    announceBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const next = !voiceAnnouncementsEnabled();
+      if (next && !hasAnnouncementCredentials()) {
+        openSettings();
+        voiceSettingsStatus.textContent = "Set the OpenAI-compatible API base URL and API key before enabling announcements.";
+        return;
+      }
+      if (next && !browserSupportsLiveAudioPlayback(liveAudio, windowTarget)) {
+        setToast("This browser cannot play AAC announcements. Use a browser with AAC playback support.");
+        return;
+      }
+      setAnnouncementEnabled(next);
+      if (!next) return;
+      try {
+        await maybeAutoStartLiveAudioFromGesture({ resetSource: true });
+      } catch (err) {
+        console.error("announceBtn auto-start failed", err);
+        setToast(`audio start error: ${describeLiveAudioStartError(err)}`);
+      }
+    };
+    eventBindings.on(liveAudio, "error", () => {
+      liveAudioStarted = false;
+      liveAudioErrorState = true;
+      liveAudioSuspectSinceTs = 0;
+      updateVoiceUi();
+      scheduleLiveAudioRetry(1200, { resetSource: true });
+    });
+    eventBindings.on(liveAudio, "playing", () => {
+      liveAudioStarted = true;
+      liveAudioErrorState = false;
+      markLiveAudioProgress();
+      updateVoiceUi();
+    });
+    eventBindings.on(liveAudio, "timeupdate", () => {
+      markLiveAudioProgress();
+    });
+    eventBindings.on(liveAudio, "waiting", () => {
+      noteLiveAudioPotentialStall("waiting");
+      runLiveAudioWatchdog();
+    });
+    eventBindings.on(liveAudio, "stalled", () => {
+      noteLiveAudioPotentialStall("stalled");
+      runLiveAudioWatchdog();
+    });
+    eventBindings.on(liveAudio, "suspend", () => {
+      noteLiveAudioPotentialStall("suspend");
+      runLiveAudioWatchdog();
+    });
+    eventBindings.on(liveAudio, "ended", () => {
+      liveAudioStarted = false;
+      liveAudioSuspectSinceTs = 0;
+      updateVoiceUi();
+      scheduleLiveAudioRetry(500, { resetSource: true });
+    });
+    eventBindings.on(liveAudio, "pause", () => {
+      liveAudioStarted = false;
+      liveAudioSuspectSinceTs = 0;
+      updateVoiceUi();
+    });
+    if (unattendedPromptResetBtn) {
+      unattendedPromptResetBtn.onclick = () => {
+        if (unattendedPromptInput) unattendedPromptInput.value = unattendedPrompt.default_prompt;
+      };
+    }
+    voiceSettingsCancelBtn.onclick = () => closeSettings();
+    // The controller owns the browser's voice runtime. Restoring a visible tab
+    // reasserts the listener and restarts a paused announcement stream even if
+    // the session/SSE layer has not yet selected or refreshed a conversation.
+    eventBindings.on(documentTarget, "visibilitychange", () => {
+      if (isAppDisposed() || documentTarget.visibilityState !== "visible") return;
+      resumeAnnouncementRuntime({ resetSource: false });
+    });
+    voiceSettingsSaveBtn.onclick = async () => {
+      const epoch = settingsEpoch;
+      const prompt = unattendedPromptInput && unattendedPromptInput.value;
+      voiceSettingsSaveBtn.disabled = true;
+      try {
+        voiceSettingsStatus.textContent = "Saving...";
+        await saveVoiceSettings();
+        await saveUnattendedPrompt(prompt);
+        await notificationRuntime.syncState(notificationSnapshot(voiceSettings));
+        if (isSettingsOpen() && epoch === settingsEpoch) {
+          voiceSettingsStatus.textContent = "";
+          closeSettings();
+        }
+      } catch (e) {
+        console.error("save voice settings failed", e);
+        if (isSettingsOpen() && epoch === settingsEpoch)
+          voiceSettingsStatus.textContent = `save error: ${e && e.message ? e.message : "unknown error"}`;
+      } finally {
+        voiceSettingsSaveBtn.disabled = false;
+      }
+    };
+
+    function dispose() {
+      if (liveAudioRetryTimer) clearTimeoutFn(liveAudioRetryTimer);
+      liveAudioRetryTimer = null;
+      stopAnnouncementHeartbeat();
+      stopLiveAudioWatchdog();
+      resetLiveAudioState();
+      notificationRuntime.dispose();
+      settingsOpen = false;
+      announceBtn.onclick = null;
+      if (unattendedPromptResetBtn) unattendedPromptResetBtn.onclick = null;
+      voiceSettingsCancelBtn.onclick = null;
+      voiceSettingsSaveBtn.onclick = null;
+      liveAudioErrorState = false;
+    }
+
+    // A browser opt-in survives reloads in local storage while the server's
+    // listener registry does not. Register before initial session selection,
+    // so an active/new/resumed session cannot finish during that bootstrap gap.
+    if (localAnnouncementEnabled) resumeAnnouncementRuntime({ resetSource: false });
+
+    return Object.freeze({
+      voiceAnnouncementsEnabled,
+      isSettingsOpen,
+      loadVoiceSettings,
+      refreshBackgroundState,
+      resumeAnnouncementRuntime,
+      activateSettingsSection,
+      deactivateSettingsSection,
+      updateVoiceUi,
+      dispose,
+    });
+  }
+
+export { createVoiceDom, createVoiceController };
