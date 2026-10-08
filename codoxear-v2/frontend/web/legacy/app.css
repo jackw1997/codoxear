@@ -3665,7 +3665,7 @@ select {
         padding: 0 var(--space-5);
         border-color: var(--hairline);
         font-family: var(--font-ui);
-        font-size: var(--font-lg);
+        font-size: var(--font-lg) !important;
       }
       .agentSettingsActions {
         display: flex;
