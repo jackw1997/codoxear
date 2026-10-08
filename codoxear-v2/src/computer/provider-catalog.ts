@@ -240,11 +240,19 @@ export async function resolveCatalogLaunch(
   );
   const catalogue = await providerCatalog(home, request, fetcher);
   let id = launch.model;
-  if (launch.model_provider && id?.startsWith(launch.model_provider + "/"))
-    id = id.slice(launch.model_provider.length + 1);
-  if (id?.startsWith("codoxear_private/"))
-    id = id.slice("codoxear_private/".length);
-  const model = catalogue.models.find((x) => x.id === id);
+  let model = catalogue.models.find((x) => x.id === id);
+  if (!model) {
+    const candidates = [
+      ...(launch.model_provider && id?.startsWith(launch.model_provider + "/")
+        ? [id.slice(launch.model_provider.length + 1)]
+        : []),
+      ...(id?.startsWith("codoxear_private/")
+        ? [id.slice("codoxear_private/".length)]
+        : []),
+    ];
+    model = catalogue.models.find((x) => candidates.includes(x.id));
+    if (model) id = model.id;
+  }
   if (!model)
     throw new Error("Selected model is no longer visible to this provider key");
   const effort = launch.reasoning_effort;
@@ -252,7 +260,9 @@ export async function resolveCatalogLaunch(
   if (
     effort &&
     ((model.supports_reasoning === false && effort !== "off") ||
-      (declared !== null && !declared.includes(effort)))
+      (declared !== null &&
+        !declared.includes(effort) &&
+        !(effort === "off" && declared.includes("none"))))
   )
     throw new Error(
       "Requested effort is not advertised for this provider model",
@@ -294,9 +304,15 @@ export async function resolveCatalogLaunch(
       declared?.includes(level) || (declared === null && effort === level)
         ? level
         : null;
-  if (backend === "pi" && effort === "none") map.off = "none";
-  if (backend === "pi" && effort === "off" && declared?.includes("off"))
-    map.off = "off";
+  if (backend === "pi") {
+    if (declared !== null)
+      map.off = declared.includes("none")
+        ? "none"
+        : declared.includes("off")
+          ? "off"
+          : null;
+    else if (effort === "none") map.off = "none";
+  }
   return {
     launch: {
       ...launch,

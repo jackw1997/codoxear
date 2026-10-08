@@ -222,7 +222,7 @@ test('Named discovered Pi models use isolated revalidated definitions and retain
  assert.equal(profile.env.CODOXEAR_PROVIDER_API_KEY,'configured-secret');
  const generated=JSON.parse(await readFile(join(profile.env.OAR_PI_AGENT_DIR!,'models.json'),'utf8'));
  assert.equal(generated.providers.codoxear_private.models[0].reasoning,true);
- assert.deepEqual(generated.providers.codoxear_private.models[0].thinkingLevelMap,{minimal:null,low:'low',medium:null,high:'high',xhigh:null,max:'max'});
+ assert.deepEqual(generated.providers.codoxear_private.models[0].thinkingLevelMap,{minimal:null,low:'low',medium:null,high:'high',xhigh:null,max:'max',off:null});
  assert.deepEqual(JSON.parse(await readFile(join(native,'models.json'),'utf8')),local);
  assert.equal((await prepareProfile({...input,profile:profile.profile})).model,'codoxear_private/remote');
  await assert.rejects(prepareProfile({...input,effort:'medium'}),/not advertised/);

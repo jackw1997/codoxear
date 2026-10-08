@@ -187,6 +187,7 @@ test("Discovered launches revalidate visibility and levels, resolve local creden
   assert.equal(resolved.launch.provider_config?.api_key, "private-secret");
   assert.equal(resolved.catalogModel?.reasoning, true);
   assert.deepEqual(resolved.catalogModel?.thinkingLevelMap, {
+    off: "none",
     minimal: null,
     low: "low",
     medium: null,
@@ -220,15 +221,13 @@ test("Discovered launches revalidate visibility and levels, resolve local creden
     ),
     /no longer visible/,
   );
-  await assert.rejects(
-    resolveCatalogLaunch(
-      "/unused",
-      "pi",
-      { ...launch, reasoning_effort: "off" },
-      fetcher,
-    ),
-    /not advertised/,
+  const laterOff = await resolveCatalogLaunch(
+    "/unused",
+    "pi",
+    { ...launch, reasoning_effort: "off" },
+    fetcher,
   );
+  assert.equal(laterOff.catalogModel?.thinkingLevelMap.off, "none");
 });
 
 test("Installed Pi SDK emits exact discovered none/max/xhigh wire efforts through explicit maps", async () => {
@@ -359,4 +358,107 @@ test("Unknown provider metadata permits explicit unverified Pi requests without 
     ),
     /not advertised/,
   );
+});
+
+test("Discovered launch preserves exact provider-prefixed IDs before internal qualification fallback", async (t) => {
+  const { resolveCatalogLaunch } =
+    await import("../src/computer/provider-catalog.js");
+  const home = await mkdtemp(join(tmpdir(), "catalogue-identity-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  await mkdir(join(home, ".pi", "agent"), { recursive: true });
+  await writeFile(
+    join(home, ".pi", "agent", "models.json"),
+    JSON.stringify({
+      providers: {
+        gateway: { baseUrl: input.base_url, apiKey: input.api_key },
+      },
+    }),
+  );
+  const ids = [
+    "gateway/private-route",
+    "private-route",
+    "codoxear_private/literal",
+    "literal",
+  ];
+  const fetcher = (async (url: any) =>
+    new Response(
+      JSON.stringify({
+        data: url.pathname.endsWith("/models")
+          ? ids.map((id) => ({ id }))
+          : ids.map((id) => ({
+              model_group: id,
+              supports_reasoning: true,
+              supported_reasoning_efforts: ["high"],
+            })),
+      }),
+    )) as typeof fetch;
+  const launch = {
+    provider_catalog: true as const,
+    model_provider: "gateway",
+    reasoning_effort: "high",
+  };
+  for (const [requested, expected] of [
+    ["gateway/private-route", "gateway/private-route"],
+    ["gateway/gateway/private-route", "gateway/private-route"],
+    ["codoxear_private/literal", "codoxear_private/literal"],
+    ["codoxear_private/private-route", "private-route"],
+  ] as const) {
+    const result = await resolveCatalogLaunch(
+      home,
+      "pi",
+      { ...launch, model: requested },
+      fetcher,
+    );
+    assert.equal(result.launch.model, expected);
+  }
+});
+
+test("Known provider lists govern the installed SDK Off choice throughout later effort changes", async () => {
+  const { resolveCatalogLaunch } =
+    await import("../src/computer/provider-catalog.js");
+  const { computerPackagePaths } =
+    await import("../src/computer/package-paths.js");
+  const { pathToFileURL } = await import("node:url");
+  const sdk = await import(
+    pathToFileURL(
+      join(
+        computerPackagePaths().root,
+        "runtime/oar/node_modules/@earendil-works/pi-ai/dist/models.js",
+      ),
+    ).href
+  );
+  const launch = {
+    provider_catalog: true as const,
+    model: "remote",
+    reasoning_effort: "high",
+    provider_config: { base_url: input.base_url, api_key: input.api_key },
+  };
+  for (const levels of [
+    ["low", "high"],
+    ["none", "low", "high"],
+  ]) {
+    const fetcher = (async (url: any) =>
+      new Response(
+        JSON.stringify({
+          data: url.pathname.endsWith("/models")
+            ? [{ id: "remote" }]
+            : [
+                {
+                  model_group: "remote",
+                  supports_reasoning: true,
+                  supported_reasoning_efforts: levels,
+                },
+              ],
+        }),
+      )) as typeof fetch;
+    const result = await resolveCatalogLaunch("/unused", "pi", launch, fetcher);
+    assert.equal(
+      sdk.getSupportedThinkingLevels(result.catalogModel).includes("off"),
+      levels.includes("none"),
+    );
+    assert.equal(
+      result.catalogModel?.thinkingLevelMap.off,
+      levels.includes("none") ? "none" : null,
+    );
+  }
 });
