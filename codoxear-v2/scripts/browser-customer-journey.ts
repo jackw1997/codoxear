@@ -388,6 +388,7 @@ async function dailyAttempt(label, action) {
       if (await ownerPage.locator('#' + id).isVisible().catch(() => false)) await ownerPage.locator('#' + id).click();
     }
     if (await ownerPage.locator('#fileUnsavedDiscardBtn').isVisible().catch(() => false)) await ownerPage.locator('#fileUnsavedDiscardBtn').click();
+    await ownerPage.setViewportSize({ width: 1440, height: 1000 });
     return false;
   }
 }
@@ -564,7 +565,13 @@ async function dailyCustomer(workspaceA) {
     await ownerPage.waitForFunction(() => document.querySelector('#diagCurrentModel')?.textContent === 'journey-model' && document.querySelector('#diagCurrentEffort')?.textContent === 'max');
     await shot(ownerPage, 'details-model-effort-saved');
     await ownerPage.locator('#diagCloseBtn').click();
-    await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor(); await card(ownerPage, 'Owner agent A').click();
+    await ownerPage.reload(); await card(ownerPage, 'Owner agent A').waitFor();
+    await ownerPage.locator('#threadTitle').filter({ hasText: 'Owner agent A' }).waitFor();
+    await ownerPage.locator('.msg.assistant:not(.typing)').filter({ hasText: 'Managed response: Owner UI message' }).first().waitFor();
+    await ownerPage.getByRole('button', { name: 'Toggle sidebar', exact: true }).click();
+    await ownerPage.waitForFunction(() => document.body.classList.contains('sidebar-open'));
+    await card(ownerPage, 'Owner agent A').click();
+    await ownerPage.waitForFunction(() => !document.body.classList.contains('sidebar-open'));
     await ownerPage.getByRole('button', { name: 'Details', exact: true }).click();
     await details.getByRole('button', { name: 'Change reasoning effort', exact: true }).click();
     await model.locator('option[value="journey-model"]:checked').waitFor({ state: 'attached' });

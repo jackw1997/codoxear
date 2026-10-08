@@ -97,6 +97,7 @@ import { createAgentSettingsEditor } from "../shared/agent-settings.js";
       onSaved: async (sid) => {
         const current = epoch;
         await refreshSessions();
+        if (epoch !== current || sessionState.get("selected") !== sid || !isModalTargetOpen(diagViewer)) return;
         const d = await api(`/api/sessions/${encodeURIComponent(sid)}/diagnostics`);
         if (epoch !== current || sessionState.get("selected") !== sid || !isModalTargetOpen(diagViewer)) return;
         detailsBody.replaceChildren();

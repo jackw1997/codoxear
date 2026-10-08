@@ -185,11 +185,13 @@ export function createAgentSettingsEditor(options: {
       populate();
       editing = false;
       status.textContent = "Agent settings saved.";
+      pending = false;
+      updateAvailability();
       // Settings are already confirmed; a secondary catalog refresh cannot
-      // turn a successful save into an uncertain write.
-      try { await options.onSaved(id); } catch {
-        if (active(id, epoch)) status.textContent = "Agent settings saved. Reopen Details to refresh session information.";
-      }
+      // delay completion or turn a successful save into an uncertain write.
+      void options.onSaved(id).catch(() => {
+        if (active(id, epoch) && !pending && !editing) status.textContent = "Agent settings saved. Reopen Details to refresh session information.";
+      });
     } catch (cause) {
       if (!active(id, epoch) || controller.signal.aborted) return;
       // A network error after dispatch cannot establish whether the write committed.
