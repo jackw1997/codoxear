@@ -569,3 +569,32 @@ including `web-colors.json`, before/after screenshots, native UI drivers and log
   and owner acceptance. First login after upgrading an older build needs the
   password once; subsequent app opens restore it. No production server changes
   or AI inference were made.
+
+## 2026-11-20: custom CSS typography
+
+Fixed absolute (`px`) and percentage message line-height conversion. The final
+cascaded font size is resolved before converting pixels to the native multiplier,
+including custom properties and different user/assistant font sizes. Existing
+Markdown blocks now read live typography inside the ArkUI builder instead of
+capturing their initial font size and line height.
+
+Validation:
+
+- Docker model regression passes declaration order, CSS variables, percentages,
+  and per-role font size differences. The new pixel test failed before the fix.
+- SDK `assembleHap` passes; installed only on dedicated emulator
+  `127.0.0.1:15558`. No physical-phone update or production-server change.
+- Actual three-line native text bounds change from 189 pixels at 18px leading to
+  378 pixels at 36px leading. Reversed declaration order and 200% leading both
+  measure 378 pixels, without reopening the conversation.
+- Chromium reports 54 and 108 CSS-pixel heights for the same three lines. Native
+  bounds match those values at the emulator's 3.5 display scale. This verifies
+  the tested typography geometry, not full-screen or full-feature parity.
+- Before the live-update fix, all four native measurements stayed at 270 pixels;
+  parser-only tests did not catch this UI failure. The native regression now
+  guards it. Original custom CSS and preview connection are restored afterward.
+
+Reproduce with `tests/fixture_css_leading.py` inside a disposable Docker home,
+select its synthetic session, then run `tests/native_css_leading.py <evidence-dir>`
+with `CODOXEAR_HDC_TARGET=127.0.0.1:15558`. The fixture never calls an actual model
+and the UI test never sends prompts. Full parity still requires the open matrix.

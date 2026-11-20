@@ -95,10 +95,12 @@ export struct MarkdownView {
     });
     return output;
   }
+  // Read live typography inside the builder; primitive default arguments
+  // otherwise capture the original values when an existing block is reused.
   @Builder
-  inline(parts: InlinePart[], size: number = 16, bold: boolean = false, align: string = 'left', leading: number = this.lineHeight) {
-    NativeInline({ parts: this.renderedParts(parts), colors: this.colors, textSize: size, bold: bold,
-      lineHeight: leading, alignment: align, hintScope: this.hintScope, hintClip: this.hintClip,
+  inline(parts: InlinePart[], size: number = -1, bold: boolean = false, align: string = 'left', leading: number = -1) {
+    NativeInline({ parts: this.renderedParts(parts), colors: this.colors, textSize: size === -1 ? this.fontSize : size, bold: bold,
+      lineHeight: leading === -1 ? this.lineHeight : leading, alignment: align, hintScope: this.hintScope, hintClip: this.hintClip,
       onLink: this.onLink, onTap: this.onTap })
   }
   @Builder
@@ -131,7 +133,7 @@ export struct MarkdownView {
           })
         }.border({ width: 1, color: this.colors.border }).borderRadius(this.colors.cardRadius).clip(true)
       }.scrollable(ScrollDirection.Horizontal).align(Alignment.Start).width('100%')
-    } else { this.inline(item.parts, this.fontSize) }
+    } else { this.inline(item.parts) }
   }
   build() {
     Column() {

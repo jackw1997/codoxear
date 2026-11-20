@@ -62,7 +62,13 @@ function componentProperty(style, name, value) {
   if(name in colorProps) { const result=color(value); if(!result)return false;style[colorProps[name]]=result;return true; }
   const sizeProps={'font-size':'fontSize','border-radius':'radius','border-width':'borderWidth','padding-top':'paddingTop','padding-right':'paddingRight','padding-bottom':'paddingBottom','padding-left':'paddingLeft','max-width':'maxWidth'};
   if(name in sizeProps) { const result=dimension(value);if(result===null)return false;style[sizeProps[name]]=result;return true; }
-  if(name==='line-height' && /^\d+(?:\.\d+)?$/.test(value) && Number(value)>0) {style.lineHeight=Number(value);return true;}
+  if(name==='line-height') {
+    if(/^\d+(?:\.\d+)?$/.test(value) && Number(value)>=0) {style.lineHeight=Number(value);return true;}
+    if(/^\d+(?:\.\d+)?%$/.test(value)) {style.lineHeight=parseFloat(value)/100;return true;}
+    const pixels=dimension(value);
+    if(pixels!==null && style.fontSize>0) {style.lineHeight=pixels/style.fontSize;return true;}
+    return false;
+  }
   if(name==='padding') {
     const parts=value.split(/\s+/).map(dimension);if(parts.length>4||parts.some(v=>v===null))return false;
     [style.paddingTop,style.paddingRight,style.paddingBottom,style.paddingLeft]=[parts[0],parts[1]??parts[0],parts[2]??parts[0],parts[3]??parts[1]??parts[0]];return true;
@@ -161,7 +167,10 @@ export function nativeCss(source, baseJson, variablesJson, width) {
     for(const [key,entries] of Object.entries(componentWinners)) {
       const context={...variables};
       entries.forEach((entry,property)=>{if(property.startsWith('--'))context[property.slice(2)]=entry.value;});
-      entries.forEach((entry,property)=>{
+      // ArkUI's Markdown renderer takes a multiplier, so resolve absolute
+      // leading against the final font size, regardless of declaration order.
+      const ordered=[...entries].sort(([a],[b])=>(a==='line-height'?1:0)-(b==='line-height'?1:0));
+      ordered.forEach(([property,entry])=>{
         if(property.startsWith('--'))return;
         let value=resolve(entry.value,new Set(),context);
         if(entry.paddingPart!==undefined) {

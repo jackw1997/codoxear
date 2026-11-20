@@ -297,6 +297,20 @@ async function main() {
   assert.equal(style('.msg.user { background:red; } .msg { background-color:blue; }').components.user.background,'red');
   assert.equal(style(':root[data-mode="dark"] .msg.assistant { color:#123; }',true).components.assistant.color,'#112233');
   assert.equal(style('.msg.user { --own:#123; color:var(--own); }').components.user.color,'#112233');
+  for (const css of [
+    '.msg { line-height:36px; font-size:18px; }',
+    '.msg { font-size:18px; line-height:36px; }',
+    '.msg { --leading:36px; line-height:var(--leading); font-size:18px; }',
+    '.msg { line-height:200%; font-size:18px; }'
+  ]) {
+    const result=style(css);
+    assert.equal(result.warnings.length,0,css);
+    assert.equal(result.components.user.lineHeight,2,css);
+    assert.equal(result.components.assistant.lineHeight,2,css);
+  }
+  const perRoleLeading=style('.msg { line-height:36px; } .msg.user { font-size:18px; } .msg.assistant { font-size:12px; }');
+  assert.equal(perRoleLeading.components.user.lineHeight,2);
+  assert.equal(perRoleLeading.components.assistant.lineHeight,3);
 
   assert.ok(style('@media print { :root { --accent:red; } }').warnings.length);
   const {fileLink,fileLocation}=load(path.join(root,'model/FileLinks.ets'));
